@@ -1,0 +1,29 @@
+{
+  "name": "@weibo-sdk/plugins",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Common plugins for weibo crawler SDK",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@weibo-sdk/core": "workspace:*",
+    "typescript": ">=5.0.0"
+  },
+  "dependencies": {
+    "@weibo-sdk/core": "workspace:*",
+    "axios": "catalog:",
+    "winston": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:types",
+    "tsup": "catalog:",
+    "typescript": "catalog:cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
