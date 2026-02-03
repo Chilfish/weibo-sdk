@@ -1,4 +1,3 @@
-// src/services/internal/AuthService.ts
 import type { IWeiboConfig } from '../../types/config'
 
 export class AuthService {

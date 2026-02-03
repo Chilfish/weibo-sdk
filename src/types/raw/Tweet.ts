@@ -1,5 +1,5 @@
 // src/types/raw/Tweet.ts
-import type { IUserRawResponse } from './User'
+import type { IUserRawResponse } from './user/Details'
 
 export interface ITweetRawResponse {
   id: number

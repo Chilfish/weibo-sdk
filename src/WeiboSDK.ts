@@ -10,7 +10,7 @@ export class WeiboSDK {
     this.users = new UserService(config)
   }
 
-  private validateConfig(config: IWeiboConfig) {
+  private validateConfig(config: IWeiboConfig): void {
     if (!config.cookie) {
       throw new Error('Weibo SDK requires a valid cookie in configuration.')
     }

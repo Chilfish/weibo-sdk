@@ -1,46 +1,23 @@
-import type { IWeiboConfig } from '../../types/config'
-import type { IUser } from '../../types/domain/IUser'
-import type { IUserRawResponse } from '../../types/raw/User'
-// src/services/public/UserService.ts
+import type { IUserInfoResponse } from '~/types/raw/user/Info'
+import type { IUserDetailsResponse } from '../../types/raw/user/Details'
 import type { IRequestResource } from '../internal/FetcherService'
-import { UserNormalizer } from '../../utils/Normalizer'
-import { AuthService } from '../internal/AuthService'
 import { FetcherService } from '../internal/FetcherService'
-import { RateLimitService } from '../internal/RateLimitService'
 
-export class UserService {
-  private fetcher: FetcherService
-  private auth: AuthService
-  private rateLimit: RateLimitService
-
-  constructor(config: IWeiboConfig) {
-    this.fetcher = new FetcherService(config)
-    this.auth = new AuthService(config)
-    this.rateLimit = new RateLimitService(
-      config.maxConcurrent || 3,
-      typeof config.delay === 'number' ? config.delay : 1000,
-    )
-  }
-
+export class UserService extends FetcherService {
   /**
-   * 获取用户详情
+   * 获取用户信息
    * @param id 用户ID (uid)
    */
-  async details(id: string): Promise<IUser> {
-    // 速率控制
-    await this.rateLimit.acquire()
-
-    // 构建请求
+  async info(id: string): Promise<IUserInfoResponse> {
     const resource: IRequestResource = {
       method: 'GET',
-      url: 'https://weibo.com/ajax/profile/info',
-      headers: this.auth.getAuthHeaders(),
+      url: `https://weibo.com/ajax/profile/info`,
+      headers: {
+        referer: `https://weibo.com/u/${id}`,
+      }
     }
+    const raw = await this.fetch<IUserInfoResponse>(resource, { uid: id })
 
-    // 发送请求
-    const raw = await this.fetcher.fetch<IUserRawResponse>(resource, { uid: id })
-
-    // 转换为领域模型
-    return UserNormalizer.normalize(raw)
+    return raw
   }
 }
