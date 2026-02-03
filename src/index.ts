@@ -1,10 +1,6 @@
-import type { UserConfig } from './types/core'
+// src/index.ts
+export const VERSION = '0.1.0'
+console.log('Weibo SDK initialized')
 
-export * from './core/context'
-export * from './core/crawler'
-export * from './types/core'
-export * from './types/model'
-
-export function defineConfig(config: UserConfig): UserConfig {
-  return config
-}
+export * from './types'
+export * from './WeiboSDK'

@@ -9,5 +9,4 @@ lib-cov
 logs
 node_modules
 temp
-data/
 .env
