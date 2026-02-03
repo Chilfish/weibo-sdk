@@ -4,12 +4,12 @@ export interface IUserInfoResponse {
 }
 
 interface Data {
-  user: UserInfo
+  user: IRawUserInfo
   tabList: TabList[]
   blockText: string
 }
 
-interface UserInfo {
+export interface IRawUserInfo {
   id: number
   idstr: string
   pc_new: number

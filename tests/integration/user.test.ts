@@ -1,11 +1,19 @@
-import { UserNormalizer } from '~/utils/Normalizer'
+import { dataPath, rawPath, userId, writeJson } from 'tests/utils'
 import { WeiboSDK } from '~/WeiboSDK'
 
 const weibo = new WeiboSDK({
   cookie: process.env.WEIBO_COOKIE || '',
 })
 
-const rawUser = await weibo.users.info('3478353331')
-const user = UserNormalizer.normalize(rawUser)
+weibo.users.onFetched = async (resource, data) => {
+  await writeJson(data, `${rawPath}/${resource}.json`)
+}
 
-console.log(user, rawUser)
+// const rawDetail = await weibo.users.details(userId)
+// const rawUser = await weibo.users.info(userId)
+
+// const user = new User(rawUser.data.user, rawDetail.data)
+
+const user = await weibo.users.getById(userId)
+
+await writeJson(user, `${dataPath}/user.json`)

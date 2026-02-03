@@ -1,31 +1,35 @@
 export interface IUserDetailsResponse {
-  data: Data
+  data: IRawUserDetails
   ok: number
 }
 
-interface Data {
+export interface IRawUserDetails {
   sunshine_credit: SunshineCredit
-  birthday: string
+  education: {
+    school: string
+  }
+  real_name?: {
+    name: string
+    career: string
+  }
+  career?: Career
+  company?: string
+  birthday?: string
   created_at: string
   description: string
   gender: string
   ip_location: string
-  hometown: string
   real_name: RealName
   followers: Followers
   label_desc: LabelDesc[]
   desc_text: string
   verified_url: string
   friend_info: string
+  links: Link[]
 }
 
-interface SunshineCredit {
-  level: string
-}
-
-interface RealName {
-  name: string
-  career: string
+interface Career {
+  company: string
 }
 
 interface Followers {
@@ -41,17 +45,26 @@ interface User {
 
 interface LabelDesc {
   name: string
-  normal_mode: NormalMode
-  dark_mode: DarkMode
+  normal_mode: Mode
+  dark_mode: Mode
   scheme_url: string
 }
 
-interface NormalMode {
+interface Mode {
   word_color: string
   background_color: string
 }
 
-interface DarkMode {
-  word_color: string
-  background_color: string
+interface Link {
+  url: string
+  title: string
+}
+
+interface RealName {
+  name: string
+  career: string
+}
+
+interface SunshineCredit {
+  level: string
 }

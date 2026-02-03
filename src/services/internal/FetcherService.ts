@@ -1,5 +1,6 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IWeiboConfig } from '../../types/config'
+import type { IResource, IResourceType } from '~/types/resources'
 import axios from 'axios'
 import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
 import { AuthService } from './AuthService'
@@ -15,6 +16,7 @@ export class FetcherService {
   private client: AxiosInstance
   private authService: AuthService
   private rateLimitService: RateLimitService
+  public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => any = () => {}
 
   constructor(private config: IWeiboConfig) {
     this.client = axios.create({
@@ -58,7 +60,7 @@ export class FetcherService {
       'host': 'weibo.com',
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
       ...this.authService.getAuthHeaders(),
-      ...resource.headers
+      ...resource.headers,
     }
 
     const config: AxiosRequestConfig = {
