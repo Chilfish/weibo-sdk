@@ -8,10 +8,6 @@ export interface IRawUserDetails {
   education: {
     school: string
   }
-  real_name?: {
-    name: string
-    career: string
-  }
   career?: Career
   company?: string
   birthday?: string
@@ -19,7 +15,7 @@ export interface IRawUserDetails {
   description: string
   gender: string
   ip_location: string
-  real_name: RealName
+  real_name?: RealName
   followers: Followers
   label_desc: LabelDesc[]
   desc_text: string

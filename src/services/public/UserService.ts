@@ -1,5 +1,5 @@
-import type { IUserDetailsResponse } from '../../types/raw/user/Details'
 import type { IRequestResource } from '../internal/FetcherService'
+import type { IUserDetailsResponse } from '~/types/raw/user/Details'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import { User } from '~/models/data/User'
 import { FetcherService } from '../internal/FetcherService'
