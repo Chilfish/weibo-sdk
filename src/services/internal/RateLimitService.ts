@@ -1,4 +1,14 @@
 // src/services/internal/RateLimitService.ts
+export interface IRateLimitClock {
+  now: () => number
+  sleep: (ms: number) => Promise<void>
+}
+
+const defaultClock: IRateLimitClock = {
+  now: () => Date.now(),
+  sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+}
+
 export class RateLimitService {
   private tokens: number
   private lastRefill: number
@@ -6,9 +16,10 @@ export class RateLimitService {
   constructor(
     private maxTokens: number = 10,
     private refillRate: number = 1000, // ms per token
+    private clock: IRateLimitClock = defaultClock,
   ) {
     this.tokens = maxTokens
-    this.lastRefill = Date.now()
+    this.lastRefill = this.clock.now()
   }
 
   /**
@@ -24,12 +35,12 @@ export class RateLimitService {
 
     // 等待令牌生成
     const waitTime = this.refillRate
-    await new Promise(resolve => setTimeout(resolve, waitTime))
+    await this.clock.sleep(waitTime)
     return this.acquire()
   }
 
   private refill(): void {
-    const now = Date.now()
+    const now = this.clock.now()
     const elapsed = now - this.lastRefill
     const newTokens = Math.floor(elapsed / this.refillRate)
 

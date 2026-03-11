@@ -12,6 +12,6 @@ export abstract class WeiboSDKError extends Error {
     this.name = this.constructor.name
 
     // 确保原型链正确 (对于低版本环境很有必要)
-    Object.setPrototypeOf(this, WeiboSDKError.prototype)
+    Object.setPrototypeOf(this, new.target.prototype)
   }
 }
