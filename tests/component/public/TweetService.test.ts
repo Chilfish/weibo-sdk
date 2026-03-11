@@ -2,6 +2,7 @@ import type { IMyMBlogResponse } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
+import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { TweetService } from '~/services/public/TweetService'
 
 describe('tweetService', () => {
@@ -110,6 +111,17 @@ describe('tweetService', () => {
     expect(cfg?.params).toEqual({ id: 'QqsYymYOS', isGetLongText: true })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/detail/QqsYymYOS')
     expect(service.onFetched).toHaveBeenCalledWith('TWEET_SHOW', response)
+  })
+
+  it('show throws WeiboAPINotOkError when ok != 1', async () => {
+    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'bad id' }))
+
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.show('bad')).rejects.toBeInstanceOf(WeiboAPINotOkError)
   })
 
   it('getByMblogId returns normalized Tweet', async () => {

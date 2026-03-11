@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { WeiboSDK } from '~/WeiboSDK'
 
 const cookie = process.env.WEIBO_COOKIE
+const expiredCookie = process.env.WEIBO_COOKIE_EXPIRED
 const e2eEnabled = process.env.WEIBO_E2E === '1'
+
 const describeE2E = e2eEnabled && cookie ? describe : describe.skip
+const describeExpired = e2eEnabled && expiredCookie ? describe : describe.skip
 
 describeE2E('e2e:user', () => {
   it('fetches and normalizes a user by id', async () => {
@@ -11,11 +15,15 @@ describeE2E('e2e:user', () => {
 
     const weibo = new WeiboSDK({
       cookie: cookie!,
+      selfCheck: { mode: 'lazy' },
+      hooks: {
+        onFetched: async (resource, data, meta) => {
+          if (resource === 'USER_DETAILS' && !meta.args?.uid)
+            return
+          await writeJson(data, `${rawPath}/${resource}.json`)
+        },
+      },
     })
-
-    weibo.users.onFetched = async (resource, data) => {
-      await writeJson(data, `${rawPath}/${resource}.json`)
-    }
 
     const user = await weibo.users.getById(userId)
 
@@ -24,5 +32,15 @@ describeE2E('e2e:user', () => {
     expect(user.url).toMatch(/^https:\/\/weibo\.com/)
 
     await writeJson(user, `${dataPath}/user.json`)
+  })
+})
+
+describeExpired('e2e:session', () => {
+  it('selfCheck throws WeiboSessionExpiredError for expired cookie', async () => {
+    const weibo = new WeiboSDK({
+      cookie: expiredCookie!,
+    })
+
+    await expect(weibo.selfCheck()).rejects.toBeInstanceOf(WeiboSessionExpiredError)
   })
 })

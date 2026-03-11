@@ -3,6 +3,9 @@ import type { IWeiboConfig } from '~/types/config'
 import type { IMyMBlogResponse } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { Tweet } from '~/models/data/Tweet'
+import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
+import { getMessage, getOk, isRecord } from '~/utils/response'
 import { FetcherService } from '../internal/FetcherService'
 
 export interface TweetPageResult {
@@ -34,7 +37,7 @@ export class TweetService extends FetcherService {
       params.since_id = sinceId
 
     const data = await this.fetch<IMyMBlogResponse>(resource, params)
-    await this.onFetched('TWEET_MYMBLOG', data)
+    await this.emitFetched('TWEET_MYMBLOG', data, { endpoint: 'ajax/statuses/mymblog', request: resource, args: params })
     return data
   }
 
@@ -63,12 +66,54 @@ export class TweetService extends FetcherService {
       },
     }
 
-    const data = await this.fetch<IStatusShowResponse>(resource, {
+    const args = {
       id: mblogId,
       isGetLongText,
-    })
+    } satisfies Record<string, unknown>
 
-    await this.onFetched('TWEET_SHOW', data)
+    const raw = await this.fetch<unknown>(resource, args)
+
+    const ok = getOk(raw)
+    if (ok !== 1) {
+      const error = new WeiboAPINotOkError('Weibo API returned ok != 1 (statuses/show).', {
+        endpoint: 'ajax/statuses/show',
+        id: mblogId,
+        ok,
+        message: getMessage(raw),
+        raw,
+      })
+      await this.emitError(error, {
+        phase: 'response',
+        endpoint: 'ajax/statuses/show',
+        request: resource,
+        args,
+        ok,
+        message: getMessage(raw),
+        trace_id: this.newTraceId(),
+        timestamp: Date.now(),
+      })
+      throw error
+    }
+
+    if (!isRecord(raw) || typeof raw.mblogid !== 'string' || !isRecord(raw.user)) {
+      const error = new UnexpectedAPIResponseError('Weibo API response missing required fields (statuses/show).', {
+        endpoint: 'ajax/statuses/show',
+        id: mblogId,
+        raw,
+      })
+      await this.emitError(error, {
+        phase: 'parse',
+        endpoint: 'ajax/statuses/show',
+        request: resource,
+        args,
+        trace_id: this.newTraceId(),
+        timestamp: Date.now(),
+      })
+      throw error
+    }
+
+    const data = raw as IStatusShowResponse
+    await this.emitFetched('TWEET_SHOW', data, { endpoint: 'ajax/statuses/show', request: resource, args })
     return data
   }
 

@@ -29,7 +29,8 @@
 
 - [x] 解耦 axios：支持注入 `AxiosInstance/Auth/RateLimit`，默认使用 axios.create。
 - [x] 单测覆盖 request 注入/错误映射等核心路径。
-- [ ] 明确并实现 telemetry（Wide Events）接口，替代 `onFetched` 的弱类型回调。
+- [x] 引入 SDK hooks（`onLifecycle/onFetched/onError`）与 preflight 自检（lazy/eager），降低“用户忘记 selfCheck / cookie 过期读到 undefined”的概率。
+- [ ] 定义并实现 telemetry（Wide Events）接口，并逐步弃用 `service.onFetched` 的弱类型回调。
 
 ### 3.2 RateLimitService（时间/睡眠边界）
 

@@ -1,6 +1,6 @@
 import type { IRequestResource } from '~/services/internal/FetcherService'
 import { createFakeAxios } from 'tests/testkit/fakeAxios'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ConnectionTimeoutError, NetworkRequestError } from '~/models/errors/TransportError'
 import { FetcherService } from '~/services/internal/FetcherService'
 
@@ -42,6 +42,40 @@ describe('fetcherService', () => {
     expect(cfg?.headers?.Cookie).toContain('SUB=abc')
     expect(cfg?.headers?.['X-XSRF-TOKEN']).toBe('token_explicit')
     expect(cfg?.params).toEqual({ uid: '1' })
+  })
+
+  it('runs preflight before request and emits hook on failure', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const rateLimit = new NoopRateLimitService()
+
+    const onError = vi.fn()
+    const preflightError = new Error('preflight failed')
+
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', hooks: { onError } },
+      {
+        client,
+        rateLimitService: rateLimit as any,
+        preflight: async () => {
+          throw preflightError
+        },
+      },
+    )
+
+    const resource: IRequestResource = { method: 'GET', url: 'https://weibo.com/ajax/test' }
+    await expect(fetcher.get(resource, { uid: '1' })).rejects.toBe(preflightError)
+
+    expect(rateLimit.acquireCalls).toBe(0)
+    expect(getLastConfig()).toBeUndefined()
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith(preflightError, expect.objectContaining({
+      phase: 'preflight',
+      request: resource,
+      args: { uid: '1' },
+      trace_id: expect.any(String),
+      timestamp: expect.any(Number),
+    }))
   })
 
   it('maps timeout errors to ConnectionTimeoutError', async () => {

@@ -1,5 +1,6 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IWeiboConfig } from '../../types/config'
+import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import axios from 'axios'
 import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
@@ -12,10 +13,18 @@ export interface IRequestResource {
   headers?: Record<string, string>
 }
 
+let traceSeq = 0
+function createTraceId(): string {
+  traceSeq += 1
+  return `${Date.now()}-${traceSeq}`
+}
+
 export class FetcherService {
   private client: AxiosInstance
   private authService: AuthService
   private rateLimitService: RateLimitService
+  private hooks?: WeiboSDKHooks
+  private preflight?: () => Promise<void>
   public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => void | Promise<void> = async () => {}
 
   constructor(
@@ -24,6 +33,8 @@ export class FetcherService {
       client?: AxiosInstance
       authService?: AuthService
       rateLimitService?: RateLimitService
+      hooks?: WeiboSDKHooks
+      preflight?: () => Promise<void>
     },
   ) {
     this.client = deps?.client ?? axios.create({
@@ -40,6 +51,8 @@ export class FetcherService {
       config.maxConcurrent || 3,
       typeof config.delay === 'number' ? config.delay : 1000,
     )
+    this.hooks = deps?.hooks ?? config.hooks
+    this.preflight = deps?.preflight
 
     this.setupInterceptors()
   }
@@ -57,10 +70,35 @@ export class FetcherService {
     })
   }
 
+  protected newTraceId(): string {
+    return createTraceId()
+  }
+
   protected async fetch<T>(
     resource: IRequestResource,
     args?: Record<string, unknown>,
+    options?: {
+      skipPreflight?: boolean
+    },
   ): Promise<T> {
+    const traceId = createTraceId()
+
+    if (!options?.skipPreflight) {
+      try {
+        await this.preflight?.()
+      }
+      catch (error) {
+        await this.emitError(error, {
+          phase: 'preflight',
+          request: resource,
+          args,
+          trace_id: traceId,
+          timestamp: Date.now(),
+        })
+        throw error
+      }
+    }
+
     await this.rateLimitService.acquire()
     resource.headers = {
       'referer': 'https://weibo.com/',
@@ -83,21 +121,51 @@ export class FetcherService {
       return response.data
     }
     catch (error) {
-      this.handleError(error)
+      const mapped = this.mapError(error)
+      await this.emitError(mapped, {
+        phase: 'request',
+        request: resource,
+        args,
+        trace_id: traceId,
+        timestamp: Date.now(),
+      })
+      throw mapped
     }
   }
 
-  private handleError(error: unknown | Error): never {
+  protected async emitFetched<T extends IResourceType>(
+    resourceType: T,
+    data: IResource[T],
+    meta?: Omit<WeiboSDKFetchMeta, 'timestamp' | 'trace_id'>,
+  ): Promise<void> {
+    await this.onFetched(resourceType, data)
+    await this.hooks?.onFetched?.(resourceType, data, {
+      request: meta?.request,
+      args: meta?.args,
+      endpoint: meta?.endpoint,
+      trace_id: createTraceId(),
+      timestamp: Date.now(),
+    })
+  }
+
+  protected async emitError(
+    error: unknown,
+    meta: WeiboSDKErrorMeta,
+  ): Promise<void> {
+    await this.hooks?.onError?.(error, meta)
+  }
+
+  private mapError(error: unknown | Error): unknown {
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError
       if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
-        throw new ConnectionTimeoutError(axiosError.message, { code: axiosError.code })
+        return new ConnectionTimeoutError(axiosError.message, { code: axiosError.code })
       }
-      throw new NetworkRequestError(axiosError.message, {
+      return new NetworkRequestError(axiosError.message, {
         status: axiosError.response?.status,
         data: axiosError.response?.data,
       })
     }
-    throw error
+    return error
   }
 }

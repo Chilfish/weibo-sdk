@@ -15,5 +15,7 @@ export default defineConfig({
         inline: ['vitest-package-exports'],
       },
     },
+    globals: true,
+    setupFiles: ['dotenv/config'],
   },
 })
