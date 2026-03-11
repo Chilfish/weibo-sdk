@@ -1,48 +1,8 @@
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IUserDetailsResponse } from '~/types/raw/user/Details'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
+import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { UserService } from '~/services/public/UserService'
-
-function createFakeAxios(
-  handler: (config: AxiosRequestConfig) => Promise<unknown>,
-): { client: AxiosInstance, getLastConfig: () => AxiosRequestConfig | undefined } {
-  let interceptor: ((config: any) => any) | undefined
-  let lastConfig: AxiosRequestConfig | undefined
-
-  const client: AxiosInstance = {
-    interceptors: {
-      request: {
-        use(fn: any) {
-          interceptor = fn
-          return 0
-        },
-      },
-      response: {
-        use() {
-          return 0
-        },
-        eject() {},
-        clear() {},
-      } as any,
-    } as any,
-    async request(config: any) {
-      const finalConfig = interceptor ? interceptor(config) : config
-      lastConfig = finalConfig
-      const data = await handler(finalConfig)
-      return { data } as any
-    },
-  } as any
-
-  return { client, getLastConfig: () => lastConfig }
-}
-
-class NoopRateLimitService {
-  public acquireCalls = 0
-  async acquire(): Promise<void> {
-    this.acquireCalls += 1
-  }
-}
 
 describe('userService', () => {
   it('calls info endpoint with correct params and triggers onFetched', async () => {
@@ -58,7 +18,7 @@ describe('userService', () => {
 
     const service = new UserService(
       { cookie: 'SUB=abc; XSRF-TOKEN=token' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { client, rateLimitService: { acquire: vi.fn() } as any },
     )
 
     service.onFetched = vi.fn()
@@ -85,7 +45,7 @@ describe('userService', () => {
 
     const service = new UserService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { client, rateLimitService: { acquire: vi.fn() } as any },
     )
 
     service.onFetched = vi.fn()
@@ -155,7 +115,7 @@ describe('userService', () => {
 
     const service = new UserService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { client, rateLimitService: { acquire: vi.fn() } as any },
     )
 
     const user = await service.getById('111')
