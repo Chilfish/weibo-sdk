@@ -139,7 +139,7 @@ export class FetcherService {
 
   protected async request<
     TResource extends IResourceType,
-    TArgs extends Record<string, unknown> | undefined,
+    TArgs extends object | undefined,
   >(
     spec: EndpointSpec<TResource, TArgs>,
     args: TArgs,
@@ -148,8 +148,9 @@ export class FetcherService {
     },
   ): Promise<IResource[TResource]> {
     const request = spec.buildResource(args)
+    const argsRecord = (args ?? undefined) as unknown as Record<string, unknown> | undefined
 
-    const raw = await this.fetch<unknown>(request, args, options)
+    const raw = await this.fetch<unknown>(request, argsRecord, options)
 
     if (spec.okPolicy?.mode === 'require_ok_1') {
       const ok = getOk(raw) ?? 0
@@ -157,7 +158,7 @@ export class FetcherService {
       if (ok !== 1) {
         const error = spec.okPolicy.notOkError?.({
           endpoint: spec.endpoint,
-          args,
+          args: argsRecord,
           ok,
           message,
           raw,
@@ -165,7 +166,7 @@ export class FetcherService {
           endpoint: spec.endpoint,
           ok,
           message,
-          args,
+          args: argsRecord,
           raw,
         })
 
@@ -173,7 +174,7 @@ export class FetcherService {
           phase: 'response',
           endpoint: spec.endpoint,
           request,
-          args,
+          args: argsRecord,
           ok,
           message,
           trace_id: this.newTraceId(),
@@ -188,7 +189,7 @@ export class FetcherService {
     if (!parsed.success) {
       const error = new UnexpectedAPIResponseError(`Weibo API response failed schema validation (${spec.endpoint}).`, {
         endpoint: spec.endpoint,
-        args,
+        args: argsRecord,
         raw,
         zodIssues: parsed.error.issues,
       })
@@ -197,7 +198,7 @@ export class FetcherService {
         phase: 'parse',
         endpoint: spec.endpoint,
         request,
-        args,
+        args: argsRecord,
         trace_id: this.newTraceId(),
         timestamp: Date.now(),
       })
@@ -206,7 +207,7 @@ export class FetcherService {
     }
 
     const data = parsed.data
-    await this.emitFetched(spec.resourceType, data, { endpoint: spec.endpoint, request, args })
+    await this.emitFetched(spec.resourceType, data, { endpoint: spec.endpoint, request, args: argsRecord })
     return data
   }
 

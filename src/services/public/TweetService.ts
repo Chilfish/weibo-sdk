@@ -16,7 +16,7 @@ const MyMblogResponseSchema = z.object({
   since_id: z.number().optional(),
   list: z.array(z.unknown()).optional(),
   total: z.number().optional(),
-}).passthrough() as unknown as ZodType<IMyMBlogResponse>
+}).loose() as unknown as ZodType<IMyMBlogResponse>
 
 const IdSchema = z.union([z.string(), z.number()])
 
@@ -29,8 +29,8 @@ const StatusShowResponseSchema = z.object({
   user: z.object({
     id: IdSchema.optional(),
     idstr: z.string().optional(),
-  }).passthrough(),
-}).passthrough().superRefine((val, ctx) => {
+  }).loose(),
+}).loose().superRefine((val, ctx) => {
   if (val.id === undefined && !val.idstr) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

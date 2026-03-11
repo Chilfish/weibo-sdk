@@ -18,7 +18,7 @@ export type EndpointOkPolicy
 
 export interface EndpointSpec<
   TResource extends IResourceType,
-  TArgs extends Record<string, unknown> | undefined,
+  TArgs extends object | undefined,
 > {
   resourceType: TResource
   endpoint: string

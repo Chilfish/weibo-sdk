@@ -11,14 +11,14 @@ import { FetcherService } from '../internal/FetcherService'
 const UserInfoResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
-    user: z.object({}).passthrough(),
-  }).passthrough(),
-}).passthrough() as unknown as ZodType<IUserInfoResponse>
+    user: z.object({}).loose(),
+  }).loose(),
+}).loose() as unknown as ZodType<IUserInfoResponse>
 
 const UserDetailsResponseSchema = z.object({
   ok: z.number(),
-  data: z.object({}).passthrough(),
-}).passthrough() as unknown as ZodType<IUserDetailsResponse>
+  data: z.object({}).loose(),
+}).loose() as unknown as ZodType<IUserDetailsResponse>
 
 const userInfoSpec: EndpointSpec<'USER_INFO', { uid: string }> = {
   resourceType: 'USER_INFO',
