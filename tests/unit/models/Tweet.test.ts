@@ -74,4 +74,252 @@ describe('tweet model normalization (mymblog)', () => {
     const tweet = new Tweet(raw)
     expect(tweet.visible).toBe(TweetVisible.PUBLIC)
   })
+
+  it('extracts pageInfo', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '',
+      text_raw: '',
+      region_name: '',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      attitudes_count: 0,
+      comments_count: 0,
+      reposts_count: 0,
+      user: {
+        id: 2,
+        idstr: '2',
+        screen_name: 'u',
+        avatar_hd: '',
+        avatar_large: '',
+        profile_image_url: '',
+        verified: false,
+        verified_type: 0,
+      },
+      page_info: {
+        page_id: 'pid',
+        page_title: 'title',
+        page_url: 'https://example.com',
+        page_pic: 'https://img',
+        type: 42,
+        object_type: 'video',
+      },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.pageInfo).toEqual({
+      pageId: 'pid',
+      pageTitle: 'title',
+      pageUrl: 'https://example.com',
+      pagePic: 'https://img',
+      type: 42,
+      objectType: 'video',
+    })
+  })
+
+  it('extracts geo coordinates and address', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '',
+      text_raw: '',
+      region_name: '',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      attitudes_count: 0,
+      comments_count: 0,
+      reposts_count: 0,
+      user: {
+        id: 2,
+        idstr: '2',
+        screen_name: 'u',
+        avatar_hd: '',
+        avatar_large: '',
+        profile_image_url: '',
+        verified: false,
+        verified_type: 0,
+      },
+      geo: {
+        type: 'Point',
+        coordinates: [121.5, 31.2],
+      },
+      tag_struct: [
+        { otype: 'place', tag_name: '上海市' },
+      ],
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.geo).toEqual({ longitude: 121.5, latitude: 31.2, address: '上海市' })
+  })
+
+  it('extracts media from pic_infos (including livephoto)', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '',
+      text_raw: '',
+      region_name: '',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      attitudes_count: 0,
+      comments_count: 0,
+      reposts_count: 0,
+      user: {
+        id: 2,
+        idstr: '2',
+        screen_name: 'u',
+        avatar_hd: '',
+        avatar_large: '',
+        profile_image_url: '',
+        verified: false,
+        verified_type: 0,
+      },
+      pic_ids: ['a'],
+      pic_infos: {
+        a: {
+          pic_id: 'a',
+          type: 'pic',
+          largest: { url: 'https://img/a.jpg', width: 100, height: 80 },
+          video: 'https://video/a.mov',
+        },
+      },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.media).toEqual([
+      {
+        id: 'a',
+        type: 'livephoto',
+        imageUrl: 'https://img/a.jpg',
+        videoUrl: 'https://video/a.mov',
+        width: 100,
+        height: 80,
+      },
+    ])
+  })
+
+  it('extracts retweetedStatus recursively', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '',
+      text_raw: '',
+      region_name: '',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      attitudes_count: 0,
+      comments_count: 0,
+      reposts_count: 0,
+      user: {
+        id: 2,
+        idstr: '2',
+        screen_name: 'u',
+        avatar_hd: '',
+        avatar_large: '',
+        profile_image_url: '',
+        verified: false,
+        verified_type: 0,
+      },
+      retweeted_status: {
+        id: 9,
+        idstr: '9',
+        mblogid: 'r',
+        created_at: 'then',
+        text: '',
+        text_raw: 'rt',
+        region_name: '',
+        source: '',
+        visible: { type: 0, list_id: 0 },
+        attitudes_count: 0,
+        comments_count: 0,
+        reposts_count: 0,
+        user: {
+          id: 3,
+          idstr: '3',
+          screen_name: 'ru',
+          avatar_hd: '',
+          avatar_large: '',
+          profile_image_url: '',
+          verified: false,
+          verified_type: 0,
+        },
+        pic_ids: ['p1'],
+        pic_infos: {
+          p1: {
+            pic_id: 'p1',
+            type: 'pic',
+            largest: { url: 'https://img/p1.jpg', width: 1, height: 2 },
+          },
+        },
+      },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.retweetedStatus?.id).toBe('9')
+    expect(tweet.retweetedStatus?.media).toHaveLength(1)
+  })
+
+  it('extracts media from mix_media_info (video)', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '',
+      text_raw: '',
+      region_name: '',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      attitudes_count: 0,
+      comments_count: 0,
+      reposts_count: 0,
+      user: {
+        id: 2,
+        idstr: '2',
+        screen_name: 'u',
+        avatar_hd: '',
+        avatar_large: '',
+        profile_image_url: '',
+        verified: false,
+        verified_type: 0,
+      },
+      mix_media_info: {
+        items: [
+          {
+            type: 'video',
+            id: 'v1',
+            data: {
+              largecover: { url: 'https://cover', width: 1280, height: 720 },
+              media_info: {
+                mp4_hd_url: 'https://mp4',
+                duration: 12,
+              },
+            },
+          },
+        ],
+      },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.media).toEqual([
+      {
+        id: 'v1',
+        type: 'video',
+        imageUrl: 'https://cover',
+        videoUrl: 'https://mp4',
+        duration: 12,
+        width: 1280,
+        height: 720,
+      },
+    ])
+  })
 })
