@@ -1,10 +1,15 @@
 import type { IRequestResource } from '../internal/FetcherService'
+import type { IWeiboConfig } from '~/types/config'
 import type { IUserDetailsResponse } from '~/types/raw/user/Details'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import { User } from '~/models/data/User'
 import { FetcherService } from '../internal/FetcherService'
 
 export class UserService extends FetcherService {
+  constructor(config: IWeiboConfig, deps?: ConstructorParameters<typeof FetcherService>[1]) {
+    super(config, deps)
+  }
+
   /**
    * 获取用户信息
    * @param id 用户ID (uid)
