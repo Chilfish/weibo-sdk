@@ -39,7 +39,7 @@ export interface IUser {
   url: string
   description?: string
   birthday?: string
-  real_name?: string
+  realName?: string
 
   // 社交属性
   location?: string
