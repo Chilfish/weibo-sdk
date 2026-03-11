@@ -46,8 +46,9 @@ export class TweetService extends FetcherService {
    */
   public async listByUserId(uid: string, sinceId?: number): Promise<TweetPageResult> {
     const raw = await this.myMblog(uid, sinceId)
+    const nextSinceId = Number(raw.since_id ?? 0)
     return {
-      sinceId: raw.since_id,
+      sinceId: Number.isFinite(nextSinceId) ? nextSinceId : 0,
       tweets: (raw.list || []).map(item => new Tweet(item)),
     }
   }
