@@ -73,3 +73,11 @@
 
 - 我可以在满足“合并门禁”的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。
 - 若 PR 涉及较大重构、可能引入 breaking change、或需要真实外网验证（E2E），必须先在 PR 中明确风险点并等待确认后再合并。
+
+## Postmortem 约定（知识固化 / 上下文注入）
+
+在现代软件工程中，Postmortem（追思/事后分析）源自医学术语，指在项目阶段结束、重大事故（Incidents）处理完毕或关键特性发布后，对过程进行的结构化回顾与深度解剖。其核心目标不是追责，而是通过根因分析（Root Cause Analysis, RCA），提取技术负债、逻辑误区或架构缺陷的确定性结论，防止同类问题再次发生。
+
+- Postmortem 统一放在仓库根目录的 `postmortem/` 目录下。
+- 文件命名必须为：`NNN-short-slug.md`（例如 `001-offline-test-baseline.md`）。
+- 每次重要迭代/事故修复/关键特性发布后，应新增一条 Postmortem（不要覆盖旧记录）。
