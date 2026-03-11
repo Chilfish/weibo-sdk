@@ -1,5 +1,6 @@
 // src/WeiboSDK.ts
 import type { IWeiboConfig } from './types/config'
+import { InvalidConfigError } from './models/errors/ConfigError'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
 
@@ -15,7 +16,9 @@ export class WeiboSDK {
 
   private validateConfig(config: IWeiboConfig): void {
     if (!config.cookie) {
-      throw new Error('Weibo SDK requires a valid cookie in configuration.')
+      throw new InvalidConfigError('Weibo SDK requires a valid cookie in configuration.', {
+        field: 'cookie',
+      })
     }
   }
 

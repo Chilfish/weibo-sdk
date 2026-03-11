@@ -15,6 +15,14 @@ function getNumber(value: unknown): number | undefined {
   return Number.isFinite(num) ? num : undefined
 }
 
+function isTweetVisible(value: number): value is TweetVisible {
+  return value === TweetVisible.PUBLIC
+    || value === TweetVisible.PRIVATE
+    || value === TweetVisible.FRIENDS
+    || value === TweetVisible.FOLLOWERS
+    || value === TweetVisible.GROUP
+}
+
 export class Tweet implements ITweet {
   public createdAt: string
   public id: string
@@ -59,9 +67,7 @@ export class Tweet implements ITweet {
     }
 
     const visibleType = Number(raw.visible?.type ?? 0)
-    this.visible = (Object.values(TweetVisible).includes(visibleType as any)
-      ? visibleType
-      : TweetVisible.PUBLIC) as TweetVisible
+    this.visible = isTweetVisible(visibleType) ? visibleType : TweetVisible.PUBLIC
 
     this.media = this.extractMedia(raw, rawRecord)
     this.pageInfo = this.extractPageInfo(rawRecord)

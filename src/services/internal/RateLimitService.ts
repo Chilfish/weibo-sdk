@@ -26,17 +26,17 @@ export class RateLimitService {
    * 获取令牌，如果没有令牌则等待
    */
   async acquire(): Promise<void> {
-    this.refill()
+    // 这里用循环而不是递归，避免在长时间等待时构建深层 Promise 链
+    while (true) {
+      this.refill()
 
-    if (this.tokens >= 1) {
-      this.tokens -= 1
-      return
+      if (this.tokens >= 1) {
+        this.tokens -= 1
+        return
+      }
+
+      await this.clock.sleep(this.refillRate)
     }
-
-    // 等待令牌生成
-    const waitTime = this.refillRate
-    await this.clock.sleep(waitTime)
-    return this.acquire()
   }
 
   private refill(): void {

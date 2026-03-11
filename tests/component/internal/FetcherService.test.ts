@@ -1,41 +1,8 @@
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IRequestResource } from '~/services/internal/FetcherService'
+import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it } from 'vitest'
 import { ConnectionTimeoutError, NetworkRequestError } from '~/models/errors/TransportError'
 import { FetcherService } from '~/services/internal/FetcherService'
-
-function createFakeAxios(
-  handler: (config: AxiosRequestConfig) => Promise<unknown>,
-): { client: AxiosInstance, getLastConfig: () => AxiosRequestConfig | undefined } {
-  let interceptor: ((config: any) => any) | undefined
-  let lastConfig: AxiosRequestConfig | undefined
-
-  const client: AxiosInstance = {
-    interceptors: {
-      request: {
-        use(fn: any) {
-          interceptor = fn
-          return 0
-        },
-      },
-      response: {
-        use() {
-          return 0
-        },
-        eject() {},
-        clear() {},
-      } as any,
-    } as any,
-    async request(config: any) {
-      const finalConfig = interceptor ? interceptor(config) : config
-      lastConfig = finalConfig
-      const data = await handler(finalConfig)
-      return { data } as any
-    },
-  } as any
-
-  return { client, getLastConfig: () => lastConfig }
-}
 
 class NoopRateLimitService {
   public acquireCalls = 0

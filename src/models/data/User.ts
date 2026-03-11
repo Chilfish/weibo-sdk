@@ -51,7 +51,7 @@ export class User implements IUser {
     // 扩展属性填充
     this.company = userDetails.company || userDetails.career?.company
     this.creditLevel = userDetails.sunshine_credit?.level || '0'
-    this.externalLinks = userDetails.links?.map((l: any) => ({
+    this.externalLinks = userDetails.links?.map(l => ({
       title: l.title,
       url: l.url,
     }))

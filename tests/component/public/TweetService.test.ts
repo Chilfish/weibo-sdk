@@ -1,44 +1,7 @@
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IMyMBlogResponse } from '~/types/raw/tweet/mymblog'
+import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { TweetService } from '~/services/public/TweetService'
-
-function createFakeAxios(
-  handler: (config: AxiosRequestConfig) => Promise<unknown>,
-): { client: AxiosInstance, getLastConfig: () => AxiosRequestConfig | undefined } {
-  let interceptor: ((config: any) => any) | undefined
-  let lastConfig: AxiosRequestConfig | undefined
-
-  const client: AxiosInstance = {
-    interceptors: {
-      request: {
-        use(fn: any) {
-          interceptor = fn
-          return 0
-        },
-      },
-      response: {
-        use() {
-          return 0
-        },
-        eject() {},
-        clear() {},
-      } as any,
-    } as any,
-    async request(config: any) {
-      const finalConfig = interceptor ? interceptor(config) : config
-      lastConfig = finalConfig
-      const data = await handler(finalConfig)
-      return { data } as any
-    },
-  } as any
-
-  return { client, getLastConfig: () => lastConfig }
-}
-
-class NoopRateLimitService {
-  async acquire(): Promise<void> {}
-}
 
 describe('tweetService', () => {
   it('calls mymblog endpoint with correct params and triggers onFetched', async () => {
