@@ -15,7 +15,7 @@
   - `tests/component/**`：Fetcher/Auth/RateLimit 等边界模块（mock HTTP/clock/sleep）
   - `tests/e2e/**`：需要真实 Cookie/真实网络（默认跳过，显式开启）
 - [x] 修正“集成测试脚本化”的问题：迁移到 `tests/e2e/*`，用 `WEIBO_E2E=1` 显式开启。
-- [ ] 为 `package.json#exports` 添加回归测试（防止未来 breaking / tree-shaking 问题）。
+- [x] 为 `package.json#exports` 添加回归测试（防止未来 breaking / tree-shaking 问题）。
 
 ## 2. Contract First：契约、命名与兼容性
 
@@ -31,6 +31,7 @@
 - [x] 单测覆盖 request 注入/错误映射等核心路径。
 - [x] 引入 SDK hooks（`onLifecycle/onFetched/onError`）与 preflight 自检（lazy/eager），降低“用户忘记 selfCheck / cookie 过期读到 undefined”的概率。
 - [x] 引入 `EndpointSpec + request(spec)`：统一处理 ok!=1 / schema 校验 / hooks emission，减少业务层样板代码。
+- [x] 引入 Zod schema 验证：协议层集中产出可诊断的 `API_BAD_RESPONSE`（含 `zodIssues`）。
 - [ ] 定义并实现 telemetry（Wide Events）接口，并逐步弃用 `service.onFetched` 的弱类型回调。
 
 ### 3.2 RateLimitService（时间/睡眠边界）
@@ -60,3 +61,11 @@
 - [ ] 定义统一 `TelemetryEvent`（扁平 KV，含 `event_name/timestamp/trace_id` 与关键上下文）。
 - [ ] 关键路径打点：request_start/success/error、rate_limit_wait、normalize_done。
 - [ ] 测试中可断言事件序列与字段完整性。
+
+## 7. Zod / Spec 工程化（可维护性 + DX）
+
+- [ ] 将 schema/spec 从 Service 文件中抽离到 `src/services/endpoints/**`（或等价目录），避免 Service 里出现大量协议细节。
+- [ ] 逐步用 `z.infer<typeof Schema>` 替代手写 `types/raw/**`（先从 `USER_*` / `TWEET_SHOW` 开始），减少 `as unknown as`。
+- [ ] 明确 schema 的“strictness 策略”：默认 `.passthrough()`，只对稳定关键字段做强约束；对于易变字段用 `unknown` 留白。
+- [ ] 将 `EndpointSpec` 的 args 类型改为“由 args schema 推导”（减少 `Record<string, unknown>` 与类型断言），并提供 `defineEndpoint()` helper。
+- [ ] 输出“错误排障手册”：Zod issues、ok!=1、cookie 过期、网络错误的诊断流程（贴合 hooks + Structured Error）。

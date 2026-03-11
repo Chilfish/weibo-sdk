@@ -41,7 +41,8 @@
     "prepare": "simple-git-hooks"
   },
   "dependencies": {
-    "axios": "catalog:"
+    "axios": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
@@ -59,8 +60,7 @@
     "vite": "catalog:cli",
     "vitest": "catalog:testing",
     "vitest-package-exports": "catalog:testing",
-    "yaml": "catalog:testing",
-    "zod": "catalog:"
+    "yaml": "catalog:testing"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"
