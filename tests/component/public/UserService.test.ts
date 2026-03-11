@@ -3,6 +3,7 @@ import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { UserService } from '~/services/public/UserService'
 
 describe('userService', () => {
@@ -125,6 +126,17 @@ describe('userService', () => {
     )
 
     await expect(service.myDetails()).rejects.toBeInstanceOf(WeiboSessionExpiredError)
+  })
+
+  it('info throws UnexpectedAPIResponseError when schema validation fails', async () => {
+    const { client } = createFakeAxios(async () => ({ ok: 1, data: {} }))
+
+    const service = new UserService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: { acquire: vi.fn() } as any },
+    )
+
+    await expect(service.info('111')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
   it('triggers global hooks.onError for ok != 1', async () => {

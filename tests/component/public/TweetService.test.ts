@@ -3,6 +3,7 @@ import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { TweetService } from '~/services/public/TweetService'
 
 describe('tweetService', () => {
@@ -122,6 +123,17 @@ describe('tweetService', () => {
     )
 
     await expect(service.show('bad')).rejects.toBeInstanceOf(WeiboAPINotOkError)
+  })
+
+  it('show throws UnexpectedAPIResponseError when schema validation fails', async () => {
+    const { client } = createFakeAxios(async () => ({ ok: 1, mblogid: 'x', user: {} }))
+
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
   it('getByMblogId returns normalized Tweet', async () => {

@@ -1,8 +1,12 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IWeiboConfig } from '../../types/config'
+import type { EndpointSpec } from './EndpointSpec'
 import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import axios from 'axios'
+import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
+import { getMessage, getOk } from '~/utils/response'
 import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
 import { AuthService } from './AuthService'
 import { RateLimitService } from './RateLimitService'
@@ -131,6 +135,80 @@ export class FetcherService {
       })
       throw mapped
     }
+  }
+
+  protected async request<
+    TResource extends IResourceType,
+    TArgs extends object | undefined,
+  >(
+    spec: EndpointSpec<TResource, TArgs>,
+    args: TArgs,
+    options?: {
+      skipPreflight?: boolean
+    },
+  ): Promise<IResource[TResource]> {
+    const request = spec.buildResource(args)
+    const argsRecord = (args ?? undefined) as unknown as Record<string, unknown> | undefined
+
+    const raw = await this.fetch<unknown>(request, argsRecord, options)
+
+    if (spec.okPolicy?.mode === 'require_ok_1') {
+      const ok = getOk(raw) ?? 0
+      const message = getMessage(raw)
+      if (ok !== 1) {
+        const error = spec.okPolicy.notOkError?.({
+          endpoint: spec.endpoint,
+          args: argsRecord,
+          ok,
+          message,
+          raw,
+        }) ?? new WeiboAPINotOkError(`Weibo API returned ok != 1 (${spec.endpoint}).`, {
+          endpoint: spec.endpoint,
+          ok,
+          message,
+          args: argsRecord,
+          raw,
+        })
+
+        await this.emitError(error, {
+          phase: 'response',
+          endpoint: spec.endpoint,
+          request,
+          args: argsRecord,
+          ok,
+          message,
+          trace_id: this.newTraceId(),
+          timestamp: Date.now(),
+        })
+
+        throw error
+      }
+    }
+
+    const parsed = spec.schema.safeParse(raw)
+    if (!parsed.success) {
+      const error = new UnexpectedAPIResponseError(`Weibo API response failed schema validation (${spec.endpoint}).`, {
+        endpoint: spec.endpoint,
+        args: argsRecord,
+        raw,
+        zodIssues: parsed.error.issues,
+      })
+
+      await this.emitError(error, {
+        phase: 'parse',
+        endpoint: spec.endpoint,
+        request,
+        args: argsRecord,
+        trace_id: this.newTraceId(),
+        timestamp: Date.now(),
+      })
+
+      throw error
+    }
+
+    const data = parsed.data
+    await this.emitFetched(spec.resourceType, data, { endpoint: spec.endpoint, request, args: argsRecord })
+    return data
   }
 
   protected async emitFetched<T extends IResourceType>(
