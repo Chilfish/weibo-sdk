@@ -16,10 +16,17 @@ export class FetcherService {
   private client: AxiosInstance
   private authService: AuthService
   private rateLimitService: RateLimitService
-  public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => any = () => {}
+  public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => void | Promise<void> = async () => {}
 
-  constructor(private config: IWeiboConfig) {
-    this.client = axios.create({
+  constructor(
+    private config: IWeiboConfig,
+    deps?: {
+      client?: AxiosInstance
+      authService?: AuthService
+      rateLimitService?: RateLimitService
+    },
+  ) {
+    this.client = deps?.client ?? axios.create({
       timeout: config.timeout || 30000,
       proxy: config.proxyUrl
         ? {
@@ -28,8 +35,8 @@ export class FetcherService {
           }
         : false,
     })
-    this.authService = new AuthService(config)
-    this.rateLimitService = new RateLimitService(
+    this.authService = deps?.authService ?? new AuthService(config)
+    this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
       config.maxConcurrent || 3,
       typeof config.delay === 'number' ? config.delay : 1000,
     )

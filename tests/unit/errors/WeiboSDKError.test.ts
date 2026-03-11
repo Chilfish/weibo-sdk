@@ -5,6 +5,7 @@ import { ConnectionTimeoutError } from '../../../src/models/errors/TransportErro
 describe('weiboSDKError', () => {
   it('should have correct properties', () => {
     const error = new ConnectionTimeoutError('timeout')
+    expect(error).toBeInstanceOf(ConnectionTimeoutError)
     expect(error.code).toBe('NET_TIMEOUT')
     expect(error.level).toBe('transport')
     expect(error.retryable).toBe(true)
