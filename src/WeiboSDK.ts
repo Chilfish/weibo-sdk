@@ -1,13 +1,16 @@
 // src/WeiboSDK.ts
 import type { IWeiboConfig } from './types/config'
+import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
 
 export class WeiboSDK {
   public readonly users: UserService
+  public readonly tweets: TweetService
 
   constructor(private readonly config: IWeiboConfig) {
     this.validateConfig(config)
     this.users = new UserService(config)
+    this.tweets = new TweetService(config)
   }
 
   private validateConfig(config: IWeiboConfig): void {
