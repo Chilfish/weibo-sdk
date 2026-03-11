@@ -2,16 +2,11 @@ shellEmulator: true
 
 trustPolicy: no-downgrade
 packages:
-  - playground
-  - docs
-  - packages/*
-  - examples
+  - .
 
 catalog:
   axios: ^1.13.4
   dotenv: ^17.2.3
-  tsup: ^8.5.1
-  winston: ^3.19.0
   zod: ^4.3.6
 
 catalogs:

@@ -60,6 +60,7 @@
 - **PR 粒度**：优先拆成多个 PR，每个 PR 可独立 review / 可独立回滚 / 不依赖未合并分支。
 - **PR 正文格式**：禁止在命令行里用字面量 `\n` 拼 body（会导致正文显示为转义字符）。优先使用 `gh pr create/edit --body-file <file>` 或 here-string 写入临时文件再提交。
 - **提交规范**：提交信息要可读、可追溯（建议 Conventional Commits：`feat:`, `fix:`, `docs:`, `test:`, `refactor:`）。
+- **先定提交意图**：开始编码前，先写清楚本分支的 PR 主题、预期行为变化与提交信息（commit message）。尽量不要“看 diff 才临时想 message”。若实现过程中范围发生变化，先更新提交计划再继续。
 - **合并门禁**：PR 合并前必须满足：
   - [ ] `pnpm test` 通过（默认离线）
   - [ ] `pnpm run typecheck` 通过
