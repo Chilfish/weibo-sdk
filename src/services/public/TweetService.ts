@@ -1,6 +1,7 @@
 import type { IRequestResource } from '../internal/FetcherService'
 import type { IWeiboConfig } from '~/types/config'
 import type { IMyMBlogResponse } from '~/types/raw/tweet/mymblog'
+import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { Tweet } from '~/models/data/Tweet'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -46,5 +47,36 @@ export class TweetService extends FetcherService {
       sinceId: raw.since_id,
       tweets: (raw.list || []).map(item => new Tweet(item)),
     }
+  }
+
+  /**
+   * 获取单条微博详情
+   *
+   * `GET https://weibo.com/ajax/statuses/show?id=${mblogid}&isGetLongText=true`
+   */
+  public async show(mblogId: string, isGetLongText: boolean = true): Promise<IStatusShowResponse> {
+    const resource: IRequestResource = {
+      method: 'GET',
+      url: 'https://weibo.com/ajax/statuses/show',
+      headers: {
+        referer: `https://weibo.com/detail/${mblogId}`,
+      },
+    }
+
+    const data = await this.fetch<IStatusShowResponse>(resource, {
+      id: mblogId,
+      isGetLongText,
+    })
+
+    await this.onFetched('TWEET_SHOW', data)
+    return data
+  }
+
+  /**
+   * 获取并归一化单条微博详情
+   */
+  public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<Tweet> {
+    const raw = await this.show(mblogId, isGetLongText)
+    return new Tweet(raw)
   }
 }

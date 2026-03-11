@@ -1,9 +1,10 @@
 import type { ITweet, TweetGeo, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
+import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { MediaType, TweetVisible } from '~/types/domain/ITweet'
 
-export type RawTweet = MyMBLog | NonNullable<MyMBLog['retweeted_status']>
+export type RawTweet = MyMBLog | NonNullable<MyMBLog['retweeted_status']> | IStatusShowResponse | NonNullable<IStatusShowResponse['retweeted_status']>
 type UnknownRecord = Record<string, unknown>
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -114,16 +115,27 @@ export class Tweet implements ITweet {
 
   private getGeoAddress(raw: RawTweet): string | undefined {
     const tags = (raw as MyMBLog).tag_struct
-    if (!Array.isArray(tags))
+    if (Array.isArray(tags)) {
+      const place = tags.find((t) => {
+        if (!isRecord(t))
+          return false
+        return t.otype === 'place'
+      })
+      const name = isRecord(place) ? place.tag_name : undefined
+      if (typeof name === 'string' && name.length > 0)
+        return name
+    }
+
+    const geo = (raw as MyMBLog).geo
+    if (!isRecord(geo))
       return undefined
 
-    const place = tags.find((t) => {
-      if (!isRecord(t))
-        return false
-      return t.otype === 'place'
-    })
-    const name = isRecord(place) ? place.tag_name : undefined
-    return typeof name === 'string' ? name : undefined
+    const detail = geo.detail
+    if (!isRecord(detail))
+      return undefined
+
+    const title = detail.title
+    return typeof title === 'string' ? title : undefined
   }
 
   private getCoordinates(raw: RawTweet): [number, number] | undefined {
@@ -135,11 +147,16 @@ export class Tweet implements ITweet {
     if (!Array.isArray(coordinates) || coordinates.length < 2)
       return undefined
 
-    const lon = getNumber(coordinates[0])
-    const lat = getNumber(coordinates[1])
-    if (lon === undefined || lat === undefined)
+    const first = getNumber(coordinates[0])
+    const second = getNumber(coordinates[1])
+    if (first === undefined || second === undefined)
       return undefined
-    return [lon, lat]
+
+    // 兼容 [lon, lat] 与 [lat, lon] 两种顺序
+    if (Math.abs(first) <= 90 && Math.abs(second) > 90)
+      return [second, first]
+
+    return [first, second]
   }
 
   private extractMedia(raw: RawTweet, rawRecord: UnknownRecord): TweetMedia[] {
@@ -248,14 +265,15 @@ export class Tweet implements ITweet {
       if (!url)
         continue
 
-      const isGif = info.type === 'gif'
-      const hasVideo = typeof info.video === 'string' && info.video.length > 0
+      const type = typeof info.type === 'string' ? info.type : undefined
+      const videoUrl = typeof info.video === 'string' && info.video.length > 0 ? info.video : undefined
+      const isGif = type === 'gif'
 
       out.push({
         id: typeof info.pic_id === 'string' ? info.pic_id : String(picId),
-        type: hasVideo ? MediaType.LIVEPHOTO : isGif ? MediaType.GIF : MediaType.PIC,
+        type: videoUrl ? MediaType.LIVEPHOTO : isGif ? MediaType.GIF : MediaType.PIC,
         imageUrl: url,
-        videoUrl: hasVideo ? info.video : undefined,
+        videoUrl,
         width: getNumber(best?.width) ?? 0,
         height: getNumber(best?.height) ?? 0,
       })
