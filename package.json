@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "packageManager": "pnpm@10.28.2",
-  "description": "_description_",
+  "description": "A maintainable, offline-testable Weibo reverse-engineering SDK in TypeScript.",
   "author": "Chilfish",
   "license": "MIT",
   "homepage": "https://github.com/Chilfish/weibo-sdk#readme",
@@ -12,7 +12,12 @@
     "url": "git+https://github.com/Chilfish/weibo-sdk.git"
   },
   "bugs": "https://github.com/Chilfish/weibo-sdk/issues",
-  "keywords": [],
+  "keywords": [
+    "weibo",
+    "sdk",
+    "typescript",
+    "reverse-engineering"
+  ],
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",

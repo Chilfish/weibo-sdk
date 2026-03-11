@@ -1,3 +1,12 @@
 // src/types/index.ts
 export * from './config'
-// 后续可以导出其他类型文件
+export * from './domain/ITweet'
+
+// Domain contracts (stable)
+export * from './domain/IUser'
+export type { IMyMBlogResponse } from './raw/tweet/mymblog'
+
+// Raw response types (optional, for advanced usage/testing)
+export type { IUserDetailsResponse } from './raw/user/Details'
+export type { IUserInfoResponse } from './raw/user/Info'
+export * from './resources'

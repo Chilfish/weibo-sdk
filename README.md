@@ -1,6 +1,6 @@
 # Weibo SDK
 
-一个现代化、可扩展的插件化微博爬虫SDK，专为构建高质量、可维护的微博数据采集系统而设计。
+一个面向开发者的**微博 API 逆向 TypeScript SDK**：通过分层架构与契约，将微博接口返回的易变 raw JSON 稳定转换为领域模型，并提供可维护、可测试（默认离线）的服务能力（用户/微博等）。
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-8.0+-orange.svg)](https://pnpm.io/)
@@ -8,21 +8,11 @@
 
 ## 🌟 特性
 
-- **🔌 插件化架构**: 模块化设计，易于扩展和自定义
-- **🎯 类型安全**: 完整的 TypeScript 支持，优秀的开发体验
-- **🔄 钩子系统**: 事件驱动的架构，支持灵活的数据处理流水线
-- **📡 HTTP 客户端**: 基于 axios 的智能重试和错误处理
-- **📋 结构化日志**: 基于 Winston 的分层日志系统
-- **⚡ 高性能**: 内置并发控制和速率限制
-- **🛡️ 生产就绪**: 完善的错误处理、优雅关闭和资源管理
-
-## 📦 包结构
-
-这是一个 pnpm monorepo 项目，包含以下核心包：
-
-- **[@weibo-sdk/core](./packages/core/)** - 核心框架和插件系统
-- **[@weibo-sdk/plugins](./packages/plugins/)** - 通用插件集合（HTTP客户端、重试等）
-- **[@weibo-sdk/weibo](./packages/weibo/)** - 微博专用插件和工具
+- **分层架构**：`WeiboSDK -> Services -> Fetcher/Auth/RateLimit -> Raw/Domain Models`
+- **类型安全**：完整的 TypeScript 类型，领域模型契约清晰
+- **离线可测**：默认 `pnpm test` 不依赖真实微博网络 IO（E2E 需显式开启）
+- **错误结构化**：自定义错误类型，便于诊断与重试决策
+- **速率控制**：内置限速/并发控制，避免触发风控
 
 ## 🚀 快速开始
 
@@ -36,139 +26,42 @@ pnpm install
 pnpm run build
 ```
 
-### 基础用法
+### 获取用户信息（示例）
 
 ```typescript
-import { Crawler, defineConfig } from '@weibo-sdk/core'
-import { createHttpClientPlugin, createRetryPlugin } from '@weibo-sdk/plugins'
-import { createWeiboPlugin, createWeiboUserTaskPlugin } from '@weibo-sdk/weibo'
+import { WeiboSDK } from 'weibo-sdk'
 
-// 创建爬虫配置
-const config = defineConfig({
-  plugins: [
-    createHttpClientPlugin({
-      timeout: 30000,
-      retries: 3
-    }),
-    createRetryPlugin({
-      maxRetries: 3,
-      exponentialBackoff: true
-    }),
-    createWeiboPlugin({
-      cookie: 'your-weibo-cookie-here',
-      rateLimit: {
-        requestsPerSecond: 1,
-        burstLimit: 5
-      }
-    }),
-    createWeiboUserTaskPlugin({
-      includePosts: true,
-      maxPosts: 20
-    })
-  ],
-  logger: {
-    level: 'info',
-    format: 'simple'
-  }
+const sdk = new WeiboSDK({
+  cookie: process.env.WEIBO_COOKIE || '',
 })
 
-// 创建并运行爬虫
-const crawler = new Crawler(config)
-
-await crawler.setup()
-await crawler.run({
-  userId: '1234567890', // 目标用户ID
-  includePosts: true,
-  maxPosts: 50
-})
-await crawler.stop()
+const user = await sdk.users.getById('1111681197')
+console.log(user.id, user.name, user.stats.followers)
 ```
 
-### 获取用户信息（最小示例）
+### 获取用户微博列表（示例）
 
 ```typescript
-import { Crawler, defineConfig } from '@weibo-sdk/core'
-import { createHttpClientPlugin } from '@weibo-sdk/plugins'
-import { createWeiboPlugin } from '@weibo-sdk/weibo'
+import { WeiboSDK } from 'weibo-sdk'
 
-const crawler = new Crawler(defineConfig({
-  plugins: [
-    createHttpClientPlugin(),
-    createWeiboPlugin()
-  ]
-}))
-
-await crawler.setup()
-
-// 直接调用API获取用户信息
-const getUserProfile = crawler.context.apis.get('weibo:getUserProfile')
-const user = await getUserProfile('1234567890')
-
-console.log(`用户: ${user.name} (@${user.screen_name})`)
-console.log(`粉丝数: ${user.followers_count}`)
-
-await crawler.stop()
-```
-
-## 🏗️ 核心架构
-
-### 插件系统
-
-插件是扩展爬虫功能的核心方式，每个插件都实现简单的接口：
-
-```typescript
-import type { Plugin } from '@weibo-sdk/core'
-
-const myPlugin: Plugin = {
-  name: 'my-plugin',
-  setup: (context) => {
-    // 注册API
-    context.apis.register('myApi', async (data) => {
-      return await processData(data)
-    })
-
-    // 监听事件
-    context.hooks.on('dataReceived', async (data) => {
-      await handleData(data)
-    })
-  }
-}
-```
-
-### 钩子系统
-
-支持两种执行模式：
-
-```typescript
-// 并行执行 - 所有监听器同时运行
-await context.hooks.call('onData', data)
-
-// 瀑布流 - 数据依次转换
-const transformed = await context.hooks.waterfall('transform', originalData)
-```
-
-### API 注册中心
-
-插件间安全通信的机制：
-
-```typescript
-// 注册API
-context.apis.register('fetch', async (url) => {
-  return await httpClient.get(url)
+const sdk = new WeiboSDK({
+  cookie: process.env.WEIBO_COOKIE || '',
 })
 
-// 使用API
-const fetcher = context.apis.get('fetch')
-const data = await fetcher('https://api.example.com/data')
-
-// 包装现有API
-context.apis.wrap('fetch', (originalFetch) => {
-  return async (url) => {
-    console.log('正在获取:', url)
-    return await originalFetch(url)
-  }
-})
+const page = await sdk.tweets.listByUserId('1111681197')
+console.log(page.sinceId, page.tweets[0]?.id)
 ```
+
+## 📚 文档
+
+- 架构与契约规格：`docs/微博SDK技术规格书_v2.0.md`
+- 开发计划与 TODO：`docs/渐进式开发计划.md`、`docs/TODO.md`
+- 项目概览：`docs/项目概览.md`
+
+## 🧪 测试
+
+- 离线测试：`pnpm test`
+- E2E（真实 Cookie + 外网，默认跳过）：设置 `WEIBO_E2E=1` 后运行 `pnpm test`
 
 ## 📖 示例
 
