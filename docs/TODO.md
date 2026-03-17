@@ -32,7 +32,7 @@
 - [x] 引入 SDK hooks（`onLifecycle/onFetched/onError`）与 preflight 自检（lazy/eager），降低“用户忘记 selfCheck / cookie 过期读到 undefined”的概率。
 - [x] 引入 `EndpointSpec + request(spec)`：统一处理 ok!=1 / schema 校验 / hooks emission，减少业务层样板代码。
 - [x] 引入 Zod schema 验证：协议层集中产出可诊断的 `API_BAD_RESPONSE`（含 `zodIssues`）。
-- [ ] 定义并实现 telemetry（Wide Events）接口，并逐步弃用 `service.onFetched` 的弱类型回调。
+- [x] 定义并实现 telemetry（Wide Events）接口，并逐步弃用 `service.onFetched` 的弱类型回调。
 
 ### 3.2 RateLimitService（时间/睡眠边界）
 
@@ -58,9 +58,9 @@
 
 ## 6. Wide Events（可观测性落地）
 
-- [ ] 定义统一 `TelemetryEvent`（扁平 KV，含 `event_name/timestamp/trace_id` 与关键上下文）。
-- [ ] 关键路径打点：request_start/success/error、rate_limit_wait、normalize_done。
-- [ ] 测试中可断言事件序列与字段完整性。
+- [x] 定义统一 `TelemetryEvent`（扁平 KV，含 `event_name/timestamp/trace_id` 与关键上下文）。
+- [x] 关键路径打点：request_start/success/error、rate_limit_wait、normalize_done。
+- [x] 测试中可断言事件序列与字段完整性。
 
 ## 7. Zod / Spec 工程化（可维护性 + DX）
 

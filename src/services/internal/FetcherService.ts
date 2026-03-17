@@ -3,9 +3,11 @@ import type { IWeiboConfig } from '../../types/config'
 import type { EndpointSpec } from './EndpointSpec'
 import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
+import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
 import axios from 'axios'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
+import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { getMessage, getOk } from '~/utils/response'
 import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
 import { AuthService } from './AuthService'
@@ -23,12 +25,53 @@ function createTraceId(): string {
   return `${Date.now()}-${traceSeq}`
 }
 
+function getArgsKeys(args?: Record<string, unknown>): string | undefined {
+  if (!args)
+    return undefined
+  const keys = Object.keys(args)
+  if (keys.length === 0)
+    return undefined
+  keys.sort()
+  return keys.join(',')
+}
+
+function toTelemetryErrorFields(error: unknown): Pick<
+  Extract<TelemetryEvent, { event_name: 'request_error' }>,
+  'error_name' | 'error_message' | 'error_code' | 'error_level' | 'error_retryable'
+> {
+  if (error instanceof WeiboSDKError) {
+    return {
+      error_name: error.name,
+      error_message: error.message,
+      error_code: error.code,
+      error_level: error.level,
+      error_retryable: error.retryable,
+    }
+  }
+
+  if (error instanceof Error) {
+    return {
+      error_name: error.name,
+      error_message: error.message,
+    }
+  }
+
+  return {
+    error_name: typeof error,
+  }
+}
+
 export class FetcherService {
   private client: AxiosInstance
   private authService: AuthService
   private rateLimitService: RateLimitService
   private hooks?: WeiboSDKHooks
+  private telemetry?: WeiboSDKTelemetry
   private preflight?: () => Promise<void>
+
+  /**
+   * @deprecated 请使用 `config.telemetry`（Wide Events）替代。
+   */
   public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => void | Promise<void> = async () => {}
 
   constructor(
@@ -38,6 +81,7 @@ export class FetcherService {
       authService?: AuthService
       rateLimitService?: RateLimitService
       hooks?: WeiboSDKHooks
+      telemetry?: WeiboSDKTelemetry
       preflight?: () => Promise<void>
     },
   ) {
@@ -54,8 +98,11 @@ export class FetcherService {
     this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
       config.maxConcurrent || 3,
       typeof config.delay === 'number' ? config.delay : 1000,
+      undefined,
+      deps?.telemetry ?? config.telemetry,
     )
     this.hooks = deps?.hooks ?? config.hooks
+    this.telemetry = deps?.telemetry ?? config.telemetry
     this.preflight = deps?.preflight
 
     this.setupInterceptors()
@@ -83,9 +130,13 @@ export class FetcherService {
     args?: Record<string, unknown>,
     options?: {
       skipPreflight?: boolean
+      traceId?: string
+      endpoint?: string
+      resourceType?: IResourceType
     },
   ): Promise<T> {
-    const traceId = createTraceId()
+    const traceId = options?.traceId ?? createTraceId()
+    const startAt = Date.now()
 
     if (!options?.skipPreflight) {
       try {
@@ -99,11 +150,36 @@ export class FetcherService {
           trace_id: traceId,
           timestamp: Date.now(),
         })
+
+        await this.emitTelemetry({
+          event_name: 'request_error',
+          timestamp: Date.now(),
+          trace_id: traceId,
+          phase: 'preflight',
+          method: resource.method,
+          url: resource.url,
+          endpoint: options?.endpoint,
+          resource_type: options?.resourceType,
+          duration_ms: Date.now() - startAt,
+          ...toTelemetryErrorFields(error),
+        })
+
         throw error
       }
     }
 
-    await this.rateLimitService.acquire()
+    await this.emitTelemetry({
+      event_name: 'request_start',
+      timestamp: Date.now(),
+      trace_id: traceId,
+      method: resource.method,
+      url: resource.url,
+      endpoint: options?.endpoint,
+      resource_type: options?.resourceType,
+      args_keys: getArgsKeys(args),
+    })
+
+    await this.rateLimitService.acquire({ trace_id: traceId })
     resource.headers = {
       'referer': 'https://weibo.com/',
       'host': 'weibo.com',
@@ -133,6 +209,20 @@ export class FetcherService {
         trace_id: traceId,
         timestamp: Date.now(),
       })
+
+      await this.emitTelemetry({
+        event_name: 'request_error',
+        timestamp: Date.now(),
+        trace_id: traceId,
+        phase: 'request',
+        method: resource.method,
+        url: resource.url,
+        endpoint: options?.endpoint,
+        resource_type: options?.resourceType,
+        duration_ms: Date.now() - startAt,
+        ...toTelemetryErrorFields(mapped),
+      })
+
       throw mapped
     }
   }
@@ -147,24 +237,32 @@ export class FetcherService {
       skipPreflight?: boolean
     },
   ): Promise<IResource[TResource]> {
+    const traceId = this.newTraceId()
+    const startAt = Date.now()
     const request = spec.buildResource(args)
     const argsRecord = (args ?? undefined) as unknown as Record<string, unknown> | undefined
 
-    const raw = await this.fetch<unknown>(request, argsRecord, options)
+    const raw = await this.fetch<unknown>(request, argsRecord, {
+      ...options,
+      traceId,
+      endpoint: spec.endpoint,
+      resourceType: spec.resourceType,
+    })
 
+    const ok = getOk(raw)
     if (spec.okPolicy?.mode === 'require_ok_1') {
-      const ok = getOk(raw) ?? 0
+      const okNumber = ok ?? 0
       const message = getMessage(raw)
-      if (ok !== 1) {
+      if (okNumber !== 1) {
         const error = spec.okPolicy.notOkError?.({
           endpoint: spec.endpoint,
           args: argsRecord,
-          ok,
+          ok: okNumber,
           message,
           raw,
         }) ?? new WeiboAPINotOkError(`Weibo API returned ok != 1 (${spec.endpoint}).`, {
           endpoint: spec.endpoint,
-          ok,
+          ok: okNumber,
           message,
           args: argsRecord,
           raw,
@@ -175,10 +273,25 @@ export class FetcherService {
           endpoint: spec.endpoint,
           request,
           args: argsRecord,
-          ok,
+          ok: okNumber,
           message,
-          trace_id: this.newTraceId(),
+          trace_id: traceId,
           timestamp: Date.now(),
+        })
+
+        await this.emitTelemetry({
+          event_name: 'request_error',
+          timestamp: Date.now(),
+          trace_id: traceId,
+          phase: 'response',
+          method: request.method,
+          url: request.url,
+          endpoint: spec.endpoint,
+          resource_type: spec.resourceType,
+          duration_ms: Date.now() - startAt,
+          ok: okNumber,
+          message,
+          ...toTelemetryErrorFields(error),
         })
 
         throw error
@@ -199,8 +312,21 @@ export class FetcherService {
         endpoint: spec.endpoint,
         request,
         args: argsRecord,
-        trace_id: this.newTraceId(),
+        trace_id: traceId,
         timestamp: Date.now(),
+      })
+
+      await this.emitTelemetry({
+        event_name: 'request_error',
+        timestamp: Date.now(),
+        trace_id: traceId,
+        phase: 'parse',
+        method: request.method,
+        url: request.url,
+        endpoint: spec.endpoint,
+        resource_type: spec.resourceType,
+        duration_ms: Date.now() - startAt,
+        ...toTelemetryErrorFields(error),
       })
 
       throw error
@@ -208,6 +334,18 @@ export class FetcherService {
 
     const data = parsed.data
     await this.emitFetched(spec.resourceType, data, { endpoint: spec.endpoint, request, args: argsRecord })
+
+    await this.emitTelemetry({
+      event_name: 'request_success',
+      timestamp: Date.now(),
+      trace_id: traceId,
+      method: request.method,
+      url: request.url,
+      endpoint: spec.endpoint,
+      resource_type: spec.resourceType,
+      duration_ms: Date.now() - startAt,
+      ok: ok ?? undefined,
+    })
     return data
   }
 
@@ -231,6 +369,15 @@ export class FetcherService {
     meta: WeiboSDKErrorMeta,
   ): Promise<void> {
     await this.hooks?.onError?.(error, meta)
+  }
+
+  protected async emitTelemetry(event: TelemetryEvent & Record<string, string | number | boolean | null | undefined>): Promise<void> {
+    try {
+      await this.telemetry?.emit(event)
+    }
+    catch {
+      // telemetry must not break SDK behavior
+    }
   }
 
   private mapError(error: unknown | Error): unknown {

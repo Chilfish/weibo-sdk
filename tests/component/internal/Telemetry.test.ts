@@ -1,0 +1,135 @@
+import type { ZodType } from 'zod'
+import type { EndpointSpec } from '~/services/internal/EndpointSpec'
+import type { IRateLimitClock } from '~/services/internal/RateLimitService'
+import type { IUserInfoResponse } from '~/types/raw/user/Info'
+import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
+import { createFakeAxios } from 'tests/testkit/fakeAxios'
+import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
+import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { FetcherService } from '~/services/internal/FetcherService'
+import { RateLimitService } from '~/services/internal/RateLimitService'
+
+class FakeClock implements IRateLimitClock {
+  public nowValue = 0
+  public sleepCalls: number[] = []
+
+  now(): number {
+    return this.nowValue
+  }
+
+  async sleep(ms: number): Promise<void> {
+    this.sleepCalls.push(ms)
+    this.nowValue += ms
+  }
+}
+
+class TelemetryCollector implements WeiboSDKTelemetry {
+  public events: TelemetryEvent[] = []
+
+  async emit(event: TelemetryEvent): Promise<void> {
+    this.events.push(event)
+  }
+}
+
+class TestFetcherService extends FetcherService {
+  public async call<TResource extends 'USER_INFO'>(
+    spec: EndpointSpec<TResource, { uid: string }>,
+    args: { uid: string },
+  ): Promise<IUserInfoResponse> {
+    return await this.request(spec, args) as unknown as IUserInfoResponse
+  }
+}
+
+const UserInfoResponseSchema = z.object({
+  ok: z.number(),
+  data: z.object({
+    user: z.object({}).loose(),
+  }).loose(),
+}).loose() as unknown as ZodType<IUserInfoResponse>
+
+const userInfoSpec: EndpointSpec<'USER_INFO', { uid: string }> = {
+  resourceType: 'USER_INFO',
+  endpoint: 'ajax/profile/info',
+  buildResource: ({ uid }) => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/profile/info',
+    headers: { referer: `https://weibo.com/u/${uid}` },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: UserInfoResponseSchema,
+}
+
+describe('telemetry (wide events)', () => {
+  it('emits request_start/request_success with shared trace_id', async () => {
+    const telemetry = new TelemetryCollector()
+    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
+
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: rateLimit, telemetry },
+    )
+
+    await fetcher.call(userInfoSpec, { uid: '1' })
+
+    const starts = telemetry.events.filter(e => e.event_name === 'request_start')
+    const successes = telemetry.events.filter(e => e.event_name === 'request_success')
+    expect(starts).toHaveLength(1)
+    expect(successes).toHaveLength(1)
+    expect(starts[0].trace_id).toBe(successes[0].trace_id)
+    expect(successes[0]).toEqual(expect.objectContaining({
+      endpoint: 'ajax/profile/info',
+      resource_type: 'USER_INFO',
+      duration_ms: expect.any(Number),
+    }))
+  })
+
+  it('emits rate_limit_wait when tokens are exhausted', async () => {
+    const telemetry = new TelemetryCollector()
+    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const clock = new FakeClock()
+    const rateLimit = new RateLimitService(1, 1000, clock, telemetry)
+
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: rateLimit, telemetry },
+    )
+
+    await fetcher.call(userInfoSpec, { uid: '1' })
+    await fetcher.call(userInfoSpec, { uid: '1' })
+
+    const waits = telemetry.events.filter(e => e.event_name === 'rate_limit_wait')
+    expect(waits).toHaveLength(1)
+    expect(waits[0]).toEqual(expect.objectContaining({
+      wait_ms: 1000,
+      refill_rate_ms: 1000,
+      max_tokens: 1,
+    }))
+    expect(clock.sleepCalls).toEqual([1000])
+  })
+
+  it('emits request_error for ok!=1 responses with structured error fields', async () => {
+    const telemetry = new TelemetryCollector()
+    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'bad', data: {} }))
+    const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
+
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: rateLimit, telemetry },
+    )
+
+    await expect(fetcher.call(userInfoSpec, { uid: '1' })).rejects.toBeInstanceOf(WeiboAPINotOkError)
+
+    const errors = telemetry.events.filter(e => e.event_name === 'request_error')
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toEqual(expect.objectContaining({
+      phase: 'response',
+      error_code: 'API_NOT_OK',
+      error_level: 'business',
+      error_retryable: false,
+      endpoint: 'ajax/profile/info',
+      resource_type: 'USER_INFO',
+    }))
+  })
+})

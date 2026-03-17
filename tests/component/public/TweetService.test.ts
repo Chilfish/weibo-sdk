@@ -64,15 +64,23 @@ describe('tweetService', () => {
     } as any as IMyMBlogResponse
 
     const { client } = createFakeAxios(async () => response)
+    const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
-      { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
 
     const page = await service.listByUserId('111')
     expect(page.sinceId).toBe(456)
     expect(page.tweets).toHaveLength(1)
     expect(page.tweets[0].id).toBe('1')
+
+    expect(telemetry.emit).toHaveBeenCalledWith(expect.objectContaining({
+      event_name: 'normalize_done',
+      model: 'Tweet',
+      count: 1,
+      duration_ms: expect.any(Number),
+    }))
   })
 
   it('calls show endpoint with correct params and triggers onFetched', async () => {
@@ -164,9 +172,10 @@ describe('tweetService', () => {
     } as any as IStatusShowResponse
 
     const { client } = createFakeAxios(async () => response)
+    const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
-      { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
 
     const tweet = await service.getByMblogId('QqsYymYOS')
@@ -177,5 +186,12 @@ describe('tweetService', () => {
     expect(tweet.user.name).toBe('u')
     expect(tweet.visible).toBe(1)
     expect(tweet.stats).toEqual({ likes: 10, comments: 2, reposts: 3 })
+
+    expect(telemetry.emit).toHaveBeenCalledWith(expect.objectContaining({
+      event_name: 'normalize_done',
+      model: 'Tweet',
+      count: 1,
+      duration_ms: expect.any(Number),
+    }))
   })
 })

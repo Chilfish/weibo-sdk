@@ -101,9 +101,19 @@ export class TweetService extends FetcherService {
   public async listByUserId(uid: string, sinceId?: number): Promise<TweetPageResult> {
     const raw = await this.myMblog(uid, sinceId)
     const nextSinceId = Number(raw.since_id ?? 0)
+    const startAt = Date.now()
+    const tweets = (raw.list || []).map(item => new Tweet(item))
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: `${Date.now()}-normalize-tweet-list`,
+      model: 'Tweet',
+      count: tweets.length,
+      duration_ms: Date.now() - startAt,
+    })
     return {
       sinceId: Number.isFinite(nextSinceId) ? nextSinceId : 0,
-      tweets: (raw.list || []).map(item => new Tweet(item)),
+      tweets,
     }
   }
 
@@ -121,6 +131,16 @@ export class TweetService extends FetcherService {
    */
   public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<Tweet> {
     const raw = await this.show(mblogId, isGetLongText)
-    return new Tweet(raw)
+    const startAt = Date.now()
+    const tweet = new Tweet(raw)
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: `${Date.now()}-normalize-tweet`,
+      model: 'Tweet',
+      count: 1,
+      duration_ms: Date.now() - startAt,
+    })
+    return tweet
   }
 }

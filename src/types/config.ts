@@ -1,5 +1,6 @@
 // src/types/config.ts
 import type { WeiboSDKHooks, WeiboSDKSelfCheckMode } from './hooks'
+import type { WeiboSDKTelemetry } from './telemetry'
 
 export interface IWeiboConfig {
   cookie: string
@@ -14,6 +15,13 @@ export interface IWeiboConfig {
    * SDK 级别 hooks（全局 onFetched/onError/生命周期事件）
    */
   hooks?: WeiboSDKHooks
+
+  /**
+   * SDK 级别 telemetry（Wide Events）。
+   *
+   * 与 hooks 不同，telemetry 只承载“可序列化的扁平 KV”，用于生产可观测性/诊断。
+   */
+  telemetry?: WeiboSDKTelemetry
 
   /**
    * 构造后会话自检策略。

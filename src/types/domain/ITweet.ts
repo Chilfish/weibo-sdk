@@ -1,4 +1,4 @@
-import type { VerificationType } from "./IUser"
+import type { VerificationType } from './IUser'
 
 export interface ITweet {
   id: string
@@ -66,7 +66,7 @@ export enum MediaType {
   VIDEO = 'video',
   LIVEPHOTO = 'livephoto',
   GIF = 'gif',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 /**

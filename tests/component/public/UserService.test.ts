@@ -218,13 +218,21 @@ describe('userService', () => {
       throw new Error(`unexpected url: ${cfg.url}`)
     })
 
+    const telemetry = { emit: vi.fn(async () => {}) }
     const service = new UserService(
-      { cookie: 'SUB=abc' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: { acquire: vi.fn() } as any, telemetry },
     )
 
     const user = await service.getById('111')
     expect(user.id).toBe('111')
     expect(user.name).toBe('sn')
+
+    expect(telemetry.emit).toHaveBeenCalledWith(expect.objectContaining({
+      event_name: 'normalize_done',
+      model: 'User',
+      count: 1,
+      duration_ms: expect.any(Number),
+    }))
   })
 })
