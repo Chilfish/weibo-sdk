@@ -31,8 +31,8 @@
 - [x] 新增 endpoint：首页 Feed `GET /ajax/feed/friendstimeline`（2026-05-16，`sdk.tweets.friendTimeline()`）
 - [x] 新增 endpoint：热搜榜单 `GET /ajax/side/bandUnified?type=hot`（2026-05-16，`sdk.trends.hotBand()`）
 - [x] 修复 Search endpoint URL → `m.weibo.cn/api/container/getIndex`（2026-05-16，`sdk.search.searchUsers()`）
-- [ ] 修正 `mymblog` 参数：抓包使用 `page`+`feature` 而非 `count`
-- [ ] 补充 `profile/info` 缺失参数 `scene`
+- [x] 修正 `mymblog` 参数：args schema 已加 `page`+`feature`（2026-05-16）
+- [x] 补充 `profile/info` 缺失参数：args schema 已加 `scene`（2026-05-16）
 
 ### 流式接口
 - [x] `TweetService.streamByUserId()` AsyncIterator 自动翻页（2026-05-16）。
@@ -50,7 +50,7 @@
 - [x] 将 `normalize_done` 事件的 `trace_id` 统一为入口方法级格式（2026-05-16）。
 - [x] 真实 API fixture 基线：6 个 JSON 文件（2026-05-16）。
 - [x] `tests/testkit/` 扩展：添加通用 `FakeClock` + barrel 导出（2026-05-16）。
-- [ ] 扩大 telemetry 测试的覆盖范围：覆盖 FetcherService 的 preflight error / parse error 路径。
+- [x] 扩大 telemetry 测试覆盖：新增 preflight error + parse error 事件断言（2026-05-16）。
 
 ### CI / 构建
 - [x] 配置 CI（GitHub Actions）：`pnpm install` → `pnpm run typecheck` → `pnpm run lint` → `pnpm test`（2026-05-16）。
