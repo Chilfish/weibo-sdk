@@ -85,6 +85,29 @@ export class TweetService extends FetcherService {
   }
 
   /**
+   * 流式获取用户微博时间线
+   *
+   * 自动翻页直到无更多数据。
+   *
+   * @example
+   * for await (const tweet of sdk.tweets.streamByUserId('1111681197')) {
+   *   console.log(tweet.id, tweet.text)
+   * }
+   */
+  async* streamByUserId(uid: string, options?: { count?: number }): AsyncIterableIterator<Tweet> {
+    let cursor: number | undefined
+
+    do {
+      const page = await this.listByUserId(uid, { sinceId: cursor, count: options?.count })
+
+      for (const tweet of page.tweets)
+        yield tweet
+
+      cursor = page.hasMore ? page.sinceId : undefined
+    } while (cursor !== undefined)
+  }
+
+  /**
    * 获取单条微博详情
    *
    * `GET https://weibo.com/ajax/statuses/show?id=${mblogid}&isGetLongText=true`
