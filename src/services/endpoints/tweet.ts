@@ -50,7 +50,7 @@ const MyMBlogItemSchema = z.object({
   page_info: z.record(z.unknown()).optional(),
   geo: z.record(z.unknown()).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy(() => MyMBlogItemSchema.optional()),
+  retweeted_status: z.lazy(() => MyMBlogItemSchema).nullable().optional(),
 }).passthrough()
 
 const MyMblogResponseSchema = z.object({
@@ -102,7 +102,7 @@ const StatusShowResponseSchema = z.object({
   page_info: z.record(z.unknown()).optional(),
   geo: z.record(z.unknown()).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy(() => StatusShowResponseSchema.optional()),
+  retweeted_status: z.lazy(() => StatusShowResponseSchema).nullable().optional(),
 }).passthrough().superRefine((val, ctx) => {
   if (val.id === undefined && !val.idstr) {
     ctx.addIssue({
