@@ -69,7 +69,7 @@ const MyMblogResponseSchema = z.object({
 export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
 
 const StatusShowResponseSchema = z.object({
-  ok: z.number(),
+  ok: z.number().optional(),
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mblogid: z.string(),

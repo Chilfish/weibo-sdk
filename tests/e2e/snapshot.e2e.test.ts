@@ -162,10 +162,8 @@ describeE2E('snapshot: tweet structure', () => {
     const mblogIds = await getFirstMblogIds()
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    // 对前 3 条微博都测试
     for (const mblogId of mblogIds) {
       const raw = await weibo.tweets.show(mblogId, true)
-      // 验证核心字段存在
       expect(raw.ok).toBe(1)
       expect(raw.mblogid).toBe(mblogId)
       expect(raw.user).toBeDefined()
