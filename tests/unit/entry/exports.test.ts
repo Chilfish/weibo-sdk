@@ -28,6 +28,9 @@ describe('package exports', () => {
     expect(pkg.types).toBe('./dist/index.d.mts')
     // exports field supersedes main/module (tsdown auto-manages)
     expect(pkg.exports).toBeDefined()
-    expect(pkg.exports['.']).toBe('./dist/index.mjs')
+    expect(pkg.exports!['.']).toBe('./dist/index.mjs')
+    expect(pkg.exports!['./package.json']).toBe('./package.json')
+    // tsdown auto-generates cli subpath
+    expect(pkg.exports!['./cli']).toBeDefined()
   })
 })
