@@ -88,7 +88,7 @@ pnpm run lint
 欢迎贡献代码！请遵循以下步骤：
 
 1. Fork 项目
-2. 创建功能分支（`git checkout -b codex/amazing-feature`）
+2. 创建功能分支（`git checkout -b claude/amazing-feature`）
 3. 提交更改（建议 Conventional Commits）
 4. 推送到分支并创建 Pull Request
 

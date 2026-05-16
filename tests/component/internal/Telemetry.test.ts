@@ -1,26 +1,11 @@
-import type { IRateLimitClock } from '~/services/internal/RateLimitService'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
-import { createFakeAxios } from 'tests/testkit/fakeAxios'
+import { createFakeAxios, FakeClock } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
 import { RateLimitService } from '~/services/internal/RateLimitService'
-
-class FakeClock implements IRateLimitClock {
-  public nowValue = 0
-  public sleepCalls: number[] = []
-
-  now(): number {
-    return this.nowValue
-  }
-
-  async sleep(ms: number): Promise<void> {
-    this.sleepCalls.push(ms)
-    this.nowValue += ms
-  }
-}
 
 class TelemetryCollector implements WeiboSDKTelemetry {
   public events: TelemetryEvent[] = []
