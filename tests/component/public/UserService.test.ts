@@ -112,7 +112,7 @@ describe('userService', () => {
     expect(data.ok).toBe(1)
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toBeUndefined()
+    expect(cfg?.params).toEqual({})
     expect(cfg?.headers?.referer).toBe('https://weibo.com/')
     expect(service.onFetched).toHaveBeenCalledWith('USER_DETAILS', response)
   })
