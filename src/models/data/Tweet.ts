@@ -250,11 +250,11 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),
     user: {
-      id: String(raw.user.idstr || raw.user.id),
-      name: raw.user.screen_name || '',
-      avatar: raw.user.avatar_hd || raw.user.avatar_large || raw.user.profile_image_url || '',
-      verified: !!raw.user.verified,
-      verifiedType: (raw.user.verified_type ?? 0) as unknown as VerificationType,
+      id: String(raw.user?.idstr || raw.user?.id || ''),
+      name: raw.user?.screen_name || '',
+      avatar: raw.user?.avatar_hd || raw.user?.avatar_large || raw.user?.profile_image_url || '',
+      verified: !!raw.user?.verified,
+      verifiedType: (raw.user?.verified_type ?? 0) as unknown as VerificationType,
     },
     stats: {
       likes: Number(raw.attitudes_count ?? 0),

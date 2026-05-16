@@ -15,9 +15,9 @@ const UserInfoResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
     user: z.object({
-      id: z.number(),
-      idstr: z.string(),
-      screen_name: z.string(),
+      id: z.number().optional(),
+      idstr: z.string().optional(),
+      screen_name: z.string().optional(),
       avatar_hd: z.string().optional(),
       avatar_large: z.string().optional(),
       profile_image_url: z.string().optional(),
@@ -39,7 +39,7 @@ const UserInfoResponseSchema = z.object({
 const UserDetailsResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
-    created_at: z.string(),
+    created_at: z.string().optional(),
     desc_text: z.string().optional(),
     ip_location: z.string().optional(),
     gender: z.string().optional(),
