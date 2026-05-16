@@ -21,12 +21,12 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
-    "./cli": "./dist/cli/index.mjs",
+    "./cli": "./dist/cli.mjs",
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",
   "bin": {
-    "weibo-sdk": "./dist/cli/index.mjs"
+    "weibo-sdk": "./dist/cli.mjs"
   },
   "files": [
     "dist"
@@ -52,7 +52,7 @@
   ],
   "dependencies": {
     "axios": "catalog:",
-    "citty": "^0.2.2",
+    "citty": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

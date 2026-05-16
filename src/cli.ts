@@ -1,8 +1,8 @@
 import { defineCommand, runMain } from 'citty'
-import { WeiboSDK } from '../WeiboSDK'
-import { userInfo, userTimeline } from './commands/user'
-import { tweetDetail, tweetComments, tweetTimeline } from './commands/tweet'
-import { searchUsers, searchTweets } from './commands/search'
+import { WeiboSDK } from './WeiboSDK'
+import { userInfo, userTimeline } from './cli/commands/user'
+import { tweetDetail, tweetComments, tweetTimeline } from './cli/commands/tweet'
+import { searchUsers, searchTweets } from './cli/commands/search'
 
 const trends = defineCommand({
   meta: { name: 'trends', description: '获取热搜榜单' },
