@@ -1,0 +1,40 @@
+{
+  "data": {
+    "sunshine_credit": {
+      "level": "阳光信用较好"
+    },
+    "education": {
+      "school": "华南农业大学"
+    },
+    "followers": {
+      "total_number": 0
+    },
+    "birthday": "1989-12-27 摩羯座",
+    "created_at": "2011-09-01 18:54:03",
+    "description": "世无新事，周而复始。",
+    "gender": "m",
+    "ip_location": "IP属地：广东",
+    "real_name": {
+      "name": "",
+      "career": ""
+    },
+    "label_desc": [
+      {
+        "name": "视频累计播放量4728",
+        "normal_mode": {
+          "word_color": "#FFFF6200",
+          "background_color": "#59FFDDCB"
+        },
+        "dark_mode": {
+          "word_color": "#FFEA8011",
+          "background_color": "#FF181818"
+        },
+        "scheme_url": ""
+      }
+    ],
+    "desc_text": "",
+    "verified_url": "https://verified.weibo.com/verify?fr=myverified?uid=2365795232",
+    "friend_info": ""
+  },
+  "ok": 1
+}

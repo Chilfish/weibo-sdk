@@ -1,0 +1,32 @@
+{
+  "ok": 1,
+  "data": [
+    {
+      "card_type": "cardProfile",
+      "cardid": "1001_profile",
+      "display": true,
+      "card_item": []
+    },
+    {
+      "card_type": "cardScheme",
+      "cardid": "1001_scheme",
+      "display": true,
+      "card_item": [
+        {
+          "cardid": "1001_-_toMyProfile",
+          "name": "查看个人主页",
+          "desc": "",
+          "display": true,
+          "url": "/u/7795130453"
+        }
+      ]
+    },
+    {
+      "card_type": "cardHotSearch",
+      "cardid": "1001_hot_search",
+      "display": true,
+      "card_item": [],
+      "sticky": true
+    }
+  ]
+}
