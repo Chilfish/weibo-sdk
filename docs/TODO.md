@@ -30,7 +30,7 @@
 - [x] 新增 endpoint：评论列表 `GET /ajax/statuses/buildComments`（2026-05-16，`sdk.tweets.comments()`）
 - [x] 新增 endpoint：首页 Feed `GET /ajax/feed/friendstimeline`（2026-05-16，`sdk.tweets.friendTimeline()`）
 - [x] 新增 endpoint：热搜榜单 `GET /ajax/side/bandUnified?type=hot`（2026-05-16，`sdk.trends.hotBand()`）
-- [ ] 修复 Search endpoint URL（当前 `/ajax/search/users` 返回 404）
+- [x] 修复 Search endpoint URL → `m.weibo.cn/api/container/getIndex`（2026-05-16，`sdk.search.searchUsers()`）
 - [ ] 修正 `mymblog` 参数：抓包使用 `page`+`feature` 而非 `count`
 - [ ] 补充 `profile/info` 缺失参数 `scene`
 
