@@ -42,7 +42,7 @@ const MyMBlogItemSchema: z.ZodType<any> = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough(),
+  }).passthrough().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -94,7 +94,7 @@ const StatusShowResponseSchema: z.ZodType<any> = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough(),
+  }).passthrough().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -113,7 +113,7 @@ const StatusShowResponseSchema: z.ZodType<any> = z.object({
       path: ['id'],
     })
   }
-  if (val.user.id === undefined && !val.user.idstr) {
+  if (val.user && val.user.id === undefined && !val.user.idstr) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'tweet.user.id or tweet.user.idstr is required',
@@ -177,7 +177,7 @@ const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
     avatar_large: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough(),
+  }).passthrough().nullable().optional(),
   comments: z.array(z.lazy(() => CommentItemSchema)).optional(),
 }).passthrough())
 

@@ -29,7 +29,7 @@ const FavoriteItemSchema: z.ZodType<any> = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough(),
+  }).passthrough().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -41,10 +41,7 @@ const FavoriteItemSchema: z.ZodType<any> = z.object({
 
 const FavoritesResponseSchema = z.object({
   ok: z.number(),
-  data: z.object({
-    status: z.array(FavoriteItemSchema),
-    total_number: z.number().optional(),
-  }),
+  data: z.array(FavoriteItemSchema),
 })
 
 export type FavoritesResponse = z.infer<typeof FavoritesResponseSchema>
