@@ -37,6 +37,9 @@ catalogs:
     axios:
       specifier: ^1.16.1
       version: 1.16.1
+    citty:
+      specifier: ^0.2.2
+      version: 0.2.2
     dotenv:
       specifier: ^17.4.2
       version: 17.4.2
@@ -70,7 +73,7 @@ importers:
         specifier: 'catalog:'
         version: 1.16.1
       citty:
-        specifier: ^0.2.2
+        specifier: 'catalog:'
         version: 0.2.2
       zod:
         specifier: 'catalog:'

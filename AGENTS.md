@@ -198,6 +198,101 @@ src/cli/commands/*.ts     # 按领域分文件，一个文件一个 SDK Service
 - 我可以在满足"合并门禁"的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。
 - 若 PR 涉及较大重构、可能引入 breaking change、或需要真实外网验证（E2E），必须先在 PR 中明确风险点并等待确认后再合并。
 
+
+### 1. **Preventing Premature Implementation Details**
+
+The feature specification template explicitly instructs:
+
+```text
+- ✅ Focus on WHAT users need and WHY
+- ❌ Avoid HOW to implement (no tech stack, APIs, code structure)
+```
+
+This constraint forces the LLM to maintain proper abstraction levels. When an LLM might naturally jump to "implement using React with Redux," the template keeps it focused on "users need real-time updates of their data." This separation ensures specifications remain stable even as implementation technologies change.
+
+#### 2. **Forcing Explicit Uncertainty Markers**
+
+Both templates mandate the use of `[NEEDS CLARIFICATION]` markers:
+
+```text
+When creating this spec from a user prompt:
+1. **Mark all ambiguities**: Use [NEEDS CLARIFICATION: specific question]
+2. **Don't guess**: If the prompt doesn't specify something, mark it
+```
+
+This prevents the common LLM behavior of making plausible but potentially incorrect assumptions. Instead of guessing that a "login system" uses email/password authentication, the LLM must mark it as `[NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]`.
+
+#### 3. **Structured Thinking Through Checklists**
+
+The templates include comprehensive checklists that act as "unit tests" for the specification:
+
+```markdown
+### Requirement Completeness
+
+- [ ] No [NEEDS CLARIFICATION] markers remain
+- [ ] Requirements are testable and unambiguous
+- [ ] Success criteria are measurable
+```
+
+These checklists force the LLM to self-review its output systematically, catching gaps that might otherwise slip through. It's like giving the LLM a quality assurance framework.
+
+#### 4. **Constitutional Compliance Through Gates**
+
+The implementation plan template enforces architectural principles through phase gates:
+
+```markdown
+### Phase -1: Pre-Implementation Gates
+
+#### Simplicity Gate (Article VII)
+
+- [ ] Using ≤3 projects?
+- [ ] No future-proofing?
+
+#### Anti-Abstraction Gate (Article VIII)
+
+- [ ] Using framework directly?
+- [ ] Single model representation?
+```
+
+These gates prevent over-engineering by making the LLM explicitly justify any complexity. If a gate fails, the LLM must document why in the "Complexity Tracking" section, creating accountability for architectural decisions.
+
+#### 5. **Hierarchical Detail Management**
+
+The templates enforce proper information architecture:
+
+```text
+**IMPORTANT**: This implementation plan should remain high-level and readable.
+Any code samples, detailed algorithms, or extensive technical specifications
+must be placed in the appropriate `implementation-details/` file
+```
+
+This prevents the common problem of specifications becoming unreadable code dumps. The LLM learns to maintain appropriate detail levels, extracting complexity to separate files while keeping the main document navigable.
+
+#### 6. **Test-First Thinking**
+
+The implementation template enforces test-first development:
+
+```text
+### File Creation Order
+1. Create `contracts/` with API specifications
+2. Create test files in order: contract → integration → e2e → unit
+3. Create source files to make tests pass
+```
+
+This ordering constraint ensures the LLM thinks about testability and contracts before implementation, leading to more robust and verifiable specifications.
+
+#### 7. **Preventing Speculative Features**
+
+Templates explicitly discourage speculation:
+
+```text
+- [ ] No speculative or "might need" features
+- [ ] All phases have clear prerequisites and deliverables
+```
+
+This stops the LLM from adding "nice to have" features that complicate implementation. Every feature must trace back to a concrete user story with clear acceptance criteria.
+
+
 ## Postmortem 约定（知识固化 / 上下文注入）
 
 在现代软件工程中，Postmortem（追思/事后分析）源自医学术语，指在项目阶段结束、重大事故（Incidents）处理完毕或关键特性发布后，对过程进行的结构化回顾与深度解剖。其核心目标不是追责，而是通过根因分析（Root Cause Analysis, RCA），提取技术负债、逻辑误区或架构缺陷的确定性结论，防止同类问题再次发生。
