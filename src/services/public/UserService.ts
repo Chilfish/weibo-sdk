@@ -1,9 +1,10 @@
+import type { UserDetailsResponse, UserInfoResponse } from '../endpoints/user'
 import type { IWeiboConfig } from '~/types/config'
-import type { IUserDetailsResponse } from '~/types/raw/user/Details'
-import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import { User } from '~/models/data/User'
-import { FetcherService } from '../internal/FetcherService'
 import { myDetailsSpec, userDetailsSpec, userInfoSpec } from '../endpoints/user'
+import { FetcherService } from '../internal/FetcherService'
+
+let normalizeSeq = 0
 
 export class UserService extends FetcherService {
   constructor(config: IWeiboConfig, deps?: ConstructorParameters<typeof FetcherService>[1]) {
@@ -14,14 +15,14 @@ export class UserService extends FetcherService {
    * 获取用户信息
    * @param id 用户ID (uid)
    */
-  public async info(id: string): Promise<IUserInfoResponse> {
+  public async info(id: string): Promise<UserInfoResponse> {
     return await this.request(userInfoSpec, { uid: id })
   }
 
   /**
    * 获取用户详情
    */
-  public async details(id: string): Promise<IUserDetailsResponse> {
+  public async details(id: string): Promise<UserDetailsResponse> {
     return await this.request(userDetailsSpec, { uid: id })
   }
 
@@ -30,7 +31,7 @@ export class UserService extends FetcherService {
    *
    * 该接口常用于会话自检：Cookie 过期/未登录时，通常会返回 `ok !== 1`。
    */
-  public async myDetails(): Promise<IUserDetailsResponse> {
+  public async myDetails(): Promise<UserDetailsResponse> {
     return await this.request(myDetailsSpec, undefined, { skipPreflight: true })
   }
 
@@ -38,6 +39,7 @@ export class UserService extends FetcherService {
    * 获取用户详情信息，返回解析后的 User 类
    */
   public async getById(id: string): Promise<User> {
+    const traceId = `${Date.now()}-getById-${++normalizeSeq}`
     const [info, details] = await Promise.all([
       this.info(id),
       this.details(id),
@@ -48,7 +50,7 @@ export class UserService extends FetcherService {
     await this.emitTelemetry({
       event_name: 'normalize_done',
       timestamp: Date.now(),
-      trace_id: `${Date.now()}-normalize-user`,
+      trace_id: traceId,
       model: 'User',
       count: 1,
       duration_ms: Date.now() - startAt,

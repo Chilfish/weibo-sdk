@@ -1,7 +1,4 @@
-import type { ZodType } from 'zod'
 import type { EndpointSpec } from '../internal/EndpointSpec'
-import type { IUserDetailsResponse } from '~/types/raw/user/Details'
-import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import { z } from 'zod'
 import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { defineEndpoint } from '../internal/EndpointSpec'
@@ -19,12 +16,15 @@ const UserInfoResponseSchema = z.object({
   data: z.object({
     user: z.object({}).loose(),
   }).loose(),
-}).loose() as unknown as ZodType<IUserInfoResponse>
+}).loose()
 
 const UserDetailsResponseSchema = z.object({
   ok: z.number(),
   data: z.object({}).loose(),
-}).loose() as unknown as ZodType<IUserDetailsResponse>
+}).loose()
+
+export type UserInfoResponse = z.infer<typeof UserInfoResponseSchema>
+export type UserDetailsResponse = z.infer<typeof UserDetailsResponseSchema>
 
 export const userInfoSpec: EndpointSpec<'USER_INFO', typeof UserInfoArgsSchema> = defineEndpoint({
   resourceType: 'USER_INFO',
@@ -77,4 +77,3 @@ export const myDetailsSpec: EndpointSpec<'USER_DETAILS', undefined> = defineEndp
   },
   schema: UserDetailsResponseSchema,
 })
-

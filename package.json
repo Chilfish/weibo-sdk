@@ -2,7 +2,7 @@
   "name": "weibo-sdk",
   "type": "module",
   "version": "0.0.0",
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@11.1.2",
   "description": "A maintainable, offline-testable Weibo reverse-engineering SDK in TypeScript.",
   "author": "Chilfish",
   "license": "MIT",

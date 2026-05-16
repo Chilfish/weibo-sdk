@@ -1,13 +1,14 @@
-import type { IMyMBlogResponse } from './raw/tweet/mymblog'
-import type { IStatusShowResponse } from './raw/tweet/show'
-import type { IUserDetailsResponse } from './raw/user/Details'
-import type { IUserInfoResponse } from './raw/user/Info'
+import type { MyMblogResponse, StatusShowResponse } from '../services/endpoints/tweet'
+import type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
+import type { ISearchTweetsResponse, ISearchUsersResponse } from './raw/search/search'
 
 export interface IResource {
-  USER_INFO: IUserInfoResponse
-  USER_DETAILS: IUserDetailsResponse
-  TWEET_MYMBLOG: IMyMBlogResponse
-  TWEET_SHOW: IStatusShowResponse
+  USER_INFO: UserInfoResponse
+  USER_DETAILS: UserDetailsResponse
+  TWEET_MYMBLOG: MyMblogResponse
+  TWEET_SHOW: StatusShowResponse
+  SEARCH_USERS: ISearchUsersResponse
+  SEARCH_TWEETS: ISearchTweetsResponse
 }
 
 export type IResourceType = keyof IResource

@@ -39,12 +39,12 @@
 ## P2：工程优化
 
 ### Zod / Schema 迁移
-- [ ] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`，从 `USER_INFO` / `USER_DETAILS` / `TWEET_SHOW` 开始，减少 `as unknown as`。
+- [x] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`，从 `USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` 开始，减少 `as unknown as`（2026-05-16 完成）。
 - [ ] 明确 schema strictness 策略：默认 `.passthrough()`（开放端点模式），仅对稳定关键字段做强约束；易变字段用 `unknown` 保留。
 - [ ] 为所有 endpoint 补充 args schema（当前 `myDetailsSpec` 的 args 为 `undefined`，需要确认是否加入 Zod schema）。
 
 ### 可观测性与测试
-- [ ] 将 `normalize_done` 事件的 `trace_id` 与上级请求的 `trace_id` 串联（而非独立生成），形成完整追踪链。
+- [x] 将 `normalize_done` 事件的 `trace_id` 与上级请求的 `trace_id` 串联（而非独立生成），形成完整追踪链（2026-05-16 完成）。
 - [ ] 扩大 telemetry 测试的覆盖范围：覆盖 FetcherService 的 preflight error / parse error 路径。
 - [ ] `tests/testkit/` 扩展：添加通用 fake clock、fake sleep，减少各测试重复定义。
 

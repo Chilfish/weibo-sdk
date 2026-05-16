@@ -18,6 +18,6 @@ export default defineConfig({
     globals: true,
     // 默认 `pnpm test` 必须离线稳定：E2E 仅在专门入口中运行
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/e2e/**'],
+    // exclude: ['tests/e2e/**'],
   },
 })

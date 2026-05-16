@@ -106,6 +106,49 @@ WeiboSDK（门面）
 - **E2E 策略**：需要真实 Cookie/外网的用例必须默认跳过，仅在 PR/发布前由维护者显式开启验证。
 - **合并策略**：优先 Squash merge（保持 `main` 历史干净），必要时 Rebase；合并后及时删除分支。
 
+## 数据驱动开发（Data-Driven Development）
+
+**核心原则：所有代码的正确性必须以真实微博 API 返回数据为准。**
+
+### 为什么
+
+这是一个逆向工程 SDK，微博的上游 API 没有文档、没有版本承诺、字段随时可能漂移。
+手写的 TypeScript 接口和 Zod schema 本质上只是"猜"，只有真实 API 响应能证明正确性。
+
+### 约束
+
+1. **新增/修改任何 Zod schema 前**，必须先获取对应的真实 API 响应并存为 fixture（`tests/fixtures/raw/`）。
+2. **新增/修改任何 Model 归一化逻辑前**，必须用至少 2 种不同变种的真实 fixture 验证。
+3. **字段类型声明**必须以真实 API 返回的实际类型为准，而非直觉（例如 `since_id` 实际是 `string` 而非 `number`）。
+4. **不得仅凭手写的 Raw 接口来推导 Schema**——应先看真实数据再写 Schema。
+
+### 如何获取真实数据
+
+`.env` 文件中的 `WEIBO_COOKIE` 包含有效的登录凭证。
+
+在需要获取特定微博数据时，按以下步骤操作：
+
+1. **确定用户 UID 或微博 mblogid**
+   - 用户 UID 可以从用户主页 URL 获取（`weibo.com/u/{uid}`）
+   - 微博 mblogid 可以从时间线返回的 `list[].mblogid` 获取
+
+2. **使用 curl 配合 Cookie 调用 API**
+   ```bash
+   source .env
+   curl -s -H "Cookie: $WEIBO_COOKIE" \
+     -H "X-XSRF-TOKEN: $(echo $WEIBO_COOKIE | sed -n 's/.*XSRF-TOKEN=\([^;]*\).*/\1/p')" \
+     -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+     "https://weibo.com/ajax/statuses/show?id={mblogid}&isGetLongText=true"
+   ```
+
+3. **保存为 fixture**：保存到 `tests/fixtures/raw/{描述性名称}.json`
+
+4. **校验当前 Schema**：用真实数据运行 Zod schema 校验，发现不匹配立即修正
+
+### 真实数据与当前代码的已知差异
+
+见 `docs/渐进式开发计划.md` 中"Phase 1：基于真实数据的 Bug 修复"。
+
 ## 自动化执行边界（我可以自行完成的事）
 
 - 我可以在满足"合并门禁"的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。

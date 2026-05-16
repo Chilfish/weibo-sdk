@@ -1,13 +1,11 @@
-import type { ZodType } from 'zod'
 import type { EndpointSpec } from '../internal/EndpointSpec'
-import type { IMyMBlogResponse } from '~/types/raw/tweet/mymblog'
-import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { z } from 'zod'
 import { defineEndpoint } from '../internal/EndpointSpec'
 
 const MyMblogArgsSchema = z.object({
   uid: z.string(),
   since_id: z.number().optional(),
+  count: z.number().optional(),
 }).strict()
 
 const StatusShowArgsSchema = z.object({
@@ -16,10 +14,12 @@ const StatusShowArgsSchema = z.object({
 }).strict()
 
 const MyMblogResponseSchema = z.object({
-  since_id: z.number().optional(),
+  since_id: z.string().optional(),
   list: z.array(z.unknown()).optional(),
   total: z.number().optional(),
-}).loose() as unknown as ZodType<IMyMBlogResponse>
+}).loose()
+
+export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
 
 const IdSchema = z.union([z.string(), z.number()])
 
@@ -48,7 +48,9 @@ const StatusShowResponseSchema = z.object({
       path: ['user', 'id'],
     })
   }
-}) as unknown as ZodType<IStatusShowResponse>
+})
+
+export type StatusShowResponse = z.infer<typeof StatusShowResponseSchema>
 
 export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema> = defineEndpoint({
   resourceType: 'TWEET_MYMBLOG',
@@ -79,4 +81,3 @@ export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSch
   okPolicy: { mode: 'require_ok_1' },
   schema: StatusShowResponseSchema,
 })
-

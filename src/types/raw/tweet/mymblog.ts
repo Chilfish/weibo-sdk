@@ -1,10 +1,12 @@
 export interface IMyMBlogResponse {
-  since_id: number
+  /** 下页游标：string 类型；无更多页时为空字符串 "" */
+  since_id: string
   list: MyMBLog[]
   status_visible: number
   bottom_tips_visible: boolean
   bottom_tips_text: string
   topicList: any[]
+  /** 总数；无更多页时可能为 -1 */
   total: number
 }
 

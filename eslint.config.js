@@ -7,6 +7,9 @@ export default antfu(
     pnpm: true,
   },
   {
+    ignores: ['tests/fixtures/raw/*.json'],
+  },
+  {
     rules: {
       'unused-imports/no-unused-vars': 'warn',
       'no-console': 'off',
