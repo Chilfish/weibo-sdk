@@ -1,11 +1,11 @@
+export type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 // src/types/index.ts
 export * from './config'
 export * from './domain/ITweet'
+
 // Domain contracts (stable)
 export * from './domain/IUser'
-
 export * from './hooks'
-export type { ISearchTweetsResponse, ISearchUsersResponse } from './raw/search/search'
 export type { IMyMBlogResponse } from './raw/tweet/mymblog'
 export type { IStatusShowResponse } from './raw/tweet/show'
 

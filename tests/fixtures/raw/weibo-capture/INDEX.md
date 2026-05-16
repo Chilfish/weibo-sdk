@@ -3,6 +3,7 @@
 > 来源：浏览器 DevTools 抓包，覆盖"首页 Feed → 微博详情页 → 个人主页"流程
 > 抓取时间：2026-05-16
 > 原始 47 个请求/响应对，筛选保留 12 个有价值的 API 响应
+> 搜索流程（2026-05-16 补充）：2 对 m.weibo.cn 搜索 API
 
 ## 端点列表
 
@@ -20,6 +21,20 @@
 | `GET /ajax/side/cards` | `side_cards_detail.json` | 650B | 新发现 | 详情页侧边栏卡片（profile / scheme / hotSearch 三类卡片） |
 | `GET /ajax/statuses/checkReward` | `statuses_checkReward.json` | 4.8K | 新发现 | 打赏状态查询，含 reward_button_scheme 等字段 |
 | `GET /ajax/feed/allGroups` | `feed_allGroups.json` | 33.2K | 新发现 | 用户所有 Feed 分组/频道列表，含默认分组、订阅分组、频道推荐 |
+| `GET m.weibo.cn/api/container/getIndex` (type=3) | `search_users_page2.json` | 12.1K | ✅ 已修复 | 搜索用户（m.weibo.cn），含 cards/card_group 结构，cardlistInfo 分页 |
+| `GET m.weibo.cn/api/container/getIndex` (type=3, page=3) | `search_users_page3.json` | 11.4K | ✅ 已修复 | 搜索用户第 3 页 |
+
+## 搜索 API 特殊说明
+
+**host 更换**：搜索 API 使用 `m.weibo.cn`（移动端），而非 `weibo.com`（桌面端）。
+
+**containerid 格式**：`100103type={type}&q={query}&t=`（需 URL 编码嵌套在查询参数中）
+- `type=3` → 用户搜索
+- `type=1` → 微博搜索
+
+**响应结构**：`{ ok, data: { cards: [{ card_type, card_group: [{ user }] }], cardlistInfo: { page, total } } }`
+- `card_type=11` → 用户卡片
+- 分页通过 `page` 参数 + `cardlistInfo.total`
 
 ## 已有端点的参数差异
 
