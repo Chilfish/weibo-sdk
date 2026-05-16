@@ -209,6 +209,42 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
   schema: BuildCommentsResponseSchema,
 })
 
+// ---- Friendstimeline (Home Feed) ----
+
+const FriendstimelineArgsSchema = z.object({
+  list_id: z.string().optional(),
+  refresh: z.number().optional(),
+  since_id: z.number().optional(),
+  count: z.number().optional(),
+}).strict()
+
+const FriendstimelineResponseSchema = z.object({
+  ok: z.number(),
+  statuses: z.array(MyMBlogItemSchema),
+  total_number: z.number().optional(),
+  since_id: z.number().optional(),
+  max_id: z.number().optional(),
+  since_id_str: z.string().optional(),
+  max_id_str: z.string().optional(),
+}).passthrough()
+
+export type FriendstimelineResponse = z.infer<typeof FriendstimelineResponseSchema>
+
+export const friendstimelineSpec: EndpointSpec<'TWEET_FRIENDTIMELINE', typeof FriendstimelineArgsSchema> = defineEndpoint({
+  resourceType: 'TWEET_FRIENDTIMELINE',
+  endpoint: 'ajax/feed/friendstimeline',
+  argsSchema: FriendstimelineArgsSchema,
+  buildResource: () => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/feed/friendstimeline',
+    headers: {
+      referer: 'https://weibo.com/',
+    },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: FriendstimelineResponseSchema,
+})
+
 export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSchema> = defineEndpoint({
   resourceType: 'TWEET_SHOW',
   endpoint: 'ajax/statuses/show',
