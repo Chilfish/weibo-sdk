@@ -1,8 +1,8 @@
-import type { MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { BuildCommentsResponse, MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import { Tweet } from '~/models/data/Tweet'
-import { myMblogSpec, statusShowSpec } from '../endpoints/tweet'
+import { buildCommentsSpec, myMblogSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
@@ -133,5 +133,38 @@ export class TweetService extends FetcherService {
       duration_ms: Date.now() - startAt,
     })
     return tweet
+  }
+
+  /**
+   * 获取微博评论列表
+   *
+   * `GET https://weibo.com/ajax/statuses/buildComments?id={mblogid}&count=10`
+   *
+   * @param mblogId 微博 ID
+   * @param options.max_id 分页游标（上一页的 max_id）
+   * @param options.count 每页数量（默认 10）
+   * @param options.flow 排序：0=按热度，1=按时间
+   */
+  public async comments(mblogId: string, options?: {
+    max_id?: number
+    count?: number
+    flow?: 0 | 1
+    uid?: string
+  }): Promise<BuildCommentsResponse> {
+    const args: Record<string, string | number | boolean> = { id: mblogId }
+    if (options?.max_id)
+      args.max_id = options.max_id
+    if (options?.count)
+      args.count = options.count
+    if (options?.flow !== undefined) {
+      args.is_reload = 1
+      args.flow = options.flow
+      args.is_show_bulletin = 2
+      args.is_mix = 0
+      args.fetch_level = 0
+    }
+    if (options?.uid)
+      args.uid = options.uid
+    return await this.request(buildCommentsSpec, args as any)
   }
 }
