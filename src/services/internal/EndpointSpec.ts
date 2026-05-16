@@ -1,4 +1,4 @@
-import type { ZodType, ZodTypeAny, infer as ZodInfer } from 'zod'
+import type { infer as ZodInfer, ZodType, ZodTypeAny } from 'zod'
 import type { IRequestResource } from './FetcherService'
 import type { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import type { IResource, IResourceType } from '~/types/resources'

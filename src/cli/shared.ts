@@ -1,5 +1,5 @@
-import { WeiboSDK } from '../WeiboSDK'
 import type { IWeiboConfig } from '../types/config'
+import { WeiboSDK } from '../WeiboSDK'
 
 export function getCookie(args: Record<string, unknown>): string {
   return (args.cookie as string) || process.env.WEIBO_COOKIE || ''

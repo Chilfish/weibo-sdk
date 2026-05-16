@@ -22,7 +22,7 @@
 |---|---|---|
 | `unit/models/User.test.ts` | `User` 构造器 | avatar fallback 链（avatar_hd > avatar_large > profile_image_url）、IP属地前缀裁剪、stats映射、扩展属性（company/creditLevel/externalLinks/school） |
 | `unit/models/Tweet.test.ts` | `Tweet` 构造器（mymblog 来源） | 核心字段映射、media 提取（pic_infos）、regionName、visible、stats、geo 坐标兼容（lon/lat 顺序）、retweeted_status 递归构造 |
-| `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/show.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
+| `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
 
 ### Unit — 服务基础设施
 
@@ -78,15 +78,27 @@ E2E 测试从 `.env` 中读取 `WEIBO_COOKIE` 并使用真实 API。
 
 路径：`tests/fixtures/raw/`
 
-| 文件 | 来源 | 用途 |
+| 文件 | 用途 |
 |---|---|---|
-| `show.json` | 人工录制（Chilfish_ 用户的长微博） | `Tweet.show.test.ts` 中的归一化验证 |
-| `profile_info_1740358225.json` | `curl https://weibo.com/ajax/profile/info?uid=1740358225` | 当前 Zod schema 准确性校验 |
-| `profile_detail_1740358225.json` | `curl https://weibo.com/ajax/profile/detail?uid=1740358225` | 同上 |
-| `mymblog_1740358225.json` | `curl https://weibo.com/ajax/statuses/mymblog?uid=1740358225&page=1&count=10` | 9 条微博（含转发、图文、链接卡片等变种） |
-| `status_show_OgHLUyXYP.json` | `curl https://weibo.com/ajax/statuses/show?id=OgHLUyXYP` | 9 图微博详情 |
-| `status_show_P6yhlzD3j.json` | `curl https://weibo.com/ajax/statuses/show?id=P6yhlzD3j` | 转发微博详情 |
-| `status_show_PCN4v8k6W.json` | `curl https://weibo.com/ajax/statuses/show?id=PCN4v8k6W` | 纯文本微博详情 |
+| `tweet_QqsYymYOS.json` | 长微博详情（Tweet.show 归一化验证） |
+| `tweet_OgHLUyXYP.json` | 9 图微博详情 |
+| `tweet_P6yhlzD3j.json` | 转发微博详情 |
+| `tweet_PCN4v8k6W.json` | 纯文本微博详情 |
+| `tweet_QFekiwGId.json` | 微博详情变种 |
+| `timeline_u1740358225.json` | 用户时间线（9 条，含转发、图文、链接卡片等变种） |
+| `timeline_u2365795232.json` | 用户时间线（24 条） |
+| `profile_info_u1740358225.json` | 用户信息（36 字段） |
+| `profile_info_u2365795232.json` | 用户信息变种 |
+| `profile_detail.json` | 用户详情 |
+| `profile_detail_v2.json` | 用户详情变种 |
+| `comments.json` | 评论列表（20 条） |
+| `feed_home.json` | 首页 Feed（25 条） |
+| `feed_groups.json` | Feed 分组 |
+| `search_users_p2.json` | 搜索用户（第 2 页） |
+| `search_users_p3.json` | 搜索用户（第 3 页） |
+| `hot_trends.json` | 热搜榜单（52 条） |
+
+完整索引见 `tests/fixtures/raw/INDEX.md`。
 
 ### 如何获取更多真实数据
 

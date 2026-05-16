@@ -58,7 +58,8 @@ void new WeiboSDK({
   cookie: '...',
   hooks: {
     onError: (_error, meta) => {
-      if (meta.ok === 0) console.error('Session expired, need new cookie')
+      if (meta.ok === 0)
+        console.error('Session expired, need new cookie')
     },
   },
 })

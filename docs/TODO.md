@@ -55,11 +55,9 @@
 ### CI / 构建
 - [x] 配置 CI（GitHub Actions）：`pnpm install` → `pnpm run typecheck` → `pnpm run lint` → `pnpm test`（2026-05-16）。
 - [x] 配置 `size-limit`（2026-05-16，20kB 限制）。
-- [ ] 配置 `pkg.pr.new`（需 StackBlitz 外部服务，暂 skip）。
 
 ### 开发者体验
 - [ ] 补充公共 API 的 TSDoc 注释（当前仅部分方法有注释）。
-- [ ] 在 `package.json#exports` 中暴露子路径（如 `weibo-sdk/testing` 导出 testkit），方便下游测试。
 
 ---
 

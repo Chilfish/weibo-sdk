@@ -58,7 +58,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
     "@antfu/ni": "catalog:cli",
-    "@size-limit/preset-small-lib": "^12.1.0",
+    "@size-limit/preset-small-lib": "catalog:utils",
     "@types/node": "catalog:types",
     "bumpp": "catalog:cli",
     "dotenv": "catalog:",
@@ -66,7 +66,7 @@
     "lint-staged": "catalog:cli",
     "simple-git-hooks": "catalog:cli",
     "tinyexec": "catalog:utils",
-    "tsdown": "^0.22.0",
+    "tsdown": "catalog:utils",
     "tsx": "catalog:cli",
     "typescript": "catalog:cli",
     "vite": "catalog:cli",

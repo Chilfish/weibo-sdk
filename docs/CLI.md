@@ -6,9 +6,9 @@
 
 ```bash
 pnpm build        # 构建 dist/
-node dist/cli/index.mjs --help
+node dist/cli.mjs --help
 # 或开发模式直接运行
-npx tsx src/cli/index.ts --help
+npx tsx src/cli.ts --help
 ```
 
 ## 配置 Cookie
@@ -73,14 +73,15 @@ weibo-sdk search tweets <query> [--page <n>]
 weibo-sdk trends
 
 # 验证 Cookie 有效性
-weibo-sdk self-check --cookie "SUB=xxx; ..."
+weibo-sdk whoami
 ```
 
 ## 架构
 
 ```
+src/cli.ts              # 主入口，runMain()
 src/cli/
-  index.ts              # 主入口，runMain()
+  shared.ts             # getCookie / createSDK / cookieArg
   commands/
     user.ts             # user info / user timeline
     tweet.ts            # tweet detail / comments / home feed

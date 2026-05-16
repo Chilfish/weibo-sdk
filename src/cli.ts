@@ -1,15 +1,16 @@
 // Auto-load .env file (Node.js 21.7+)
+import { defineCommand, runMain } from 'citty'
+import { searchTweets, searchUsers } from './cli/commands/search'
+import { tweetComments, tweetDetail, tweetTimeline } from './cli/commands/tweet'
+import { userInfo, userTimeline } from './cli/commands/user'
+import { cookieArg, createSDK, getCookie } from './cli/shared'
+
 try {
   process.loadEnvFile()
-} catch {
+}
+catch {
   // .env file not found — use env vars directly
 }
-
-import { defineCommand, runMain } from 'citty'
-import { cookieArg, createSDK, getCookie } from './cli/shared'
-import { userInfo, userTimeline } from './cli/commands/user'
-import { tweetDetail, tweetComments, tweetTimeline } from './cli/commands/tweet'
-import { searchUsers, searchTweets } from './cli/commands/search'
 
 const trends = defineCommand({
   meta: { name: 'trends', description: '获取热搜榜单' },
@@ -45,10 +46,12 @@ const whoami = defineCommand({
       if (uid) {
         const user = await sdk.users.getById(uid)
         console.log(JSON.stringify(user, null, 2))
-      } else {
+      }
+      else {
         console.log(JSON.stringify(details, null, 2))
       }
-    } catch (e: any) {
+    }
+    catch (e: any) {
       console.error(`❌ 请求失败: ${e.message}`)
       process.exit(1)
     }

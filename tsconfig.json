@@ -4,12 +4,12 @@
     "lib": ["ESNext"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"],
     "paths": {
       "~/*": ["./src/*"],
       "tests/*": ["./tests/*"]
     },
     "resolveJsonModule": true,
+    "types": ["node"],
     "strict": true,
     "strictNullChecks": true,
     "noEmit": true,

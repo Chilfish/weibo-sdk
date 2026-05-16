@@ -1,6 +1,6 @@
+import { FakeClock } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
 import { RateLimitService } from '~/services/internal/RateLimitService'
-import { FakeClock } from 'tests/testkit'
 
 describe('rateLimitService', () => {
   it('acquires immediately when tokens are available', async () => {

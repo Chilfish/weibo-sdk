@@ -1,6 +1,5 @@
 import type { BuildCommentsResponse, FriendstimelineResponse, MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { IWeiboConfig } from '~/types/config'
-import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import { Tweet } from '~/models/data/Tweet'
 import { buildCommentsSpec, friendstimelineSpec, myMblogSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
@@ -135,14 +134,7 @@ export class TweetService extends FetcherService {
     return tweet
   }
 
-  /**
-   * 获取微博评论列表
-   *
-   * `GET https://weibo.com/ajax/statuses/buildComments?id={mblogid}&count=10`
-   *
-   * @param mblogId 微博 ID
-   * @param options 可选参数：max_id（分页游标）、count（每页数量）、flow（0=热度/1=时间）、uid
-   */
+  /** 获取微博评论列表 `GET /ajax/statuses/buildComments` */
   public async comments(mblogId: string, options?: {
     max_id?: number
     count?: number
