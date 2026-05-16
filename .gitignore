@@ -13,3 +13,4 @@ temp
 .pr*.md
 .claude/
 tests/fixtures/raw/captures/
+.alma-snapshots
