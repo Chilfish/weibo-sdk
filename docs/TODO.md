@@ -14,8 +14,8 @@
 
 ## P0：仓库一致性与文档
 
-- [ ] **README 去伪存真**：移除不存在的 `packages/*`、`examples/` 目录引用；修正 `pnpm --filter @weibo-sdk/core` 等 monorepo 遗留指令；修正分支命名（`codex/` 而非 `feature/`）；更新特性列表（补 Wide Events / Zod 校验 / selfCheck）。
-- [ ] **docs/渐进式开发计划.md** 标注各阶段完成状态，避免被误读为"全部未做"。
+- [x] **README 去伪存真**（2026-05-16 完成）。
+- [x] **docs/渐进式开发计划.md** 重写为 2.0 版（2026-05-16 完成）：含完成状态、Bug 跟踪、7 Phase 路线图、Fixture 清单。
 - [ ] 输出"错误排障手册"（`docs/error-diagnostics.md`）：Zod issues、ok!=1、Cookie 过期、网络错误的诊断流程，贴合 hooks + Structured Error。
 
 ---
@@ -23,13 +23,15 @@
 ## P1：功能推进
 
 ### Tweet 服务完善
-- [ ] 分页策略：`since_id` 游标、置顶/广告过滤、长文/卡片分支逻辑 + 对应离线测试。
-- [ ] `Tweet` 归一化 v2：抽取 `normalizeTweet(raw)` 纯函数，降低构造器复杂度，便于复用与单测。
+- [x] 分页 Bug 修复：`since_id` 类型 `number` → `string`、`total: -1` 处理、`hasMore` 逻辑修正（基于真实 API fixture，2026-05-16）。
+- [x] 广告过滤：`filterTweets(rawList)` 过滤 `isAd === true`（2026-05-16）。
+- [x] `Tweet` 归一化 v2：抽取 `normalizeTweet(raw)` 纯函数，Tweet 类简化为薄包装（2026-05-16）。
+- [x] 函数重载：`listByUserId(uid, sinceId?)` | `listByUserId(uid, { sinceId?, count? })`，含 `count` 参数（2026-05-16）。
 - [ ] 新增 endpoint：评论列表（`/ajax/statuses/buildComments`）与转发列表，含分页。
 
 ### Search 服务
-- [ ] 实现最小搜索 API（微博搜索 / 用户搜索），明确分页/游标策略，并提供离线测试。
-- [ ] 定义 search raw types + Zod schema + EndpointSpec。
+- [x] 实现最小搜索 API（`searchUsers` / `searchTweets`），含 Zod schema + EndpointSpec（2026-05-16）。
+- [x] 定义 search raw types（`ISearchUsersResponse` / `ISearchTweetsResponse`）与 `IResource` 注册（2026-05-16）。
 
 ### 流式接口
 - [ ] 基于 AsyncIterator 的用户时间线 / 搜索结果流式获取。
@@ -41,10 +43,11 @@
 ### Zod / Schema 迁移
 - [x] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`，从 `USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` 开始，减少 `as unknown as`（2026-05-16 完成）。
 - [ ] 明确 schema strictness 策略：默认 `.passthrough()`（开放端点模式），仅对稳定关键字段做强约束；易变字段用 `unknown` 保留。
-- [ ] 为所有 endpoint 补充 args schema（当前 `myDetailsSpec` 的 args 为 `undefined`，需要确认是否加入 Zod schema）。
+- [ ] 为所有 endpoint 补充 args schema（当前 `myDetailsSpec` 的 args 为 `undefined`）。
 
 ### 可观测性与测试
-- [x] 将 `normalize_done` 事件的 `trace_id` 与上级请求的 `trace_id` 串联（而非独立生成），形成完整追踪链（2026-05-16 完成）。
+- [x] 将 `normalize_done` 事件的 `trace_id` 统一为入口方法级 `{timestamp}-{method}-{seq}` 格式（2026-05-16）。
+- [x] 真实 API fixture 基线：6 个 JSON 文件覆盖 profile_info / profile_detail / mymblog / status_show (×3)（2026-05-16）。
 - [ ] 扩大 telemetry 测试的覆盖范围：覆盖 FetcherService 的 preflight error / parse error 路径。
 - [ ] `tests/testkit/` 扩展：添加通用 fake clock、fake sleep，减少各测试重复定义。
 
