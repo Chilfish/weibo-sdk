@@ -4,7 +4,7 @@ import { buildCommentsSpec } from '~/services/endpoints/tweet'
 
 describe('comments endpoint schema', () => {
   it('validates real buildComments fixture', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/buildComments_5298265227790685.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/comments.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = buildCommentsSpec.schema.safeParse(raw)
@@ -22,7 +22,7 @@ describe('comments endpoint schema', () => {
   })
 
   it('validates comment items have required fields', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/buildComments_5298265227790685.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/comments.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = buildCommentsSpec.schema.safeParse(raw)

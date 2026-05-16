@@ -4,7 +4,7 @@ import { bandUnifiedSpec } from '~/services/endpoints/side'
 
 describe('bandUnified endpoint schema', () => {
   it('validates real bandUnified fixture', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/side_bandUnified_hot.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/hot_trends.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = bandUnifiedSpec.schema.safeParse(raw)

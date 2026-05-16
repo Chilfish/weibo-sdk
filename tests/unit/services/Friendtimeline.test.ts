@@ -4,7 +4,7 @@ import { friendstimelineSpec } from '~/services/endpoints/tweet'
 
 describe('friendstimeline endpoint schema', () => {
   it('validates real friendstimeline fixture', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/friendstimeline_home.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/feed_home.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = friendstimelineSpec.schema.safeParse(raw)
@@ -18,7 +18,7 @@ describe('friendstimeline endpoint schema', () => {
   })
 
   it('all feed items normalize without error', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/friendstimeline_home.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/feed_home.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const { normalizeTweet } = await import('~/models/data/Tweet')

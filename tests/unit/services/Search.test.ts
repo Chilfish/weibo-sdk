@@ -4,7 +4,7 @@ import { searchUsersSpec } from '~/services/endpoints/search'
 
 describe('search users endpoint (m.weibo.cn)', () => {
   it('validates real search users fixture (page 2)', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/search_users_page2.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/search_users_p2.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = searchUsersSpec.schema.safeParse(raw)
@@ -18,7 +18,7 @@ describe('search users endpoint (m.weibo.cn)', () => {
   })
 
   it('validates real search users fixture (page 3)', async () => {
-    const url = new URL('../../fixtures/raw/weibo-capture/search_users_page3.json', import.meta.url)
+    const url = new URL('../../fixtures/raw/search_users_p3.json', import.meta.url)
     const raw = JSON.parse(await readFile(url, 'utf8'))
 
     const result = searchUsersSpec.schema.safeParse(raw)
