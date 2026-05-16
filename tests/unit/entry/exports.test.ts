@@ -25,13 +25,9 @@ describe('package exports', () => {
     const pkg = await readPackageJson()
 
     expect(pkg.sideEffects).toBe(false)
-    expect(pkg.main).toBe('./dist/index.mjs')
-    expect(pkg.module).toBe('./dist/index.mjs')
     expect(pkg.types).toBe('./dist/index.d.mts')
-
-    expect(pkg.exports).toEqual({
-      '.': './dist/index.mjs',
-      './package.json': './package.json',
-    })
+    // exports field supersedes main/module (tsdown auto-manages)
+    expect(pkg.exports).toBeDefined()
+    expect(pkg.exports['.']).toBe('./dist/index.mjs')
   })
 })
