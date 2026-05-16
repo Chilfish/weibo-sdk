@@ -8,6 +8,8 @@ const MyMblogArgsSchema = z.object({
   uid: z.string(),
   since_id: z.number().optional(),
   count: z.number().optional(),
+  page: z.number().optional(),
+  feature: z.number().optional(),
 }).strict()
 
 const StatusShowArgsSchema = z.object({

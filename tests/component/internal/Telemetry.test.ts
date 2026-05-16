@@ -93,4 +93,50 @@ describe('telemetry (wide events)', () => {
       resource_type: 'USER_INFO',
     }))
   })
+
+  it('emits request_error for preflight failures', async () => {
+    const telemetry = new TelemetryCollector()
+    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
+
+    const preflightError = new Error('preflight failed')
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', telemetry },
+      {
+        client,
+        rateLimitService: rateLimit,
+        telemetry,
+        preflight: async () => { throw preflightError },
+      },
+    )
+
+    await expect(fetcher.call('1')).rejects.toThrow('preflight failed')
+
+    const errors = telemetry.events.filter(e => e.event_name === 'request_error')
+    expect(errors.length).toBeGreaterThanOrEqual(1)
+    expect(errors[0]).toEqual(expect.objectContaining({
+      phase: 'preflight',
+      error_name: 'Error',
+    }))
+  })
+
+  it('emits request_error for parse (schema validation) failures', async () => {
+    const telemetry = new TelemetryCollector()
+    const { client } = createFakeAxios(async () => ({ ok: 1 }))
+    const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
+
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: rateLimit, telemetry },
+    )
+
+    await expect(fetcher.call('1')).rejects.toThrow()
+
+    const errors = telemetry.events.filter(e => e.event_name === 'request_error')
+    expect(errors.length).toBeGreaterThanOrEqual(1)
+    expect(errors[0]).toEqual(expect.objectContaining({
+      phase: 'parse',
+      error_code: 'API_BAD_RESPONSE',
+    }))
+  })
 })

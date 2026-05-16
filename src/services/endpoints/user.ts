@@ -5,6 +5,7 @@ import { defineEndpoint } from '../internal/EndpointSpec'
 
 const UserInfoArgsSchema = z.object({
   uid: z.string(),
+  scene: z.string().optional(),
 }).strict()
 
 const UserDetailsArgsSchema = z.object({
