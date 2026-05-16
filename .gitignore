@@ -12,3 +12,4 @@ temp
 .env
 .pr*.md
 .claude/
+tests/fixtures/raw/captures/

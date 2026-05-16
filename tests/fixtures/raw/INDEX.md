@@ -26,3 +26,18 @@
 | `check_reward.json` | 3K | 43% | 用户信息 |
 | `statuses_config.json` | 11K | 80% | - |
 | `tweet_QFekiwGId.json` | 3K | 45% | 微博详情 |
+
+## 新增端点（2026-05-16 浏览器抓包）
+
+| 文件 | 大小 | 端点 |
+|------|------|------|
+| `friendships_followings_u7679065628.json` | 46K | `/ajax/friendships/friends` — 关注列表 (19个) |
+| `friendships_followings_u2142312651.json` | 49K | 同上 (20个) |
+| `followContent.json` | 188K | `/ajax/profile/followContent?sortType=all` — 我的关注 (48个) |
+| `followContent_p2.json` | 177K | 同上 page=2 (48个) |
+| `followContent_p3.json` | 184K | 同上 page=3 (50个) |
+| `favorites_p1.json` | 78K | `/ajax/favorites/all_fav` — 收藏夹 (19条) |
+| `favorites_tags.json` | 0K | `/ajax/favorites/tags` — 收藏夹标签 |
+| `searchProfile_p1.json` | 203K | `/ajax/statuses/searchProfile` — 日期搜索 (50条) |
+| `searchProfile_p2.json` | 250K | 同上 page=2 (50条) |
+| `longtext.json` | 1K | `/ajax/statuses/longtext` — 长微博全文 |
