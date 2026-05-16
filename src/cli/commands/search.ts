@@ -1,18 +1,15 @@
 import { defineCommand } from 'citty'
-import { WeiboSDK } from '../../WeiboSDK'
-
-function sdk(): WeiboSDK {
-  return new WeiboSDK({ cookie: process.env.WEIBO_COOKIE || '', selfCheck: { mode: 'lazy' } })
-}
+import { cookieArg, createSDK } from '../shared'
 
 export const searchUsers = defineCommand({
   meta: { name: 'users', description: '搜索用户' },
   args: {
     query: { type: 'positional', description: '搜索关键词', required: true },
     page: { type: 'string', description: '页码' },
+    ...cookieArg,
   },
   async run({ args }) {
-    const raw = await sdk().search.searchUsers(
+    const raw = await createSDK(args).search.searchUsers(
       args.query,
       args.page ? Number(args.page) : undefined,
     )
@@ -25,9 +22,10 @@ export const searchTweets = defineCommand({
   args: {
     query: { type: 'positional', description: '搜索关键词', required: true },
     page: { type: 'string', description: '页码' },
+    ...cookieArg,
   },
   async run({ args }) {
-    const raw = await sdk().search.searchTweets(
+    const raw = await createSDK(args).search.searchTweets(
       args.query,
       args.page ? Number(args.page) : undefined,
     )
