@@ -27,9 +27,9 @@
 - [x] 广告过滤：`filterTweets(rawList)` 过滤 `isAd === true`（2026-05-16）。
 - [x] `Tweet` 归一化 v2：抽取 `normalizeTweet(raw)` 纯函数，Tweet 类简化为薄包装（2026-05-16）。
 - [x] 函数重载：`listByUserId(uid, sinceId?)` | `listByUserId(uid, { sinceId?, count? })`，含 `count` 参数（2026-05-16）。
-- [ ] 新增 endpoint：评论列表 `GET /ajax/statuses/buildComments`（已有真实 fixture：225KB）
-- [ ] 新增 endpoint：首页 Feed `GET /ajax/feed/friendstimeline`（已有真实 fixture：359KB）
-- [ ] 新增 endpoint：热搜榜单 `GET /ajax/side/bandUnified?type=hot`
+- [x] 新增 endpoint：评论列表 `GET /ajax/statuses/buildComments`（2026-05-16，`sdk.tweets.comments()`）
+- [x] 新增 endpoint：首页 Feed `GET /ajax/feed/friendstimeline`（2026-05-16，`sdk.tweets.friendTimeline()`）
+- [x] 新增 endpoint：热搜榜单 `GET /ajax/side/bandUnified?type=hot`（2026-05-16，`sdk.trends.hotBand()`）
 - [ ] 修复 Search endpoint URL（当前 `/ajax/search/users` 返回 404）
 - [ ] 修正 `mymblog` 参数：抓包使用 `page`+`feature` 而非 `count`
 - [ ] 补充 `profile/info` 缺失参数 `scene`
