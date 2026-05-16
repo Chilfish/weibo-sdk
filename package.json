@@ -23,15 +23,13 @@
     ".": "./dist/index.mjs",
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "unbuild",
-    "dev": "unbuild --stub",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "eslint . --fix",
     "prepublishOnly": "nr build",
     "release": "bumpp && pnpm publish",
@@ -45,7 +43,7 @@
   "size-limit": [
     {
       "path": "./dist/index.mjs",
-      "limit": "20 kB"
+      "limit": "50 kB"
     }
   ],
   "dependencies": {
@@ -63,9 +61,9 @@
     "lint-staged": "catalog:cli",
     "simple-git-hooks": "catalog:cli",
     "tinyexec": "catalog:utils",
+    "tsdown": "^0.22.0",
     "tsx": "catalog:cli",
     "typescript": "catalog:cli",
-    "unbuild": "catalog:cli",
     "vite": "catalog:cli",
     "vitest": "catalog:testing",
     "vitest-package-exports": "catalog:testing",

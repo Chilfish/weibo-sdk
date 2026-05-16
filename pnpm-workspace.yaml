@@ -30,6 +30,7 @@ catalogs:
   utils:
     '@size-limit/preset-small-lib': ^12.1.0
     tinyexec: ^1.1.2
+    tsdown: ^0.22.0
 
 onlyBuiltDependencies:
   - esbuild
