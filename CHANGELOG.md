@@ -6,13 +6,25 @@
 
 ### Added
 
+- **Wide Events 遥测系统**：`TelemetryEvent` 扁平 KV 事件（`request_start/success/error`、`rate_limit_wait`、`normalize_done`），含 `trace_id` 全链路追踪。通过 `config.telemetry.emit()` 接入。
+- **`defineEndpoint()` helper**：让 endpoint 定义的 args 类型从 `argsSchema` 自动推导，减少类型断言。
+- **Endpoint 目录**：将 Zod schema 与 EndpointSpec 定义从 Service 文件中抽离到 `src/services/endpoints/`（`tweet.ts`、`user.ts`），Service 文件只保留业务逻辑。
+- **SDK hooks 系统**：`config.hooks.onLifecycle` / `onFetched` / `onError`，覆盖生命周期、请求完成、错误三大阶段。
+- **会话自检**：`WeiboSDK.selfCheck()` 与 `checkSession()`，支持 `lazy` / `eager` / `none` 三种自检模式。
+- **`WeiboSessionExpiredError`**：Cookie 过期/无效时的结构化业务错误。
+- **`UnexpectedAPIResponseError`**：Zod schema 校验失败时的结构化协议错误，含 `zodIssues` 诊断信息。
+- **`InvalidConfigError`**：配置校验失败（如缺 cookie）时的结构化错误。
 - Offline-first 测试分层：unit/component 默认离线；e2e 需 `WEIBO_E2E=1` 显式开启。
 - `UserService` / `TweetService` 的离线组件测试与领域模型归一化测试。
-- `Tweet` 归一化 v1：支持 media/pageInfo/geo/retweetedStatus（以 mymblog raw 为来源）。
+- `Tweet` 归一化 v1：支持 media（pic_infos + mix_media_info）/ pageInfo / geo / retweetedStatus。
 - Postmortem 机制：`postmortem/NNN-*.md`。
 
 ### Changed
 
+- **EndpointSpec 泛型签名变更**：`EndpointSpec<TResource, TArgsSchema>` — `TArgsSchema` 替换了旧的 `TArgs`，args 类型现在从 Zod schema 推导。
 - SDK 入口不再产生 `console.*` 副作用。
+- `FetcherService` 支持依赖注入：`AxiosInstance` / `AuthService` / `RateLimitService` / `hooks` / `telemetry` / `preflight` 均可注入。
+- `RateLimitService` 去递归（`while` 循环替代递归等待），并支持注入 `clock` 与 `telemetry`。
+- `RateLimitService` 去递归（`while` 循环替代递归等待），支持 fake clock 注入。
 - 配置校验错误结构化：缺失 cookie 抛 `InvalidConfigError`。
-
+- `FetcherService.onFetched` 标记为 deprecated（请使用 `config.telemetry` 替代）。

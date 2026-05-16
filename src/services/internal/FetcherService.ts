@@ -1,6 +1,7 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
+import type { ZodTypeAny } from 'zod'
 import type { IWeiboConfig } from '../../types/config'
-import type { EndpointSpec } from './EndpointSpec'
+import type { EndpointArgsFromSchema, EndpointSpec } from './EndpointSpec'
 import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
@@ -229,10 +230,10 @@ export class FetcherService {
 
   protected async request<
     TResource extends IResourceType,
-    TArgs extends object | undefined,
+    TArgsSchema extends ZodTypeAny | undefined,
   >(
-    spec: EndpointSpec<TResource, TArgs>,
-    args: TArgs,
+    spec: EndpointSpec<TResource, TArgsSchema>,
+    args: EndpointArgsFromSchema<TArgsSchema>,
     options?: {
       skipPreflight?: boolean
     },

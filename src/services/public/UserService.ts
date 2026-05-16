@@ -1,74 +1,9 @@
-import type { ZodType } from 'zod'
-import type { EndpointSpec } from '../internal/EndpointSpec'
 import type { IWeiboConfig } from '~/types/config'
 import type { IUserDetailsResponse } from '~/types/raw/user/Details'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
-import { z } from 'zod'
 import { User } from '~/models/data/User'
-import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { FetcherService } from '../internal/FetcherService'
-
-const UserInfoResponseSchema = z.object({
-  ok: z.number(),
-  data: z.object({
-    user: z.object({}).loose(),
-  }).loose(),
-}).loose() as unknown as ZodType<IUserInfoResponse>
-
-const UserDetailsResponseSchema = z.object({
-  ok: z.number(),
-  data: z.object({}).loose(),
-}).loose() as unknown as ZodType<IUserDetailsResponse>
-
-const userInfoSpec: EndpointSpec<'USER_INFO', { uid: string }> = {
-  resourceType: 'USER_INFO',
-  endpoint: 'ajax/profile/info',
-  buildResource: ({ uid }) => ({
-    method: 'GET',
-    url: 'https://weibo.com/ajax/profile/info',
-    headers: {
-      referer: `https://weibo.com/u/${uid}`,
-    },
-  }),
-  okPolicy: { mode: 'require_ok_1' },
-  schema: UserInfoResponseSchema,
-}
-
-const userDetailsSpec: EndpointSpec<'USER_DETAILS', { uid: string }> = {
-  resourceType: 'USER_DETAILS',
-  endpoint: 'ajax/profile/detail',
-  buildResource: ({ uid }) => ({
-    method: 'GET',
-    url: 'https://weibo.com/ajax/profile/detail',
-    headers: {
-      referer: `https://weibo.com/u/${uid}`,
-    },
-  }),
-  okPolicy: { mode: 'require_ok_1' },
-  schema: UserDetailsResponseSchema,
-}
-
-const myDetailsSpec: EndpointSpec<'USER_DETAILS', undefined> = {
-  resourceType: 'USER_DETAILS',
-  endpoint: 'ajax/profile/detail',
-  buildResource: () => ({
-    method: 'GET',
-    url: 'https://weibo.com/ajax/profile/detail',
-    headers: {
-      referer: 'https://weibo.com/',
-    },
-  }),
-  okPolicy: {
-    mode: 'require_ok_1',
-    notOkError: ({ endpoint, ok, message, raw }) => new WeiboSessionExpiredError('Weibo session expired or cookie is invalid.', {
-      endpoint,
-      ok,
-      message,
-      raw,
-    }),
-  },
-  schema: UserDetailsResponseSchema,
-}
+import { myDetailsSpec, userDetailsSpec, userInfoSpec } from '../endpoints/user'
 
 export class UserService extends FetcherService {
   constructor(config: IWeiboConfig, deps?: ConstructorParameters<typeof FetcherService>[1]) {

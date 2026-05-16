@@ -1,12 +1,10 @@
-import type { ZodType } from 'zod'
-import type { EndpointSpec } from '~/services/internal/EndpointSpec'
 import type { IRateLimitClock } from '~/services/internal/RateLimitService'
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
 import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
 import { RateLimitService } from '~/services/internal/RateLimitService'
 
@@ -33,31 +31,9 @@ class TelemetryCollector implements WeiboSDKTelemetry {
 }
 
 class TestFetcherService extends FetcherService {
-  public async call<TResource extends 'USER_INFO'>(
-    spec: EndpointSpec<TResource, { uid: string }>,
-    args: { uid: string },
-  ): Promise<IUserInfoResponse> {
-    return await this.request(spec, args) as unknown as IUserInfoResponse
+  public async call(uid: string): Promise<IUserInfoResponse> {
+    return await this.request(userInfoSpec, { uid }) as unknown as IUserInfoResponse
   }
-}
-
-const UserInfoResponseSchema = z.object({
-  ok: z.number(),
-  data: z.object({
-    user: z.object({}).loose(),
-  }).loose(),
-}).loose() as unknown as ZodType<IUserInfoResponse>
-
-const userInfoSpec: EndpointSpec<'USER_INFO', { uid: string }> = {
-  resourceType: 'USER_INFO',
-  endpoint: 'ajax/profile/info',
-  buildResource: ({ uid }) => ({
-    method: 'GET',
-    url: 'https://weibo.com/ajax/profile/info',
-    headers: { referer: `https://weibo.com/u/${uid}` },
-  }),
-  okPolicy: { mode: 'require_ok_1' },
-  schema: UserInfoResponseSchema,
 }
 
 describe('telemetry (wide events)', () => {
@@ -71,7 +47,7 @@ describe('telemetry (wide events)', () => {
       { client, rateLimitService: rateLimit, telemetry },
     )
 
-    await fetcher.call(userInfoSpec, { uid: '1' })
+    await fetcher.call('1')
 
     const starts = telemetry.events.filter(e => e.event_name === 'request_start')
     const successes = telemetry.events.filter(e => e.event_name === 'request_success')
@@ -96,8 +72,8 @@ describe('telemetry (wide events)', () => {
       { client, rateLimitService: rateLimit, telemetry },
     )
 
-    await fetcher.call(userInfoSpec, { uid: '1' })
-    await fetcher.call(userInfoSpec, { uid: '1' })
+    await fetcher.call('1')
+    await fetcher.call('1')
 
     const waits = telemetry.events.filter(e => e.event_name === 'rate_limit_wait')
     expect(waits).toHaveLength(1)
@@ -119,7 +95,7 @@ describe('telemetry (wide events)', () => {
       { client, rateLimitService: rateLimit, telemetry },
     )
 
-    await expect(fetcher.call(userInfoSpec, { uid: '1' })).rejects.toBeInstanceOf(WeiboAPINotOkError)
+    await expect(fetcher.call('1')).rejects.toBeInstanceOf(WeiboAPINotOkError)
 
     const errors = telemetry.events.filter(e => e.event_name === 'request_error')
     expect(errors).toHaveLength(1)

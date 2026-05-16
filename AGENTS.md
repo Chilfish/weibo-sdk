@@ -17,7 +17,40 @@
 
 - 必须遵循：`docs/SKILL.md` 中的 SDD（规格驱动开发）、Wide Events、Structured Error 等约束。
 - 必须遵循：`docs/微博SDK技术规格书_v2.0.md` 的分层架构与契约定义（实现可以渐进，但不得背离目标）。
-- 必须遵循：`docs/渐进式开发计划.md` 的“每一步可用 + 测试驱动”原则。
+- 必须遵循：`docs/渐进式开发计划.md` 的"每一步可用 + 测试驱动"原则。
+
+## 架构约定
+
+### 分层
+
+```
+WeiboSDK（门面）
+  └─ UserService / TweetService / SearchService（领域服务）
+       └─ FetcherService（HTTP 核心，所有 Service 继承它）
+            ├─ AuthService（Cookie / XSRF）
+            ├─ RateLimitService（令牌桶）
+            └─ EndpointSpec + Zod（协议校验）
+```
+
+### Endpoint 定义规范（defineEndpoint）
+
+新增微博 API endpoint 必须遵循以下步骤：
+
+1. 在 `src/services/endpoints/<domain>.ts` 中定义：
+   - `argsSchema`：Zod schema（如 `z.object({ uid: z.string() })`）
+   - `responseSchema`：Zod schema（`.loose()` 为默认 strictness）
+   - `buildResource`：将 args 转为 `IRequestResource`
+   - `okPolicy`：`{ mode: 'none' }` 或 `{ mode: 'require_ok_1' }`
+2. 使用 `defineEndpoint(spec)` 包装以获取完整类型推导。
+3. 在 Service 中通过 `this.request(spec, args)` 调用（切勿绕过 EndpointSpec 直接 `this.fetch()`）。
+
+**反模式**：禁止在 Service 文件中内联 Zod schema 和 EndpointSpec 定义。
+
+### 领域模型归一化
+
+- Raw 响应 → Domain Model 的转换逻辑放在 `src/models/data/<Model>.ts` 中。
+- 归一化必须是纯函数（可由构造器包装，但核心逻辑不依赖 IO）。
+- 提供默认值、fallback 链、开放端点保留未知字段处理。
 
 ## 开发风格与工程标准
 
@@ -34,18 +67,22 @@
 - 默认 `pnpm test` 跑的测试必须离线稳定：
   - 单元测试：纯函数/模型/类型映射，0 IO。
   - 组件测试：通过 mock（HTTP/clock/sleep）覆盖 Fetcher/Auth/RateLimit 等边界组件。
-  - E2E/集成测试：允许真实 Cookie + 真实网络，但必须默认跳过（通过环境变量显式开启）。
-- 新增测试前先写失败用例，再实现（Red -> Green -> Refactor）。
+  - E2E/集成测试：允许真实 Cookie + 真实网络，但必须默认跳过（通过 `WEIBO_E2E=1` 环境变量显式开启）。
+- 新增测试前先写失败用例，再实现（Red → Green → Refactor）。
+- 测试工具：`tests/testkit/fakeAxios.ts` 提供 `createFakeAxios(handler)` + `NoopRateLimitService`；测试中可定义 `FakeClock` 实现 `IRateLimitClock` 接口。
 
 ### 错误与诊断
 
 - 禁止直接 `throw new Error('...')` 作为业务/协议错误；必须使用结构化错误（继承 `WeiboSDKError`），携带 `code/level/retryable/context`。
 - 所有错误路径必须有测试覆盖（至少覆盖映射/重试属性/上下文）。
+- 错误映射链：axios error → TransportError；ok !== 1 → BusinessError；Zod fail → ProtocolError。
 
 ### 可观测性 (Wide Events)
 
-- 关键路径必须发出“宽事件”（扁平键值对，包含 `event_name/timestamp/trace_id` 及关键上下文）。
+- 关键路径必须发出"宽事件"（扁平键值对，包含 `event_name/timestamp/trace_id` 及关键上下文）。
 - Happy Path 与 Error Path 都需要事件覆盖，且测试中可断言事件序列与字段完整性。
+- 使用 `TelemetryCollector` 模式（在测试中 `events: TelemetryEvent[]` 收集并断言）。
+- Telemetry 的 emit 失败绝不能影响 SDK 正常功能（所有 `telemetry?.emit()` 调用外包裹 try/catch）。
 
 ## Git / 变更管理
 
@@ -54,24 +91,24 @@
 
 ## 现代化开源协作流程（分支 / PR / 合并）
 
-本仓库采用“短分支 + PR”为核心的协作方式：
+本仓库采用"短分支 + PR"为核心的协作方式：
 
 - **分支生命周期**：单个 `codex/*` 分支只承载一个清晰主题，目标是尽快合并回 `main`（避免长时间堆积）。
 - **PR 粒度**：优先拆成多个 PR，每个 PR 可独立 review / 可独立回滚 / 不依赖未合并分支。
 - **PR 正文格式**：禁止在命令行里用字面量 `\n` 拼 body（会导致正文显示为转义字符）。优先使用 `gh pr create/edit --body-file <file>` 或 here-string 写入临时文件再提交。
 - **提交规范**：提交信息要可读、可追溯（建议 Conventional Commits：`feat:`, `fix:`, `docs:`, `test:`, `refactor:`）。
-- **先定提交意图**：开始编码前，先写清楚本分支的 PR 主题、预期行为变化与提交信息（commit message）。尽量不要“看 diff 才临时想 message”。若实现过程中范围发生变化，先更新提交计划再继续。
+- **先定提交意图**：开始编码前，先写清楚本分支的 PR 主题、预期行为变化与提交信息（commit message）。尽量不要"看 diff 才临时想 message"。若实现过程中范围发生变化，先更新提交计划再继续。
 - **合并门禁**：PR 合并前必须满足：
   - [ ] `pnpm test` 通过（默认离线）
   - [ ] `pnpm run typecheck` 通过
-  - [ ] 文档与代码一致（“文档即事实”）
+  - [ ] 文档与代码一致（"文档即事实"）
   - [ ] 新增功能有对应测试（TDD）
 - **E2E 策略**：需要真实 Cookie/外网的用例必须默认跳过，仅在 PR/发布前由维护者显式开启验证。
 - **合并策略**：优先 Squash merge（保持 `main` 历史干净），必要时 Rebase；合并后及时删除分支。
 
 ## 自动化执行边界（我可以自行完成的事）
 
-- 我可以在满足“合并门禁”的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。
+- 我可以在满足"合并门禁"的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。
 - 若 PR 涉及较大重构、可能引入 breaking change、或需要真实外网验证（E2E），必须先在 PR 中明确风险点并等待确认后再合并。
 
 ## Postmortem 约定（知识固化 / 上下文注入）
