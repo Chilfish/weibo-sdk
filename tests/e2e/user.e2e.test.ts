@@ -3,11 +3,10 @@ import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { WeiboSDK } from '~/WeiboSDK'
 
 const cookie = process.env.WEIBO_COOKIE
-const expiredCookie = process.env.WEIBO_COOKIE_EXPIRED
-const e2eEnabled = process.env.WEIBO_E2E === '1'
+const expiredCookie = 'SUB=123; SUBP=123'
 
-const describeE2E = e2eEnabled && cookie ? describe : describe
-const describeExpired = e2eEnabled && expiredCookie ? describe : describe
+const describeE2E = cookie ? describe : describe.skip
+const describeExpired = describe
 
 describeE2E('e2e:user', () => {
   it('fetches and normalizes a user by id', async () => {

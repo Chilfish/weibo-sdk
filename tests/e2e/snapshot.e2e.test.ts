@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { WeiboSDK } from '~/WeiboSDK'
 
 const cookie = process.env.WEIBO_COOKIE
-const e2eEnabled = process.env.WEIBO_E2E === '1'
 
-const describeE2E = e2eEnabled && cookie ? describe : describe
+const describeE2E = cookie ? describe : describe.skip
 
 /**
  * 提取响应结构摘要：保留 key 路径与值类型，剥离所有可变值。

@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { WeiboSDK } from '~/WeiboSDK'
 
 const cookie = process.env.WEIBO_COOKIE
-const e2eEnabled = process.env.WEIBO_E2E === '1'
-const mblogId = process.env.WEIBO_MBLOG_ID
+const mblogId = 'QFGgEhyPA'
 
-const describeE2E = e2eEnabled && cookie ? describe : describe
-const describeShow = e2eEnabled && cookie && mblogId ? describe : describe
+const describeE2E = cookie ? describe : describe.skip
+const describeShow = cookie && mblogId ? describe : describe.skip
 
 describeE2E('e2e:tweet', () => {
   it('lists tweets by user id (shape only)', async () => {

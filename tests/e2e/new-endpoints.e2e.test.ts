@@ -4,7 +4,7 @@ import 'dotenv'
 
 const cookie = process.env.WEIBO_COOKIE
 
-const describeE2E = cookie ? describe : describe
+const describeE2E = cookie ? describe : describe.skip
 
 const IMG_DOMAINS = ['Expires=', '&ssig=', '?KID=', 'imgbed', 'sinaimg', 'sinajs']
 
