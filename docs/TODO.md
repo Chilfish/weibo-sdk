@@ -37,6 +37,21 @@
 ### 流式接口
 - [x] `TweetService.streamByUserId()` AsyncIterator 自动翻页（2026-05-16）。
 
+### 新增端点（参考 Weibo-archiver 已有能力）
+
+- [ ] `GET /ajax/statuses/longtext?id={mblogid}` — 获取长微博全文
+- [ ] `GET /ajax/friendships/friends?uid={uid}&page={n}` — 获取用户关注列表（分页 + cursor）
+- [ ] `GET /ajax/profile/followContent?page={n}` — 获取自己关注列表
+- [ ] `GET /ajax/favorites/all_fav?uid={uid}&page={n}&with_total=true` — 获取收藏夹（分页遍历）
+- [ ] `GET /ajax/statuses/searchProfile?uid={uid}&starttime={ts}&endtime={ts}&page={n}` — 按日期范围搜索用户微博
+  - 支持 `hasori/hasret/hastext/haspic/hasvideo/hasmuisc` 过滤参数
+
+### 高级功能
+
+- [ ] 长微博自动展开：拉取 `isLongText` 微博时自动调用 longtext API 补全全文
+- [ ] 评论自动填充：批量微博扫描时选择性填充每条前 N 条评论
+- [ ] 桌面端搜索 `/ajax/side/search`（与 m.weibo.cn 不同端点，需评估价值）
+
 ---
 
 ## P2：工程优化
