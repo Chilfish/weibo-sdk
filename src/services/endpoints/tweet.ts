@@ -137,6 +137,78 @@ export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema
   schema: MyMblogResponseSchema,
 })
 
+// ---- Comments ----
+
+const BuildCommentsArgsSchema = z.object({
+  id: z.string(),
+  is_reload: z.boolean().optional(),
+  is_show_bulletin: z.number().optional(),
+  is_mix: z.number().optional(),
+  count: z.number().optional(),
+  uid: z.string().optional(),
+  fetch_level: z.number().optional(),
+  flow: z.number().optional(),
+  max_id: z.number().optional(),
+}).strict()
+
+const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
+  id: IdSchema.optional(),
+  idstr: z.string().optional(),
+  mid: z.string().optional(),
+  created_at: z.string().optional(),
+  text: z.string().optional(),
+  text_raw: z.string().optional(),
+  source: z.string().optional(),
+  like_counts: z.number().optional(),
+  liked: z.boolean().optional(),
+  floor_number: z.number().optional(),
+  total_number: z.number().optional(),
+  max_id: z.number().optional(),
+  rootid: z.number().optional(),
+  rootidstr: z.string().optional(),
+  user: z.object({
+    id: IdSchema.optional(),
+    idstr: z.string().optional(),
+    screen_name: z.string().optional(),
+    profile_image_url: z.string().optional(),
+    avatar_hd: z.string().optional(),
+    avatar_large: z.string().optional(),
+    verified: z.boolean().optional(),
+    verified_type: z.number().optional(),
+  }).passthrough(),
+  comments: z.array(z.lazy(() => CommentItemSchema)).optional(),
+}).passthrough())
+
+const BuildCommentsResponseSchema = z.object({
+  ok: z.number(),
+  filter_group: z.array(z.object({
+    param: z.string(),
+    scheme: z.string().optional(),
+    title: z.string(),
+    isDefault: z.number().optional(),
+  }).passthrough()).optional(),
+  data: z.array(CommentItemSchema),
+  total_number: z.number().optional(),
+  max_id: z.number().optional(),
+}).passthrough()
+
+export type BuildCommentsResponse = z.infer<typeof BuildCommentsResponseSchema>
+
+export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildCommentsArgsSchema> = defineEndpoint({
+  resourceType: 'TWEET_COMMENTS',
+  endpoint: 'ajax/statuses/buildComments',
+  argsSchema: BuildCommentsArgsSchema,
+  buildResource: ({ id }) => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/statuses/buildComments',
+    headers: {
+      referer: `https://weibo.com/detail/${id}`,
+    },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: BuildCommentsResponseSchema,
+})
+
 export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSchema> = defineEndpoint({
   resourceType: 'TWEET_SHOW',
   endpoint: 'ajax/statuses/show',
