@@ -1,20 +1,6 @@
-import type { IRateLimitClock } from '~/services/internal/RateLimitService'
 import { describe, expect, it } from 'vitest'
 import { RateLimitService } from '~/services/internal/RateLimitService'
-
-class FakeClock implements IRateLimitClock {
-  public nowValue = 0
-  public sleepCalls: number[] = []
-
-  now(): number {
-    return this.nowValue
-  }
-
-  async sleep(ms: number): Promise<void> {
-    this.sleepCalls.push(ms)
-    this.nowValue += ms
-  }
-}
+import { FakeClock } from 'tests/testkit'
 
 describe('rateLimitService', () => {
   it('acquires immediately when tokens are available', async () => {

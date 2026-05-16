@@ -16,7 +16,7 @@
 
 - [x] **README 去伪存真**（2026-05-16 完成）。
 - [x] **docs/渐进式开发计划.md** 重写为 2.0 版（2026-05-16 完成）：含完成状态、Bug 跟踪、7 Phase 路线图、Fixture 清单。
-- [ ] 输出"错误排障手册"（`docs/error-diagnostics.md`）：Zod issues、ok!=1、Cookie 过期、网络错误的诊断流程，贴合 hooks + Structured Error。
+- [x] 输出"错误排障手册"（`docs/error-diagnostics.md`，2026-05-16 完成）。
 
 ---
 
@@ -27,11 +27,8 @@
 - [x] 广告过滤：`filterTweets(rawList)` 过滤 `isAd === true`（2026-05-16）。
 - [x] `Tweet` 归一化 v2：抽取 `normalizeTweet(raw)` 纯函数，Tweet 类简化为薄包装（2026-05-16）。
 - [x] 函数重载：`listByUserId(uid, sinceId?)` | `listByUserId(uid, { sinceId?, count? })`，含 `count` 参数（2026-05-16）。
-- [ ] 新增 endpoint：评论列表（`/ajax/statuses/buildComments`）与转发列表，含分页。
-
-### Search 服务
-- [x] 实现最小搜索 API（`searchUsers` / `searchTweets`），含 Zod schema + EndpointSpec（2026-05-16）。
-- [x] 定义 search raw types（`ISearchUsersResponse` / `ISearchTweetsResponse`）与 `IResource` 注册（2026-05-16）。
+- [ ] 新增 endpoint：评论列表与转发列表（需先获取真实 API URL）。
+- [ ] 修复 Search endpoint URL（当前 `/ajax/search/users` 返回 404，URL 不正确）。
 
 ### 流式接口
 - [ ] 基于 AsyncIterator 的用户时间线 / 搜索结果流式获取。
@@ -41,18 +38,18 @@
 ## P2：工程优化
 
 ### Zod / Schema 迁移
-- [x] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`，从 `USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` 开始，减少 `as unknown as`（2026-05-16 完成）。
-- [ ] 明确 schema strictness 策略：默认 `.passthrough()`（开放端点模式），仅对稳定关键字段做强约束；易变字段用 `unknown` 保留。
+- [x] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`（2026-05-16 完成）。
+- [x] 明确 schema strictness 策略：`.passthrough()` 开放端点，所有代码访问字段 `.optional()`（2026-05-16 确定）。
 - [ ] 为所有 endpoint 补充 args schema（当前 `myDetailsSpec` 的 args 为 `undefined`）。
 
 ### 可观测性与测试
-- [x] 将 `normalize_done` 事件的 `trace_id` 统一为入口方法级 `{timestamp}-{method}-{seq}` 格式（2026-05-16）。
-- [x] 真实 API fixture 基线：6 个 JSON 文件覆盖 profile_info / profile_detail / mymblog / status_show (×3)（2026-05-16）。
+- [x] 将 `normalize_done` 事件的 `trace_id` 统一为入口方法级格式（2026-05-16）。
+- [x] 真实 API fixture 基线：6 个 JSON 文件（2026-05-16）。
+- [x] `tests/testkit/` 扩展：添加通用 `FakeClock` + barrel 导出（2026-05-16）。
 - [ ] 扩大 telemetry 测试的覆盖范围：覆盖 FetcherService 的 preflight error / parse error 路径。
-- [ ] `tests/testkit/` 扩展：添加通用 fake clock、fake sleep，减少各测试重复定义。
 
 ### CI / 构建
-- [ ] 配置 CI（GitHub Actions）：`pnpm install` → `pnpm run typecheck` → `pnpm run lint` → `pnpm test`。
+- [x] 配置 CI（GitHub Actions）：`pnpm install` → `pnpm run typecheck` → `pnpm run lint` → `pnpm test`（2026-05-16）。
 - [ ] 配置 `size-limit` 或 bundle 体积检查，防止依赖膨胀。
 - [ ] 配置 `pkg.pr.new` 或等价方案，让 PR 产生可安装的预览包。
 

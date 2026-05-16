@@ -335,10 +335,10 @@ exports[`snapshot: tweet structure > mymblog response structure matches 1`] = `
           "profile_url": "<STR>",
           "screen_name": "<STR>",
           "status_total_counter": {
-            "comment_cnt": "6,455,687",
-            "like_cnt": "29,537,486",
-            "repost_cnt": "21,964,716",
-            "total_cnt": "57,957,889",
+            "comment_cnt": "6,455,715",
+            "like_cnt": "29,537,597",
+            "repost_cnt": "21,964,787",
+            "total_cnt": "57,958,099",
             "total_cnt_format": "5795.8万",
           },
           "user_ability": "<NUM>",
@@ -488,8 +488,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
           "mp4_sd_url": "<IMG_URL>",
           "name": "王也-LIKEMUSIC的微博视频",
           "next_title": "5000字详解评测鸿蒙智行智界V9车载音响！",
-          "online_users": "8747次观看",
-          "online_users_number": 8747,
+          "online_users": "9360次观看",
+          "online_users_number": 9360,
           "origin_total_bitrate": 0,
           "play_completion_actions": [
             {
@@ -659,8 +659,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
       "mp4_sd_url": "<IMG_URL>",
       "name": "王也-LIKEMUSIC的微博视频",
       "next_title": "5000字详解评测鸿蒙智行智界V9车载音响！",
-      "online_users": "8747次观看",
-      "online_users_number": 8747,
+      "online_users": "9360次观看",
+      "online_users_number": 9360,
       "origin_total_bitrate": 0,
       "play_completion_actions": [
         {
@@ -926,8 +926,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
             "mp4_sd_url": "<IMG_URL>",
             "name": "王也-LIKEMUSIC的微博视频",
             "next_title": "5000字详解评测鸿蒙智行智界V9车载音响！",
-            "online_users": "8747次观看",
-            "online_users_number": 8747,
+            "online_users": "9360次观看",
+            "online_users_number": 9360,
             "origin_total_bitrate": 0,
             "play_completion_actions": [
               {
@@ -1097,8 +1097,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
         "mp4_sd_url": "<IMG_URL>",
         "name": "王也-LIKEMUSIC的微博视频",
         "next_title": "5000字详解评测鸿蒙智行智界V9车载音响！",
-        "online_users": "8747次观看",
-        "online_users_number": 8747,
+        "online_users": "9360次观看",
+        "online_users_number": 9360,
         "origin_total_bitrate": 0,
         "play_completion_actions": [
           {
@@ -1380,10 +1380,10 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
     "profile_url": "<STR>",
     "screen_name": "<STR>",
     "status_total_counter": {
-      "comment_cnt": "6,455,687",
-      "like_cnt": "29,537,486",
-      "repost_cnt": "21,964,716",
-      "total_cnt": "57,957,889",
+      "comment_cnt": "6,455,715",
+      "like_cnt": "29,537,597",
+      "repost_cnt": "21,964,787",
+      "total_cnt": "57,958,099",
       "total_cnt_format": "5795.8万",
     },
     "user_ability": "<NUM>",
@@ -1524,8 +1524,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
           "mp4_sd_url": "<IMG_URL>",
           "name": "Joken是个runner的微博视频",
           "next_title": "Daily Show中国专家Ronny Chieng带你了解这次会面，这段太搞了#海外新鲜事##海外编译精选#",
-          "online_users": "12.1万次观看",
-          "online_users_number": 121103,
+          "online_users": "12.4万次观看",
+          "online_users_number": 124277,
           "origin_total_bitrate": 12088612,
           "play_completion_actions": [
             {
@@ -1687,8 +1687,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
       "mp4_sd_url": "<IMG_URL>",
       "name": "Joken是个runner的微博视频",
       "next_title": "Daily Show中国专家Ronny Chieng带你了解这次会面，这段太搞了#海外新鲜事##海外编译精选#",
-      "online_users": "12.1万次观看",
-      "online_users_number": 121103,
+      "online_users": "12.4万次观看",
+      "online_users_number": 124277,
       "origin_total_bitrate": 12088612,
       "play_completion_actions": [
         {
@@ -1947,8 +1947,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
             "mp4_sd_url": "<IMG_URL>",
             "name": "Joken是个runner的微博视频",
             "next_title": "Daily Show中国专家Ronny Chieng带你了解这次会面，这段太搞了#海外新鲜事##海外编译精选#",
-            "online_users": "12.1万次观看",
-            "online_users_number": 121103,
+            "online_users": "12.4万次观看",
+            "online_users_number": 124277,
             "origin_total_bitrate": 12088612,
             "play_completion_actions": [
               {
@@ -2110,8 +2110,8 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
         "mp4_sd_url": "<IMG_URL>",
         "name": "Joken是个runner的微博视频",
         "next_title": "Daily Show中国专家Ronny Chieng带你了解这次会面，这段太搞了#海外新鲜事##海外编译精选#",
-        "online_users": "12.1万次观看",
-        "online_users_number": 121103,
+        "online_users": "12.4万次观看",
+        "online_users_number": 124277,
         "origin_total_bitrate": 12088612,
         "play_completion_actions": [
           {
@@ -2392,10 +2392,10 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
     "profile_url": "<STR>",
     "screen_name": "<STR>",
     "status_total_counter": {
-      "comment_cnt": "6,455,687",
-      "like_cnt": "29,537,486",
-      "repost_cnt": "21,964,716",
-      "total_cnt": "57,957,889",
+      "comment_cnt": "6,455,715",
+      "like_cnt": "29,537,597",
+      "repost_cnt": "21,964,787",
+      "total_cnt": "57,958,099",
       "total_cnt_format": "5795.8万",
     },
     "user_ability": "<NUM>",
@@ -2748,10 +2748,10 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
     "profile_url": "<STR>",
     "screen_name": "<STR>",
     "status_total_counter": {
-      "comment_cnt": "6,455,687",
-      "like_cnt": "29,537,486",
-      "repost_cnt": "21,964,716",
-      "total_cnt": "57,957,889",
+      "comment_cnt": "6,455,715",
+      "like_cnt": "29,537,597",
+      "repost_cnt": "21,964,787",
+      "total_cnt": "57,958,099",
       "total_cnt_format": "5795.8万",
     },
     "user_ability": "<NUM>",
@@ -2863,10 +2863,10 @@ exports[`snapshot: user profile structure > info response structure matches 1`] 
       "screen_name": "<STR>",
       "special_follow": false,
       "status_total_counter": {
-        "comment_cnt": "6,455,711",
-        "like_cnt": "29,537,595",
-        "repost_cnt": "21,964,785",
-        "total_cnt": "57,958,091",
+        "comment_cnt": "6,455,717",
+        "like_cnt": "29,537,610",
+        "repost_cnt": "21,964,801",
+        "total_cnt": "57,958,128",
         "total_cnt_format": "5795.8万",
       },
       "statuses_count": "<NUM>",
