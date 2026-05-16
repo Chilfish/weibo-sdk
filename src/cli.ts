@@ -1,5 +1,9 @@
 // Auto-load .env file (Node.js 21.7+)
-try { process.loadEnvFile() } catch { /* ignore */ }
+try {
+  process.loadEnvFile()
+} catch {
+  // .env file not found — use env vars directly
+}
 
 import { defineCommand, runMain } from 'citty'
 import { cookieArg, createSDK, getCookie } from './cli/shared'
@@ -25,24 +29,23 @@ const whoami = defineCommand({
       console.error('❌ 请设置 WEIBO_COOKIE 环境变量或通过 --cookie 参数传入')
       process.exit(1)
     }
-    // Extract UID from SUB= cookie value
-    const subMatch = cookie.match(/SUB=_2A[A-Za-z0-9]+_(\d+)/)
-    const uidFromCookie = subMatch ? subMatch[1] : null
-
     const sdk = createSDK(args)
     try {
-      // Try myDetails first to verify cookie validity
       const details = await sdk.users.myDetails()
       if (details.ok !== 1) {
         console.error('❌ Cookie 无效或已过期')
         process.exit(1)
       }
 
-      if (uidFromCookie) {
-        const user = await sdk.users.getById(uidFromCookie)
+      // Extract UID from verified_url: "https://verified.weibo.com/verify?fr=myverified?uid=7679065628"
+      const verifiedUrl = (details.data as any)?.verified_url as string | undefined
+      const uidMatch = verifiedUrl?.match(/uid=(\d+)/)
+      const uid = uidMatch ? uidMatch[1] : null
+
+      if (uid) {
+        const user = await sdk.users.getById(uid)
         console.log(JSON.stringify(user, null, 2))
       } else {
-        // Fallback: output raw myDetails if UID extraction fails
         console.log(JSON.stringify(details, null, 2))
       }
     } catch (e: any) {
