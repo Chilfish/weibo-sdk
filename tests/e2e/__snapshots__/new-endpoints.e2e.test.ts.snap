@@ -823,10 +823,10 @@ exports[`snapshot: /ajax/statuses/searchProfile > searchProfile structure snapsh
             "profile_url": "<STR>",
             "screen_name": "<STR>",
             "status_total_counter": {
-              "comment_cnt": "76,758",
-              "like_cnt": "564,048",
-              "repost_cnt": "889,709",
-              "total_cnt": "1,530,515",
+              "comment_cnt": "76,760",
+              "like_cnt": "564,108",
+              "repost_cnt": "889,747",
+              "total_cnt": "1,530,615",
               "total_cnt_format": "153.1万",
             },
             "user_ability": "<NUM>",
@@ -858,7 +858,7 @@ exports[`snapshot: /ajax/statuses/searchProfile > searchProfile structure snapsh
               "uicode": null,
             },
             "bd_object_type": "hot_search_topic",
-            "desc": "10.3万新讨论",
+            "desc": "10.4万新讨论",
             "oid": "<ID>",
             "style": {
               "bg_color": "#FFF2E5",
