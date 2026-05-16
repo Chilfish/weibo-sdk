@@ -3901,3 +3901,123 @@ exports[`snapshot: user profile structure > info response structure matches 1`] 
   "ok": 1,
 }
 `;
+
+exports[`snapshot: user profile structure info response structure matches 1`] = `
+{
+  "data": {
+    "blockText": "<STR>",
+    "tabList": [
+      {
+        "name": "home",
+        "tabName": "精选",
+      },
+    ],
+    "user": {
+      "avatar_hd": "<IMG_URL>",
+      "avatar_large": "<IMG_URL>",
+      "cover_image_phone": "<IMG_URL>",
+      "description": "<STR>",
+      "domain": "wflanker",
+      "follow_me": false,
+      "followers_count": "<NUM>",
+      "followers_count_str": "86.7万",
+      "following": false,
+      "friends_count": "<NUM>",
+      "gender": "m",
+      "icon_list": [
+        {
+          "data": {
+            "mbrank": "<NUM>",
+            "mbtype": "<NUM>",
+            "svip": "<NUM>",
+            "vvip": "<NUM>",
+          },
+          "type": "vip",
+        },
+      ],
+      "id": "<ID>",
+      "idstr": "<ID>",
+      "is_muteuser": false,
+      "is_star": "0",
+      "location": "<STR>",
+      "mbrank": "<NUM>",
+      "mbtype": "<NUM>",
+      "pc_new": "<VAR>",
+      "planet_video": false,
+      "profile_image_url": "<IMG_URL>",
+      "profile_url": "<STR>",
+      "screen_name": "<STR>",
+      "special_follow": false,
+      "status_total_counter": {
+        "comment_cnt": "6,455,845",
+        "like_cnt": "29,538,236",
+        "repost_cnt": "21,965,124",
+        "total_cnt": "57,959,205",
+        "total_cnt_format": "5795.9万",
+      },
+      "statuses_count": "<NUM>",
+      "svip": "<NUM>",
+      "top_user": 1,
+      "url": "<STR>",
+      "user_ability": "<NUM>",
+      "user_type": "<NUM>",
+      "v_plus": "<NUM>",
+      "verified": true,
+      "verified_reason": "移动互联网分析师",
+      "verified_type": "<NUM>",
+      "verified_type_ext": "<NUM>",
+      "vvip": "<NUM>",
+      "weihao": "",
+    },
+  },
+  "ok": 1,
+}
+`;
+
+exports[`snapshot: user profile structure detail response structure matches 1`] = `
+{
+  "data": {
+    "birthday": "<DATE>",
+    "created_at": "<DATE>",
+    "desc_text": "<STR>",
+    "description": "<STR>",
+    "followers": {
+      "total_number": "<NUM>",
+      "users": [
+        {
+          "avatar_large": "<IMG_URL>",
+          "id": "<ID>",
+          "screen_name": "<STR>",
+        },
+      ],
+    },
+    "friend_info": "<STR>",
+    "gender": "m",
+    "ip_location": "<STR>",
+    "label_desc": [
+      {
+        "dark_mode": {
+          "background_color": "#FF181818",
+          "word_color": "#FFEA8011",
+        },
+        "name": "V指数 科技 79.99分",
+        "normal_mode": {
+          "background_color": "#59FFDDCB",
+          "word_color": "#FFFF6200",
+        },
+        "scheme_url": "https://v6.bang.weibo.com/newczv/1016?date=20260504&period_type=week&show_from=profile&uid=1111681197",
+      },
+    ],
+    "real_auth": true,
+    "real_name": {
+      "career": "职业：信息传输、软件和信息技术服务人员",
+      "name": "姓名：王高飞",
+    },
+    "sunshine_credit": {
+      "level": "阳光信用极好",
+    },
+    "verified_url": "<STR>",
+  },
+  "ok": 1,
+}
+`;

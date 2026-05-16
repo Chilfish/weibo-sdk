@@ -2,6 +2,8 @@
 import type { IWeiboConfig } from './types/config'
 import type { WeiboSDKLifecycleEvent, WeiboSDKSelfCheckMode } from './types/hooks'
 import { InvalidConfigError } from './models/errors/ConfigError'
+import { FavoriteService } from './services/public/FavoriteService'
+import { FollowingsService } from './services/public/FollowingsService'
 import { SearchService } from './services/public/SearchService'
 import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
@@ -16,6 +18,8 @@ function createSdkTraceId(): string {
 export class WeiboSDK {
   public readonly users: UserService
   public readonly tweets: TweetService
+  public readonly followings: FollowingsService
+  public readonly favorites: FavoriteService
   public readonly trends: TrendsService
   public readonly search: SearchService
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
@@ -33,6 +37,8 @@ export class WeiboSDK {
 
     this.users = new UserService(config, deps)
     this.tweets = new TweetService(config, deps)
+    this.followings = new FollowingsService(config, deps)
+    this.favorites = new FavoriteService(config, deps)
     this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
 

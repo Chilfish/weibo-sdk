@@ -261,3 +261,78 @@ export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSch
   okPolicy: { mode: 'require_ok_1' },
   schema: StatusShowResponseSchema,
 })
+
+// ---- Longtext ----
+
+const LongtextArgsSchema = z.object({
+  id: z.string(),
+}).strict()
+
+const LongtextResponseSchema = z.object({
+  ok: z.number(),
+  data: z.object({
+    longTextContent: z.string().optional(),
+    topic_struct: z.array(z.unknown()).optional(),
+    url_struct: z.array(z.unknown()).optional(),
+    isMarkdown: z.boolean().optional(),
+    longTextContent_raw: z.string().optional(),
+  }).passthrough(),
+}).passthrough()
+
+export type LongtextResponse = z.infer<typeof LongtextResponseSchema>
+
+export const longtextSpec: EndpointSpec<'TWEET_LONGTEXT', typeof LongtextArgsSchema> = defineEndpoint({
+  resourceType: 'TWEET_LONGTEXT',
+  endpoint: 'ajax/statuses/longtext',
+  argsSchema: LongtextArgsSchema,
+  buildResource: ({ id }) => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/statuses/longtext',
+    headers: {
+      referer: `https://weibo.com/detail/${id}`,
+    },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: LongtextResponseSchema,
+})
+
+// ---- Search Profile (Date Range Search) ----
+
+const SearchProfileArgsSchema = z.object({
+  uid: z.string(),
+  page: z.number().optional(),
+  starttime: z.string().optional(),
+  endtime: z.string().optional(),
+  hasori: z.number().optional(),
+  hasret: z.number().optional(),
+  hastext: z.number().optional(),
+  haspic: z.number().optional(),
+  hasvideo: z.number().optional(),
+  hasmusic: z.number().optional(),
+}).strict()
+
+const SearchProfileResponseSchema = z.object({
+  ok: z.number(),
+  data: z.object({
+    list: z.array(MyMBlogItemSchema),
+    total: z.number(),
+    absstr: z.string().optional(),
+  }),
+})
+
+export type SearchProfileResponse = z.infer<typeof SearchProfileResponseSchema>
+
+export const searchProfileSpec: EndpointSpec<'TWEET_SEARCHPROFILE', typeof SearchProfileArgsSchema> = defineEndpoint({
+  resourceType: 'TWEET_SEARCHPROFILE',
+  endpoint: 'ajax/statuses/searchProfile',
+  argsSchema: SearchProfileArgsSchema,
+  buildResource: ({ uid }) => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/statuses/searchProfile',
+    headers: {
+      referer: `https://weibo.com/u/${uid}`,
+    },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: SearchProfileResponseSchema,
+})

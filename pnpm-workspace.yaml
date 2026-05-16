@@ -7,7 +7,6 @@ packages:
 catalog:
   axios: ^1.16.1
   citty: ^0.2.2
-  dotenv: ^0.0.0
   zod: ^4.4.3
 
 catalogs:
@@ -15,6 +14,7 @@ catalogs:
     '@antfu/eslint-config': ^9.0.0
     '@antfu/ni': ^30.1.0
     bumpp: ^11.1.0
+    dotenv: 17.4.2
     eslint: ^10.4.0
     lint-staged: ^17.0.5
     simple-git-hooks: ^2.13.1

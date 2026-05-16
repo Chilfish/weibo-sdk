@@ -1,7 +1,7 @@
-import type { BuildCommentsResponse, FriendstimelineResponse, MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { IWeiboConfig } from '~/types/config'
 import { Tweet } from '~/models/data/Tweet'
-import { buildCommentsSpec, friendstimelineSpec, myMblogSpec, statusShowSpec } from '../endpoints/tweet'
+import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
@@ -156,6 +156,35 @@ export class TweetService extends FetcherService {
     if (options?.uid)
       args.uid = options.uid
     return await this.request(buildCommentsSpec, args as any)
+  }
+
+  /** 获取长微博全文 `GET /ajax/statuses/longtext` */
+  public async longText(mblogId: string): Promise<LongtextResponse> {
+    return await this.request(longtextSpec, { id: mblogId })
+  }
+
+  /**
+   * 按日期范围搜索用户微博 GET /ajax/statuses/searchProfile
+   */
+  public async searchByDate(uid: string, options?: {
+    page?: number
+    starttime?: string
+    endtime?: string
+    hasori?: number
+    hasret?: number
+    hastext?: number
+    haspic?: number
+    hasvideo?: number
+    hasmusic?: number
+  }): Promise<SearchProfileResponse> {
+    const args: Record<string, string | number> = { uid }
+    if (options) {
+      for (const [k, v] of Object.entries(options)) {
+        if (v !== undefined)
+          args[k] = v
+      }
+    }
+    return await this.request(searchProfileSpec, args as any)
   }
 
   /**
