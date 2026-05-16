@@ -73,7 +73,7 @@ const main = defineCommand({
     }),
     tweet: defineCommand({
       meta: { name: 'tweet', description: '微博相关操作' },
-      subCommands: { detail: tweetDetail, comments: tweetComments, home: tweetTimeline, longtext: tweetLongtext, 'search-profile': tweetSearchProfile },
+      subCommands: { 'detail': tweetDetail, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'search-profile': tweetSearchProfile },
     }),
     follow: defineCommand({
       meta: { name: 'follow', description: '关注列表' },

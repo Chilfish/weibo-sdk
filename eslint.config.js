@@ -7,7 +7,7 @@ export default antfu(
     pnpm: true,
   },
   {
-    ignores: ['tests/fixtures/raw/*.json'],
+    ignores: ['tests/fixtures/raw/*.json', '**/*.md'],
   },
   {
     rules: {
