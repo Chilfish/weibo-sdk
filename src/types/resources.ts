@@ -1,4 +1,4 @@
-import type { BuildCommentsResponse, MyMblogResponse, StatusShowResponse } from '../services/endpoints/tweet'
+import type { BuildCommentsResponse, FriendstimelineResponse, MyMblogResponse, StatusShowResponse } from '../services/endpoints/tweet'
 import type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
 import type { ISearchTweetsResponse, ISearchUsersResponse } from './raw/search/search'
 
@@ -8,6 +8,7 @@ export interface IResource {
   TWEET_MYMBLOG: MyMblogResponse
   TWEET_SHOW: StatusShowResponse
   TWEET_COMMENTS: BuildCommentsResponse
+  TWEET_FRIENDTIMELINE: FriendstimelineResponse
   SEARCH_USERS: ISearchUsersResponse
   SEARCH_TWEETS: ISearchTweetsResponse
 }

@@ -1,8 +1,8 @@
-import type { BuildCommentsResponse, MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { BuildCommentsResponse, FriendstimelineResponse, MyMblogResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import { Tweet } from '~/models/data/Tweet'
-import { buildCommentsSpec, myMblogSpec, statusShowSpec } from '../endpoints/tweet'
+import { buildCommentsSpec, friendstimelineSpec, myMblogSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
@@ -166,5 +166,50 @@ export class TweetService extends FetcherService {
     if (options?.uid)
       args.uid = options.uid
     return await this.request(buildCommentsSpec, args as any)
+  }
+
+  /**
+   * 获取首页 Feed（双向关注好友时间线）
+   *
+   * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
+   */
+  public async friendTimeline(options?: {
+    since_id?: number
+    count?: number
+  }): Promise<FriendstimelineResponse> {
+    const args: Record<string, number> = {}
+    if (options?.since_id)
+      args.since_id = options.since_id
+    if (options?.count)
+      args.count = options.count
+    return await this.request(friendstimelineSpec, args as any)
+  }
+
+  /**
+   * 获取并归一化首页 Feed
+   */
+  public async listFriendTimeline(options?: { since_id?: number, count?: number }): Promise<TweetPageResult> {
+    const traceId = `${Date.now()}-friendTimeline-${++normalizeSeq}`
+    const raw = await this.friendTimeline(options)
+    const nextSinceId = raw.since_id ?? 0
+    const filtered = this.filterTweets(raw.statuses || [])
+    const hasMore = typeof raw.since_id === 'number' && raw.since_id > 0
+      && raw.total_number > 0
+      && filtered.length < raw.total_number
+    const startAt = Date.now()
+    const tweets = filtered.map(item => new Tweet(item))
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: traceId,
+      model: 'Tweet',
+      count: tweets.length,
+      duration_ms: Date.now() - startAt,
+    })
+    return {
+      sinceId: Number.isFinite(nextSinceId) ? nextSinceId : 0,
+      hasMore,
+      tweets,
+    }
   }
 }
