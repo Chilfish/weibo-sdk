@@ -57,7 +57,7 @@ const SearchTweetsResponseSchema = z.object({
   data: z.object({
     cards: z.array(z.object({
       card_type: z.number().optional(),
-      mblog: z.record(z.unknown()).optional(),
+      mblog: z.record(z.string(), z.unknown()).optional(),
       card_group: z.array(z.unknown()).optional(),
     }).passthrough()),
     cardlistInfo: z.object({

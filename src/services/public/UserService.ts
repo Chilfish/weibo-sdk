@@ -32,7 +32,7 @@ export class UserService extends FetcherService {
    * 该接口常用于会话自检：Cookie 过期/未登录时，通常会返回 `ok !== 1`。
    */
   public async myDetails(): Promise<UserDetailsResponse> {
-    return await this.request(myDetailsSpec, undefined, { skipPreflight: true })
+    return await this.request(myDetailsSpec, {}, { skipPreflight: true })
   }
 
   /**
@@ -46,7 +46,7 @@ export class UserService extends FetcherService {
     ])
 
     const startAt = Date.now()
-    const user = new User(info.data.user, details.data)
+    const user = new User(info.data.user as any, details.data as any)
     await this.emitTelemetry({
       event_name: 'normalize_done',
       timestamp: Date.now(),

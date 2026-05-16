@@ -98,7 +98,10 @@ export const userDetailsSpec: EndpointSpec<'USER_DETAILS', typeof UserDetailsArg
   schema: UserDetailsResponseSchema,
 })
 
-export const myDetailsSpec: EndpointSpec<'USER_DETAILS', undefined> = defineEndpoint({
+const MyDetailsArgsSchema = z.object({}).strict()
+
+export const myDetailsSpec: EndpointSpec<'USER_DETAILS', typeof MyDetailsArgsSchema> = defineEndpoint({
+  argsSchema: MyDetailsArgsSchema,
   resourceType: 'USER_DETAILS',
   endpoint: 'ajax/profile/detail',
   buildResource: () => ({

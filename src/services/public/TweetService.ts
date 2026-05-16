@@ -35,7 +35,7 @@ export class TweetService extends FetcherService {
   /**
    * 过滤掉广告等无效微博
    */
-  private filterTweets(rawList: MyMBLog[]): MyMBLog[] {
+  private filterTweets(rawList: any[]): any[] {
     return rawList.filter(item => !item.isAd)
   }
 
@@ -141,9 +141,7 @@ export class TweetService extends FetcherService {
    * `GET https://weibo.com/ajax/statuses/buildComments?id={mblogid}&count=10`
    *
    * @param mblogId 微博 ID
-   * @param options.max_id 分页游标（上一页的 max_id）
-   * @param options.count 每页数量（默认 10）
-   * @param options.flow 排序：0=按热度，1=按时间
+   * @param options 可选参数：max_id（分页游标）、count（每页数量）、flow（0=热度/1=时间）、uid
    */
   public async comments(mblogId: string, options?: {
     max_id?: number
@@ -194,8 +192,8 @@ export class TweetService extends FetcherService {
     const nextSinceId = raw.since_id ?? 0
     const filtered = this.filterTweets(raw.statuses || [])
     const hasMore = typeof raw.since_id === 'number' && raw.since_id > 0
-      && raw.total_number > 0
-      && filtered.length < raw.total_number
+      && (raw.total_number ?? 0) > 0
+      && filtered.length < (raw.total_number ?? 0)
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({

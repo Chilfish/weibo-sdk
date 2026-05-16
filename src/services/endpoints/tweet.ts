@@ -17,7 +17,7 @@ const StatusShowArgsSchema = z.object({
   isGetLongText: z.boolean(),
 }).strict()
 
-const MyMBlogItemSchema = z.object({
+const MyMBlogItemSchema: z.ZodType<any> = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mblogid: z.string(),
@@ -47,12 +47,12 @@ const MyMBlogItemSchema = z.object({
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
   pic_ids: z.array(z.string()).optional(),
-  pic_infos: z.record(z.unknown()).optional(),
-  mix_media_info: z.record(z.unknown()).optional(),
-  page_info: z.record(z.unknown()).optional(),
-  geo: z.record(z.unknown()).nullable().optional(),
+  pic_infos: z.record(z.string(), z.unknown()).optional(),
+  mix_media_info: z.record(z.string(), z.unknown()).optional(),
+  page_info: z.record(z.string(), z.unknown()).optional(),
+  geo: z.record(z.string(), z.unknown()).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy(() => MyMBlogItemSchema).nullable().optional(),
+  retweeted_status: z.lazy((): z.ZodType<any> => MyMBlogItemSchema).nullable().optional(),
 }).passthrough()
 
 const MyMblogResponseSchema = z.object({
@@ -70,7 +70,7 @@ const MyMblogResponseSchema = z.object({
 
 export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
 
-const StatusShowResponseSchema = z.object({
+const StatusShowResponseSchema: z.ZodType<any> = z.object({
   ok: z.number().optional(),
   id: IdSchema.optional(),
   idstr: z.string().optional(),
@@ -99,12 +99,12 @@ const StatusShowResponseSchema = z.object({
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
   pic_ids: z.array(z.string()).optional(),
-  pic_infos: z.record(z.unknown()).optional(),
-  mix_media_info: z.record(z.unknown()).optional(),
-  page_info: z.record(z.unknown()).optional(),
-  geo: z.record(z.unknown()).nullable().optional(),
+  pic_infos: z.record(z.string(), z.unknown()).optional(),
+  mix_media_info: z.record(z.string(), z.unknown()).optional(),
+  page_info: z.record(z.string(), z.unknown()).optional(),
+  geo: z.record(z.string(), z.unknown()).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy(() => StatusShowResponseSchema).nullable().optional(),
+  retweeted_status: z.lazy((): z.ZodType<any> => StatusShowResponseSchema).nullable().optional(),
 }).passthrough().superRefine((val, ctx) => {
   if (val.id === undefined && !val.idstr) {
     ctx.addIssue({

@@ -13,7 +13,7 @@ describe('bandUnified endpoint schema', () => {
 
     expect(result.success).toBe(true)
     expect(result.data!.ok).toBe(1)
-    expect(result.data!.data.realtime.length).toBeGreaterThan(0)
-    expect(typeof result.data!.data.realtime[0].word).toBe('string')
+    expect(result.data!.data.realtime!.length).toBeGreaterThan(0)
+    expect(typeof result.data!.data.realtime![0].word).toBe('string')
   })
 })

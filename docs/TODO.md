@@ -44,7 +44,7 @@
 ### Zod / Schema 迁移
 - [x] 用 `z.infer<typeof Schema>` 逐步替代手写 `types/raw/**`（2026-05-16 完成）。
 - [x] 明确 schema strictness 策略：`.passthrough()` 开放端点，所有代码访问字段 `.optional()`（2026-05-16 确定）。
-- [ ] 为所有 endpoint 补充 args schema（当前 `myDetailsSpec` 的 args 为 `undefined`）。
+- [x] 为所有 endpoint 补充 args schema（`myDetailsSpec` 添加 `z.object({}).strict()`，2026-05-16）。
 
 ### 可观测性与测试
 - [x] 将 `normalize_done` 事件的 `trace_id` 统一为入口方法级格式（2026-05-16）。
@@ -54,8 +54,8 @@
 
 ### CI / 构建
 - [x] 配置 CI（GitHub Actions）：`pnpm install` → `pnpm run typecheck` → `pnpm run lint` → `pnpm test`（2026-05-16）。
-- [ ] 配置 `size-limit` 或 bundle 体积检查，防止依赖膨胀。
-- [ ] 配置 `pkg.pr.new` 或等价方案，让 PR 产生可安装的预览包。
+- [x] 配置 `size-limit`（2026-05-16，20kB 限制）。
+- [ ] 配置 `pkg.pr.new`（需 StackBlitz 外部服务，暂 skip）。
 
 ### 开发者体验
 - [ ] 补充公共 API 的 TSDoc 注释（当前仅部分方法有注释）。
