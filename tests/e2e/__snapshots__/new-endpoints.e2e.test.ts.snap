@@ -1,4 +1,4 @@
-// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`snapshot: /ajax/friendships/friends response structure matches 1`] = `
 {

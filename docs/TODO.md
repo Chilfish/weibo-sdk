@@ -16,47 +16,35 @@
 
 > 已验证浏览器抓包（`tests/fixtures/raw/captures/`），脱敏 fixture 已就绪。
 
-- [ ] `GET /ajax/statuses/longtext?id={mblogid}` — 获取长微博全文
+- [x] `GET /ajax/statuses/longtext?id={mblogid}` — 获取长微博全文
   - fixtures ✅ `longtext.json`：`{data: {longTextContent, topic_struct, url_struct, isMarkdown}}`
-- [ ] **`GET /ajax/friendships/friends`** — 获取用户关注列表（cursor 分页）
+  - 实现 ✅ `TweetService.longText(mblogId)`，含组件测试
+- [x] **`GET /ajax/friendships/friends`** — 获取用户关注列表（cursor 分页）
   - fixtures ✅ 2 个 UID 各 1 页：`friendships_followings_u*.json`
   - 数据路径：`{users[], total_number, next_cursor, previous_cursor, ok}`
-- [ ] **`GET /ajax/profile/followContent`** — 获取自己关注列表（cursor 分页）
+  - 实现 ✅ `FollowingsService.getFollowings(uid, page?)`，含组件测试 + E2E 快照
+- [x] **`GET /ajax/profile/followContent`** — 获取自己关注列表（cursor 分页）
   - fixtures ✅ 3 页：`followContent.json` / `_p2` / `_p3`
   - 数据路径：`{data: {follows: {users[], next_cursor, total_number}}, specialAttention, ok}`
-- [ ] **`GET /ajax/favorites/all_fav`** — 获取收藏夹（按页遍历）
+  - 实现 ✅ `FollowingsService.getMyFollowings(page?)`，含组件测试 + E2E 快照
+- [x] **`GET /ajax/favorites/all_fav`** — 获取收藏夹（按页遍历）
   - fixtures ✅ 1 页：`favorites_p1.json`（19 条微博）
   - 数据路径：`{data: {status: Post[]}, ok}` — 每条为完整 Status 对象（含 user/page_info/pic_infos）
-- [ ] **`GET /ajax/statuses/searchProfile`** — 按日期范围搜索用户微博
+  - 实现 ✅ `FavoriteService.getFavorites(uid, page?)`，含组件测试，E2E 快照待 schema 对齐
+- [x] **`GET /ajax/statuses/searchProfile`** — 按日期范围搜索用户微博
   - fixtures ✅ 2 页：`searchProfile_p1.json` / `_p2`（各 50 条）
   - 参数：`uid, page, starttime, endtime, hasori, hasret, hastext, haspic, hasvideo, hasmusic`
   - 数据路径：`{data: {list: Post[], total, absstr}, ok}` — list 结构与 mymblog 相同
+  - 实现 ✅ `TweetService.searchByDate(uid, options?)`，含组件测试，E2E 快照待 schema 对齐
 
-### 实现计划（按推荐顺序）
+### 实现计划（全部完成 ✅，2026-05-17）
 
-1. **`/statuses/longtext`** — 最简单，1 参数 1 字段
-   - 新增 `src/services/endpoints/tweet.ts`：`longtextSpec`
-   - 方法：`TweetService.longText(mblogId)` → `{ longTextContent, topicStruct, urlStruct }`
-   - 高阶用法：`TweetService._expandLongText(tweetList)` 遍历 `isLongText` 微博自动补全全文
+1. ✅ **`/statuses/longtext`** — `TweetService.longText(mblogId)`
+2. ✅ **`/friendships/friends` + `/followContent`** — `FollowingsService.getFollowings()` / `getMyFollowings()`
+3. ✅ **`/statuses/searchProfile`** — `TweetService.searchByDate(uid, options?)`
+4. ✅ **`/favorites/all_fav`** — `FavoriteService.getFavorites(uid, page?)`
 
-2. **`/friendships/friends` + `/followContent`** — 两个端点结构相似，可共享 FollowingsService
-   - 新增 `src/services/endpoints/follow.ts`：`friendshipsSpec` + `followContentSpec`
-   - 新增 `src/services/public/FollowingsService.ts`：
-     - `getFollowings(uid, page?)` → 调用 friendships
-     - `getMyFollowings(page?)` → 调用 followContent
-     - 两者均返回 `{users: FollowingUser[], nextCursor, totalNumber}`
-   - Model：`FollowingUser` 归一化（精简 User 子集，关注列表字段比 profile/info 少）
-   - 分页：cursor 而非 since_id
-
-3. **`/statuses/searchProfile`** — 可纳入 TweetService 或独立
-   - 新增 `src/services/endpoints/tweet.ts`：`searchProfileSpec`
-   - 方法：`TweetService.searchByDate(uid, {starttime, endtime, page?, hasori?, hasret?, ...})`
-   - 返回格式与 `listByUserId` 相同（`Tweet[]`），可复用 `normalizeTweet`
-
-4. **`/favorites/all_fav`** — 独立 FavoriteService
-   - 新增 `src/services/endpoints/favorite.ts`：`favoritesSpec`
-   - 新增 `src/services/public/FavoriteService.ts`：`getFavorites(uid, page?)`
-   - 收藏内微博可复用 `normalizeTweet`
+> E2E 快照：friendships + followContent 已对齐真实 API；longtext/searchProfile/favorites 的 Zod schema 需根据真实响应微调。
 
 ---
 

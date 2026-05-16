@@ -3902,6 +3902,54 @@ exports[`snapshot: user profile structure > info response structure matches 1`] 
 }
 `;
 
+exports[`snapshot: user profile structure detail response structure matches 1`] = `
+{
+  "data": {
+    "birthday": "<DATE>",
+    "created_at": "<DATE>",
+    "desc_text": "<STR>",
+    "description": "<STR>",
+    "followers": {
+      "total_number": "<NUM>",
+      "users": [
+        {
+          "avatar_large": "<IMG_URL>",
+          "id": "<ID>",
+          "screen_name": "<STR>",
+        },
+      ],
+    },
+    "friend_info": "<STR>",
+    "gender": "m",
+    "ip_location": "<STR>",
+    "label_desc": [
+      {
+        "dark_mode": {
+          "background_color": "#FF181818",
+          "word_color": "#FFEA8011",
+        },
+        "name": "V指数 科技 79.99分",
+        "normal_mode": {
+          "background_color": "#59FFDDCB",
+          "word_color": "#FFFF6200",
+        },
+        "scheme_url": "https://v6.bang.weibo.com/newczv/1016?date=20260504&period_type=week&show_from=profile&uid=1111681197",
+      },
+    ],
+    "real_auth": true,
+    "real_name": {
+      "career": "职业：信息传输、软件和信息技术服务人员",
+      "name": "姓名：王高飞",
+    },
+    "sunshine_credit": {
+      "level": "阳光信用极好",
+    },
+    "verified_url": "<STR>",
+  },
+  "ok": 1,
+}
+`;
+
 exports[`snapshot: user profile structure info response structure matches 1`] = `
 {
   "data": {
@@ -3969,54 +4017,6 @@ exports[`snapshot: user profile structure info response structure matches 1`] = 
       "vvip": "<NUM>",
       "weihao": "",
     },
-  },
-  "ok": 1,
-}
-`;
-
-exports[`snapshot: user profile structure detail response structure matches 1`] = `
-{
-  "data": {
-    "birthday": "<DATE>",
-    "created_at": "<DATE>",
-    "desc_text": "<STR>",
-    "description": "<STR>",
-    "followers": {
-      "total_number": "<NUM>",
-      "users": [
-        {
-          "avatar_large": "<IMG_URL>",
-          "id": "<ID>",
-          "screen_name": "<STR>",
-        },
-      ],
-    },
-    "friend_info": "<STR>",
-    "gender": "m",
-    "ip_location": "<STR>",
-    "label_desc": [
-      {
-        "dark_mode": {
-          "background_color": "#FF181818",
-          "word_color": "#FFEA8011",
-        },
-        "name": "V指数 科技 79.99分",
-        "normal_mode": {
-          "background_color": "#59FFDDCB",
-          "word_color": "#FFFF6200",
-        },
-        "scheme_url": "https://v6.bang.weibo.com/newczv/1016?date=20260504&period_type=week&show_from=profile&uid=1111681197",
-      },
-    ],
-    "real_auth": true,
-    "real_name": {
-      "career": "职业：信息传输、软件和信息技术服务人员",
-      "name": "姓名：王高飞",
-    },
-    "sunshine_credit": {
-      "level": "阳光信用极好",
-    },
-    "verified_url": "<STR>",
   },
   "ok": 1,
 }

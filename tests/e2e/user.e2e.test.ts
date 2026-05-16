@@ -6,8 +6,8 @@ const cookie = process.env.WEIBO_COOKIE
 const expiredCookie = process.env.WEIBO_COOKIE_EXPIRED
 const e2eEnabled = process.env.WEIBO_E2E === '1'
 
-const describeE2E = e2eEnabled && cookie ? describe : describe.skip
-const describeExpired = e2eEnabled && expiredCookie ? describe : describe.skip
+const describeE2E = e2eEnabled && cookie ? describe : describe
+const describeExpired = e2eEnabled && expiredCookie ? describe : describe
 
 describeE2E('e2e:user', () => {
   it('fetches and normalizes a user by id', async () => {

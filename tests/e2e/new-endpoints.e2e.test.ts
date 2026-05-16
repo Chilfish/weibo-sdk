@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { WeiboSDK } from '~/WeiboSDK'
+import 'dotenv'
 
 const cookie = process.env.WEIBO_COOKIE
 
-const describeE2E = cookie ? describe : describe.skip
+const describeE2E = cookie ? describe : describe
 
 const IMG_DOMAINS = ['Expires=', '&ssig=', '?KID=', 'imgbed', 'sinaimg', 'sinajs']
 
