@@ -13,15 +13,22 @@ npx tsx src/cli/index.ts --help
 
 ## 配置 Cookie
 
-两种方式提供微博登录 Cookie：
+仅通过环境变量或 `.env` 文件：
 
 ```bash
-# 方式 1：环境变量（推荐）
-export WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
-weibo-sdk user info 1111681197
+# .env 文件（推荐）
+WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 
-# 方式 2：命令行参数（每个命令都需要）
-weibo-sdk user info 1111681197 --cookie "SUB=xxx; ..."
+# 或直接导出
+export WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
+```
+
+所有命令默认输出 **JSON 格式**，可用于管道处理：
+
+```bash
+weibo-sdk user info 1111681197 | jq '.name, .stats'
+weibo-sdk tweet detail QqsYymYOS | jq '.media[0]'
+weibo-sdk search users 新闻 | jq '.data.cards[0].card_group[:3]'
 ```
 
 ## 命令参考

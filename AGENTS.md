@@ -149,6 +149,50 @@ WeiboSDK（门面）
 
 见 `docs/渐进式开发计划.md` 中"Phase 1：基于真实数据的 Bug 修复"。
 
+## CLI Interface Mandate
+
+每个 SDK 功能必须通过命令行界面暴露，确保可观测性和可测试性。
+
+### 原则
+
+- **接受文本输入**：通过 stdin、命令行参数或文件
+- **产生文本输出**：通过 stdout（默认格式为 JSON）
+- **支持 JSON 格式**：用于结构化数据交换
+
+### 约束
+
+1. 新增公开 Service 方法时，必须在 CLI 中添加对应子命令
+2. Cookie 仅从 `WEIBO_COOKIE` 环境变量或 `.env` 文件读取，CLI 不接受 `--cookie` 参数
+3. 所有命令输出必须为 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理
+4. 错误必须输出到 stderr 并以非零退出码退出
+
+### CLI 验证用途
+
+CLI 可用于快速验证 SDK 行为而无需编写测试代码：
+
+```bash
+# 验证 Cookie 是否有效
+weibo-sdk self-check
+
+# 验证用户数据是否能正确归一化
+weibo-sdk user info 1111681197 | jq '.name, .stats'
+
+# 验证微博详情 media 解析
+weibo-sdk tweet detail QqsYymYOS | jq '.media[0]'
+
+# 分页验证
+weibo-sdk user timeline 1111681197 --since_id 123456 | jq '.hasMore, .sinceId'
+```
+
+### 实现架构
+
+```
+src/cli/index.ts          # runMain() 入口，组装子命令
+src/cli/commands/*.ts     # 按领域分文件，一个文件一个 SDK Service
+```
+
+基于 [citty](https://github.com/unjs/citty)：`defineCommand` + `runMain`，零依赖，自动 `--help`。
+
 ## 自动化执行边界（我可以自行完成的事）
 
 - 我可以在满足"合并门禁"的前提下，**自行创建 PR、更新 PR 文案、rebase、squash merge、删除分支**。
