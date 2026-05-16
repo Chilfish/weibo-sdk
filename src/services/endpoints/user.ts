@@ -14,14 +14,55 @@ const UserDetailsArgsSchema = z.object({
 const UserInfoResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
-    user: z.object({}).loose(),
-  }).loose(),
-}).loose()
+    user: z.object({
+      id: z.number().optional(),
+      idstr: z.string().optional(),
+      screen_name: z.string().optional(),
+      avatar_hd: z.string().optional(),
+      avatar_large: z.string().optional(),
+      profile_image_url: z.string().optional(),
+      cover_image_phone: z.string().optional(),
+      profile_url: z.string().optional(),
+      description: z.string().optional(),
+      location: z.string().optional(),
+      gender: z.string().optional(),
+      verified: z.boolean().optional(),
+      verified_type: z.number().optional(),
+      verified_reason: z.string().optional(),
+      followers_count: z.number().optional(),
+      friends_count: z.number().optional(),
+      statuses_count: z.number().optional(),
+    }).passthrough(),
+  }).passthrough(),
+}).passthrough()
 
 const UserDetailsResponseSchema = z.object({
   ok: z.number(),
-  data: z.object({}).loose(),
-}).loose()
+  data: z.object({
+    created_at: z.string().optional(),
+    desc_text: z.string().optional(),
+    ip_location: z.string().optional(),
+    gender: z.string().optional(),
+    birthday: z.string().optional(),
+    description: z.string().optional(),
+    education: z.object({ school: z.string().optional() }).passthrough().optional(),
+    sunshine_credit: z.object({ level: z.string().optional() }).passthrough().optional(),
+    followers: z.object({ total_number: z.number().optional() }).passthrough().optional(),
+    label_desc: z.array(z.unknown()).optional(),
+    verified_url: z.string().optional(),
+    friend_info: z.string().optional(),
+    links: z.array(z.object({
+      title: z.string().optional(),
+      url: z.string().optional(),
+    }).passthrough()).optional(),
+    real_name: z.object({
+      name: z.string().optional(),
+      career: z.string().optional(),
+    }).passthrough().optional(),
+    company: z.string().optional(),
+    career: z.object({ company: z.string().optional() }).passthrough().optional(),
+  }).passthrough(),
+}).passthrough()
 
 export type UserInfoResponse = z.infer<typeof UserInfoResponseSchema>
 export type UserDetailsResponse = z.infer<typeof UserDetailsResponseSchema>
