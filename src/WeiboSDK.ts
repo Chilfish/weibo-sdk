@@ -3,6 +3,7 @@ import type { IWeiboConfig } from './types/config'
 import type { WeiboSDKLifecycleEvent, WeiboSDKSelfCheckMode } from './types/hooks'
 import { InvalidConfigError } from './models/errors/ConfigError'
 import { SearchService } from './services/public/SearchService'
+import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
 
@@ -15,6 +16,7 @@ function createSdkTraceId(): string {
 export class WeiboSDK {
   public readonly users: UserService
   public readonly tweets: TweetService
+  public readonly trends: TrendsService
   public readonly search: SearchService
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
@@ -31,6 +33,7 @@ export class WeiboSDK {
 
     this.users = new UserService(config, deps)
     this.tweets = new TweetService(config, deps)
+    this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
 
     void this.emitLifecycle({
