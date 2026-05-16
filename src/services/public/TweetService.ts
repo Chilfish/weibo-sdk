@@ -62,11 +62,11 @@ export class TweetService extends FetcherService {
 
     const traceId = `${Date.now()}-listByUserId-${++normalizeSeq}`
     const raw = await this.myMblog(uid, sinceId, count)
-    const nextSinceId = Number(raw.since_id ?? 0)
-    const filtered = this.filterTweets(raw.list || [])
-    const hasMore = typeof raw.since_id === 'string' && raw.since_id.length > 0
-      && raw.total > 0
-      && filtered.length < raw.total
+    const nextSinceId = Number(raw.data.since_id ?? 0)
+    const filtered = this.filterTweets(raw.data.list || [])
+    const hasMore = typeof raw.data.since_id === 'string' && raw.data.since_id.length > 0
+      && raw.data.total > 0
+      && filtered.length < raw.data.total
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({

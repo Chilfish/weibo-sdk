@@ -14,10 +14,17 @@ const StatusShowArgsSchema = z.object({
 }).strict()
 
 const MyMblogResponseSchema = z.object({
-  since_id: z.string().optional(),
-  list: z.array(z.unknown()).optional(),
-  total: z.number().optional(),
-}).loose()
+  ok: z.number(),
+  data: z.object({
+    since_id: z.string(),
+    list: z.array(z.unknown()),
+    status_visible: z.number().optional(),
+    bottom_tips_visible: z.boolean().optional(),
+    bottom_tips_text: z.string().optional(),
+    topicList: z.array(z.unknown()).optional(),
+    total: z.number(),
+  }),
+})
 
 export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
 
