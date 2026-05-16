@@ -2,6 +2,8 @@ import type { EndpointSpec } from '../internal/EndpointSpec'
 import { z } from 'zod'
 import { defineEndpoint } from '../internal/EndpointSpec'
 
+const IdSchema = z.union([z.string(), z.number()])
+
 const MyMblogArgsSchema = z.object({
   uid: z.string(),
   since_id: z.number().optional(),
@@ -65,8 +67,6 @@ const MyMblogResponseSchema = z.object({
 })
 
 export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
-
-const IdSchema = z.union([z.string(), z.number()])
 
 const StatusShowResponseSchema = z.object({
   ok: z.number(),
