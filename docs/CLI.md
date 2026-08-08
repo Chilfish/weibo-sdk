@@ -95,8 +95,8 @@ weibo-sdk search tweets <query> [--page <n>]
 ### 其他
 
 ```bash
-# 热搜榜单
-weibo-sdk trends
+# 热搜榜单（--type 可选：hot/topic/entertainment，默认 hot）
+weibo-sdk trends [--type hot|topic|entertainment]
 
 # 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
 weibo-sdk whoami
@@ -118,10 +118,8 @@ weibo-sdk whoami
 | `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
-| `trends` | `trends.hotBand()` | raw `BandUnifiedResponse` |
+| `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
-
-> `trends` 命令未暴露 `hotBand(type)` 的 `type` 参数，始终使用默认 `'hot'`；需要 `topic`/`entertainment` 请走 SDK 调用。
 
 ## 架构
 

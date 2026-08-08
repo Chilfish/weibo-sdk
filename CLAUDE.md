@@ -77,6 +77,7 @@ WeiboSDK（门面）
 
 - **每个功能都必须有对应测试用例**。
 - 默认 `pnpm test` 必须离线稳定：unit（纯函数/0 IO）、component（mock HTTP/clock/sleep）、E2E（`WEIBO_E2E=1` 显式开启）。
+- **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `WEIBO_COOKIE` 存在时运行（`describe.skip` 默认跳过）；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**（避免默认 `pnpm test` 误跑）。真实 Cookie 仅存于 `.env` / 环境变量。
 - 新增测试前先写失败用例（Red → Green → Refactor）。
 - 详见 `docs/渐进式开发计划.md` 测试策略章节。
 

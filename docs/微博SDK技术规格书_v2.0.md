@@ -218,6 +218,21 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 `telemetry.emit()` 的任何异常 MUST NOT 影响 SDK 正常功能（外层 try/catch）。
 
+### 3.7 公共导出面（src/index.ts）
+
+`src/index.ts` 是包的唯一公共入口，导出：
+
+- `VERSION`（包版本号）
+- `WeiboSDK` 类（门面）
+- 类型与枚举（`types/*`）：`IWeiboConfig`、`IUser`/`ITweet` 及其子类型、`IResource`、hooks/telemetry 类型、以及**所有 endpoint 响应类型**（`UserInfoResponse` / `UserDetailsResponse` / `MyMblogResponse` / `StatusShowResponse` / `LongtextResponse` / `SearchProfileResponse` / `BuildCommentsResponse` / `FriendstimelineResponse` / `SearchUsersResponse` / `SearchTweetsResponse` / `BandUnifiedResponse` / `FriendshipsResponse` / `FollowContentResponse` / `FavoritesResponse`）
+- 领域模型：`User`、`Tweet`（类）、`normalizeTweet`（函数）、`RawTweet`（类型）
+- 结构化错误类：`WeiboSDKError` 基类与全部 6 个子类（见 §4）
+
+**规则**：
+- 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。
+- `types/raw/**` 中未被代码引用的历史接口（comment/band/search）为内部遗留，不对外导出；端点类型以 `services/endpoints/*.ts` 的 `z.infer` 为准。
+- 禁止从包入口导出内部实现（`services/*`、`models/data` 内部 helper 等）。
+
 ---
 
 ## 4. 错误处理
