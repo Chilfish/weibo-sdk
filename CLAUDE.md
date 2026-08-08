@@ -26,17 +26,22 @@
 | 文档 | 内容 |
 |------|------|
 | `docs/README.md` | 文档中央索引（按分类导航 + 约定） |
-| `docs/微博SDK技术规格书_v2.0.md` | 分层架构与契约定义（与实现对齐） |
+| `docs/requirements/requirements-spec.md` | 需求规格（产品愿景 = 个人数据归档） |
+| `docs/engineering/technical-spec.md` | 分层架构与契约定义（与实现对齐） |
 | `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
-| `docs/渐进式开发计划.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
-| `docs/CLI.md` | CLI 命令参考与架构说明 |
-| `docs/error-diagnostics.md` | 错误排障手册（结构化错误码表、排查流程） |
+| `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
+| `docs/planning/todo-archive-mvp.md` | 当前行动计划（归档 MVP：P0/P1/P2） |
+| `docs/planning/backlog.md` | 跨阶段候选任务清单 |
+| `docs/reviews/review-apple-design-2026-08-09.md` | Apple 视角设计审查（问题清单 + 行动依据） |
+| `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
+| `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
+| `docs/engineering/cli.md` | CLI 命令参考与架构说明 |
+| `docs/engineering/error-diagnostics.md` | 错误排障手册（结构化错误码表、排查流程） |
+| `docs/engineering/skill.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
 | `docs/postmortem/README.md` | 尸检报告索引 + 高频雷区自查清单（写码前必读） |
 | `docs/development-log/` | 按天开发日志 |
 | `docs/archive/` | 已完成阶段归档（历史记录，不主动读取） |
-| `docs/SKILL.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
-| `docs/TODO.md` | 当前进度与待做清单（P0/P1/P2） |
 
 ## 架构约定
 
@@ -86,7 +91,7 @@ WeiboSDK（门面）
 - 禁止直接 `throw new Error('...')`；必须使用结构化错误（继承 `WeiboSDKError`），携带 `code/level/retryable/context`。
 - 所有错误路径必须有测试覆盖。
 - 错误映射链：axios error → TransportError；ok !== 1 → BusinessError；Zod fail → ProtocolError。
-- 详见 `docs/error-diagnostics.md`。
+- 详见 `docs/engineering/error-diagnostics.md`。
 
 ## 可观测性 (Wide Events)
 
@@ -94,7 +99,7 @@ WeiboSDK（门面）
 - Happy Path 与 Error Path 都需要事件覆盖，测试中可断言事件序列与字段完整性。
 - 使用 `TelemetryCollector` 模式（测试中 `events: TelemetryEvent[]` 收集并断言）。
 - Telemetry 的 emit 失败绝不能影响 SDK 正常功能（`telemetry?.emit()` 调用外包裹 try/catch）。
-- 详见 `docs/SKILL.md`。
+- 详见 `docs/engineering/skill.md`。
 
 ## Git / 变更管理
 
@@ -143,7 +148,7 @@ WeiboSDK（门面）
 3. 所有命令输出必须为 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理。
 4. 错误必须输出到 stderr 并以非零退出码退出。
 
-基于 [citty](https://github.com/unjs/citty)。详细命令参考见 `docs/CLI.md`。
+基于 [citty](https://github.com/unjs/citty)。详细命令参考见 `docs/engineering/cli.md`。
 
 ## 自动化执行边界
 

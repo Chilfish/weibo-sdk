@@ -3,20 +3,18 @@
 > 已完成阶段的规划文档统一归档于此。**仅供历史查阅，不再主动读取**（避免污染上下文）。
 > 活跃文档只在 `docs/planning/` 与 docs 各分类目录；本目录是「已完成」的墓碑。
 
-## 当前无已归档文档
-
-截至 2026-08-09，weibo-sdk 的完成状态已收敛进 `docs/渐进式开发计划.md`（标记已完成 Phase），尚未有需要整体归档的阶段规划文档。
-
 ## 归档规则
 
 - **何时归档**：一个阶段/特性交付完成后，其规划文档不再需要被主动读取时。
 - **归档对象**：阶段 TODO、一次性方案、已完成的计划文档（如「Phase X 计划」）。
-- **不归档**：`docs/微博SDK技术规格书_v2.0.md`（现行契约）、`docs/渐进式开发计划.md`（活跃路线图）、`docs/error-diagnostics.md` / `docs/CLI.md` / `docs/requirements/glossary.md` / `docs/planning/architecture.md`（持续引用）。
+- **不归档**：`docs/engineering/technical-spec.md`（现行契约）、`docs/planning/roadmap.md`（活跃路线图）、`docs/engineering/error-diagnostics.md` / `docs/engineering/cli.md` / `docs/requirements/glossary.md` / `docs/planning/architecture.md`（持续引用）。
 - **归档后**：在 `docs/README.md` 的「存档」分类登记一行，标注「历史记录，不主动读取」。
 
 ## 已归档条目
 
-（空 — 无已归档文档）
+| 文档 | 说明 |
+|---|---|
+| [todo.md](./todo.md) | 早期 TODO（P0/P1/P2 完成记录）——完成状态已收敛进 [todo-archive-mvp.md](../planning/todo-archive-mvp.md) 与 [backlog.md](../planning/backlog.md)，本文件为历史记录 |
 
 ## 常见问题
 

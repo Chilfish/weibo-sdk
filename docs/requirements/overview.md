@@ -8,7 +8,7 @@
 
 ## 架构（分层）
 
-分层目标见 `docs/微博SDK技术规格书_v2.0.md`，核心思想是：
+分层目标见 `docs/engineering/technical-spec.md`，核心思想是：
 
 - **客户端层**：`WeiboSDK`（对外门面，聚合 6 个服务）
 - **服务层**：`UserService` / `TweetService` / `FollowingsService` / `FavoriteService` / `TrendsService` / `SearchService`（按领域组织 API，均继承 `FetcherService`）
@@ -61,11 +61,11 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 
 **数据驱动开发**：所有 Zod schema / Model 归一化逻辑必须以真实微博 API 返回数据为准（`tests/fixtures/raw/` 存真实脱敏 fixture），禁止凭手写接口猜测 Schema。详见 `CLAUDE.md`「数据驱动开发」。
 
-开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/渐进式开发计划.md` 与 `docs/TODO.md`。
+开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/planning/roadmap.md` 与 `docs/planning/todo-archive-mvp.md`。
 
 ## 可观测性（Wide Events）
 
-遵循 `docs/SKILL.md`：核心路径必须能输出"宽事件"（扁平 KV，含 `event_name/timestamp/trace_id` 及关键上下文），覆盖 Happy Path 与 Error Path，并可在测试中断言事件序列与字段完整性。
+遵循 `docs/engineering/skill.md`：核心路径必须能输出"宽事件"（扁平 KV，含 `event_name/timestamp/trace_id` 及关键上下文），覆盖 Happy Path 与 Error Path，并可在测试中断言事件序列与字段完整性。
 
 已落地的事件类型：
 

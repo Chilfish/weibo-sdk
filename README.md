@@ -56,12 +56,12 @@ console.log(tweet.text, tweet.media)
 
 文档中央索引见 `docs/README.md`。核心文档：
 
-- 架构与契约规格：`docs/微博SDK技术规格书_v2.0.md`
-- 开发计划与路线图：`docs/渐进式开发计划.md`
+- 架构与契约规格：`docs/engineering/technical-spec.md`
+- 开发计划与路线图：`docs/planning/roadmap.md`
 - 术语表：`docs/requirements/glossary.md`
 - 架构决策（ADR）：`docs/planning/architecture.md`
-- CLI 命令参考：`docs/CLI.md`
-- 错误排障手册：`docs/error-diagnostics.md`
+- CLI 命令参考：`docs/engineering/cli.md`
+- 错误排障手册：`docs/engineering/error-diagnostics.md`
 
 ## 测试
 

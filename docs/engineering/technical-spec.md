@@ -203,7 +203,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 `IResource` 映射 14 个资源类型：`USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` / `TWEET_LONGTEXT` / `TWEET_SEARCHPROFILE` / `TWEET_COMMENTS` / `TWEET_FRIENDTIMELINE` / `SIDE_BANDUNIFIED` / `FAVORITES_ALLFAV` / `SEARCH_USERS` / `SEARCH_TWEETS` / `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT`。
 
-端点实现清单见 `docs/渐进式开发计划.md`。
+端点实现清单见 `docs/planning/roadmap.md`。
 
 ### 3.6 Hooks 与 Telemetry
 
@@ -259,7 +259,7 @@ WeiboSDKError (abstract: code / level / retryable / context)
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 超时（`ECONNABORTED`/`ETIMEDOUT`） |
 | `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 其他网络错误（含 4xx/5xx，`context.status`） |
 
-错误映射链：axios error → `mapError` → TransportError；`ok≠1` → BusinessError；Zod fail → ProtocolError。错误分类详情与诊断流程见 `docs/error-diagnostics.md`。
+错误映射链：axios error → `mapError` → TransportError；`ok≠1` → BusinessError；Zod fail → ProtocolError。错误分类详情与诊断流程见 `docs/engineering/error-diagnostics.md`。
 
 ---
 
@@ -279,7 +279,7 @@ WeiboSDKError (abstract: code / level / retryable / context)
 
 - 所有 response schema 采用 `.passthrough()` 开放端点模式（保留未知字段），代码访问字段一律 `.optional()`。
 - `normalize`（`models/data/*.ts` 纯函数）提供默认值与 fallback 链：如 `avatar` fallback、`IP属地：`/`姓名：`前缀剥离、数字越界兜底。
-- Schema 精确化原则：先声明 Model 构造器实际访问的字段，其余保持宽松（`docs/渐进式开发计划.md` Phase 2）。
+- Schema 精确化原则：先声明 Model 构造器实际访问的字段，其余保持宽松（`docs/planning/roadmap.md` Phase 2）。
 - 新增/修改 Schema 前 MUST 先获取真实 API 响应存为 fixture（数据驱动开发，见 `CLAUDE.md`）。
 
 ---
@@ -343,9 +343,9 @@ tests/
 ### 9.2 相关文档
 
 - `docs/README.md` — 文档中央索引
-- `docs/渐进式开发计划.md` — 路线图、fixture 清单、真实数据获取手册
-- `docs/error-diagnostics.md` — 错误排障手册
-- `docs/CLI.md` — CLI 命令参考
+- `docs/planning/roadmap.md` — 路线图、fixture 清单、真实数据获取手册
+- `docs/engineering/error-diagnostics.md` — 错误排障手册
+- `docs/engineering/cli.md` — CLI 命令参考
 - `docs/planning/architecture.md` — 架构决策记录（ADR）
 - `CLAUDE.md` — 仓库级硬约束（文档即事实 / 数据驱动 / 测试策略）
 

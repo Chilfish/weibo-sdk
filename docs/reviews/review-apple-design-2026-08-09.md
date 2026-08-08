@@ -71,9 +71,9 @@
 |---|---|---|---|
 | E1 | **为还没验证过的规模过早泛化** | `EndpointSpec.ts`、`types/resources.ts` | EndpointSpec/IResource 注册表这套框架层是写给 100 个端点的，现状 15 个。抽象应先由真实需求驱动，而不是先造框架再找需求。 |
 | E2 | **`any` 漏网** | `TweetService.ts:37` | `filterTweets(rawList: any[])` 用 `any`，违反 strict 模式约定（CLAUDE.md：「尽量避免 any，无法避免时在边界层集中」）。 |
-| E3 | **Phase 3 变种测试仍为空** | `docs/渐进式开发计划.md` | 含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag` / 广告（`isAd`）四类变种测试全是空 checkbox——媒体归一化逻辑（`extractMediaFromMixMediaInfo`）恰恰是最复杂、最可能出错的路径。 |
+| E3 | **Phase 3 变种测试仍为空** | `docs/planning/roadmap.md` | 含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag` / 广告（`isAd`）四类变种测试全是空 checkbox——媒体归一化逻辑（`extractMediaFromMixMediaInfo`）恰恰是最复杂、最可能出错的路径。 |
 | E4 | **Telemetry 没有消费者** | `src/types/telemetry.ts` | Wide Events 协议很干净（扁平 KV + trace_id），但无任何 exporter / JSONL 落盘 / 消费示例。一个没有 Instruments 的 os_log。可观测性要有消费端才成立。 |
-| E5 | **Phase 4 自动 schema 校验未做** | `docs/渐进式开发计划.md` | `validate-fixtures.ts` 脚本（遍历 fixture × schema safeParse）是「离线契约回归」的关键，目前是一次性设想，未落地为持续回归。 |
+| E5 | **Phase 4 自动 schema 校验未做** | `docs/planning/roadmap.md` | `validate-fixtures.ts` 脚本（遍历 fixture × schema safeParse）是「离线契约回归」的关键，目前是一次性设想，未落地为持续回归。 |
 | E6 | **仪式感开始压倒产出** | `CLAUDE.md` | docs-first / 先写 commit message / 写码前读雷区清单 / postmortem 模板 / 日志索引 / ADR 记录——对单人 OSS 逆向项目，**流程字数是产品字数的数倍**。危险：项目变成「关于做项目的项目」。Apple 的纪律服务的是用户拿到的体验，不是纸面流程。 |
 
 ---
