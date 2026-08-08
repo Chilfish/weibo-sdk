@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### Docs
+
+- **文档体系重构**：新增 `docs/README.md` 中央索引、`docs/requirements/glossary.md` 术语表、`docs/planning/architecture.md`（ADR-001~012）、`docs/postmortem/` 规范化（索引 + 高频雷区自查清单 + TEMPLATE）、`docs/development-log/` 按天开发日志、`docs/archive/` 归档机制。
+- **事实对齐（docs-as-truth）**：`docs/CLI.md`（补全 5 个缺失子命令）、`docs/项目概览.md`（SearchService/endpoint 数/服务清单）、`docs/渐进式开发计划.md`（fixture 清单对齐 31 个文件）、`docs/微博SDK技术规格书_v2.0.md`（重写为与实现一致）。
+- **`AGENTS.md` → `CLAUDE.md`**：文件名对齐 Claude Code 规范；新增强制纪律（文档先行、先写 commit message + diff 拆分、写码前读 postmortem 高频雷区）。
+
 ### Added
 
 - **Wide Events 遥测系统**：`TelemetryEvent` 扁平 KV 事件（`request_start/success/error`、`rate_limit_wait`、`normalize_done`），含 `trace_id` 全链路追踪。通过 `config.telemetry.emit()` 接入。

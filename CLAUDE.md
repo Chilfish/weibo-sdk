@@ -1,6 +1,6 @@
-# AGENTS.md (Repo-wide)
+# CLAUDE.md (Repo-wide)
 
-本文件的约束适用于整个仓库下所有目录与文件，除非子目录存在更具体的 `AGENTS.md` 覆盖。
+本文件的约束适用于整个仓库下所有目录与文件，除非子目录存在更具体的 `AGENTS.md` / `CLAUDE.md` 覆盖。
 
 ## 项目目的 (Mission)
 
@@ -13,17 +13,29 @@
 3. **开发者体验**：类型完整、导出稳定、错误可诊断、用法清晰。
 4. **可观测性**：遵循 Wide Events 思想，关键路径必须可追踪、可定位问题。
 
+## 开发纪律（强制）
+
+1. **文档先行（docs-first）**：每个任务第一步先更新相关文档（开发日志 `docs/development-log/`、任务状态、方案文档），再开始写代码；实施过程中随实际反馈同步修改文档，而非事后补记。完成阶段的规划文档移入 `docs/archive/`（历史记录，不主动读取）。
+2. **先写 commit message 再写代码**：动工前用 Conventional Commit 格式确定提交信息，围绕该 message 的范围编码；diff >10 文件或 >200 行时必须拆分。模块创建、功能实现、配置修改、文档更新分开 commit。
+3. **开写前先读 postmortem 高频雷区**（`docs/postmortem/README.md`）：对照「高频雷区」自查，避免重复踩坑。写码期间同步跑本地质量门禁（typecheck/lint），不要等 CI 才发现。
+
 ## 文档索引
 
-核心文档均位于 `docs/` 目录下，AGENTS.md 仅收录全局硬约束，详细说明见对应文档：
+文档中央索引见 `docs/README.md`。核心文档（本文件仅收录全局硬约束，详细说明见对应文档）：
 
 | 文档 | 内容 |
 |------|------|
-| `docs/SKILL.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
-| `docs/微博SDK技术规格书_v2.0.md` | 分层架构与契约定义（目标约束，实现可渐进） |
+| `docs/README.md` | 文档中央索引（按分类导航 + 约定） |
+| `docs/微博SDK技术规格书_v2.0.md` | 分层架构与契约定义（与实现对齐） |
+| `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
+| `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/渐进式开发计划.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
 | `docs/CLI.md` | CLI 命令参考与架构说明 |
 | `docs/error-diagnostics.md` | 错误排障手册（结构化错误码表、排查流程） |
+| `docs/postmortem/README.md` | 尸检报告索引 + 高频雷区自查清单（写码前必读） |
+| `docs/development-log/` | 按天开发日志 |
+| `docs/archive/` | 已完成阶段归档（历史记录，不主动读取） |
+| `docs/SKILL.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
 | `docs/TODO.md` | 当前进度与待做清单（P0/P1/P2） |
 
 ## 架构约定
@@ -87,6 +99,7 @@ WeiboSDK（门面）
 
 - 开发分支前缀必须是 `claude/`。
 - 每次变更需能通过 `git diff` 清晰审阅；不做无关重构；优先小步快跑。
+- **先写 commit message 再写代码**，diff >10 文件或 >200 行时主动拆分（见「开发纪律」）。
 
 ## 分支 / PR / 合并
 
@@ -138,6 +151,7 @@ WeiboSDK（门面）
 
 ## Postmortem 约定
 
-- Postmortem 放在 `postmortem/` 目录下，命名格式 `NNN-short-slug.md`。
-- 每次重要迭代/事故修复/关键特性发布后新增一条（不要覆盖旧记录）。
-- 目标：根因分析、知识固化、防止同类问题复发。
+- Postmortem 放在 `docs/postmortem/` 目录下，命名格式 `NNN-short-slug.md`，按 `docs/postmortem/TEMPLATE.md` 模板撰写。
+- 每次重要迭代/事故修复/关键特性发布后新增一条（不要覆盖旧记录），并在 `docs/postmortem/README.md` 索引表登记。
+- 目标：根因分析（blameless）、知识固化、防止同类问题复发；**写码前先读「高频雷区」自查**。
+- 流程级根因同步更新本文件强制规范或相关工程文档。

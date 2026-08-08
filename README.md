@@ -54,10 +54,14 @@ console.log(tweet.text, tweet.media)
 
 ## 文档
 
+文档中央索引见 `docs/README.md`。核心文档：
+
 - 架构与契约规格：`docs/微博SDK技术规格书_v2.0.md`
-- 开发计划与 TODO：`docs/TODO.md`
-- 项目概览：`docs/项目概览.md`
-- SDD 规范：`docs/SKILL.md`
+- 开发计划与路线图：`docs/渐进式开发计划.md`
+- 术语表：`docs/requirements/glossary.md`
+- 架构决策（ADR）：`docs/planning/architecture.md`
+- CLI 命令参考：`docs/CLI.md`
+- 错误排障手册：`docs/error-diagnostics.md`
 
 ## 测试
 
@@ -92,7 +96,7 @@ pnpm run lint
 3. 提交更改（建议 Conventional Commits）
 4. 推送到分支并创建 Pull Request
 
-开发规范详见 `AGENTS.md`。
+开发规范详见 `CLAUDE.md`。
 
 ## 免责声明
 
