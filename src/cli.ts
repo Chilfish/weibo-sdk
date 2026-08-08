@@ -16,9 +16,13 @@ catch {
 
 const trends = defineCommand({
   meta: { name: 'trends', description: '获取热搜榜单' },
-  args: { ...cookieArg },
+  args: {
+    type: { type: 'string', description: '榜单类型：hot/topic/entertainment（默认 hot）' },
+    ...cookieArg,
+  },
   async run({ args }) {
-    const raw = await createSDK(args).trends.hotBand()
+    const type = args.type as 'hot' | 'topic' | 'entertainment' | undefined
+    const raw = await createSDK(args).trends.hotBand(type)
     console.log(JSON.stringify(raw, null, 2))
   },
 })
