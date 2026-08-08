@@ -3,7 +3,8 @@ import { WeiboSDK } from '~/WeiboSDK'
 
 const cookie = process.env.WEIBO_COOKIE
 
-const describeE2E = cookie ? describe : describe.skip
+const isE2E = process.env.WEIBO_E2E === '1' && Boolean(cookie)
+const describeE2E = isE2E ? describe : describe.skip
 
 /**
  * 提取响应结构摘要：保留 key 路径与值类型，剥离所有可变值。

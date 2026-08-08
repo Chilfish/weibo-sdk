@@ -4,8 +4,9 @@ import { WeiboSDK } from '~/WeiboSDK'
 const cookie = process.env.WEIBO_COOKIE
 const mblogId = 'QFGgEhyPA'
 
-const describeE2E = cookie ? describe : describe.skip
-const describeShow = cookie && mblogId ? describe : describe.skip
+const isE2E = process.env.WEIBO_E2E === '1' && Boolean(cookie)
+const describeE2E = isE2E ? describe : describe.skip
+const describeShow = isE2E && mblogId ? describe : describe.skip
 
 describeE2E('e2e:tweet', () => {
   it('lists tweets by user id (shape only)', async () => {

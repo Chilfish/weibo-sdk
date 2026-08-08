@@ -10,6 +10,8 @@ export default defineConfig({
     },
   },
   test: {
+    // E2E 显式开关：默认 pnpm test 不会设置 WEIBO_E2E，仅此入口激活
+    env: { WEIBO_E2E: '1' },
     server: {
       deps: {
         inline: ['vitest-package-exports'],

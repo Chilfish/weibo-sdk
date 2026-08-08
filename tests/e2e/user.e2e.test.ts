@@ -5,8 +5,9 @@ import { WeiboSDK } from '~/WeiboSDK'
 const cookie = process.env.WEIBO_COOKIE
 const expiredCookie = 'SUB=123; SUBP=123'
 
-const describeE2E = cookie ? describe : describe.skip
-const describeExpired = describe
+const isE2E = process.env.WEIBO_E2E === '1' && Boolean(cookie)
+const describeE2E = isE2E ? describe : describe.skip
+const describeExpired = process.env.WEIBO_E2E === '1' ? describe : describe.skip
 
 describeE2E('e2e:user', () => {
   it('fetches and normalizes a user by id', async () => {

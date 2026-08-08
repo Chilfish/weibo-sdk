@@ -4,7 +4,8 @@ import 'dotenv'
 
 const cookie = process.env.WEIBO_COOKIE
 
-const describeE2E = cookie ? describe : describe.skip
+const isE2E = process.env.WEIBO_E2E === '1' && Boolean(cookie)
+const describeE2E = isE2E ? describe : describe.skip
 
 const IMG_DOMAINS = ['Expires=', '&ssig=', '?KID=', 'imgbed', 'sinaimg', 'sinajs']
 
