@@ -41,6 +41,6 @@
 
 ## 上下文管理
 
-- 会话总结写入 `docs/sessions/2026-05-16.md`
+- 会话总结写入 `docs/development-log/2026-05-16.md`（原 `docs/sessions/`，2026-08-09 迁入）
 - 项目记忆写入 `~/.claude/projects/I--tmp-weibo-sdk/memory/`
 - 8 份 Postmortem 覆盖所有重要决策
