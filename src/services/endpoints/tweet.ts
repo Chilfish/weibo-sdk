@@ -4,6 +4,43 @@ import { defineEndpoint } from '../internal/EndpointSpec'
 
 const IdSchema = z.union([z.string(), z.number()])
 
+// pic_infos 内层结构（基于真实 fixture：tests/fixtures/raw/comments.json、favorites_p1.json）
+// width/height 实际为 number | string；size.type 可为 null / '' / 'pic'
+const PicSizeSchema = z.object({
+  type: z.union([z.string(), z.null()]).optional(),
+  url: z.string().optional(),
+  cut_type: z.number().optional(),
+  width: z.union([z.number(), z.string()]).optional(),
+  height: z.union([z.number(), z.string()]).optional(),
+  croped: z.boolean().optional(),
+}).passthrough()
+
+export const PicInfoSchema = z.object({
+  thumbnail: PicSizeSchema.optional(),
+  bmiddle: PicSizeSchema.optional(),
+  large: PicSizeSchema.optional(),
+  woriginal: PicSizeSchema.optional(),
+  original: PicSizeSchema.optional(),
+  largest: PicSizeSchema.optional(),
+  mw2000: PicSizeSchema.optional(),
+  largecover: PicSizeSchema.optional(),
+  focus_point: z.object({
+    left: z.number().optional(),
+    top: z.number().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  }).optional(),
+  object_id: z.string().optional(),
+  pic_id: z.string().optional(),
+  video: z.string().optional(), // livephoto / normalize 读取
+  photo_tag: z.number().optional(),
+  type: z.string().optional(), // 'pic' | 'gif' | ...
+  pic_status: z.number().optional(),
+}).passthrough()
+
+// annotations 行为多变：异构数组（单键对象 {photo_sub_type}、{source_text, phone_id}、嵌套数组等），只约束「必须是数组」
+const AnnotationsSchema = z.array(z.unknown()).optional()
+
 const MyMblogArgsSchema = z.object({
   uid: z.string(),
   since_id: z.number().optional(),
@@ -47,10 +84,11 @@ const MyMBlogItemSchema: z.ZodType<any> = z.object({
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
   pic_ids: z.array(z.string()).optional(),
-  pic_infos: z.record(z.string(), z.unknown()).optional(),
+  pic_infos: z.record(z.string(), PicInfoSchema).optional(),
+  annotations: AnnotationsSchema,
   mix_media_info: z.record(z.string(), z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-  geo: z.record(z.string(), z.unknown()).nullable().optional(),
+  geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
   retweeted_status: z.lazy((): z.ZodType<any> => MyMBlogItemSchema).nullable().optional(),
 }).passthrough()
@@ -99,10 +137,11 @@ const StatusShowResponseSchema: z.ZodType<any> = z.object({
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
   pic_ids: z.array(z.string()).optional(),
-  pic_infos: z.record(z.string(), z.unknown()).optional(),
+  pic_infos: z.record(z.string(), PicInfoSchema).optional(),
+  annotations: AnnotationsSchema,
   mix_media_info: z.record(z.string(), z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-  geo: z.record(z.string(), z.unknown()).nullable().optional(),
+  geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
   retweeted_status: z.lazy((): z.ZodType<any> => StatusShowResponseSchema).nullable().optional(),
 }).passthrough().superRefine((val, ctx) => {
@@ -315,7 +354,7 @@ const SearchProfileResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
     list: z.array(MyMBlogItemSchema),
-    total: z.number(),
+    total: z.union([z.number(), z.string()]), // 真实 API 返回 string（如 "185"）
     absstr: z.string().optional(),
   }),
 })
