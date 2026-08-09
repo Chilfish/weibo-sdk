@@ -14,3 +14,6 @@ temp
 .claude/
 tests/fixtures/raw/captures/
 .alma-snapshots
+.tmp/
+# CDP 抓取原始数据（未脱敏，不入库；脱敏后手动移入 fixtures）
+tests/fixtures/raw/cdp/
