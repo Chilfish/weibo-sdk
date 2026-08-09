@@ -11,7 +11,7 @@
 | `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | Cookie 为空 |
 | `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | ❌ | Cookie 过期/无效 |
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | ❌ | API 返回 ok ≠ 1 |
-| `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod schema 校验失败 |
+| `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod schema 校验失败 / 响应非 JSON（登录页/风控页/接口移除） |
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 请求超时 |
 | `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 网络错误（含 404/5xx） |
 
@@ -95,14 +95,16 @@ void new WeiboSDK({
 
 ## 4. API_BAD_RESPONSE
 
-**含义**：微博 API 返回了数据，但结构不符合 Zod schema 定义。
+**含义**：微博 API 返回了数据，但结构不符合 Zod schema 定义；或响应根本不是 JSON（HTML 登录页/风控页）。
 
 **触发**：
 - 微博 API 字段变更（新增/删除/类型变更）
 - `retweeted_status` 嵌套结构异常（如 user 为 null、ok 缺失）
+- 响应为 HTML 而非 JSON：**端点失效/风控**（如 m.weibo.cn 搜索接口 2026-08 起返回登录页 HTML，微博已移除公开 JSON 搜索 API）——此时 `context.raw` 为截断的 HTML（前 200 字符），`zodIssues` 为空
 
 **诊断**：
-1. 查看 `error.context.zodIssues`（Zod 校验失败详情）：
+1. 先看 `context.raw`：若为 `<!doctype html>`/`<title>登录</title>` 等 HTML 片段，说明端点返回了登录页/挑战页——通常是 **Cookie 失效、接口被风控、或上游移除该接口**，按对应排查路径处理（见 §5 会话失效 / backlog 已知问题）。
+2. 若 `context.raw` 为 JSON，查看 `error.context.zodIssues`（Zod 校验失败详情），例如：
    ```json
    [
      {
@@ -114,8 +116,8 @@ void new WeiboSDK({
      }
    ]
    ```
-2. `path` 字段指向出错的字段路径
-3. 用真实数据运行 E2E 快照测试 (`pnpm test:e2e`) 来捕获完整的响应结构
+3. `path` 字段指向出错的字段路径
+4. 用真实数据运行 E2E 快照测试 (`pnpm test:e2e`) 来捕获完整的响应结构
 
 **修复流程**：
 1. 保存失败响应的原始 JSON 到 `tests/fixtures/raw/`

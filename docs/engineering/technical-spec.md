@@ -162,8 +162,8 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `myMblog` | `(uid, sinceId?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw） |
-| `listByUserId` | `(uid, sinceId?) \| (uid, { sinceId?, count? }) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
+| `myMblog` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw，page 游标） |
+| `listByUserId` | `(uid, { page?, count? }?) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
 | `streamByUserId` | `(uid, options?) => AsyncIterableIterator<Tweet>` | 自动翻页流式 |
 | `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw） |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
@@ -174,12 +174,14 @@ interface IWeiboConfig {
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
-> `TweetPageResult = { sinceId: string, hasMore: boolean, tweets: Tweet[] }`（`sinceId` 为 string，空串 = 无更多；分页回传该值作游标）。
+> `TweetPageResult = { page?: number, sinceId?: string, hasMore: boolean, tweets: Tweet[] }`。
+> 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码，mymblog 自 2026-08 弃用 since_id）；
+> `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。
 
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
 **FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)` / `getTags()`（返回 `FavoritesTagsResponse`）
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
-**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)`
+**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue（2026-08）**：m.weibo.cn 搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），微博已移除公开 JSON 搜索 API；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），替代见 backlog.md
 
 **ArchiveService**（`sdk.archive`）：单账号归档编排层（不直接发请求，注入子 Service）
 
@@ -188,7 +190,7 @@ interface IWeiboConfig {
 | `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline → reposts → favorites 一条可恢复流 |
 
 - `ArchiveItem = { source, mblogId, tweet, schemaDigest, checkpoint }`：`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
-- `ArchiveCheckpoint = { uid, phase, sinceId?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`sinceId` 语义 = 下一页游标（`''` = 已到底）。
+- `ArchiveCheckpoint = { uid, phase, page?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`page` 语义 = timeline 阶段下一页页码（mymblog 用 page 游标，恢复时从该页继续）。
 - 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
 
 ### 3.4 EndpointSpec

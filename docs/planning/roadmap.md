@@ -54,8 +54,10 @@
 | B3 | `mymblog` 响应 `data` 包装层 | `{ok, data: {since_id, list, total}}` | ✅ Service 路径改为 `raw.data.*` |
 | B4 | `retweeted_status` 嵌套可 null | `user` / 嵌套 retweet 均可 null | ✅ Schema 兼容 nullable |
 | B5 | 搜索端点 host 错误 | `m.weibo.cn` 而非 `weibo.com` | ✅ URL 修正 + containerid 编码 |
+| B6 | mymblog 分页契约漂移（2026-08-09） | `since_id` 失效（传任意值均回第一页）、`total` 恒 `-1`，改用 `page` | ✅ schema `since_id`/`total` optional + Service/Archive 改 page 游标 |
 
 **核心教训**：Schema ≠ 真相。所有生产 Bug 均源于"合理推断"而非"数据验证"，必须抓包取真实 fixture。
+**第二教训（2026-08-09）**：上游分页策略会漂移——mymblog 曾用 `since_id`（2026-05 实测），数月后弃用改 `page`。分页/字段类型需周期性用真实数据回归，不能一次验证终身有效。
 
 ---
 

@@ -23,6 +23,7 @@
 
 - **先抓包、后实现**：永远不要猜 API URL 或字段类型。微博有多个 host（`weibo.com` / `m.weibo.cn`），端点 URL 命名无规律。新端点必须先有真实 fixture 再有代码。
 - **真实类型 ≠ 直觉类型**：`since_id` 实际是 `string`（空串表示无更多）、`total` 可为 `-1`、`followers_count` 才是 `number`。以 fixture 为准。
+- **上游分页会漂移，必须定期复测**（2026-08-09）：mymblog 曾用 `since_id` 游标（2026-05 实测），数月后已弃用改 `page`（`since_id` 恒 `""`、`total` 恒 `-1`、传任意 since_id 均回第一页）。分页策略不是一次验证就完事，翻页能力需周期性用真实数据回归。
 - **`null` ≠ `undefined`**：JSON 里两者不同。递归引用（`retweeted_status`）必须 `.nullable().optional()` 同时处理；内层 retweet 没有 `ok` 字段。
 - **`.passthrough()` 是双向安全网也是陷阱**：它允许新字段进入、缺失字段不报错，但也会隐藏字段访问错误。Schema 声明字段用 `.optional()`，Model 负责 fallback（Schema 管类型校验，不管完整性）。
 - **测试必须 fail loudly**：禁止用 `try/catch` 跳过失败的 E2E/未知端点——那是在掩盖根本问题。未知端点标 known-issue 而非绕过。
@@ -39,7 +40,7 @@
 - **递归等待 = 深层 Promise 链**：用 `while` 循环替代递归（`RateLimitService`）。
 - **测试工具收敛到 `tests/testkit/`**：别复制粘贴 fake axios / fake clock。
 - **文档/上下文漂移**：改代码必须同步改文档；完成阶段规划文档归档到 `docs/archive/`（历史记录，不主动读取）。
-- **分页策略不统一**：`mymblog` 用 `since_id`（游标）、`buildComments` 用 `max_id`、搜索用 `page`（偏移）。每个端点单独验证。
+- **分页策略不统一**：`mymblog` 用 `page`（2026-08 起，曾用 since_id）、`buildComments` 用 `max_id`、搜索曾用 `page`（现接口已失效）。每个端点单独验证。
 - **并行 Agent 协作**：文件分配互不重叠 + 对齐最新范式（旧 Zod 模式复用会制造风格不一致）；停止的背景 Agent 残留文件要清理。
 - **脱敏保留关联**：短字符串（≤40 字符，如 `pic_ids`）必须保留，否则破坏 `pic_ids` ↔ `pic_infos` 键匹配。
 
