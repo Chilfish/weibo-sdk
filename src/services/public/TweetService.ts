@@ -7,10 +7,16 @@ import { FetcherService } from '../internal/FetcherService'
 let normalizeSeq = 0
 
 export interface TweetPageResult {
-  sinceId: string
+  /** 下一页页码（page 游标端点，如 mymblog；无 page 游标时省略） */
+  page?: number
+  /** 下一页游标（since_id 游标端点，如 friendstimeline；空串 = 无更多） */
+  sinceId?: string
   hasMore: boolean
   tweets: Tweet[]
 }
+
+/** 首页 Feed 默认关注分组 id（实测 friendstimeline 不带 list_id 会返回服务端 500） */
+const DEFAULT_HOME_LIST_ID = '4665452701982436'
 
 export class TweetService extends FetcherService {
   constructor(config: IWeiboConfig, deps?: ConstructorParameters<typeof FetcherService>[1]) {
@@ -20,12 +26,17 @@ export class TweetService extends FetcherService {
   /**
    * 获取用户微博列表（mymblog）
    *
-   * 说明：这是最小可用实现，后续需要补齐分页参数、置顶/广告过滤、长文/转发解析等规则。
+   * 说明：真实 API 自 2026-08 起分页从 `since_id` 漂移为 `page`（`since_id` 恒返回空串、
+   * `total` 恒为 -1，翻到底时 `data.list` 为空数组）。归一化分页见 `listByUserId`。
+   *
+   * @param uid 用户 UID
+   * @param page 页码（从 1 开始；缺省 = 第一页）
+   * @param count 每页条数
    */
-  public async myMblog(uid: string, sinceId?: string | number, count?: number): Promise<MyMblogResponse> {
-    const args: { uid: string, since_id?: string | number, count?: number } = { uid }
-    if (sinceId !== undefined)
-      args.since_id = sinceId
+  public async myMblog(uid: string, page?: number, count?: number): Promise<MyMblogResponse> {
+    const args: { uid: string, page?: number, count?: number } = { uid }
+    if (page !== undefined)
+      args.page = page
     if (typeof count === 'number')
       args.count = count
     return await this.request(myMblogSpec, args)
@@ -39,33 +50,18 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取并归一化微博列表（最小字段）
+   * 获取并归一化微博列表（最小字段，page 游标）
    *
    * 支持两种调用方式：
-   * - `listByUserId(uid, sinceId?)` —— 旧签名，兼容
-   * - `listByUserId(uid, { sinceId?, count? })` —— 新签名，支持分页数
+   * - `listByUserId(uid)` —— 第一页
+   * - `listByUserId(uid, { page?, count? })` —— 指定页/每页条数
    */
-  public async listByUserId(uid: string, sinceId?: string | number): Promise<TweetPageResult>
-  public async listByUserId(uid: string, options?: { sinceId?: string | number, count?: number }): Promise<TweetPageResult>
-  public async listByUserId(uid: string, sinceIdOrOptions?: string | number | { sinceId?: string | number, count?: number }): Promise<TweetPageResult> {
-    let sinceId: string | number | undefined
-    let count: number | undefined
-
-    if (typeof sinceIdOrOptions === 'object') {
-      sinceId = sinceIdOrOptions?.sinceId
-      count = sinceIdOrOptions?.count
-    }
-    else {
-      sinceId = sinceIdOrOptions
-    }
-
+  public async listByUserId(uid: string, options?: { page?: number, count?: number }): Promise<TweetPageResult> {
+    const { page, count } = options ?? {}
     const traceId = `${Date.now()}-listByUserId-${++normalizeSeq}`
-    const raw = await this.myMblog(uid, sinceId, count)
-    const nextSinceId = raw.data.since_id
+    const raw = await this.myMblog(uid, page, count)
     const filtered = this.filterTweets(raw.data.list || [])
-    const hasMore = nextSinceId.length > 0
-      && raw.data.total > 0
-      && filtered.length < raw.data.total
+    const hasMore = filtered.length > 0
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({
@@ -77,7 +73,7 @@ export class TweetService extends FetcherService {
       duration_ms: Date.now() - startAt,
     })
     return {
-      sinceId: nextSinceId,
+      page: (page ?? 1) + 1,
       hasMore,
       tweets,
     }
@@ -86,7 +82,7 @@ export class TweetService extends FetcherService {
   /**
    * 流式获取用户微博时间线
    *
-   * 自动翻页直到无更多数据。
+   * 自动翻页直到无更多数据（mymblog page 游标）。
    *
    * @example
    * for await (const tweet of sdk.tweets.streamByUserId('1111681197')) {
@@ -94,16 +90,18 @@ export class TweetService extends FetcherService {
    * }
    */
   async* streamByUserId(uid: string, options?: { count?: number }): AsyncIterableIterator<Tweet> {
-    let cursor: string | undefined
+    let page = 1
 
     do {
-      const page = await this.listByUserId(uid, { sinceId: cursor, count: options?.count })
+      const result = await this.listByUserId(uid, { page, count: options?.count })
 
-      for (const tweet of page.tweets)
+      for (const tweet of result.tweets)
         yield tweet
 
-      cursor = page.hasMore ? page.sinceId : undefined
-    } while (cursor !== undefined)
+      if (!result.hasMore)
+        break
+      page = result.page ?? page + 1
+    } while (true)
   }
 
   /**
@@ -141,18 +139,21 @@ export class TweetService extends FetcherService {
     flow?: 0 | 1
     uid?: string
   }): Promise<BuildCommentsResponse> {
-    const args: Record<string, string | number | boolean> = { id: mblogId }
+    // 实测：buildComments 必须带这组参数，否则服务端返回 400「参数错误」
+    const args: Record<string, string | number | boolean> = {
+      id: mblogId,
+      is_reload: 1,
+      is_show_bulletin: 2,
+      is_mix: 0,
+      type: 'feed',
+      fetch_level: 0,
+    }
     if (options?.max_id)
       args.max_id = options.max_id
     if (options?.count)
       args.count = options.count
-    if (options?.flow !== undefined) {
-      args.is_reload = 1
+    if (options?.flow !== undefined)
       args.flow = options.flow
-      args.is_show_bulletin = 2
-      args.is_mix = 0
-      args.fetch_level = 0
-    }
     if (options?.uid)
       args.uid = options.uid
     return await this.request(buildCommentsSpec, args as any)
@@ -207,14 +208,20 @@ export class TweetService extends FetcherService {
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
    */
   public async friendTimeline(options?: {
+    list_id?: string
     since_id?: string | number
     count?: number
+    refresh?: number
   }): Promise<FriendstimelineResponse> {
-    const args: Record<string, string | number> = {}
+    const args: Record<string, string | number> = {
+      list_id: options?.list_id ?? DEFAULT_HOME_LIST_ID,
+    }
     if (options?.since_id !== undefined)
       args.since_id = options.since_id
     if (options?.count !== undefined)
       args.count = options.count
+    if (options?.refresh !== undefined)
+      args.refresh = options.refresh
     return await this.request(friendstimelineSpec, args as any)
   }
 

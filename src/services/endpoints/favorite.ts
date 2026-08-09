@@ -6,6 +6,8 @@ import { PicInfoSchema } from './tweet'
 const FavoritesArgsSchema = z.object({
   uid: z.string(),
   page: z.number().optional(),
+  // 实测：必须带 with_total=true，否则 data 返回裸数组而非 { status: [...] }
+  with_total: z.boolean().optional(),
 }).strict()
 
 const FavoriteItemSchema: z.ZodType<any> = z.object({

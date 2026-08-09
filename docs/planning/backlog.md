@@ -28,7 +28,8 @@
 | # | 任务 | 状态 | 优先级 | 说明 | 来源 |
 |---|---|---|---|---|---|
 | — | 评论回复树 | ⏸️ | P3 | `buildComments` 的对偶（评论的回复/楼中楼），依赖评论字段精确化 | 渐进式开发计划 Phase 5 后续 |
-| — | 搜索能力增强 | ⏸️ | P3 | `searchTweets` 高级筛选参数（时间范围/媒体类型过滤） | 渐进式开发计划 Phase 5 后续 |
+| — | 搜索能力增强 | ⏸️ | P3 | `searchTweets` 高级筛选参数（时间范围/媒体类型过滤）——依赖「搜索接口恢复」 | 渐进式开发计划 Phase 5 后续 |
+| — | **搜索接口恢复** | ⚠️ known-issue | P3 | **2026-08 实测**：m.weibo.cn 搜索 API 已失效（返回登录页 HTML，wap 独立登录态），微博已移除公开 JSON 搜索 API（s.weibo.com 为 SSR HTML，weibo.com/ajax/search/* 返回登录页）。当前 `searchUsers`/`searchTweets` 抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。候选替代：解析 s.weibo.com SSR HTML（脆弱/反爬）、`weibo.com/ajax/side/search`（仅建议词）、获取 m.weibo.cn 独立登录态；若均不可行则标 `@deprecated` | 2026-08-09 全量验证 |
 | — | 私信/消息能力 | ❌ | — | 超出「公开数据归档」范围且敏感，**产品决策不做** | todo-archive-mvp 定位 |
 
 ### DX 与可观测性（暂缓）

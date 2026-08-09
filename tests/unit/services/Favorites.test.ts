@@ -48,7 +48,7 @@ describe('favorites/all_fav', () => {
     const data = await service.getFavorites('111', 1)
     expect(data.ok).toBe(1)
     expect(data.data.status[0].mblogid).toBe('F001')
-    expect(getLastConfig()?.params).toEqual({ uid: '111', page: 1 })
+    expect(getLastConfig()?.params).toEqual({ uid: '111', page: 1, with_total: true })
     expect(getLastConfig()?.headers?.referer).toBe('https://weibo.com/u/111')
   })
 
@@ -59,7 +59,7 @@ describe('favorites/all_fav', () => {
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.getFavorites('222')
-    expect(getLastConfig()?.params).toEqual({ uid: '222' })
+    expect(getLastConfig()?.params).toEqual({ uid: '222', with_total: true })
   })
 
   it('handles retweeted_status', async () => {

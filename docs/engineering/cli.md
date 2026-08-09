@@ -42,7 +42,7 @@ weibo-sdk search users 新闻 | jq '.data.cards[0].card_group[:3]'
 weibo-sdk user info <uid>
 
 # 获取用户微博时间线（归一化为 TweetPageResult）
-weibo-sdk user timeline <uid> [--since_id/-s <cursor>] [--count <n>]
+weibo-sdk user timeline <uid> [--page/-p <n>] [--count <n>]
 ```
 
 ### 微博操作（`tweet`）
@@ -120,7 +120,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 | 子命令 | 底层 Service 方法 | 输出 |
 |---|---|---|
 | `user info` | `users.getById()` | `User` 领域模型 |
-| `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`sinceId`/`hasMore`/`tweets[]`） |
+| `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`） |
 | `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
 | `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |

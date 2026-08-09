@@ -66,6 +66,7 @@ EndpointSpec 对 `ok !== 1` 的错误处理策略（`none` / `require_ok_1`）�
 
 **since_id**:
 时间线分页游标。**实际类型是 `string`**（空串表示无更多），不是 `number`。
+⚠️ 上游分页会漂移（2026-08-09）：`mymblog` 已弃用 `since_id`（恒 `""`），改用 `page` 游标；`friendstimeline` 仍用 `since_id`。
 _Avoid_: cursor（新浪还有其他游标语义，如 `next_cursor`）
 
 **hasMore**:

@@ -96,13 +96,15 @@ const MyMBlogItemSchema: z.ZodType<any> = z.object({
 const MyMblogResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
-    since_id: z.string(),
+    // 2026-08 实测：mymblog 已弃用 since_id 分页，此字段恒为 ""（翻到底时缺省），实际用 page 分页
+    since_id: z.string().optional(),
     list: z.array(MyMBlogItemSchema),
     status_visible: z.number().optional(),
     bottom_tips_visible: z.boolean().optional(),
     bottom_tips_text: z.string().optional(),
     topicList: z.array(z.unknown()).optional(),
-    total: z.number(),
+    // 2026-08 实测：total 恒为 -1（防爬），翻到底时缺省
+    total: z.number().optional(),
   }),
 })
 
@@ -182,9 +184,10 @@ export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema
 
 const BuildCommentsArgsSchema = z.object({
   id: z.string(),
-  is_reload: z.boolean().optional(),
+  is_reload: z.number().optional(), // 实测固定 1
   is_show_bulletin: z.number().optional(),
   is_mix: z.number().optional(),
+  type: z.string().optional(), // 实测固定 'feed'
   count: z.number().optional(),
   uid: z.string().optional(),
   fetch_level: z.number().optional(),
@@ -254,6 +257,7 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
 
 const FriendstimelineArgsSchema = z.object({
   list_id: z.string().optional(),
+  fid: z.string().optional(), // 浏览器带 fid（= list_id），可选
   refresh: z.number().optional(),
   since_id: z.union([z.string(), z.number()]).optional(),
   count: z.number().optional(),

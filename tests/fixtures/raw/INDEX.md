@@ -50,5 +50,15 @@
 | `repost_timeline_p2.json` | 22K | 同上 page=2 (2条) |
 | `friendships_fans_u2365795232.json` | 5K | `/ajax/friendships/friends?relate=fans` — 粉丝 (2个) |
 | `friendships_fans_u2365795232_p2.json` | 5K | 同上 page=2 (2个) |
+| `comments_feed.json` | 13K | `/ajax/statuses/buildComments` — 全参数 (3条) |
+
+## 新增端点（2026-08-09 晚间：mymblog 分页漂移验证）
+
+> 实测：mymblog 已弃用 `since_id` 分页（恒返回 `""`）、`total` 恒为 `-1`，改用 `page`；翻到底时 `list: []` 且 `since_id`/`total` 缺省。
+
+| 文件 | 大小 | 端点 |
+|------|------|------|
+| `mymblog_page1.json` | 91K | `/ajax/statuses/mymblog?page=1` — 用户微博 page=1 (20条, 漂移样本) |
+| `mymblog_page_end.json` | 0K | 同上 `page=999` 翻到底 — 空列表 (`list:[]`，`since_id`/`total` 缺省) |
 
 > 分页观察：repostTimeline 的 `next_cursor` 参数无效（两页返回相同），用 `page`；粉丝 API 每页固定返回 2 条（`count` 无效）。

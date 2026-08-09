@@ -32,7 +32,7 @@
 ### ArchiveService：断点续传流（核心交付）
 
 - [x] **A5 定义 `ArchiveService`**：一个入口把 timeline（`mymblog`）+ reposts + favorites 串成一条可恢复的 AsyncIterator 流。（注：MVP 主线用 `mymblog` 而非 `searchProfile`——后者作为完整镜像的按时间片增强项，见 backlog）
-- [x] **A6 断点续传**：每个 `ArchiveItem` 携带 checkpoint（phase/sinceId/lastMblogId/favoritesPage/visitedMblogIds），保存最后一项即可续跑；限流由子 Service 的 RateLimitService 自动继承。
+- [x] **A6 断点续传**：每个 `ArchiveItem` 携带 checkpoint（phase/page/lastMblogId/favoritesPage/visitedMblogIds），保存最后一项即可续跑；限流由子 Service 的 RateLimitService 自动继承。（2026-08-09 晚间：timeline 阶段游标由 `sinceId` 迁移为 `page`，因上游 mymblog 弃用 since_id 分页）
 - [x] **A7 全链路结构快照**：`stripVolatileKeys` 提为 `src/utils/structure.ts`（ADR-011），每个 item 携带 `schemaDigest` 作上游漂移检测。
 - [x] **A8 CLI 归档子命令**：`weibo-sdk archive <uid>` 一个命令触发整条归档，NDJSON 进度输出 + checkpoint 落盘续传。
 
