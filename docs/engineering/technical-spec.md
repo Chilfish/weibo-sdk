@@ -181,6 +181,16 @@ interface IWeiboConfig {
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
 **SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)`
 
+**ArchiveService**（`sdk.archive`）：单账号归档编排层（不直接发请求，注入子 Service）
+
+| 方法 | 签名 | 说明 |
+|---|---|---|
+| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline → reposts → favorites 一条可恢复流 |
+
+- `ArchiveItem = { source, mblogId, tweet, schemaDigest, checkpoint }`：`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
+- `ArchiveCheckpoint = { uid, phase, sinceId?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`sinceId` 语义 = 下一页游标（`''` = 已到底）。
+- 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
+
 ### 3.4 EndpointSpec
 
 端点定义范式（`src/services/internal/EndpointSpec.ts` + `src/services/endpoints/**`）：

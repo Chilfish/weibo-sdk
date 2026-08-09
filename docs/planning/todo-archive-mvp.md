@@ -31,10 +31,10 @@
 
 ### ArchiveService：断点续传流（核心交付）
 
-- [ ] **A5 定义 `ArchiveService`**：一个入口把 `mymblog` + `searchProfile` + `repost` + `favorites` 串成一条可恢复的 AsyncIterator 流。
-- [ ] **A6 断点续传**：流式游标序列化（进度 checkpoint），中断后从断点续跑；配合 RateLimitService 防风控。
-- [ ] **A7 全链路结构快照**（复用 ADR-011 `stripVolatileKeys`）：归档链路每个环节作为上游漂移检测器。
-- [ ] **A8 CLI 归档子命令**：`weibo-sdk archive <uid>` 一个命令触发整条归档，JSON 进度输出。
+- [x] **A5 定义 `ArchiveService`**：一个入口把 timeline（`mymblog`）+ reposts + favorites 串成一条可恢复的 AsyncIterator 流。（注：MVP 主线用 `mymblog` 而非 `searchProfile`——后者作为完整镜像的按时间片增强项，见 backlog）
+- [x] **A6 断点续传**：每个 `ArchiveItem` 携带 checkpoint（phase/sinceId/lastMblogId/favoritesPage/visitedMblogIds），保存最后一项即可续跑；限流由子 Service 的 RateLimitService 自动继承。
+- [x] **A7 全链路结构快照**：`stripVolatileKeys` 提为 `src/utils/structure.ts`（ADR-011），每个 item 携带 `schemaDigest` 作上游漂移检测。
+- [x] **A8 CLI 归档子命令**：`weibo-sdk archive <uid>` 一个命令触发整条归档，NDJSON 进度输出 + checkpoint 落盘续传。
 
 > 判别标准：一个只装了本 SDK 的开发者，用 ≤20 行代码 + 一条 CLI 命令，就能把某个账号的公开内容完整镜像到本地。
 

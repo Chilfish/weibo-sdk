@@ -109,6 +109,10 @@ weibo-sdk trends [--type hot|topic|entertainment]
 
 # 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
 weibo-sdk whoami
+
+# 镜像单个账号（timeline + reposts + favorites，可断点续传）
+# 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
+weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [--max-pages <n>]
 ```
 
 ## 输出形态速查
@@ -132,11 +136,12 @@ weibo-sdk whoami
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
+| `archive` | `archive.streamArchive()` | NDJSON `{ event, source, mblogId, checkpoint }` |
 
 ## 架构
 
 ```
-src/cli.ts              # 主入口，runMain()；顶层 trends / whoami；子命令注册
+src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archive；子命令注册
 src/cli/
   shared.ts             # getCookie / createSDK / cookieArg（--cookie 共享参数）
   commands/
@@ -149,7 +154,7 @@ src/cli/
 
 基于 citty 的 `defineCommand` + `runMain` 模式：
 
-- 每个子命令独立定义，支持嵌套（`user`/`tweet`/`follow`/`favorite`/`search` 为分组，`trends`/`whoami` 为顶层命令）
+- 每个子命令独立定义，支持嵌套（`user`/`tweet`/`follow`/`favorite`/`search` 为分组，`trends`/`whoami`/`archive` 为顶层命令）
 - 自动生成 `--help` 文档
 - 零运行时依赖
 - 错误输出到 stderr 并以非零退出码退出（如 `whoami` 在 Cookie 缺失/无效时 `process.exit(1)`）
