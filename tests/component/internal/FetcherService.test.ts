@@ -44,6 +44,22 @@ describe('fetcherService', () => {
     expect(cfg?.params).toEqual({ uid: '1' })
   })
 
+  it('derives host header from request URL for cross-host endpoints', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const fetcher = new TestFetcherService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    // weibo.com 端点 → Host: weibo.com
+    await fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/statuses/show?id=x' })
+    expect(getLastConfig()?.headers?.host).toBe('weibo.com')
+
+    // m.weibo.cn 端点 → Host: m.weibo.cn（此前硬编码 weibo.com 导致 404）
+    await fetcher.get({ method: 'GET', url: 'https://m.weibo.cn/api/container/getIndex?containerid=x' })
+    expect(getLastConfig()?.headers?.host).toBe('m.weibo.cn')
+  })
+
   it('runs preflight before request and emits hook on failure', async () => {
     const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
     const rateLimit = new NoopRateLimitService()

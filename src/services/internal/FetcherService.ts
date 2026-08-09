@@ -181,9 +181,10 @@ export class FetcherService {
     })
 
     await this.rateLimitService.acquire({ trace_id: traceId })
+    // host 头从请求 URL 推导，避免跨 host 端点（如 m.weibo.cn）被强加 weibo.com 而 404
     resource.headers = {
       'referer': 'https://weibo.com/',
-      'host': 'weibo.com',
+      'host': new URL(resource.url).host,
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
       ...this.authService.getAuthHeaders(),
       ...resource.headers,
