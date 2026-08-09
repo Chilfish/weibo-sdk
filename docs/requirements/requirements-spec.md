@@ -141,6 +141,6 @@
 | 需求来源 | 文档 |
 |---|---|
 | 产品定位决策（个人数据归档） | [review-apple-design-2026-08-09.md](../reviews/review-apple-design-2026-08-09.md) F1 |
-| 归档 MVP 计划 | [todo-archive-mvp.md](../planning/todo-archive-mvp.md) |
+| 归档 MVP 计划（已完成，承接见 [todo-contract-freeze.md](../planning/todo-contract-freeze.md)） | [todo-archive-mvp.md](../archive/todo-archive-mvp.md) |
 | 候选任务 | [backlog.md](../planning/backlog.md) |
 | 架构决策 | [architecture.md](../planning/architecture.md) |

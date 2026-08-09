@@ -31,9 +31,10 @@
 | `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
-| `docs/planning/todo-archive-mvp.md` | 当前行动计划（归档 MVP：P0/P1/P2） |
+| `docs/planning/todo-contract-freeze.md` | 当前行动计划（契约冻结 + 归档硬化：发布就绪 P0/P1/P2） |
 | `docs/planning/backlog.md` | 跨阶段候选任务清单 |
 | `docs/reviews/review-apple-design-2026-08-09.md` | Apple 视角设计审查（问题清单 + 行动依据） |
+| `docs/reviews/review-apple-design-2026-08-10.md` | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布背景） |
 | `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
 | `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
 | `docs/engineering/cli.md` | CLI 命令参考与架构说明 |

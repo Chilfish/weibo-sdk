@@ -7,6 +7,8 @@
 
 **个人数据归档**（2026-08-09 产品决策）：`weibo-sdk` = 可靠地把一个微博账号的公开数据镜像下来——可断点续传、可观测、默认离线可测。详见 [requirements/requirements-spec.md](requirements/requirements-spec.md) 与 [reviews/review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md)。
 
+> **发布形态**（2026-08-10）：weibo-sdk 将发布为 npm 包，被 `I:\dev\Weibo-archiver` 的 web-v3（SPA）/ monkey / CLI 消费，`ITweet` 定为下游存档终局契约。见 [reviews/review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) 与 [planning/todo-contract-freeze.md](planning/todo-contract-freeze.md)。
+
 ---
 
 ## requirements/ — 需求文档
@@ -23,7 +25,8 @@
 |---|---|---|
 | [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~012），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
 | [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-5）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
-| [todo-archive-mvp.md](planning/todo-archive-mvp.md) | **当前行动计划**：个人数据归档 MVP（P0 契约收口 / P1 产品主线 / P2 减负） | 承接下一阶段任务 |
+| [todo-contract-freeze.md](planning/todo-contract-freeze.md) | **当前行动计划**：契约冻结 + 归档硬化（发布就绪，P0/P1/P2） | 承接下一阶段任务 |
+| [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已归档） | 历史记录，不主动读取 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下下阶段 |
 
 ## reviews/ — 代码审查记录
@@ -31,6 +34,7 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md) | Apple 产品/研发视角设计审查（F/C/E/D 问题清单 + 评分 + 根因） | 了解已知设计问题、行动依据 |
+| [review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布 + 真实消费者背景） | 了解发布前必须解决的契约/归档问题 |
 
 ## engineering/ — 工程规范与子系统
 
@@ -58,6 +62,7 @@
 |---|---|
 | [README.md](development-log/README.md) | 按天日志索引与约定 |
 | [2026-08-09.md](development-log/2026-08-09.md) | 当日记录 |
+| [2026-08-10.md](development-log/2026-08-10.md) | 当日记录（契约冻结规划） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 
@@ -65,6 +70,7 @@
 |---|---|
 | [README.md](archive/README.md) | 归档约定 + 目录 |
 | [todo.md](archive/todo.md) | 早期 TODO（P0/P1/P2 完成记录，已收敛进当前计划） |
+| [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已完成，承接见 [todo-contract-freeze.md](planning/todo-contract-freeze.md)） |
 
 ---
 

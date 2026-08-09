@@ -4,7 +4,7 @@
 **审查范围**: 全仓库（源码 + 文档 + 测试 + 工程流程）
 **审查方式**: AI 外部审查（Apple 产品哲学 + 研发纪律双视角）
 **分支**: main @ `020c056`
-**决策背景**: 产品定位确认为「**个人数据归档**」（2026-08-09 产品决策，见 [todo-archive-mvp.md](../planning/todo-archive-mvp.md)）
+**决策背景**: 产品定位确认为「**个人数据归档**」（2026-08-09 产品决策，见 [todo-archive-mvp.md](../archive/todo-archive-mvp.md)）
 
 > 本档是「锐评」的正式沉淀，也是后续行动计划的依据。行动计划可直接引用本文的问题编号（F / C / E / D）。
 > 本文视角借鉴 Apple：聚焦（Focus is saying no）、端到端交付（Own the whole experience）、契约稳定（ABI 是设计原则）、删繁就简（Simplicity is the ultimate sophistication）。
@@ -103,7 +103,7 @@
 
 ## 五、行动优先级（依据）
 
-> 行动项已落到 [todo-archive-mvp.md](../planning/todo-archive-mvp.md)（产品主线）与 [backlog.md](../planning/backlog.md)（候选任务），此处只给方向。
+> 行动项已落到 [todo-archive-mvp.md](../archive/todo-archive-mvp.md)（产品主线）与 [backlog.md](../planning/backlog.md)（候选任务），此处只给方向。
 
 **P0（立即）**：C1 版本单一来源、C2 `sinceId` 对齐真实类型、F1 产品定位决策（已定：个人数据归档）。
 
@@ -117,7 +117,7 @@
 
 ## 参考
 
-- 行动计划：[todo-archive-mvp.md](../planning/todo-archive-mvp.md)
+- 行动计划：[todo-archive-mvp.md](../archive/todo-archive-mvp.md)
 - 候选任务：[backlog.md](../planning/backlog.md)
 - 架构决策：[architecture.md](../planning/architecture.md)
 - 需求规格：[requirements-spec.md](../requirements/requirements-spec.md)

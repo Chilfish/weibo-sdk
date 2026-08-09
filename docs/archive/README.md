@@ -14,7 +14,8 @@
 
 | 文档 | 说明 |
 |---|---|
-| [todo.md](./todo.md) | 早期 TODO（P0/P1/P2 完成记录）——完成状态已收敛进 [todo-archive-mvp.md](../planning/todo-archive-mvp.md) 与 [backlog.md](../planning/backlog.md)，本文件为历史记录 |
+| [todo.md](./todo.md) | 早期 TODO（P0/P1/P2 完成记录）——完成状态已收敛进 [todo-contract-freeze.md](../planning/todo-contract-freeze.md) 与 [backlog.md](../planning/backlog.md)，本文件为历史记录 |
+| [todo-archive-mvp.md](./todo-archive-mvp.md) | 归档 MVP（P0 契约收口 + A1-A8 断点续传流）——已完成，承接见 [todo-contract-freeze.md](../planning/todo-contract-freeze.md)，本文件为历史记录 |
 
 ## 常见问题
 

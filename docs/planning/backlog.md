@@ -4,11 +4,13 @@
 
 **状态图例**: 🟢 可承接 → ⏸️ 暂缓（随时可承接）→ ❌ 已移除（产品决策，不再做）
 
-> 来源编号引用 [review-apple-design-2026-08-09.md](../reviews/review-apple-design-2026-08-09.md)（F/C/E/D）与 [todo-archive-mvp.md](./todo-archive-mvp.md)（A/C/E/F）。
+> 来源编号引用 [review-apple-design-2026-08-09.md](../reviews/review-apple-design-2026-08-09.md)（F/C/E/D）与 [todo-archive-mvp.md](../archive/todo-archive-mvp.md)（A/C/E/F）、[review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)（K/R）。
 
 ## 当前方向
 
-**个人数据归档 MVP**（2026-08-09，产品决策）——[todo-archive-mvp.md](./todo-archive-mvp.md) 承接产品主线（A1-A8 + 契约硬化 C/E/F）与 P2 减负（E4/F3/E6）。本清单收拢**下下阶段**候选。
+**契约冻结与归档硬化（发布就绪）**（2026-08-10，承接归档 MVP）——[todo-contract-freeze.md](./todo-contract-freeze.md) 承接产品主线（契约冻结 P0 / 归档硬化 P1 / 下游集成就绪 P2）。本清单收拢**下下阶段**候选。
+
+> 背景：weibo-sdk 发布为 npm 包，`ITweet` 定为 Weibo-archiver 存档终局契约。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)。
 
 ---
 
@@ -19,8 +21,7 @@
 | # | 任务 | 状态 | 优先级 | 说明 | 来源 |
 |---|---|---|---|---|---|
 | C5 | 错误分类统一（level 与类名解耦） | ⏸️ | P2 | `level` 由实例声明而非类继承决定，两套真相；选一个明显且唯一的系统 | review C5 |
-| E1 | 框架层瘦身评估 | ⏸️ | P2 | EndpointSpec/IResource 是否过度泛化：先承接 P1 契约硬化（消 `as any`、schema 回归）后，用真实使用量评估抽象是否成立 | review E1 |
-| E2 | `filterTweets` 的 `any` 清理 | ⏸️ | P2 | strict 模式漏网（`TweetService.ts:37`），改为 `unknown` + 收窄 | review E2 |
+| E1 | 框架层瘦身评估 | ⏸️ | P2 | EndpointSpec/IResource 是否过度泛化：先承接 P0 契约卫生（消 `as any`、schema 回归）后，用真实使用量评估抽象是否成立 | review E1 |
 | — | 领域模型继续精确化 | ⏸️ | P2 | 更多变种字段（`annotations` 异构、`page_info` 类型漂移）的 fallback 链补充，随真实 fixture 驱动 | 渐进式开发计划 Phase 2 |
 
 ### 端点扩展（暂缓，非归档优先）
@@ -52,10 +53,10 @@
 
 | 任务 | 状态 | 承接 |
 |---|---|---|
-| P0 契约一致性（版本单一来源 / `sinceId` 对齐 / 合并 cli-gap-fill） | ⏸️ 待承接 | [todo-archive-mvp.md](./todo-archive-mvp.md) P0 |
-| 归档链端点（repostTimeline / 粉丝列表 / favorites-tags） | ⏸️ 待承接 | [todo-archive-mvp.md](./todo-archive-mvp.md) A1-A3 |
-| ArchiveService 断点续传流 + 全链路快照 + CLI 归档 | ⏸️ 待承接 | [todo-archive-mvp.md](./todo-archive-mvp.md) A5-A8 |
-| 契约硬化（消 `as any` / 变种测试 / schema 回归 / 收窄双 API） | ⏸️ 待承接 | [todo-archive-mvp.md](./todo-archive-mvp.md) P1 |
-| telemetry 消费端 / CLI 裁剪 / 流程简化 / TSDOC / 快速开始示例 | ⏸️ 待承接 | [todo-archive-mvp.md](./todo-archive-mvp.md) P2 |
+| P0 契约一致性（版本单一来源 / `sinceId` 对齐 / 合并 cli-gap-fill） | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
+| 归档链端点（repostTimeline / 粉丝列表 / favorites-tags） | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
+| ArchiveService 断点续传流 + 全链路快照 + CLI 归档 | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
+| 契约卫生（消 `as any` / 变种测试 / schema 回归 / 收窄双 API） | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P0-4/P0-5、P1-8 |
+| telemetry 消费端 / CLI 裁剪 / 流程简化 / TSDOC / 快速开始示例 | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P2 |
 
 > 各阶段交付细节见 [development-log/](../development-log/README.md)；完成后移入 [archive/](../archive/README.md)（存档不主动读取）。

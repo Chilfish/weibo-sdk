@@ -61,7 +61,7 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 
 **数据驱动开发**：所有 Zod schema / Model 归一化逻辑必须以真实微博 API 返回数据为准（`tests/fixtures/raw/` 存真实脱敏 fixture），禁止凭手写接口猜测 Schema。详见 `CLAUDE.md`「数据驱动开发」。
 
-开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/planning/roadmap.md` 与 `docs/planning/todo-archive-mvp.md`。
+开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/planning/roadmap.md` 与 `docs/archive/todo-archive-mvp.md`。
 
 ## 可观测性（Wide Events）
 
