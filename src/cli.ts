@@ -1,4 +1,7 @@
+import type { ArchiveCheckpoint } from './services/public/ArchiveService'
 // Auto-load .env file (Node.js 21.7+)
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { defineCommand, runMain } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
 import { favoriteList, favoriteTags } from './cli/commands/favorite'
@@ -65,6 +68,58 @@ const whoami = defineCommand({
   },
 })
 
+const archive = defineCommand({
+  meta: { name: 'archive', description: '镜像单个微博账号（timeline + reposts + favorites，可断点续传）' },
+  args: {
+    'uid': { type: 'positional', description: '用户 UID', required: true },
+    'no-reposts': { type: 'boolean', description: '跳过转发归档' },
+    'no-favorites': { type: 'boolean', description: '跳过收藏归档' },
+    'checkpoint': { type: 'string', description: 'checkpoint 文件路径（默认 .weibo-sdk-archive-<uid>.json）' },
+    'max-pages': { type: 'string', description: '每阶段最大翻页数（测试用）' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const checkpointPath = args.checkpoint || join(process.cwd(), `.weibo-sdk-archive-${args.uid}.json`)
+
+    // 断点续传：读取已有 checkpoint
+    let checkpoint: ArchiveCheckpoint | undefined
+    try {
+      checkpoint = JSON.parse(readFileSync(checkpointPath, 'utf8')) as ArchiveCheckpoint
+    }
+    catch {
+      // 无 checkpoint，从头归档
+    }
+
+    const stream = createSDK(args).archive.streamArchive(args.uid, {
+      includeReposts: !args['no-reposts'],
+      includeFavorites: !args['no-favorites'],
+      maxPagesPerPhase: args['max-pages'] ? Number(args['max-pages']) : undefined,
+      checkpoint,
+    })
+
+    let last: ArchiveCheckpoint | undefined
+    try {
+      for await (const item of stream) {
+        last = item.checkpoint
+        console.log(JSON.stringify({
+          event: 'item',
+          source: item.source,
+          mblogId: item.mblogId,
+          tweetId: item.tweet.id,
+          checkpoint: item.checkpoint,
+        }))
+      }
+      console.log(JSON.stringify({ event: 'done', uid: args.uid, count: last?.visitedMblogIds.length ?? 0 }))
+    }
+    catch (e: any) {
+      console.error(JSON.stringify({ event: 'error', message: e?.message }))
+      if (last)
+        writeFileSync(checkpointPath, JSON.stringify(last, null, 2))
+      process.exit(1)
+    }
+  },
+})
+
 const main = defineCommand({
   meta: {
     name: 'weibo-sdk',
@@ -94,6 +149,7 @@ const main = defineCommand({
     }),
     trends,
     whoami,
+    archive,
   },
 })
 
