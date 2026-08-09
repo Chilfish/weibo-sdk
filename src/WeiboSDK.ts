@@ -2,6 +2,7 @@
 import type { IWeiboConfig } from './types/config'
 import type { WeiboSDKLifecycleEvent, WeiboSDKSelfCheckMode } from './types/hooks'
 import { InvalidConfigError } from './models/errors/ConfigError'
+import { ArchiveService } from './services/public/ArchiveService'
 import { FavoriteService } from './services/public/FavoriteService'
 import { FollowingsService } from './services/public/FollowingsService'
 import { SearchService } from './services/public/SearchService'
@@ -22,6 +23,7 @@ export class WeiboSDK {
   public readonly favorites: FavoriteService
   public readonly trends: TrendsService
   public readonly search: SearchService
+  public readonly archive: ArchiveService
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
   private readyError?: unknown
@@ -41,6 +43,7 @@ export class WeiboSDK {
     this.favorites = new FavoriteService(config, deps)
     this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
+    this.archive = new ArchiveService({ tweets: this.tweets, favorites: this.favorites })
 
     void this.emitLifecycle({
       event_name: 'sdk_init',
