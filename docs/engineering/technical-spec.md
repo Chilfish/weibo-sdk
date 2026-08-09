@@ -173,7 +173,7 @@ interface IWeiboConfig {
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
-> `TweetPageResult = { sinceId: number, hasMore: boolean, tweets: Tweet[] }`。
+> `TweetPageResult = { sinceId: string, hasMore: boolean, tweets: Tweet[] }`（`sinceId` 为 string，空串 = 无更多；分页回传该值作游标）。
 
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)` / `getMyFollowings(page?)`
 **FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)`

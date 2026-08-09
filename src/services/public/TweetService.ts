@@ -7,7 +7,7 @@ import { FetcherService } from '../internal/FetcherService'
 let normalizeSeq = 0
 
 export interface TweetPageResult {
-  sinceId: number
+  sinceId: string
   hasMore: boolean
   tweets: Tweet[]
 }
@@ -22,9 +22,9 @@ export class TweetService extends FetcherService {
    *
    * 说明：这是最小可用实现，后续需要补齐分页参数、置顶/广告过滤、长文/转发解析等规则。
    */
-  public async myMblog(uid: string, sinceId?: number, count?: number): Promise<MyMblogResponse> {
-    const args: { uid: string, since_id?: number, count?: number } = { uid }
-    if (typeof sinceId === 'number')
+  public async myMblog(uid: string, sinceId?: string | number, count?: number): Promise<MyMblogResponse> {
+    const args: { uid: string, since_id?: string | number, count?: number } = { uid }
+    if (sinceId !== undefined)
       args.since_id = sinceId
     if (typeof count === 'number')
       args.count = count
@@ -45,10 +45,10 @@ export class TweetService extends FetcherService {
    * - `listByUserId(uid, sinceId?)` —— 旧签名，兼容
    * - `listByUserId(uid, { sinceId?, count? })` —— 新签名，支持分页数
    */
-  public async listByUserId(uid: string, sinceId?: number): Promise<TweetPageResult>
-  public async listByUserId(uid: string, options?: { sinceId?: number, count?: number }): Promise<TweetPageResult>
-  public async listByUserId(uid: string, sinceIdOrOptions?: number | { sinceId?: number, count?: number }): Promise<TweetPageResult> {
-    let sinceId: number | undefined
+  public async listByUserId(uid: string, sinceId?: string | number): Promise<TweetPageResult>
+  public async listByUserId(uid: string, options?: { sinceId?: string | number, count?: number }): Promise<TweetPageResult>
+  public async listByUserId(uid: string, sinceIdOrOptions?: string | number | { sinceId?: string | number, count?: number }): Promise<TweetPageResult> {
+    let sinceId: string | number | undefined
     let count: number | undefined
 
     if (typeof sinceIdOrOptions === 'object') {
@@ -61,9 +61,9 @@ export class TweetService extends FetcherService {
 
     const traceId = `${Date.now()}-listByUserId-${++normalizeSeq}`
     const raw = await this.myMblog(uid, sinceId, count)
-    const nextSinceId = Number(raw.data.since_id ?? 0)
+    const nextSinceId = raw.data.since_id
     const filtered = this.filterTweets(raw.data.list || [])
-    const hasMore = typeof raw.data.since_id === 'string' && raw.data.since_id.length > 0
+    const hasMore = nextSinceId.length > 0
       && raw.data.total > 0
       && filtered.length < raw.data.total
     const startAt = Date.now()
@@ -77,7 +77,7 @@ export class TweetService extends FetcherService {
       duration_ms: Date.now() - startAt,
     })
     return {
-      sinceId: Number.isFinite(nextSinceId) ? nextSinceId : 0,
+      sinceId: nextSinceId,
       hasMore,
       tweets,
     }
@@ -94,7 +94,7 @@ export class TweetService extends FetcherService {
    * }
    */
   async* streamByUserId(uid: string, options?: { count?: number }): AsyncIterableIterator<Tweet> {
-    let cursor: number | undefined
+    let cursor: string | undefined
 
     do {
       const page = await this.listByUserId(uid, { sinceId: cursor, count: options?.count })
@@ -193,13 +193,13 @@ export class TweetService extends FetcherService {
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
    */
   public async friendTimeline(options?: {
-    since_id?: number
+    since_id?: string | number
     count?: number
   }): Promise<FriendstimelineResponse> {
-    const args: Record<string, number> = {}
-    if (options?.since_id)
+    const args: Record<string, string | number> = {}
+    if (options?.since_id !== undefined)
       args.since_id = options.since_id
-    if (options?.count)
+    if (options?.count !== undefined)
       args.count = options.count
     return await this.request(friendstimelineSpec, args as any)
   }
@@ -207,7 +207,7 @@ export class TweetService extends FetcherService {
   /**
    * 获取并归一化首页 Feed
    */
-  public async listFriendTimeline(options?: { since_id?: number, count?: number }): Promise<TweetPageResult> {
+  public async listFriendTimeline(options?: { since_id?: string | number, count?: number }): Promise<TweetPageResult> {
     const traceId = `${Date.now()}-friendTimeline-${++normalizeSeq}`
     const raw = await this.friendTimeline(options)
     const nextSinceId = raw.since_id ?? 0
@@ -226,7 +226,7 @@ export class TweetService extends FetcherService {
       duration_ms: Date.now() - startAt,
     })
     return {
-      sinceId: Number.isFinite(nextSinceId) ? nextSinceId : 0,
+      sinceId: nextSinceId > 0 ? String(nextSinceId) : '',
       hasMore,
       tweets,
     }

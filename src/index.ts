@@ -1,5 +1,7 @@
 // src/index.ts
-export const VERSION = '0.1.0'
+import pkg from '../package.json' with { type: 'json' }
+
+export const VERSION = pkg.version
 
 export * from './models/data'
 export * from './models/errors'

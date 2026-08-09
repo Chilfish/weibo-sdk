@@ -138,7 +138,7 @@ describeE2E('snapshot: tweet structure', () => {
     const page = await weibo.tweets.listByUserId(userId)
 
     expect(page.tweets.length).toBeGreaterThan(0)
-    expect(typeof page.sinceId).toBe('number')
+    expect(typeof page.sinceId).toBe('string')
     expect(typeof page.hasMore).toBe('boolean')
 
     for (const tweet of page.tweets) {

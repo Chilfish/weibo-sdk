@@ -12,9 +12,9 @@
 
 > 承接 review C1 / C2。这些是「连版本号都不能自洽」「公开类型背离真实」的硬伤，合并门禁前的止血项。
 
-- [ ] **P0-1 版本单一来源**（C1）：`package.json` 为唯一版本源，`src/index.ts` / `src/cli.ts` 从之读取，消除三处不一致。
-- [ ] **P0-2 `sinceId` 对齐真实类型**（C2）：`TweetPageResult.sinceId` 由 `number` 改为 `string`（真实 API 返回 string，空串 = 无更多）；补「空串 / 超大 ID」分页测试（Red → Green）。
-- [ ] **P0-3 合并/关闭 `claude/cli-gap-fill`**：2 commits 未合入 main，worktree `prunable`；按合并门禁收尾后删除分支。
+- [x] **P0-1 版本单一来源**（C1）：`package.json` 为唯一版本源，`src/index.ts` / `src/cli.ts` 从之读取，消除三处不一致。→ `b0c46ac`
+- [x] **P0-2 `sinceId` 对齐真实类型**（C2）：`TweetPageResult.sinceId` 由 `number` 改为 `string`（真实 API 返回 string，空串 = 无更多）；补「空串 / 超大 ID」分页测试（Red → Green），另补 `listFriendTimeline` 对偶测试（`-1` → 空串；number → string 游标回传）。
+- [ ] **P0-3 合并/关闭 `claude/cli-gap-fill`**：本地 worktree 已清理（`git worktree list` 仅主 tree）；远程分支 `origin/claude/cli-gap-fill` 待删除（双点 diff 确认无 main 缺少内容，见开发日志）。
 
 ---
 

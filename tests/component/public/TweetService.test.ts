@@ -21,11 +21,11 @@ describe('tweetService', () => {
 
     service.onFetched = vi.fn()
 
-    const data = await service.myMblog('111', 123)
+    const data = await service.myMblog('111', '123')
     expect(data.data.since_id).toBe('0')
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ uid: '111', since_id: 123 })
+    expect(cfg?.params).toEqual({ uid: '111', since_id: '123' })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
     expect(service.onFetched).toHaveBeenCalledWith('TWEET_MYMBLOG', response)
   })
@@ -73,7 +73,7 @@ describe('tweetService', () => {
     )
 
     const page = await service.listByUserId('111')
-    expect(page.sinceId).toBe(456)
+    expect(page.sinceId).toBe('456')
     expect(page.tweets).toHaveLength(1)
     expect(page.tweets[0].id).toBe('1')
 
@@ -83,6 +83,131 @@ describe('tweetService', () => {
       count: 1,
       duration_ms: expect.any(Number),
     }))
+  })
+
+  it('listByUserId returns empty sinceId when no more pages (empty string = no more)', async () => {
+    const response = {
+      ok: 1,
+      data: { since_id: '', list: [], total: 0 },
+    } as any
+
+    const { client } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.listByUserId('111')
+    expect(page.sinceId).toBe('')
+    expect(page.hasMore).toBe(false)
+  })
+
+  it('listByUserId keeps huge sinceId as string without number overflow', async () => {
+    const hugeId = '455328125000000000000000'
+    const response = {
+      ok: 1,
+      data: {
+        since_id: hugeId,
+        list: [
+          {
+            id: 1,
+            idstr: '1',
+            mblogid: 'x',
+            created_at: 'now',
+            text: '',
+            text_raw: 'plain',
+            region_name: '',
+            source: '',
+            visible: { type: 0, list_id: 0 },
+            user: {
+              id: 2,
+              idstr: '2',
+              screen_name: 'u',
+              avatar_hd: '',
+              avatar_large: '',
+              profile_image_url: '',
+              verified: false,
+              verified_type: 0,
+            },
+          },
+        ],
+        total: 10,
+      },
+    } as any
+
+    const { client } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.listByUserId('111')
+    expect(page.sinceId).toBe(hugeId)
+    expect(page.hasMore).toBe(true)
+  })
+
+  it('listFriendTimeline returns empty sinceId when no more pages (since_id=-1)', async () => {
+    const response = {
+      ok: 1,
+      statuses: [],
+      total_number: 0,
+      since_id: -1,
+    } as any
+
+    const { client } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.listFriendTimeline()
+    expect(page.sinceId).toBe('')
+    expect(page.hasMore).toBe(false)
+  })
+
+  it('listFriendTimeline keeps since_id as string cursor and rounds-trips it', async () => {
+    const response = {
+      ok: 1,
+      statuses: [
+        {
+          id: 1,
+          idstr: '1',
+          mblogid: 'x',
+          created_at: 'now',
+          text: '',
+          text_raw: 'plain',
+          region_name: '',
+          source: '',
+          visible: { type: 0, list_id: 0 },
+          user: {
+            id: 2,
+            idstr: '2',
+            screen_name: 'u',
+            avatar_hd: '',
+            avatar_large: '',
+            profile_image_url: '',
+            verified: false,
+            verified_type: 0,
+          },
+        },
+      ],
+      total_number: 10,
+      since_id: 12345,
+    } as any
+
+    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.listFriendTimeline({ since_id: '12345' })
+    expect(page.sinceId).toBe('12345')
+    expect(page.hasMore).toBe(true)
+    expect(page.tweets).toHaveLength(1)
+
+    const cfg = getLastConfig()
+    expect(cfg?.params).toEqual({ since_id: '12345' })
   })
 
   it('calls show endpoint with correct params and triggers onFetched', async () => {

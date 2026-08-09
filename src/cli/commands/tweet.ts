@@ -36,7 +36,7 @@ export const tweetTimeline = defineCommand({
   },
   async run({ args }) {
     const page = await createSDK(args).tweets.listFriendTimeline({
-      since_id: args.since_id ? Number(args.since_id) : undefined,
+      since_id: args.since_id,
       count: args.count ? Number(args.count) : undefined,
     })
     console.log(JSON.stringify(page, null, 2))

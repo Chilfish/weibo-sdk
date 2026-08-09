@@ -1,5 +1,6 @@
 // Auto-load .env file (Node.js 21.7+)
 import { defineCommand, runMain } from 'citty'
+import pkg from '../package.json' with { type: 'json' }
 import { favoriteList } from './cli/commands/favorite'
 import { followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
@@ -67,7 +68,7 @@ const whoami = defineCommand({
 const main = defineCommand({
   meta: {
     name: 'weibo-sdk',
-    version: '0.1.0',
+    version: pkg.version,
     description: '微博 API 逆向 SDK 命令行工具\n\nCookie：通过 --cookie/-c 参数或 WEIBO_COOKIE 环境变量 / .env 文件',
   },
   subCommands: {

@@ -23,7 +23,7 @@ export const userTimeline = defineCommand({
   },
   async run({ args }) {
     const page = await createSDK(args).tweets.listByUserId(args.id, {
-      sinceId: args.since_id ? Number(args.since_id) : undefined,
+      sinceId: args.since_id,
       count: args.count ? Number(args.count) : undefined,
     })
     console.log(JSON.stringify(page, null, 2))

@@ -43,7 +43,7 @@ const AnnotationsSchema = z.array(z.unknown()).optional()
 
 const MyMblogArgsSchema = z.object({
   uid: z.string(),
-  since_id: z.number().optional(),
+  since_id: z.union([z.string(), z.number()]).optional(),
   count: z.number().optional(),
   page: z.number().optional(),
   feature: z.number().optional(),
@@ -255,7 +255,7 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
 const FriendstimelineArgsSchema = z.object({
   list_id: z.string().optional(),
   refresh: z.number().optional(),
-  since_id: z.number().optional(),
+  since_id: z.union([z.string(), z.number()]).optional(),
   count: z.number().optional(),
 }).strict()
 

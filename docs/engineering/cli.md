@@ -42,7 +42,7 @@ weibo-sdk search users 新闻 | jq '.data.cards[0].card_group[:3]'
 weibo-sdk user info <uid>
 
 # 获取用户微博时间线（归一化为 TweetPageResult）
-weibo-sdk user timeline <uid> [--since_id/-s <n>] [--count <n>]
+weibo-sdk user timeline <uid> [--since_id/-s <cursor>] [--count <n>]
 ```
 
 ### 微博操作（`tweet`）
@@ -55,7 +55,7 @@ weibo-sdk tweet detail <mblogId>
 weibo-sdk tweet comments <mblogId> [--count <n>] [--flow 0|1]
 
 # 获取首页 Feed（关注时间线，归一化为 TweetPageResult）
-weibo-sdk tweet home [--since_id/-s <n>] [--count <n>]
+weibo-sdk tweet home [--since_id/-s <cursor>] [--count <n>]
 
 # 获取长微博全文
 weibo-sdk tweet longtext <mblogId>

@@ -25,7 +25,7 @@ describeE2E('e2e:tweet', () => {
     })
 
     const page = await weibo.tweets.listByUserId(userId)
-    expect(typeof page.sinceId).toBe('number')
+    expect(typeof page.sinceId).toBe('string')
     expect(Array.isArray(page.tweets)).toBe(true)
   })
 })
