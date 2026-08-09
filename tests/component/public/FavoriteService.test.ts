@@ -43,6 +43,6 @@ describe('favoriteService', () => {
 
     await service.getFavorites('111', 2)
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ uid: '111', page: 2 })
+    expect(cfg?.params).toEqual({ uid: '111', page: 2, with_total: true })
   })
 })
