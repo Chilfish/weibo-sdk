@@ -9,7 +9,7 @@ import axios from 'axios'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
-import { getMessage, getOk } from '~/utils/response'
+import { getMessage, getOk, isRecord } from '~/utils/response'
 import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
 import { AuthService } from './AuthService'
 import { RateLimitService } from './RateLimitService'
@@ -252,7 +252,9 @@ export class FetcherService {
     })
 
     const ok = getOk(raw)
-    if (spec.okPolicy?.mode === 'require_ok_1') {
+    // 非 JSON 对象响应（HTML 登录页/风控页）不适用「ok !== 1」业务语义：跳过业务检查，
+    // 让 schema 校验失败路径抛 ProtocolError（分类更准确，避免误报 API_NOT_OK）。
+    if (spec.okPolicy?.mode === 'require_ok_1' && isRecord(raw)) {
       const okNumber = ok ?? 0
       const message = getMessage(raw)
       if (okNumber !== 1) {
@@ -302,12 +304,18 @@ export class FetcherService {
 
     const parsed = spec.schema.safeParse(raw)
     if (!parsed.success) {
-      const error = new UnexpectedAPIResponseError(`Weibo API response failed schema validation (${spec.endpoint}).`, {
-        endpoint: spec.endpoint,
-        args: argsRecord,
-        raw,
-        zodIssues: parsed.error.issues,
-      })
+      const isNonJson = !isRecord(raw)
+      const error = new UnexpectedAPIResponseError(
+        isNonJson
+          ? `Weibo API response is not a JSON object (${spec.endpoint}). Likely login/challenge page or endpoint removed; raw was ${typeof raw}.`
+          : `Weibo API response failed schema validation (${spec.endpoint}).`,
+        {
+          endpoint: spec.endpoint,
+          args: argsRecord,
+          raw: isNonJson && typeof raw === 'string' ? raw.slice(0, 200) : raw,
+          zodIssues: isNonJson ? [] : parsed.error.issues,
+        },
+      )
 
       await this.emitError(error, {
         phase: 'parse',

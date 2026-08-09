@@ -348,6 +348,19 @@ describe('tweetService', () => {
     await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
+  it('show maps non-JSON HTML response to ProtocolError (login page detection, not API_NOT_OK)', async () => {
+    // 端点返回登录页 HTML（如失效/风控）时，应归为协议层错误而非业务失败
+    const { client } = createFakeAxios(async () => '<!doctype html><title>登录 - 微博</title>')
+
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+    await expect(service.show('x')).rejects.not.toBeInstanceOf(WeiboAPINotOkError)
+  })
+
   it('getByMblogId returns normalized Tweet', async () => {
     const response = {
       ok: 1,
