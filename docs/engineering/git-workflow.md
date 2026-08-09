@@ -4,23 +4,6 @@
 
 > 本文档对齐 Float / chill-s3 的 Git Workflow 规范，适配 weibo-sdk（TypeScript 库 + pnpm + Vitest）技术栈。根级硬约束见 [CLAUDE.md](../../CLAUDE.md)。
 
-## 分支模型
-
-采用 **简化 Trunk-Based**：
-
-```
-main ─────●─────●─────●─────●──→ (始终可测试/可发布)
-           \     /
-claude/x ──●───●
-```
-
-| 分支类型 | 命名格式 | 用途 | 生命周期 |
-|---|---|---|---|
-| `main` | — | 稳定分支，始终可测试 | 永久 |
-| `claude/*` | `claude/archive-mvp` | 功能开发 / 文档 / 修复（项目唯一工作分支前缀） | 合并后删除 |
-
-> **分支纪律**：单个 `claude/*` 分支只承载**一个清晰主题**，尽快合并回 `main`。PR 粒度优先拆多个，每个 PR 可独立 review / 独立回滚 / 不依赖未合并分支。
-
 ## Commit 规范
 
 遵循 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/)。

@@ -207,7 +207,7 @@ describe('tweetService', () => {
     expect(page.tweets).toHaveLength(1)
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ since_id: '12345' })
+    expect(cfg?.params).toEqual({ list_id: '4665452701982436', since_id: '12345' })
   })
 
   it('getReposts calls repostTimeline with correct params and parses data', async () => {
@@ -361,5 +361,28 @@ describe('tweetService', () => {
       count: 1,
       duration_ms: expect.any(Number),
     }))
+  })
+
+  it('comments sends required params (is_reload/type/... )', async () => {
+    const response = { ok: 1, data: [], total_number: 0 } as any
+
+    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await service.comments('MB001', { count: 20 })
+    const cfg = getLastConfig()
+    expect(cfg?.url).toBe('https://weibo.com/ajax/statuses/buildComments')
+    expect(cfg?.params).toEqual({
+      id: 'MB001',
+      is_reload: 1,
+      is_show_bulletin: 2,
+      is_mix: 0,
+      type: 'feed',
+      fetch_level: 0,
+      count: 20,
+    })
   })
 })

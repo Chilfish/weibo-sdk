@@ -50,5 +50,6 @@
 | `repost_timeline_p2.json` | 22K | 同上 page=2 (2条) |
 | `friendships_fans_u2365795232.json` | 5K | `/ajax/friendships/friends?relate=fans` — 粉丝 (2个) |
 | `friendships_fans_u2365795232_p2.json` | 5K | 同上 page=2 (2个) |
+| `comments_feed.json` | 13K | `/ajax/statuses/buildComments` — 全参数 (3条) |
 
 > 分页观察：repostTimeline 的 `next_cursor` 参数无效（两页返回相同），用 `page`；粉丝 API 每页固定返回 2 条（`count` 无效）。

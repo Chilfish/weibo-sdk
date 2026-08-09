@@ -43,6 +43,7 @@
 | [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty） | 添加/修改 CLI 子命令 |
 | [error-diagnostics.md](engineering/error-diagnostics.md) | 错误排障手册（结构化错误码表、排查流程） | 排障时 |
 | [skill.md](engineering/skill.md) | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 | 理解可观测性/SDD |
+| [browser-capture.md](engineering/browser-capture.md) | CDP 浏览器自动化抓取调研与方案（对应 `capture/` SDK，见 `capture/README.md`） | 真实数据获取 / 排障 |
 
 ## postmortem/ — 事后分析
 

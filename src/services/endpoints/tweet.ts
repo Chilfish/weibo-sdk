@@ -182,9 +182,10 @@ export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema
 
 const BuildCommentsArgsSchema = z.object({
   id: z.string(),
-  is_reload: z.boolean().optional(),
+  is_reload: z.number().optional(), // 实测固定 1
   is_show_bulletin: z.number().optional(),
   is_mix: z.number().optional(),
+  type: z.string().optional(), // 实测固定 'feed'
   count: z.number().optional(),
   uid: z.string().optional(),
   fetch_level: z.number().optional(),
@@ -254,6 +255,7 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
 
 const FriendstimelineArgsSchema = z.object({
   list_id: z.string().optional(),
+  fid: z.string().optional(), // 浏览器带 fid（= list_id），可选
   refresh: z.number().optional(),
   since_id: z.union([z.string(), z.number()]).optional(),
   count: z.number().optional(),

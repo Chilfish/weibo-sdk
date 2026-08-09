@@ -12,6 +12,9 @@ export interface TweetPageResult {
   tweets: Tweet[]
 }
 
+/** 首页 Feed 默认关注分组 id（实测 friendstimeline 不带 list_id 会返回服务端 500） */
+const DEFAULT_HOME_LIST_ID = '4665452701982436'
+
 export class TweetService extends FetcherService {
   constructor(config: IWeiboConfig, deps?: ConstructorParameters<typeof FetcherService>[1]) {
     super(config, deps)
@@ -141,18 +144,21 @@ export class TweetService extends FetcherService {
     flow?: 0 | 1
     uid?: string
   }): Promise<BuildCommentsResponse> {
-    const args: Record<string, string | number | boolean> = { id: mblogId }
+    // 实测：buildComments 必须带这组参数，否则服务端返回 400「参数错误」
+    const args: Record<string, string | number | boolean> = {
+      id: mblogId,
+      is_reload: 1,
+      is_show_bulletin: 2,
+      is_mix: 0,
+      type: 'feed',
+      fetch_level: 0,
+    }
     if (options?.max_id)
       args.max_id = options.max_id
     if (options?.count)
       args.count = options.count
-    if (options?.flow !== undefined) {
-      args.is_reload = 1
+    if (options?.flow !== undefined)
       args.flow = options.flow
-      args.is_show_bulletin = 2
-      args.is_mix = 0
-      args.fetch_level = 0
-    }
     if (options?.uid)
       args.uid = options.uid
     return await this.request(buildCommentsSpec, args as any)
@@ -207,14 +213,20 @@ export class TweetService extends FetcherService {
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
    */
   public async friendTimeline(options?: {
+    list_id?: string
     since_id?: string | number
     count?: number
+    refresh?: number
   }): Promise<FriendstimelineResponse> {
-    const args: Record<string, string | number> = {}
+    const args: Record<string, string | number> = {
+      list_id: options?.list_id ?? DEFAULT_HOME_LIST_ID,
+    }
     if (options?.since_id !== undefined)
       args.since_id = options.since_id
     if (options?.count !== undefined)
       args.count = options.count
+    if (options?.refresh !== undefined)
+      args.refresh = options.refresh
     return await this.request(friendstimelineSpec, args as any)
   }
 

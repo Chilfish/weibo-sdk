@@ -1,0 +1,10 @@
+// capture/src/index.ts — capture SDK 公共导出（契约见 capture/README.md）
+export { capture } from './capture'
+export type { CaptureDeps } from './capture'
+export { CDP, connect } from './cdp'
+export type { CDPConnection, CDPHandler, CDPMessage } from './cdp'
+export { buildChromeArgs, findFreePort, spawnChrome, waitForEndpoint } from './chrome'
+export type { ChromeOptions, IsFree } from './chrome'
+export { parseCookies } from './cookie'
+export { fileName, isApi } from './filter'
+export type { CaptureHost, CaptureItem, CaptureOptions, CookieParam } from './types'

@@ -1,6 +1,7 @@
 # 浏览器自动化（CDP）真实数据获取 — 调研与操作手册
 
-> 状态：调研完成，方案已验证（2026-08-09）
+> 状态：调研完成，方案已验证，**已封装为 `capture/` SDK**（可编程 API + CLI `pnpm capture` + 离线测试），
+> 操作手册见 [`capture/README.md`](../../capture/README.md)。本页为调研背景与方案选型。
 > 用途：数据驱动开发（[roadmap](../planning/roadmap.md#真实数据获取操作手册)）的**可复现**真实数据来源，
 > 替代一次性手工 DevTools 抓包。
 
