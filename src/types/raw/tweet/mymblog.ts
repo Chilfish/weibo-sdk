@@ -1,15 +1,15 @@
 export interface IMyMBlogResponse {
   ok: number
   data: {
-    /** 下页游标：string 类型；无更多页时为空字符串 "" */
-    since_id: string
+    /** 下页游标（2026-08 起 mymblog 已改用 page 分页，此字段恒为 ""；翻到底时缺省） */
+    since_id?: string
     list: MyMBLog[]
-    status_visible: number
-    bottom_tips_visible: boolean
-    bottom_tips_text: string
-    topicList: any[]
-    /** 总数；无更多页时可能为 -1 */
-    total: number
+    status_visible?: number
+    bottom_tips_visible?: boolean
+    bottom_tips_text?: string
+    topicList?: any[]
+    /** 总数（2026-08 起恒为 -1，防爬；翻到底时缺省） */
+    total?: number
   }
 }
 

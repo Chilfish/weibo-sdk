@@ -6,7 +6,7 @@ import { stripVolatileKeys } from '~/utils/structure'
 /**
  * 归档进度类型。
  *
- * `timeline`（用户微博，since_id 游标）→ `reposts`（逐条转发，page）→ `favorites`（收藏，page）→ `done`
+ * `timeline`（用户微博，page 游标）→ `reposts`（逐条转发，page）→ `favorites`（收藏，page）→ `done`
  */
 export type ArchivePhase = 'timeline' | 'reposts' | 'favorites' | 'done'
 
@@ -20,8 +20,8 @@ export type ArchivePhase = 'timeline' | 'reposts' | 'favorites' | 'done'
 export interface ArchiveCheckpoint {
   uid: string
   phase: ArchivePhase
-  /** timeline 阶段游标（空串 = 无更多；undefined = 从头开始） */
-  sinceId?: string
+  /** timeline 阶段页码游标（下一页页码；恢复时从该页继续） */
+  page?: number
   /** reposts 阶段：已处理到的最后一条微博 id（其转发已翻完） */
   lastMblogId?: string
   /** favorites 阶段：当前页 */
@@ -50,7 +50,7 @@ export interface ArchiveItem {
  */
 export interface ArchiveServiceDeps {
   tweets: {
-    myMblog: (uid: string, sinceId?: string | number, count?: number) => Promise<MyMblogResponse>
+    myMblog: (uid: string, page?: number, count?: number) => Promise<MyMblogResponse>
     getReposts: (mblogId: string, options?: { page?: number }) => Promise<RepostTimelineResponse>
   }
   favorites: {
@@ -94,13 +94,13 @@ export class ArchiveService {
       ? { ...options.checkpoint, uid }
       : { uid, phase: 'timeline', visitedMblogIds: [] }
 
-    // Phase 1: timeline（raw myMblog，since_id 游标）
+    // Phase 1: timeline（raw myMblog，page 游标）
     if (cp.phase === 'timeline' || cp.phase === 'reposts') {
-      // checkpoint.sinceId 语义 = 下一页游标（该页 raw 返回的 since_id；'' = 已到底）
-      let nextCursor = cp.phase === 'timeline' ? cp.sinceId : undefined
+      // checkpoint.page 语义 = 下一页页码（该页 raw 之后的页码；恢复时从该页继续）
+      let page = cp.phase === 'timeline' ? (cp.page ?? 1) : 1
       let pages = 0
-      while (pages < maxPages && nextCursor !== '') {
-        const raw = await this.deps.tweets.myMblog(uid, nextCursor, count)
+      while (pages < maxPages) {
+        const raw = await this.deps.tweets.myMblog(uid, page, count)
         const list = raw.data.list || []
         for (const item of list) {
           cp.visitedMblogIds.push(item.mblogid)
@@ -109,15 +109,15 @@ export class ArchiveService {
             mblogId: item.mblogid,
             tweet: new Tweet(item),
             schemaDigest: stripVolatileKeys(item),
-            checkpoint: { ...cp, sinceId: raw.data.since_id },
+            checkpoint: { ...cp, page: page + 1 },
           }
         }
-        nextCursor = raw.data.since_id
         if (list.length === 0)
-          break
+          break // 空列表 = 到底（真实 API 翻到底返回 list: []）
+        page += 1
         pages += 1
       }
-      cp.sinceId = nextCursor
+      cp.page = page
       cp.phase = includeReposts ? 'reposts' : (includeFavorites ? 'favorites' : 'done')
     }
 
@@ -192,17 +192,16 @@ export class ArchiveService {
   /** 重放 timeline 获取全部微博 id（reposts 阶段用；幂等，可重复调用） */
   private async collectTimelineMblogIds(uid: string): Promise<string[]> {
     const ids: string[] = []
-    let sinceId: string | undefined
+    let page = 1
     let guard = 0
     while (guard < 1000) {
-      const raw = await this.deps.tweets.myMblog(uid, sinceId, 20)
+      const raw = await this.deps.tweets.myMblog(uid, page, 20)
       const list = raw.data.list || []
       for (const item of list)
         ids.push(item.mblogid)
-      const nextSinceId = raw.data.since_id
-      if (!(nextSinceId.length > 0) || list.length === 0)
+      if (list.length === 0)
         break
-      sinceId = nextSinceId
+      page += 1
       guard += 1
     }
     return ids

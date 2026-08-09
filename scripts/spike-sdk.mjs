@@ -140,7 +140,7 @@ let firstMblogId
 await probe('03 user 时间线第一页', async () => {
   const page = await sdk.tweets.listByUserId(selfUid, { count: 8 })
   firstMblogId = page.tweets[0]?.mblogId
-  return { sinceId: page.sinceId, hasMore: page.hasMore, ...summarize.tweetList(page.tweets) }
+  return { page: page.page, hasMore: page.hasMore, ...summarize.tweetList(page.tweets) }
 })
 
 await probe('04 tweet.getByMblogId 归一化', async () => {

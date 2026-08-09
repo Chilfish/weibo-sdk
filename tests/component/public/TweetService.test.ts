@@ -1,13 +1,15 @@
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
+import { readFileSync } from 'node:fs'
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
+import { myMblogSpec } from '~/services/endpoints/tweet'
 import { TweetService } from '~/services/public/TweetService'
 
 describe('tweetService', () => {
   it('calls mymblog endpoint with correct params and triggers onFetched', async () => {
-    const response = { ok: 1, data: { since_id: '0', list: [], total: 0 } } as any
+    const response = { ok: 1, data: { since_id: '0', list: [], total: -1 } } as any
 
     const { client, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/mymblog')
@@ -21,20 +23,20 @@ describe('tweetService', () => {
 
     service.onFetched = vi.fn()
 
-    const data = await service.myMblog('111', '123')
+    const data = await service.myMblog('111', 2, 20)
     expect(data.data.since_id).toBe('0')
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ uid: '111', since_id: '123' })
+    expect(cfg?.params).toEqual({ uid: '111', page: 2, count: 20 })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
     expect(service.onFetched).toHaveBeenCalledWith('TWEET_MYMBLOG', response)
   })
 
-  it('listByUserId returns normalized Tweet list', async () => {
+  it('listByUserId returns normalized Tweet list with page cursor', async () => {
     const response = {
       ok: 1,
       data: {
-        since_id: '456',
+        since_id: '',
         list: [
           {
             id: 1,
@@ -61,11 +63,11 @@ describe('tweetService', () => {
             },
           },
         ],
-        total: 1,
+        total: -1,
       },
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { client, getLastConfig } = createFakeAxios(async () => response)
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
       { cookie: 'SUB=abc', telemetry },
@@ -73,9 +75,11 @@ describe('tweetService', () => {
     )
 
     const page = await service.listByUserId('111')
-    expect(page.sinceId).toBe('456')
+    expect(page.page).toBe(2) // 第一页 → 下一页页码
+    expect(page.hasMore).toBe(true)
     expect(page.tweets).toHaveLength(1)
     expect(page.tweets[0].id).toBe('1')
+    expect(getLastConfig()?.params).toEqual({ uid: '111' })
 
     expect(telemetry.emit).toHaveBeenCalledWith(expect.objectContaining({
       event_name: 'normalize_done',
@@ -85,10 +89,10 @@ describe('tweetService', () => {
     }))
   })
 
-  it('listByUserId returns empty sinceId when no more pages (empty string = no more)', async () => {
+  it('listByUserId returns hasMore=false when page is empty (end of feed)', async () => {
     const response = {
       ok: 1,
-      data: { since_id: '', list: [], total: 0 },
+      data: { since_id: '', list: [], total: -1 },
     } as any
 
     const { client } = createFakeAxios(async () => response)
@@ -97,17 +101,16 @@ describe('tweetService', () => {
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const page = await service.listByUserId('111')
-    expect(page.sinceId).toBe('')
+    const page = await service.listByUserId('111', { page: 999 })
     expect(page.hasMore).toBe(false)
+    expect(page.tweets).toHaveLength(0)
   })
 
-  it('listByUserId keeps huge sinceId as string without number overflow', async () => {
-    const hugeId = '455328125000000000000000'
+  it('listByUserId sends page param and returns next page number', async () => {
     const response = {
       ok: 1,
       data: {
-        since_id: hugeId,
+        since_id: '',
         list: [
           {
             id: 1,
@@ -131,19 +134,52 @@ describe('tweetService', () => {
             },
           },
         ],
-        total: 10,
+        total: -1,
       },
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { client, getLastConfig } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const page = await service.listByUserId('111')
-    expect(page.sinceId).toBe(hugeId)
+    const page = await service.listByUserId('111', { page: 3, count: 20 })
+    expect(page.page).toBe(4)
     expect(page.hasMore).toBe(true)
+    expect(getLastConfig()?.params).toEqual({ uid: '111', page: 3, count: 20 })
+  })
+
+  it('streamByUserId paginates across pages via page cursor', async () => {
+    const mk = (mblogid: string) => ({
+      id: 1,
+      idstr: mblogid,
+      mblogid,
+      created_at: 'now',
+      text: '',
+      text_raw: 't',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+    })
+    // page=1 → 一条；page=2 → 一条；page=3 → 空（到底）
+    const { client } = createFakeAxios(async (cfg) => {
+      const page = (cfg.params as any)?.page ?? 1
+      if (page === 1)
+        return { ok: 1, data: { since_id: '', list: [mk('A')], total: -1 } }
+      if (page === 2)
+        return { ok: 1, data: { since_id: '', list: [mk('B')], total: -1 } }
+      return { ok: 1, data: { since_id: '', list: [], total: -1 } }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const pulled: string[] = []
+    for await (const t of service.streamByUserId('111'))
+      pulled.push(t.mblogId)
+
+    expect(pulled).toEqual(['A', 'B'])
   })
 
   it('listFriendTimeline returns empty sinceId when no more pages (since_id=-1)', async () => {
@@ -384,5 +420,22 @@ describe('tweetService', () => {
       fetch_level: 0,
       count: 20,
     })
+  })
+
+  it('validates real mymblog fixtures against schema (offline contract regression)', () => {
+    const page1 = JSON.parse(readFileSync('tests/fixtures/raw/mymblog_page1.json', 'utf8'))
+    const pageEnd = JSON.parse(readFileSync('tests/fixtures/raw/mymblog_page_end.json', 'utf8'))
+
+    // 有数据页：since_id=""、total=-1（page 分页漂移样本）通过
+    const parsed1 = myMblogSpec.schema.parse(page1)
+    expect(parsed1.data.list.length).toBeGreaterThan(0)
+    expect(parsed1.data.since_id).toBe('')
+    expect(parsed1.data.total).toBe(-1)
+
+    // 翻到底页：list 为空、since_id/total 缺省，且必须通过（此前 schema 强制必填会失败）
+    const parsedEnd = myMblogSpec.schema.parse(pageEnd)
+    expect(parsedEnd.data.list).toHaveLength(0)
+    expect(parsedEnd.data.since_id).toBeUndefined()
+    expect(parsedEnd.data.total).toBeUndefined()
   })
 })
