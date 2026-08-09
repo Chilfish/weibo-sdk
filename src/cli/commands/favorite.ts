@@ -16,3 +16,12 @@ export const favoriteList = defineCommand({
     console.log(JSON.stringify(raw, null, 2))
   },
 })
+
+export const favoriteTags = defineCommand({
+  meta: { name: 'tags', description: '获取收藏夹标签' },
+  args: { ...cookieArg },
+  async run({ args }) {
+    const raw = await createSDK(args).favorites.getTags()
+    console.log(JSON.stringify(raw, null, 2))
+  },
+})

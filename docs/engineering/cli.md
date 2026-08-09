@@ -60,16 +60,22 @@ weibo-sdk tweet home [--since_id/-s <cursor>] [--count <n>]
 # 获取长微博全文
 weibo-sdk tweet longtext <mblogId>
 
+# 获取微博转发列表（分页用 --page；实测 next_cursor 参数无效）
+weibo-sdk tweet reposts <mblogId> [--page <n>]
+
 # 按日期范围搜索用户微博
 weibo-sdk tweet search-profile <uid> [--page <n>] [--starttime <yyyyMMdd>] [--endtime <yyyyMMdd>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
 ```
 
-### 关注列表（`follow`）
+### 关注/粉丝（`follow`）
 
 ```bash
 # 获取指定用户关注列表（cursor 分页）
 weibo-sdk follow list <uid> [--page <n>]
+
+# 获取指定用户粉丝列表（relate=fans）
+weibo-sdk follow fans <uid> [--page <n>]
 
 # 获取自己关注列表
 weibo-sdk follow my [--page <n>]
@@ -80,6 +86,9 @@ weibo-sdk follow my [--page <n>]
 ```bash
 # 获取指定用户收藏夹（按页遍历）
 weibo-sdk favorite list <uid> [--page <n>]
+
+# 获取收藏夹标签
+weibo-sdk favorite tags
 ```
 
 ### 搜索（`search`）
@@ -112,10 +121,13 @@ weibo-sdk whoami
 | `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
+| `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
 | `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse` |
 | `follow list` | `followings.getFollowings()` | raw `FriendshipsResponse` |
+| `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
 | `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |
 | `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
+| `favorite tags` | `favorites.getTags()` | raw `FavoritesTagsResponse` |
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
@@ -129,9 +141,9 @@ src/cli/
   shared.ts             # getCookie / createSDK / cookieArg（--cookie 共享参数）
   commands/
     user.ts             # user info / user timeline
-    tweet.ts            # tweet detail / comments / home / longtext / search-profile
-    follow.ts           # follow list / follow my
-    favorite.ts         # favorite list
+    tweet.ts            # tweet detail / comments / home / longtext / reposts / search-profile
+    follow.ts           # follow list / follow fans / follow my
+    favorite.ts         # favorite list / favorite tags
     search.ts           # search users / search tweets
 ```
 

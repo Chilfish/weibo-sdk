@@ -24,9 +24,9 @@
 
 ### 归档链端点补齐
 
-- [ ] **A1 转发列表** `/ajax/statuses/repostTimeline`：真实 fixture → argsSchema → responseSchema → Service 方法 → CLI → 测试。
-- [ ] **A2 粉丝列表**（`friendships/friends` 对偶）：同上流程。
-- [ ] **A3 收藏夹标签** `/ajax/favorites/tags`：fixture `favorites_tags.json` 已就绪。
+- [x] **A1 转发列表** `/ajax/statuses/repostTimeline`：真实 fixture（`repost_timeline.json`/`_p2`）→ `repostTimelineSpec` → `TweetService.getReposts` → CLI `tweet reposts` → 测试。
+- [x] **A2 粉丝列表**（`friendships/friends` 对偶）：复用 `friendshipsSpec` 加 `relate` 参数 → `FollowingsService.getFans` → CLI `follow fans` → 测试。
+- [x] **A3 收藏夹标签** `/ajax/favorites/tags`：`favoritesTagsSpec` → `FavoriteService.getTags` → CLI `favorite tags` → 测试。
 - [ ] **A4 按日期搜索缺的变体参数**：`searchProfile` 的 `hasret/hasvideo/hasmusic` 等过滤组合补 E2E 验证。
 
 ### ArchiveService：断点续传流（核心交付）

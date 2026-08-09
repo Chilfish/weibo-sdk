@@ -169,14 +169,15 @@ interface IWeiboConfig {
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
+| `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
 | `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索 |
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
 > `TweetPageResult = { sinceId: string, hasMore: boolean, tweets: Tweet[] }`（`sinceId` 为 string，空串 = 无更多；分页回传该值作游标）。
 
-**FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)` / `getMyFollowings(page?)`
-**FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)`
+**FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
+**FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)` / `getTags()`（返回 `FavoritesTagsResponse`）
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
 **SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)`
 
@@ -201,7 +202,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 ### 3.5 资源类型
 
-`IResource` 映射 14 个资源类型：`USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` / `TWEET_LONGTEXT` / `TWEET_SEARCHPROFILE` / `TWEET_COMMENTS` / `TWEET_FRIENDTIMELINE` / `SIDE_BANDUNIFIED` / `FAVORITES_ALLFAV` / `SEARCH_USERS` / `SEARCH_TWEETS` / `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT`。
+`IResource` 映射 16 个资源类型：`USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` / `TWEET_LONGTEXT` / `TWEET_SEARCHPROFILE` / `TWEET_COMMENTS` / `TWEET_FRIENDTIMELINE` / `TWEET_REPOST_TIMELINE` / `SIDE_BANDUNIFIED` / `FAVORITES_ALLFAV` / `FAVORITES_TAGS` / `SEARCH_USERS` / `SEARCH_TWEETS` / `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT`。
 
 端点实现清单见 `docs/planning/roadmap.md`。
 

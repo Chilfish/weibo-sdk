@@ -210,6 +210,47 @@ describe('tweetService', () => {
     expect(cfg?.params).toEqual({ since_id: '12345' })
   })
 
+  it('getReposts calls repostTimeline with correct params and parses data', async () => {
+    const response = {
+      ok: 1,
+      data: [
+        {
+          id: 1,
+          idstr: '1',
+          mblogid: 'QEV9ajb8x',
+          created_at: 'now',
+          text: '<URL>',
+          text_raw: '<URL>',
+          user: { id: 2, idstr: '2', screen_name: 'u' },
+        },
+      ],
+      total_number: 10299,
+      max_page: 515,
+      next_cursor: 5302768680304825,
+      empty_tip: '',
+    } as any
+
+    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+      expect(cfg.url).toBe('https://weibo.com/ajax/statuses/repostTimeline')
+      return response
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+    service.onFetched = vi.fn()
+
+    const raw = await service.getReposts('QEV15en4k', { page: 2 })
+    expect(raw.data).toHaveLength(1)
+    expect(raw.data[0].mblogid).toBe('QEV9ajb8x')
+    expect(raw.total_number).toBe(10299)
+
+    const cfg = getLastConfig()
+    expect(cfg?.params).toEqual({ id: 'QEV15en4k', page: 2 })
+    expect(cfg?.headers?.referer).toBe('https://weibo.com/detail/QEV15en4k')
+    expect(service.onFetched).toHaveBeenCalledWith('TWEET_REPOST_TIMELINE', response)
+  })
+
   it('calls show endpoint with correct params and triggers onFetched', async () => {
     const response = {
       ok: 1,

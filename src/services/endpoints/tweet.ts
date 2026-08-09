@@ -301,6 +301,43 @@ export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSch
   schema: StatusShowResponseSchema,
 })
 
+// ---- Repost Timeline (转发列表) ----
+
+// 真实 fixture：repost_timeline.json / repost_timeline_p2.json
+// data 为微博数组（与 MyMBlogItemSchema 同构，转发本身也是微博）；next_cursor 实测分页无效，用 page
+const RepostTimelineArgsSchema = z.object({
+  id: z.string(),
+  page: z.number().optional(),
+  count: z.number().optional(),
+  next_cursor: z.number().optional(),
+}).strict()
+
+const RepostTimelineResponseSchema = z.object({
+  ok: z.number(),
+  data: z.array(MyMBlogItemSchema),
+  total_number: z.number().optional(),
+  max_page: z.number().optional(),
+  next_cursor: z.number().optional(),
+  empty_tip: z.string().optional(),
+}).passthrough()
+
+export type RepostTimelineResponse = z.infer<typeof RepostTimelineResponseSchema>
+
+export const repostTimelineSpec: EndpointSpec<'TWEET_REPOST_TIMELINE', typeof RepostTimelineArgsSchema> = defineEndpoint({
+  resourceType: 'TWEET_REPOST_TIMELINE',
+  endpoint: 'ajax/statuses/repostTimeline',
+  argsSchema: RepostTimelineArgsSchema,
+  buildResource: ({ id }) => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/statuses/repostTimeline',
+    headers: {
+      referer: `https://weibo.com/detail/${id}`,
+    },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: RepostTimelineResponseSchema,
+})
+
 // ---- Longtext ----
 
 const LongtextArgsSchema = z.object({

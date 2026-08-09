@@ -1,8 +1,8 @@
-export type { FavoritesResponse } from '../services/endpoints/favorite'
+export type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 export type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
 export type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 export type { BandUnifiedResponse } from '../services/endpoints/side'
-export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
+export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
 // src/types/index.ts
 // Endpoint 响应类型（zod-inferred，服务的实际返回类型）
 export type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'

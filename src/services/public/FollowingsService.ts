@@ -16,6 +16,14 @@ export class FollowingsService extends FetcherService {
     return await this.request(friendshipsSpec, args)
   }
 
+  /** 获取用户粉丝列表 (relate=fans, cursor 分页) */
+  public async getFans(uid: string, page?: number): Promise<FriendshipsResponse> {
+    const args: { uid: string, relate: 'fans', page?: number } = { uid, relate: 'fans' }
+    if (page !== undefined)
+      args.page = page
+    return await this.request(friendshipsSpec, args)
+  }
+
   /** 获取自己关注列表 (cursor 分页) */
   public async getMyFollowings(page?: number): Promise<FollowContentResponse> {
     const args: { page?: number } = {}

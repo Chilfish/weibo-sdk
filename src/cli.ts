@@ -1,10 +1,10 @@
 // Auto-load .env file (Node.js 21.7+)
 import { defineCommand, runMain } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
-import { favoriteList } from './cli/commands/favorite'
-import { followList, followMy } from './cli/commands/follow'
+import { favoriteList, favoriteTags } from './cli/commands/favorite'
+import { followFans, followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
-import { tweetComments, tweetDetail, tweetLongtext, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
+import { tweetComments, tweetDetail, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
 import { userInfo, userTimeline } from './cli/commands/user'
 import { cookieArg, createSDK, getCookie } from './cli/shared'
 
@@ -78,15 +78,15 @@ const main = defineCommand({
     }),
     tweet: defineCommand({
       meta: { name: 'tweet', description: '微博相关操作' },
-      subCommands: { 'detail': tweetDetail, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'search-profile': tweetSearchProfile },
+      subCommands: { 'detail': tweetDetail, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'reposts': tweetReposts, 'search-profile': tweetSearchProfile },
     }),
     follow: defineCommand({
       meta: { name: 'follow', description: '关注列表' },
-      subCommands: { list: followList, my: followMy },
+      subCommands: { list: followList, fans: followFans, my: followMy },
     }),
     favorite: defineCommand({
       meta: { name: 'favorite', description: '收藏夹' },
-      subCommands: { list: favoriteList },
+      subCommands: { list: favoriteList, tags: favoriteTags },
     }),
     search: defineCommand({
       meta: { name: 'search', description: '搜索' },

@@ -64,3 +64,32 @@ export const favoritesSpec: EndpointSpec<'FAVORITES_ALLFAV', typeof FavoritesArg
   okPolicy: { mode: 'require_ok_1' },
   schema: FavoritesResponseSchema,
 })
+
+// ---- Favorites Tags (收藏夹标签) ----
+
+// 真实 fixture：favorites_tags.json（tags 为空数组）。标签元素结构未知（无样本），
+// 只约束为数组，不猜元素结构；顶层数字字段 optional（空标签与含计数变种形态不同）
+const FavoritesTagsArgsSchema = z.object({}).strict()
+
+const FavoritesTagsResponseSchema = z.object({
+  ok: z.number(),
+  tags: z.array(z.unknown()),
+  total_number: z.number().optional(),
+  unclassified_num: z.number().optional(),
+  fav_total_num: z.number().optional(),
+}).passthrough()
+
+export type FavoritesTagsResponse = z.infer<typeof FavoritesTagsResponseSchema>
+
+export const favoritesTagsSpec: EndpointSpec<'FAVORITES_TAGS', typeof FavoritesTagsArgsSchema> = defineEndpoint({
+  resourceType: 'FAVORITES_TAGS',
+  endpoint: 'ajax/favorites/tags',
+  argsSchema: FavoritesTagsArgsSchema,
+  buildResource: () => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/favorites/tags',
+    headers: { referer: 'https://weibo.com/fav' },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: FavoritesTagsResponseSchema,
+})

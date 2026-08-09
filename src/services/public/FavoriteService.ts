@@ -1,6 +1,6 @@
-import type { FavoritesResponse } from '../endpoints/favorite'
+import type { FavoritesResponse, FavoritesTagsResponse } from '../endpoints/favorite'
 import type { IWeiboConfig } from '~/types/config'
-import { favoritesSpec } from '../endpoints/favorite'
+import { favoritesSpec, favoritesTagsSpec } from '../endpoints/favorite'
 import { FetcherService } from '../internal/FetcherService'
 
 export class FavoriteService extends FetcherService {
@@ -14,5 +14,10 @@ export class FavoriteService extends FetcherService {
     if (page !== undefined)
       args.page = page
     return await this.request(favoritesSpec, args)
+  }
+
+  /** 获取收藏夹标签 GET /ajax/favorites/tags */
+  public async getTags(): Promise<FavoritesTagsResponse> {
+    return await this.request(favoritesTagsSpec, {})
   }
 }

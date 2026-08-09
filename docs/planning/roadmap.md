@@ -184,8 +184,10 @@ for p in data['data']['list']:
 | `feed/friendstimeline` | `feed_home.json` / `feed_groups.json` | 25 条 Feed |
 | `statuses/longtext` | `longtext.json` | 长微博全文 |
 | `statuses/searchProfile` | `searchProfile_p1.json` / `searchProfile_p2.json` | 各 50 条 |
+| `statuses/repostTimeline` | `repost_timeline.json` / `repost_timeline_p2.json` | 24 / 2 条转发 |
 | `side/bandUnified` | `hot_trends.json` / `side_cards.json` | 热搜 52 条 |
 | `friendships/friends` | `friendships_followings_u{7679065628,2142312651}.json` | 19 / 20 个关注 |
+| `friendships/friends?relate=fans` | `friendships_fans_u2365795232.json` / `_p2` | 2 / 2 个粉丝 |
 | `profile/followContent` | `followContent.json` / `_p2` / `_p3` | 48 / 48 / 50 个关注 |
 | `favorites/all_fav` | `favorites_p1.json`（19 条）/ `favorites_tags.json` | 收藏夹 |
 | `search/*` | `search_users_p2.json` / `search_users_p3.json` | 搜索 |

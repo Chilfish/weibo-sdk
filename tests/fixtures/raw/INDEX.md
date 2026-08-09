@@ -41,3 +41,14 @@
 | `searchProfile_p1.json` | 203K | `/ajax/statuses/searchProfile` — 日期搜索 (50条) |
 | `searchProfile_p2.json` | 250K | 同上 page=2 (50条) |
 | `longtext.json` | 1K | `/ajax/statuses/longtext` — 长微博全文 |
+
+## 新增端点（2026-08-09 API 抓取，scripts/sanitize-raw.mjs 脱敏）
+
+| 文件 | 大小 | 端点 |
+|------|------|------|
+| `repost_timeline.json` | 273K | `/ajax/statuses/repostTimeline` — 转发列表 (24条, 原博 QEV15en4k) |
+| `repost_timeline_p2.json` | 22K | 同上 page=2 (2条) |
+| `friendships_fans_u2365795232.json` | 5K | `/ajax/friendships/friends?relate=fans` — 粉丝 (2个) |
+| `friendships_fans_u2365795232_p2.json` | 5K | 同上 page=2 (2个) |
+
+> 分页观察：repostTimeline 的 `next_cursor` 参数无效（两页返回相同），用 `page`；粉丝 API 每页固定返回 2 条（`count` 无效）。

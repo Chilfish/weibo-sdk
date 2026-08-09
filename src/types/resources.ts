@@ -1,8 +1,8 @@
-import type { FavoritesResponse } from '../services/endpoints/favorite'
+import type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 import type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
 import type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 import type { BandUnifiedResponse } from '../services/endpoints/side'
-import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
+import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
 import type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
 
 export interface IResource {
@@ -14,8 +14,10 @@ export interface IResource {
   TWEET_SEARCHPROFILE: SearchProfileResponse
   TWEET_COMMENTS: BuildCommentsResponse
   TWEET_FRIENDTIMELINE: FriendstimelineResponse
+  TWEET_REPOST_TIMELINE: RepostTimelineResponse
   SIDE_BANDUNIFIED: BandUnifiedResponse
   FAVORITES_ALLFAV: FavoritesResponse
+  FAVORITES_TAGS: FavoritesTagsResponse
   SEARCH_USERS: SearchUsersResponse
   SEARCH_TWEETS: SearchTweetsResponse
   FRIENDSHIPS_FRIENDS: FriendshipsResponse

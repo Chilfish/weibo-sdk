@@ -52,6 +52,21 @@ export const tweetLongtext = defineCommand({
   },
 })
 
+export const tweetReposts = defineCommand({
+  meta: { name: 'reposts', description: '获取微博转发列表' },
+  args: {
+    id: { type: 'positional', description: '微博 mblogId', required: true },
+    page: { type: 'string', description: '分页（可选）' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const raw = await createSDK(args).tweets.getReposts(args.id, {
+      page: args.page ? Number(args.page) : undefined,
+    })
+    console.log(JSON.stringify(raw, null, 2))
+  },
+})
+
 export const tweetSearchProfile = defineCommand({
   meta: { name: 'search-profile', description: '按日期范围搜索用户微博' },
   args: {

@@ -1,7 +1,7 @@
-import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { IWeiboConfig } from '~/types/config'
 import { Tweet } from '~/models/data/Tweet'
-import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
+import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
@@ -161,6 +161,20 @@ export class TweetService extends FetcherService {
   /** 获取长微博全文 `GET /ajax/statuses/longtext` */
   public async longText(mblogId: string): Promise<LongtextResponse> {
     return await this.request(longtextSpec, { id: mblogId })
+  }
+
+  /**
+   * 获取微博转发列表 `GET /ajax/statuses/repostTimeline`
+   *
+   * 分页用 `page`（实测 `next_cursor` 参数无效，两页返回相同数据）。
+   */
+  public async getReposts(mblogId: string, options?: { page?: number, count?: number }): Promise<RepostTimelineResponse> {
+    const args: { id: string, page?: number, count?: number } = { id: mblogId }
+    if (options?.page !== undefined)
+      args.page = options.page
+    if (options?.count !== undefined)
+      args.count = options.count
+    return await this.request(repostTimelineSpec, args)
   }
 
   /**

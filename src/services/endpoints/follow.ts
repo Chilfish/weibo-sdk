@@ -28,6 +28,8 @@ export const FollowingUserSchema: z.ZodType<any> = z.object({
 const FriendshipsArgsSchema = z.object({
   uid: z.string(),
   page: z.number().optional(),
+  // relate=fans 查粉丝，缺省/relate=following 查关注（真实 fixture：friendships_fans_*.json）
+  relate: z.enum(['fans', 'following']).optional(),
 }).strict()
 
 const FriendshipsResponseSchema = z.object({
