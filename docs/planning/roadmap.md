@@ -124,6 +124,8 @@
 
 ## 真实数据获取操作手册
 
+> **自动化抓取**：可复现的浏览器自动化（CDP）批量抓取见 [engineering/browser-capture.md](../engineering/browser-capture.md)。
+
 ### 前置条件
 
 ```bash
