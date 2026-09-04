@@ -62,6 +62,8 @@ describe('archiveService', () => {
     const items = await collect(service.streamArchive('111') as any)
 
     expect(items.map(i => i.source)).toEqual(['timeline', 'timeline', 'repost', 'repost', 'favorite'])
+    // 每条归档 item 自带契约版本（K1 / P0-1 信封层，磁盘条目自描述）
+    expect(items.map(i => i.schemaVersion)).toEqual([1, 1, 1, 1, 1])
     expect(items[0].mblogId).toBe('A')
     expect(items[2].mblogId).toBe('R1')
     expect(items[4].mblogId).toBe('F1')

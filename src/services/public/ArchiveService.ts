@@ -1,6 +1,8 @@
+import type { TweetContractVersion } from '~/types/domain/ITweet'
 import type { FavoritesResponse } from '../endpoints/favorite'
 import type { MyMblogResponse, RepostTimelineResponse } from '../endpoints/tweet'
 import { Tweet } from '~/models/data/Tweet'
+import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
 import { stripVolatileKeys } from '~/utils/structure'
 
 /**
@@ -31,12 +33,15 @@ export interface ArchiveCheckpoint {
 }
 
 /**
- * 归档流产出项。
+ * 归档流产出项（磁盘条目信封，K1 / P0-1）。
  *
+ * `schemaVersion` 为 ITweet 存档契约版本（与包版本解耦），落盘条目据此自描述、
+ * 下游可按版本迁移（规则与迁移策略见 docs/engineering/contract-itweet-v1.md）；
  * `tweet` 为归一化模型；`schemaDigest` 为 raw 项的结构快照（A7，`stripVolatileKeys`），
- * 用于检测上游字段漂移（同一源同一时期 digest 应稳定）。
+ * 用于检测上游字段漂移（同一源同一时期 digest 应稳定）——注意与契约版本用途不同。
  */
 export interface ArchiveItem {
+  schemaVersion: TweetContractVersion
   source: 'timeline' | 'repost' | 'favorite'
   mblogId: string
   tweet: Tweet
@@ -105,6 +110,7 @@ export class ArchiveService {
         for (const item of list) {
           cp.visitedMblogIds.push(item.mblogid)
           yield {
+            schemaVersion: TWEET_CONTRACT_VERSION,
             source: 'timeline',
             mblogId: item.mblogid,
             tweet: new Tweet(item),
@@ -140,6 +146,7 @@ export class ArchiveService {
           for (const item of list) {
             cp.visitedMblogIds.push(item.mblogid)
             yield {
+              schemaVersion: TWEET_CONTRACT_VERSION,
               source: 'repost',
               mblogId: item.mblogid,
               tweet: new Tweet(item),
@@ -170,6 +177,7 @@ export class ArchiveService {
         for (const item of list) {
           cp.visitedMblogIds.push(item.mblogid)
           yield {
+            schemaVersion: TWEET_CONTRACT_VERSION,
             source: 'favorite',
             mblogId: item.mblogid,
             tweet: new Tweet(item),

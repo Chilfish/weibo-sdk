@@ -1,5 +1,17 @@
 import type { VerificationType } from './IUser'
 
+/**
+ * ITweet 存档契约版本（K1 / P0-1，2026-09-04 冻结 v1）。
+ *
+ * `ITweet` 是下游（Weibo-archiver web-v3 / monkey / CLI）的 UI 展示与磁盘存档终局契约
+ * （ADR-007/008）。版本规则（与包版本解耦，见 docs/engineering/contract-itweet-v1.md）：
+ * - **v1 内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
+ * - **v2**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
+ */
+export const TWEET_CONTRACT_VERSION = 1 as const
+
+export type TweetContractVersion = typeof TWEET_CONTRACT_VERSION
+
 export interface ITweet {
   id: string
   /** 字母形式的 id (如 QqsYymYOS) */
@@ -71,6 +83,11 @@ export enum MediaType {
 
 /**
  * 标准化媒体资源 (图片、视频、LivePhoto、GIF)
+ *
+ * 【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：
+ * 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。
+ * SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，
+ * 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。
  */
 export interface TweetMedia {
   id: string
@@ -79,10 +96,6 @@ export interface TweetMedia {
   // 视频封面从 big_pic_info 找
   imageUrl: string
 
-  // 视频、实况照片都带了过期时间和签名参数，一次性有效，再次下发新url后，旧的就作废了
-  // 有效期为请求时间+1小时
-  // 所以感觉没法做成在线的，只能及时就地下载
-  // 要么就在查看时在服务端去请求拿新的链接
   videoUrl?: string // mp4 或 mov 地址
   duration?: number // 视频时长（秒）
 

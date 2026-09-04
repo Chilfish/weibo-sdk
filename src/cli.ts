@@ -103,6 +103,7 @@ const archive = defineCommand({
         last = item.checkpoint
         console.log(JSON.stringify({
           event: 'item',
+          schemaVersion: item.schemaVersion,
           source: item.source,
           mblogId: item.mblogId,
           tweetId: item.tweet.id,

@@ -136,7 +136,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
-| `archive` | `archive.streamArchive()` | NDJSON `{ event, source, mblogId, checkpoint }` |
+| `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, checkpoint }`（数据本体走 SDK 流；`schemaVersion` 为 ITweet 存档契约版本） |
 
 ## 架构
 
