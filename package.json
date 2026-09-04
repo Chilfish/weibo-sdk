@@ -41,6 +41,7 @@
     "test": "vitest",
     "test:e2e": "vitest --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit",
+    "validate:fixtures": "tsx scripts/validate-fixtures.ts",
     "prepare": "simple-git-hooks",
     "size": "size-limit"
   },
