@@ -195,6 +195,8 @@ const BuildCommentsArgsSchema = z.object({
   max_id: z.number().optional(),
 }).strict()
 
+export type BuildCommentsArgs = z.infer<typeof BuildCommentsArgsSchema>
+
 const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
@@ -262,6 +264,8 @@ const FriendstimelineArgsSchema = z.object({
   since_id: z.union([z.string(), z.number()]).optional(),
   count: z.number().optional(),
 }).strict()
+
+export type FriendstimelineArgs = z.infer<typeof FriendstimelineArgsSchema>
 
 const FriendstimelineResponseSchema = z.object({
   ok: z.number(),
@@ -390,6 +394,8 @@ const SearchProfileArgsSchema = z.object({
   hasvideo: z.number().optional(),
   hasmusic: z.number().optional(),
 }).strict()
+
+export type SearchProfileArgs = z.infer<typeof SearchProfileArgsSchema>
 
 const SearchProfileResponseSchema = z.object({
   ok: z.number(),

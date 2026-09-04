@@ -149,29 +149,31 @@ interface IWeiboConfig {
 
 ### 3.3 服务接口
 
+> **生熟双 API 收窄（F2，2026-09-04）**：raw 响应方法仅作为归一化路径与编排层（`ArchiveService`）的数据源保留，公开面默认走归一化方法；raw 方法在 `.d.ts` 中带 `@deprecated`。无归一化对应的 raw 方法（`comments` / `longText` / `getReposts` / `searchByDate` / `getFavorites` / `getFollowings` 等）不标弃用。
+
 **UserService**（`sdk.users`）
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `info` | `(id: string) => Promise<UserInfoResponse>` | 用户信息 |
-| `details` | `(id: string) => Promise<UserDetailsResponse>` | 用户详情 |
-| `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`） |
+| `info` | `(id: string) => Promise<UserInfoResponse>` | 用户信息（raw；**@deprecated**：用 `getById`） |
+| `details` | `(id: string) => Promise<UserDetailsResponse>` | 用户详情（raw；**@deprecated**：用 `getById`） |
+| `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`；会话自检原语，不标弃用） |
 | `getById` | `(id: string) => Promise<User>` | info + details 归一化为 `User` |
 
 **TweetService**（`sdk.tweets`）
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `myMblog` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw，page 游标） |
+| `myMblog` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw，page 游标；**@deprecated**：用 `listByUserId` / `streamByUserId`） |
 | `listByUserId` | `(uid, { page?, count? }?) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
 | `streamByUserId` | `(uid, options?) => AsyncIterableIterator<Tweet>` | 自动翻页流式 |
-| `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw） |
+| `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw；**@deprecated**：用 `getByMblogId`） |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
 | `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索 |
-| `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw） |
+| `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
 > `TweetPageResult = { page?: number, sinceId?: string, hasMore: boolean, tweets: Tweet[] }`。

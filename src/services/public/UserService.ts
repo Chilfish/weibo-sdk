@@ -12,15 +12,17 @@ export class UserService extends FetcherService {
   }
 
   /**
-   * 获取用户信息
+   * 获取用户信息（raw 响应）
    * @param id 用户ID (uid)
+   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getById`
    */
   public async info(id: string): Promise<UserInfoResponse> {
     return await this.request(userInfoSpec, { uid: id })
   }
 
   /**
-   * 获取用户详情
+   * 获取用户详情（raw 响应）
+   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getById`
    */
   public async details(id: string): Promise<UserDetailsResponse> {
     return await this.request(userDetailsSpec, { uid: id })

@@ -7,6 +7,18 @@ import { MediaType, TweetVisible } from '~/types/domain/ITweet'
 export type RawTweet = MyMBLog | NonNullable<MyMBLog['retweeted_status']> | IStatusShowResponse | NonNullable<IStatusShowResponse['retweeted_status']>
 type UnknownRecord = Record<string, unknown>
 
+/**
+ * E2 契约卫生：把 `unknown` 收窄为 `RawTweet` 的运行时 guard。
+ *
+ * 判定标准：非空非数组对象且 `mblogid` 为 string（与 `MyMBlogItemSchema` 必填字段一致）。
+ * schema 校验层已保证该字段存在；此 guard 供 `filterTweets` 等处做类型诚实收窄与纵深防御。
+ */
+export function isRawTweet(value: unknown): value is RawTweet {
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    return false
+  return typeof (value as { mblogid?: unknown }).mblogid === 'string'
+}
+
 function isRecord(value: unknown): value is UnknownRecord {
   return !!value && typeof value === 'object'
 }

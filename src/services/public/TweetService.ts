@@ -1,6 +1,7 @@
-import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileArgs, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
-import { Tweet } from '~/models/data/Tweet'
+import { isRawTweet, Tweet } from '~/models/data/Tweet'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -24,7 +25,7 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取用户微博列表（mymblog）
+   * 获取用户微博列表（mymblog，raw 响应）
    *
    * 说明：真实 API 自 2026-08 起分页从 `since_id` 漂移为 `page`（`since_id` 恒返回空串、
    * `total` 恒为 -1，翻到底时 `data.list` 为空数组）。归一化分页见 `listByUserId`。
@@ -32,6 +33,8 @@ export class TweetService extends FetcherService {
    * @param uid 用户 UID
    * @param page 页码（从 1 开始；缺省 = 第一页）
    * @param count 每页条数
+   * @deprecated F2 生熟双 API 收窄：raw 方法仅为 `listByUserId` / `streamByUserId` 的
+   * 数据源保留，公开使用请走归一化路径（`listByUserId` / `streamByUserId`）
    */
   public async myMblog(uid: string, page?: number, count?: number): Promise<MyMblogResponse> {
     const args: { uid: string, page?: number, count?: number } = { uid }
@@ -43,10 +46,11 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 过滤掉广告等无效微博
+   * 过滤掉广告等无效微博（E2：入参 `unknown[]`，经 `isRawTweet` 收窄为 `RawTweet`）
    */
-  private filterTweets(rawList: any[]): any[] {
-    return rawList.filter(item => !item.isAd)
+  private filterTweets(rawList: unknown[]): RawTweet[] {
+    return rawList.filter((item): item is RawTweet =>
+      isRawTweet(item) && !(item as { isAd?: unknown }).isAd)
   }
 
   /**
@@ -105,9 +109,11 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取单条微博详情
+   * 获取单条微博详情（raw 响应）
    *
    * `GET https://weibo.com/ajax/statuses/show?id=${mblogid}&isGetLongText=true`
+   *
+   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getByMblogId`
    */
   public async show(mblogId: string, isGetLongText: boolean = true): Promise<StatusShowResponse> {
     return await this.request(statusShowSpec, { id: mblogId, isGetLongText })
@@ -140,7 +146,7 @@ export class TweetService extends FetcherService {
     uid?: string
   }): Promise<BuildCommentsResponse> {
     // 实测：buildComments 必须带这组参数，否则服务端返回 400「参数错误」
-    const args: Record<string, string | number | boolean> = {
+    const args: BuildCommentsArgs = {
       id: mblogId,
       is_reload: 1,
       is_show_bulletin: 2,
@@ -156,7 +162,7 @@ export class TweetService extends FetcherService {
       args.flow = options.flow
     if (options?.uid)
       args.uid = options.uid
-    return await this.request(buildCommentsSpec, args as any)
+    return await this.request(buildCommentsSpec, args)
   }
 
   /** 获取长微博全文 `GET /ajax/statuses/longtext` */
@@ -192,20 +198,36 @@ export class TweetService extends FetcherService {
     hasvideo?: number
     hasmusic?: number
   }): Promise<SearchProfileResponse> {
-    const args: Record<string, string | number> = { uid }
+    const args: SearchProfileArgs = { uid }
     if (options) {
-      for (const [k, v] of Object.entries(options)) {
-        if (v !== undefined)
-          args[k] = v
-      }
+      if (options.page !== undefined)
+        args.page = options.page
+      if (options.starttime !== undefined)
+        args.starttime = options.starttime
+      if (options.endtime !== undefined)
+        args.endtime = options.endtime
+      if (options.hasori !== undefined)
+        args.hasori = options.hasori
+      if (options.hasret !== undefined)
+        args.hasret = options.hasret
+      if (options.hastext !== undefined)
+        args.hastext = options.hastext
+      if (options.haspic !== undefined)
+        args.haspic = options.haspic
+      if (options.hasvideo !== undefined)
+        args.hasvideo = options.hasvideo
+      if (options.hasmusic !== undefined)
+        args.hasmusic = options.hasmusic
     }
-    return await this.request(searchProfileSpec, args as any)
+    return await this.request(searchProfileSpec, args)
   }
 
   /**
-   * 获取首页 Feed（双向关注好友时间线）
+   * 获取首页 Feed（双向关注好友时间线，raw 响应）
    *
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
+   *
+   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `listFriendTimeline`
    */
   public async friendTimeline(options?: {
     list_id?: string
@@ -213,7 +235,7 @@ export class TweetService extends FetcherService {
     count?: number
     refresh?: number
   }): Promise<FriendstimelineResponse> {
-    const args: Record<string, string | number> = {
+    const args: FriendstimelineArgs = {
       list_id: options?.list_id ?? DEFAULT_HOME_LIST_ID,
     }
     if (options?.since_id !== undefined)
@@ -222,7 +244,7 @@ export class TweetService extends FetcherService {
       args.count = options.count
     if (options?.refresh !== undefined)
       args.refresh = options.refresh
-    return await this.request(friendstimelineSpec, args as any)
+    return await this.request(friendstimelineSpec, args)
   }
 
   /**

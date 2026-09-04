@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Tweet } from '~/models/data/Tweet'
+import { isRawTweet, Tweet } from '~/models/data/Tweet'
 import { TweetVisible } from '~/types/domain/ITweet'
 
 describe('tweet model normalization (mymblog)', () => {
@@ -321,5 +321,23 @@ describe('tweet model normalization (mymblog)', () => {
         height: 720,
       },
     ])
+  })
+})
+
+describe('isRawTweet guard (E2 contract hygiene)', () => {
+  it('accepts objects with a string mblogid', () => {
+    expect(isRawTweet({ mblogid: 'QqsYymYOS', text: 'hi' })).toBe(true)
+    expect(isRawTweet({ mblogid: 'x', retweeted_status: { mblogid: 'y' } })).toBe(true)
+  })
+
+  it('rejects null, arrays, primitives and objects without string mblogid', () => {
+    expect(isRawTweet(null)).toBe(false)
+    expect(isRawTweet(undefined)).toBe(false)
+    expect(isRawTweet([{ mblogid: 'x' }])).toBe(false)
+    expect(isRawTweet('mblogid')).toBe(false)
+    expect(isRawTweet(42)).toBe(false)
+    expect(isRawTweet({})).toBe(false)
+    expect(isRawTweet({ mblogid: 123 })).toBe(false)
+    expect(isRawTweet({ mblogid: undefined })).toBe(false)
   })
 })

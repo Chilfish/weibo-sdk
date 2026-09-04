@@ -89,6 +89,37 @@ describe('tweetService', () => {
     }))
   })
 
+  it('listByUserId filters out ad items (isAd) from the feed', async () => {
+    const mk = (mblogid: string, extra: Record<string, unknown> = {}) => ({
+      id: 1,
+      idstr: mblogid,
+      mblogid,
+      created_at: 'now',
+      text: '',
+      text_raw: 't',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+      ...extra,
+    })
+    const response = {
+      ok: 1,
+      data: {
+        since_id: '',
+        list: [mk('A'), mk('AD1', { isAd: true }), mk('B')],
+        total: -1,
+      },
+    } as any
+
+    const { client } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.listByUserId('111')
+    expect(page.tweets.map(t => t.mblogId)).toEqual(['A', 'B'])
+  })
+
   it('listByUserId returns hasMore=false when page is empty (end of feed)', async () => {
     const response = {
       ok: 1,
