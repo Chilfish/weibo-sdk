@@ -78,7 +78,10 @@ pnpm run typecheck   # TypeScript strict 类型检查
 pnpm run lint        # ESLint（@antfu/eslint-config）
 pnpm run build       # tsdown 构建
 pnpm test            # Vitest（默认离线，e2e 自动跳过）
+pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse（E5）
 ```
+
+- **fixture 契约回归（E5）**：`scripts/validate-fixtures.ts` 遍历 `tests/fixtures/raw/*.json` × 对应 endpoint schema；新增 fixture 必须在 `FIXTURE_RULES` 登记（mapped 或 unmodeled），未登记/失效登记会 fail loudly（CI 已接入）
 
 - `simple-git-hooks` + `lint-staged` 在 `prepare` 自动安装，pre-commit 钩子已配置
 - **禁止 `--no-verify` 跳过钩子**；钩子失败必须修复根因

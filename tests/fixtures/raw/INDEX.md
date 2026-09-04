@@ -1,6 +1,7 @@
 # Fixture 索引
 
 > 数据已脱敏：URL → `<URL>` | 长数字ID → `<ID>` | 日期 → `<DATE>` | 其他字符串 → `<TEXT>`
+> **治理（E5，2026-09-04）**：每个 fixture 必须在 `scripts/validate-fixtures.ts` 的 `FIXTURE_RULES` 登记——mapped（配 endpoint spec，safeParse 必须通过）或 unmodeled（注明原因）；未登记 / 登记失效会在 `pnpm run validate:fixtures` 与 CI 中 fail loudly。
 > 生成：2026-05-16 | 21 文件
 
 | 文件 | 大小 | 压缩率 | 内容 |

@@ -22,6 +22,7 @@
 ### 1. 数据驱动（本项目最大的坑源）
 
 - **先抓包、后实现**：永远不要猜 API URL 或字段类型。微博有多个 host（`weibo.com` / `m.weibo.cn`），端点 URL 命名无规律。新端点必须先有真实 fixture 再有代码。
+- **内联测试样本 ≠ 真实样本**：schema 字段形状必须以 `tests/fixtures/raw/` 真实样本为准，不要照抄内联测试里的手写 fixture（2026-09-04 教训：`followContent.specialAttention` 真实是分组对象/缺省，内联假设的 array 直接写进了 schema，E5 契约回归才抓出）。
 - **真实类型 ≠ 直觉类型**：`since_id` 实际是 `string`（空串表示无更多）、`total` 可为 `-1`、`followers_count` 才是 `number`。以 fixture 为准。
 - **上游分页会漂移，必须定期复测**（2026-08-09）：mymblog 曾用 `since_id` 游标（2026-05 实测），数月后已弃用改 `page`（`since_id` 恒 `""`、`total` 恒 `-1`、传任意 since_id 均回第一页）。分页策略不是一次验证就完事，翻页能力需周期性用真实数据回归。
 - **`null` ≠ `undefined`**：JSON 里两者不同。递归引用（`retweeted_status`）必须 `.nullable().optional()` 同时处理；内层 retweet 没有 `ok` 字段。

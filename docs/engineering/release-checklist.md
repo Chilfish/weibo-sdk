@@ -19,6 +19,7 @@
 - [ ] `pnpm run lint` 通过
 - [ ] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` 生成）
 - [ ] `pnpm test` 全绿（默认离线）
+- [ ] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse）
 - [ ] `pnpm run size` 通过（size-limit，50 kB 上限）
 - [ ] simple-git-hooks pre-commit 钩子无跳过
 
@@ -36,7 +37,7 @@
 - [ ] CLI 关键命令冒烟：`whoami` / `archive`（如已实现）/ `tweet detail` / `trends`
 - [ ] `sdk.selfCheck()` 在真实 Cookie 下返回 ok
 - [ ] 一次真实归档链路（如已实现 A5-A8）跑通：断点续传 + 进度事件
-- [ ] 新端点 Zod schema 与真实响应 safeParse 通过（离线契约回归脚本，如已实现 E5）
+- [ ] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5）
 
 ## 发布步骤
 
