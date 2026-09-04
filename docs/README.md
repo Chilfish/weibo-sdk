@@ -63,6 +63,7 @@
 | [README.md](development-log/README.md) | 按天日志索引与约定 |
 | [2026-08-09.md](development-log/2026-08-09.md) | 当日记录 |
 | [2026-08-10.md](development-log/2026-08-10.md) | 当日记录（契约冻结规划） |
+| [2026-09-04.md](development-log/2026-09-04.md) | 当日记录（契约冻结 P0 实施） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 
