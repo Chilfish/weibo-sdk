@@ -35,6 +35,7 @@
 - **Cookie 来源收口**：CLI / capture / E2E 只从 `.env` 读取 `WEIBO_COOKIE`（默认 `<pwd>/.env`，`--env-file` 可指定），不再回退到可能过期的环境变量；`--cookie` 仍为显式覆盖。
 - **结构快照改为通用类型占位**：`stripVolatileKeys` 不再依赖 key 白名单，统一保留 key 路径与 `<STR>/<NUM>/<BOOL>/null`；E2E 与 `schemaDigest` 复用同一实现。
 - **版本策略解耦**（P0-3/K2）：契约版本 ≠ 包版本；上游协议漂移走 patch/minor，契约破坏性变更才升 major。0.x 期间 `ITweet` 自 v1 起冻结（P0-6）。
+- **归档 checkpoint 瘦身 + 转发内联**（P1-1/P1-2）：`ArchiveCheckpoint` 删除 `visitedMblogIds`（checkpoint 大小恒定），改用 `page`（当前页）+ `lastTimelineMblogId` 游标；reposts 改为 timeline 阶段内联拉取，删除 `collectTimelineMblogIds` 全量重放；旧 `phase:'reposts'` checkpoint 自动兼容。
 - **raw 边界裁定**：`ArchiveItem` 不携带 raw，下游自行保存；SDK 通过 hooks/回调 + 独立 `enrich` 方法提供 raw/enrich（P1-9）。
 - **公开关键词搜索暂缓**：`searchUsers` / `searchTweets` 不再作为候选能力；`searchProfile`（个人主页内按日期搜索）保留。
 - **E2E 对齐真实契约**：`listByUserId` 断言改为 `page` 游标；favorites 断言改为 `data.status`；快照按新结构更新。

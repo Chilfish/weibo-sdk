@@ -26,8 +26,8 @@
 
 > 对应 review R1-R5 / K4 / E3。
 
-- [ ] **P1-1 `visitedMblogIds` 去重或删除**（R1）：同页重复 → 到底 break（幂等保护）；checkpoint 不再逐 item 携带全量数组（改增量/游标），消除 O(N²) 序列化。
-- [ ] **P1-2 reposts 去重放**（R2）：timeline id 写入 checkpoint 或 timeline 阶段内联拉转发，去掉 `collectTimelineMblogIds` 全量重放。
+- [x] **P1-1 `visitedMblogIds` 删除**（R1）：checkpoint 不再携带任何全量 id 数组（大小恒定），改用 `page` + `lastTimelineMblogId` 游标；单页内按 `mblogid` 去重，整页重复（上游忽略 page）即 break，消除 O(N²) 序列化。（2026-10-19）
+- [x] **P1-2 reposts 去重放**（R2）：转发改为 timeline 阶段**内联拉取**（`timeline item → 其 reposts`），删除 `collectTimelineMblogIds` 全量重放；旧 `phase:'reposts'` checkpoint 兼容回退到 timeline 并按 `lastMblogId` 跳过已完成项。（2026-10-19）
 - [ ] **P1-3 进度事件**（R3）：`archive_progress` Wide Event（total / 已处理 / 剩余）+ CLI 进度输出（NDJSON 带 count/total）。
 - [ ] **P1-4 单条失败策略**（R4）：skip/retry（复用 `retryable` 结构化错误），单条转发失败不中止整条归档。
 - [ ] **P1-5 searchProfile 时间片补齐**（R5）：page 翻到底自动切日期切片，大号（万条级）完整镜像成立。

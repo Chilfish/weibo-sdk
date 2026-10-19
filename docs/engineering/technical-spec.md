@@ -191,11 +191,11 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline → reposts → favorites 一条可恢复流 |
+| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（内联 reposts）→ favorites 一条可恢复流 |
 
 - `ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`：`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`：只保留 key 路径 + 值类型），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
 - `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [contract-itweet-v1.md §4.1](./contract-itweet-v1.md)）。
-- `ArchiveCheckpoint = { uid, phase, page?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`page` 语义 = timeline 阶段下一页页码（mymblog 用 page 游标，恢复时从该页继续）。
+- `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, lastMblogId? }`（P1-1/P1-2）：**不再携带 `visitedMblogIds`**，checkpoint 大小恒定。`page` 语义 = timeline 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博，恢复时跳过该项及之前的项；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。转发在 timeline 阶段内联拉取，不再重放整个 timeline。
 - 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
 
 ### 3.4 EndpointSpec
