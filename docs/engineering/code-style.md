@@ -120,7 +120,6 @@ it('listByUserId_emptySinceId_hasMoreFalse', () => {
 pnpm test            # 默认离线
 pnpm run typecheck   # tsc --noEmit
 pnpm run lint        # eslint --fix
-pnpm run size        # size-limit（50 kB）
 ```
 
 ## Lint / 类型检查

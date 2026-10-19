@@ -79,7 +79,6 @@ export class SDKError extends Error {
 - [ ] 函数复杂度 (Cyclomatic Complexity) < 10
 - [ ] 异步函数是否使用了 `AbortController` 支撑中止操作？
 - [ ] Wide Events 是否覆盖了 Happy Path 和 Error Path？
-- [ ] 包体积是否经过 `size-limit` 验证？
 ```
 
 ---

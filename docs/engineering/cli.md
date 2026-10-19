@@ -13,17 +13,14 @@ npx tsx src/cli.ts --help
 
 ## 配置 Cookie
 
-仅通过环境变量或 `.env` 文件（`src/cli.ts` 顶部自动 `process.loadEnvFile()`）：
+**只从 `.env` 文件读取**（默认 `<pwd>/.env`，可用 `--env-file <path>` 指定）：
 
 ```bash
-# .env 文件（推荐）
+# .env（项目根目录）
 WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
-
-# 或直接导出
-export WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 ```
 
-每个子命令都支持 `--cookie`/`-c` 可选覆盖（优先于环境变量）。
+刻意**不读取 `WEIBO_COOKIE` 环境变量**：本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie（`process.loadEnvFile()` 不覆盖已存在的环境变量）。每个子命令都支持 `--cookie`/`-c` 显式覆盖（优先于 `.env`）。
 
 所有命令默认输出 **JSON 格式**（`JSON.stringify(data, null, 2)`），可用于管道处理：
 
@@ -143,7 +140,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 ```
 src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archive；子命令注册
 src/cli/
-  shared.ts             # getCookie / createSDK / cookieArg（--cookie 共享参数）
+  shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file）
   commands/
     user.ts             # user info / user timeline
     tweet.ts            # tweet detail / comments / home / longtext / reposts / search-profile

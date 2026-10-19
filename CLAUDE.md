@@ -83,7 +83,7 @@ WeiboSDK（门面）
 
 - **每个功能都必须有对应测试用例**。
 - 默认 `pnpm test` 必须离线稳定：unit（纯函数/0 IO）、component（mock HTTP/clock/sleep）、E2E（`WEIBO_E2E=1` 显式开启）。
-- **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `WEIBO_COOKIE` 存在时运行（`describe.skip` 默认跳过）；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**（避免默认 `pnpm test` 误跑）。真实 Cookie 仅存于 `.env` / 环境变量。
+- **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `.env` 中存在 `WEIBO_COOKIE` 时运行（`describe.skip` 默认跳过）；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**（避免默认 `pnpm test` 误跑）。真实 Cookie 仅存于 `.env`（`tests/e2e/setup-env.ts` 只读取该文件，不继承环境变量）。
 - 新增测试前先写失败用例（Red → Green → Refactor）。
 - 详见 `docs/渐进式开发计划.md` 测试策略章节。
 
@@ -145,7 +145,7 @@ WeiboSDK（门面）
 ### 约束
 
 1. 新增公开 Service 方法时，必须在 CLI 中添加对应子命令。
-2. Cookie 优先从 `WEIBO_COOKIE` 环境变量或 `.env` 文件读取；`--cookie`/`-c` 为可选覆盖。
+2. Cookie 只从 `.env` 文件读取（默认 `<pwd>/.env`，可用 `--env-file` 指定）；**不读取环境变量**（可能早已过期）；`--cookie`/`-c` 为显式覆盖。
 3. 所有命令输出必须为 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理。
 4. 错误必须输出到 stderr 并以非零退出码退出。
 

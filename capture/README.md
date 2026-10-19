@@ -35,7 +35,10 @@ pnpm capture --uid 2365795232 --headed --seconds 30
 | `--seconds <n>` | 监听时长（秒） | `15` |
 | `--headed` | 有头模式（默认 headless=new） | headless |
 | `--port <n>` | 调试端口起点（自动找空闲） | `9222` |
-| `--cookie <str>` | 覆盖 `.env` 的 WEIBO_COOKIE | `.env` |
+| `--env-file <path>` | `.env` 文件路径 | `<pwd>/.env` |
+| `--cookie <str>` | 显式覆盖 `.env` 中的 WEIBO_COOKIE | `.env` |
+
+> Cookie **只从 `.env` 读取**，不读取 `WEIBO_COOKIE` 环境变量（避免旧值遮蔽）。
 
 ## 编程 API（契约）
 
@@ -49,7 +52,8 @@ export interface CaptureOptions {
   headless?: boolean                             // 默认 true
   outDir?: string                                // 落盘目录（默认不落盘）
   port?: number                                  // 调试端口起点，默认 9222
-  cookie?: string                                // 覆盖 .env WEIBO_COOKIE
+  cookie?: string                                // 显式覆盖 .env WEIBO_COOKIE
+  envFile?: string                               // .env 路径，默认 <pwd>/.env
   chromePath?: string                            // 覆盖 Chrome 可执行路径
   filter?: (url: string) => boolean              // 自定义请求过滤（默认 isApi）
 }

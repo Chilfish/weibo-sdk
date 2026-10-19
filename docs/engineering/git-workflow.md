@@ -85,7 +85,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 
 - `simple-git-hooks` + `lint-staged` 在 `prepare` 自动安装，pre-commit 钩子已配置
 - **禁止 `--no-verify` 跳过钩子**；钩子失败必须修复根因
-- **E2E 门控**：`tests/e2e/**` 仅在 `WEIBO_E2E=1` **且** `WEIBO_COOKIE` 存在时运行；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**
+- **E2E 门控**：`tests/e2e/**` 仅在 `WEIBO_E2E=1` **且** `.env` 中存在 `WEIBO_COOKIE` 时运行；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**；Cookie 不读取环境变量
 
 ## 代码审查
 

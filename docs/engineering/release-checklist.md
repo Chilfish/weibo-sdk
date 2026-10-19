@@ -1,13 +1,15 @@
 # Release Checklist
 
-**项目**: weibo-sdk | **最后更新**: 2026-08-09
+**项目**: weibo-sdk | **最后更新**: 2026-10-19
 
 > weibo-sdk 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（打 tag + GitHub Release + `pnpm publish`）时的完整清单。
 
 ## 版本纪律
 
-- **版本号单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
+- **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
+- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)
+- **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v2 + major）
 - 仅在**验证门禁全绿**后打 tag：`git tag v0.1.0 && git push --tags`
 - 每次发布 version 单调递增，禁止回退
 - `CHANGELOG.md` 的 Unreleased 节在发布前迁移到版本节
@@ -20,7 +22,6 @@
 - [ ] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` 生成）
 - [ ] `pnpm test` 全绿（默认离线）
 - [ ] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse）
-- [ ] `pnpm run size` 通过（size-limit，50 kB 上限）
 - [ ] simple-git-hooks pre-commit 钩子无跳过
 
 ## 公共导出面核验
@@ -31,7 +32,7 @@
 
 ## 功能冒烟（真实环境，`WEIBO_E2E=1`）
 
-> 真实 Cookie 验证在 `.env` 提供，勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
+> 真实 Cookie **只从项目根目录 `.env` 读取**（`tests/e2e/setup-env.ts` 会覆盖环境变量），勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
 
 - [ ] `pnpm test:e2e` 全绿（E2E 结构快照通过）
 - [ ] CLI 关键命令冒烟：`whoami` / `archive`（如已实现）/ `tweet detail` / `trends`

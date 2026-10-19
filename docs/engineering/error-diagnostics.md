@@ -51,6 +51,7 @@
    ```
 2. 确认 Cookie 中的 `SUB=` 值是否仍然有效（在浏览器中打开 weibo.com 验证）
 3. 重新获取有效的 Cookie 并替换 `.env` 中的值
+4. CLI 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 可指定），不读取 `WEIBO_COOKIE` 环境变量；`whoami` 报错时会打印实际读取路径，先确认路径正确
 
 **hook 示例**：
 ```typescript

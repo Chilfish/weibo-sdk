@@ -16,6 +16,12 @@
 - **会话自检**：`selfCheck()` 支持 lazy/eager/none 三种模式，Cookie 过期提前诊断
 - **速率控制**：令牌桶算法，支持并发控制，避免触发风控
 
+## 版本与契约
+
+- **包版本 0.x**：实现可随微博上游漂移修复（patch/minor），不承诺实现细节稳定。
+- **`ITweet` 存档契约自 v1 冻结**：字段只增不改；rename / remove / 类型变更才升 v2 并随包 major 发布。
+- 契约版本与包版本解耦，规则见 [`docs/engineering/contract-itweet-v1.md`](./docs/engineering/contract-itweet-v1.md)。
+
 ## 快速开始
 
 ### 安装与构建
@@ -42,7 +48,7 @@ console.log(user.id, user.name, user.stats.followers)
 
 ```typescript
 const page = await sdk.tweets.listByUserId('1111681197')
-console.log(page.sinceId, page.tweets[0]?.id)
+console.log(page.page, page.hasMore, page.tweets[0]?.id)
 ```
 
 ### 获取单条微博详情
@@ -50,6 +56,15 @@ console.log(page.sinceId, page.tweets[0]?.id)
 ```typescript
 const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
 console.log(tweet.text, tweet.media)
+```
+
+### CLI
+
+CLI 的 Cookie **只从 `.env` 读取**（默认 `<pwd>/.env`，可用 `--env-file` 指定），不读取环境变量；`--cookie`/`-c` 为显式覆盖。
+
+```bash
+pnpm build
+node dist/cli.mjs whoami
 ```
 
 ## 文档
@@ -66,7 +81,7 @@ console.log(tweet.text, tweet.media)
 ## 测试
 
 - 离线测试（默认）：`pnpm test`
-- E2E（真实 Cookie + 外网，默认跳过）：`WEIBO_E2E=1 WEIBO_COOKIE="<your-cookie>" pnpm test:e2e`
+- E2E（真实 Cookie + 外网，默认跳过）：在项目根目录 `.env` 配置 `WEIBO_COOKIE` 后运行 `pnpm test:e2e`（不读取环境变量）
 
 ## 开发
 
