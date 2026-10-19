@@ -1,6 +1,6 @@
-import type { TweetContractVersion } from '~/types/domain/ITweet'
 import type { FavoritesResponse } from '../endpoints/favorite'
 import type { MyMblogResponse, RepostTimelineResponse } from '../endpoints/tweet'
+import type { TweetContractVersion } from '~/types/domain/ITweet'
 import { Tweet } from '~/models/data/Tweet'
 import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
 import { stripVolatileKeys } from '~/utils/structure'
@@ -50,6 +50,19 @@ export interface ArchiveItem {
 }
 
 /**
+ * 归档级 raw 回调元数据（P1-9）。
+ */
+export interface ArchiveRawMeta {
+  uid: string
+  source: ArchiveItem['source']
+  mblogId: string
+  /** 当前阶段页码（timeline / favorites） */
+  page?: number
+  /** repost 阶段：转发所属原微博 mblogId */
+  parentMblogId?: string
+}
+
+/**
  * ArchiveService 依赖（注入子 Service，便于离线 mock）。
  * 通过轻量接口隔离，ArchiveService 只编排不直接发请求。
  */
@@ -74,6 +87,12 @@ export interface ArchiveStreamOptions {
   maxPagesPerPhase?: number
   /** 断点续传：传入上次保存的 checkpoint */
   checkpoint?: ArchiveCheckpoint
+  /**
+   * 归档级 raw 回调（P1-9）：每个原始微博项在归一化前触发。
+   *
+   * `raw` 为上游原始 JSON（未校验），下游自行落盘；`ArchiveItem` 不携带 raw。
+   */
+  onRaw?: (raw: unknown, meta: ArchiveRawMeta) => void | Promise<void>
 }
 
 /**
@@ -108,6 +127,7 @@ export class ArchiveService {
         const raw = await this.deps.tweets.myMblog(uid, page, count)
         const list = raw.data.list || []
         for (const item of list) {
+          await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page })
           cp.visitedMblogIds.push(item.mblogid)
           yield {
             schemaVersion: TWEET_CONTRACT_VERSION,
@@ -144,6 +164,13 @@ export class ArchiveService {
           const reposts = await this.deps.tweets.getReposts(mblogId, { page })
           const list = reposts.data || []
           for (const item of list) {
+            await options.onRaw?.(item, {
+              uid,
+              source: 'repost',
+              mblogId: item.mblogid,
+              page,
+              parentMblogId: mblogId,
+            })
             cp.visitedMblogIds.push(item.mblogid)
             yield {
               schemaVersion: TWEET_CONTRACT_VERSION,
@@ -175,6 +202,7 @@ export class ArchiveService {
         const favs = await this.deps.favorites.getFavorites(uid, page)
         const list = favs.data.status || []
         for (const item of list) {
+          await options.onRaw?.(item, { uid, source: 'favorite', mblogId: item.mblogid, page })
           cp.visitedMblogIds.push(item.mblogid)
           yield {
             schemaVersion: TWEET_CONTRACT_VERSION,

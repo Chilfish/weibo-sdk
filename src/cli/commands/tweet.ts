@@ -10,6 +10,23 @@ export const tweetDetail = defineCommand({
   },
 })
 
+export const tweetEnrich = defineCommand({
+  meta: { name: 'enrich', description: '补拉微博原始响应 + 归一化模型（可选长微博全文）' },
+  args: {
+    'id': { type: 'positional', description: '微博 mblogId', required: true },
+    'longtext': { type: 'boolean', description: '额外补拉长微博全文' },
+    'no-longtext': { type: 'boolean', description: 'statuses/show 不请求长微博全文' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const result = await createSDK(args).tweets.enrich(args.id, {
+      includeLongText: args.longtext,
+      isGetLongText: !args['no-longtext'],
+    })
+    console.log(JSON.stringify(result, null, 2))
+  },
+})
+
 export const tweetComments = defineCommand({
   meta: { name: 'comments', description: '获取微博评论' },
   args: {

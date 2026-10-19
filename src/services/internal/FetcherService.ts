@@ -2,7 +2,7 @@ import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { ZodTypeAny } from 'zod'
 import type { IWeiboConfig } from '../../types/config'
 import type { EndpointArgsFromSchema, EndpointSpec } from './EndpointSpec'
-import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks } from '~/types/hooks'
+import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks, WeiboSDKRawMeta } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
 import axios from 'axios'
@@ -251,6 +251,16 @@ export class FetcherService {
       resourceType: spec.resourceType,
     })
 
+    // P1-9：raw 必须在 okPolicy / Zod 校验前交付，保证失败响应也能被下游保存。
+    await this.emitRaw(raw, {
+      endpoint: spec.endpoint,
+      resourceType: spec.resourceType,
+      request,
+      args: argsRecord,
+      trace_id: traceId,
+      timestamp: Date.now(),
+    })
+
     const ok = getOk(raw)
     // 非 JSON 对象响应（HTML 登录页/风控页）不适用「ok !== 1」业务语义：跳过业务检查，
     // 让 schema 校验失败路径抛 ProtocolError（分类更准确，避免误报 API_NOT_OK）。
@@ -372,6 +382,10 @@ export class FetcherService {
       trace_id: createTraceId(),
       timestamp: Date.now(),
     })
+  }
+
+  protected async emitRaw(raw: unknown, meta: WeiboSDKRawMeta): Promise<void> {
+    await this.hooks?.onRaw?.(raw, meta)
   }
 
   protected async emitError(

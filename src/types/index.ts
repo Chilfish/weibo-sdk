@@ -6,7 +6,8 @@ export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, 
 // src/types/index.ts
 // Endpoint 响应类型（zod-inferred，服务的实际返回类型）
 export type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
-export type { ArchiveCheckpoint, ArchiveItem, ArchivePhase, ArchiveServiceDeps, ArchiveStreamOptions } from '../services/public/ArchiveService'
+export type { ArchiveCheckpoint, ArchiveItem, ArchivePhase, ArchiveRawMeta, ArchiveServiceDeps, ArchiveStreamOptions } from '../services/public/ArchiveService'
+export type { TweetEnrichOptions, TweetEnrichResult } from '../services/public/TweetService'
 
 export * from './config'
 export * from './domain/ITweet'

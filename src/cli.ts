@@ -6,7 +6,7 @@ import pkg from '../package.json' with { type: 'json' }
 import { favoriteList, favoriteTags } from './cli/commands/favorite'
 import { followFans, followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
-import { tweetComments, tweetDetail, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
+import { tweetComments, tweetDetail, tweetEnrich, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
 import { userInfo, userTimeline } from './cli/commands/user'
 import { cookieArg, createSDK, getCookie, getEnvFilePath } from './cli/shared'
 
@@ -126,7 +126,7 @@ const main = defineCommand({
     }),
     tweet: defineCommand({
       meta: { name: 'tweet', description: '微博相关操作' },
-      subCommands: { 'detail': tweetDetail, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'reposts': tweetReposts, 'search-profile': tweetSearchProfile },
+      subCommands: { 'detail': tweetDetail, 'enrich': tweetEnrich, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'reposts': tweetReposts, 'search-profile': tweetSearchProfile },
     }),
     follow: defineCommand({
       meta: { name: 'follow', description: '关注列表' },

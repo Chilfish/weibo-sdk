@@ -16,6 +16,26 @@ export interface TweetPageResult {
   tweets: Tweet[]
 }
 
+export interface TweetEnrichOptions {
+  /** `statuses/show` 的 isGetLongText 参数（默认 true） */
+  isGetLongText?: boolean
+  /** 是否额外请求 `longtext` 端点补拉长微博全文（默认 false） */
+  includeLongText?: boolean
+}
+
+/**
+ * enrich 结果（P1-9）：raw 与归一化模型一起返回，调用方自行决定是否落盘。
+ *
+ * `raw` 保留 `statuses/show` 的 passthrough 字段（未被 `ITweet` 映射的字段也在），
+ * `tweet` 与 `getByMblogId` 同构；二者都不改变 `ITweet` v1 契约。
+ */
+export interface TweetEnrichResult {
+  tweet: Tweet
+  raw: StatusShowResponse
+  /** 长微博全文（仅 `includeLongText: true` 时请求；优先 `longTextContent_raw`） */
+  longText?: string
+}
+
 /** 首页 Feed 默认关注分组 id（实测 friendstimeline 不带 list_id 会返回服务端 500） */
 const DEFAULT_HOME_LIST_ID = '4665452701982436'
 
@@ -136,6 +156,39 @@ export class TweetService extends FetcherService {
       duration_ms: Date.now() - startAt,
     })
     return tweet
+  }
+
+  /**
+   * 补拉单条微博：同时返回原始响应与归一化模型（P1-9）。
+   *
+   * 用于下游需要保存 raw、或仅需刷新单条微博媒体 URL 的场景。
+   *
+   * @example
+   * const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', { includeLongText: true })
+   * await saveRaw(tweet.mblogId, raw)
+   */
+  public async enrich(mblogId: string, options: TweetEnrichOptions = {}): Promise<TweetEnrichResult> {
+    const traceId = `${Date.now()}-enrich-${++normalizeSeq}`
+    const raw = await this.show(mblogId, options.isGetLongText ?? true)
+    const startAt = Date.now()
+    const tweet = new Tweet(raw)
+
+    let longText: string | undefined
+    if (options.includeLongText) {
+      const response = await this.longText(mblogId)
+      longText = response.data.longTextContent_raw ?? response.data.longTextContent
+    }
+
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: traceId,
+      model: 'Tweet',
+      count: 1,
+      duration_ms: Date.now() - startAt,
+    })
+
+    return { tweet, raw, longText }
   }
 
   /** 获取微博评论列表 `GET /ajax/statuses/buildComments` */

@@ -124,6 +124,47 @@ describe('archiveService', () => {
     expect(digest.user).toEqual({ id: '<NUM>', idstr: '<STR>', screen_name: '<STR>' })
   })
 
+  it('delivers raw items via onRaw without adding raw to ArchiveItem (P1-9)', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
+    getReposts.mockResolvedValue({ ok: 1, data: [mkRaw('R1')], total_number: 1, max_page: 1, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [mkRaw('F1')], total_number: 1 } })
+
+    const calls: Array<{ raw: any, meta: any }> = []
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', {
+      onRaw: (raw, meta) => {
+        calls.push({ raw, meta })
+      },
+    }) as any)
+
+    expect(calls.map(c => c.meta.source)).toEqual(['timeline', 'timeline', 'repost', 'repost', 'favorite'])
+    expect(calls[0].meta).toEqual({ uid: '111', source: 'timeline', mblogId: 'A', page: 1 })
+    expect(calls[1].meta).toEqual({ uid: '111', source: 'timeline', mblogId: 'B', page: 1 })
+    expect(calls[2].meta).toEqual({ uid: '111', source: 'repost', mblogId: 'R1', page: 1, parentMblogId: 'A' })
+    expect(calls[3].meta).toEqual({ uid: '111', source: 'repost', mblogId: 'R1', page: 1, parentMblogId: 'B' })
+    expect(calls[4].meta).toEqual({ uid: '111', source: 'favorite', mblogId: 'F1', page: 1 })
+    expect(calls[2].raw.mblogid).toBe('R1')
+
+    // 契约 §4.1：归档信封不新增 raw 字段
+    expect(items.every(item => !('raw' in item))).toBe(true)
+  })
+
+  it('surfaces onRaw errors instead of silently dropping raw', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+
+    await expect(collect(service.streamArchive('111', {
+      onRaw: () => {
+        throw new Error('disk full')
+      },
+    }) as any)).rejects.toThrow('disk full')
+  })
+
   it('honors includeReposts=false to skip the reposts phase', async () => {
     const { deps, getReposts, getFavorites } = createDeps()
     const { myMblog } = deps.tweets as any

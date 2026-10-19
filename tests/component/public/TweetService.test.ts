@@ -443,6 +443,125 @@ describe('tweetService', () => {
     }))
   })
 
+  it('enrich returns raw + normalized tweet without changing ITweet v1', async () => {
+    const showRaw = {
+      ok: 1,
+      id: 1,
+      idstr: '1',
+      mblogid: 'QqsYymYOS',
+      created_at: 'now',
+      text: '<span>html</span>',
+      text_raw: 'plain',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+      unmodeled_field: 'kept-in-raw',
+    }
+
+    const { client, getLastConfig } = createFakeAxios(async () => showRaw)
+    const telemetry = { emit: vi.fn(async () => {}) }
+    const service = new TweetService(
+      { cookie: 'SUB=abc', telemetry },
+      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+    )
+
+    const result = await service.enrich('QqsYymYOS')
+
+    expect(result.tweet.mblogId).toBe('QqsYymYOS')
+    expect(result.tweet.text).toBe('plain')
+    // passthrough 字段保留：raw 是下游自行落盘的完整响应
+    expect((result.raw as any).unmodeled_field).toBe('kept-in-raw')
+    expect(result.longText).toBeUndefined()
+    expect(getLastConfig()?.params).toEqual({ id: 'QqsYymYOS', isGetLongText: true })
+    expect(telemetry.emit).toHaveBeenCalledWith(expect.objectContaining({
+      event_name: 'normalize_done',
+      model: 'Tweet',
+      count: 1,
+      duration_ms: expect.any(Number),
+    }))
+  })
+
+  it('enrich pulls long text only when includeLongText is true', async () => {
+    const showRaw = {
+      ok: 1,
+      id: 1,
+      idstr: '1',
+      mblogid: 'MB1',
+      created_at: 'now',
+      text: '',
+      text_raw: 'short',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+    }
+    const longRaw = { ok: 1, data: { longTextContent: '<p>html</p>', longTextContent_raw: 'plain long' } }
+    const calls: Array<{ url?: string, params?: unknown }> = []
+
+    const { client } = createFakeAxios(async (cfg) => {
+      calls.push({ url: cfg.url, params: cfg.params })
+      return cfg.url?.endsWith('/longtext') ? longRaw : showRaw
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const result = await service.enrich('MB1', { includeLongText: true, isGetLongText: false })
+
+    expect(result.longText).toBe('plain long')
+    expect(calls.map(c => c.url)).toEqual([
+      'https://weibo.com/ajax/statuses/show',
+      'https://weibo.com/ajax/statuses/longtext',
+    ])
+    expect(calls[0].params).toEqual({ id: 'MB1', isGetLongText: false })
+
+    calls.length = 0
+    await service.enrich('MB1')
+    expect(calls.map(c => c.url)).toEqual(['https://weibo.com/ajax/statuses/show'])
+  })
+
+  it('onRaw receives raw before schema validation (even when parsing fails)', async () => {
+    // 缺 id/idstr → 必然 schema 失败
+    const raw = { ok: 1, mblogid: 'x', user: {} }
+    const onRaw = vi.fn()
+
+    const { client } = createFakeAxios(async () => raw)
+    const service = new TweetService(
+      { cookie: 'SUB=abc', hooks: { onRaw } },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+
+    expect(onRaw).toHaveBeenCalledTimes(1)
+    expect(onRaw).toHaveBeenCalledWith(raw, expect.objectContaining({
+      endpoint: 'ajax/statuses/show',
+      resourceType: 'TWEET_SHOW',
+      args: { id: 'x', isGetLongText: true },
+      request: expect.objectContaining({
+        method: 'GET',
+        url: 'https://weibo.com/ajax/statuses/show',
+      }),
+      trace_id: expect.any(String),
+      timestamp: expect.any(Number),
+    }))
+  })
+
+  it('onRaw receives raw before ok-policy rejection', async () => {
+    const raw = { ok: 0, msg: 'bad id' }
+    const onRaw = vi.fn()
+
+    const { client } = createFakeAxios(async () => raw)
+    const service = new TweetService(
+      { cookie: 'SUB=abc', hooks: { onRaw } },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.show('x')).rejects.toBeInstanceOf(WeiboAPINotOkError)
+
+    expect(onRaw).toHaveBeenCalledWith(raw, expect.objectContaining({
+      endpoint: 'ajax/statuses/show',
+    }))
+  })
+
   it('comments sends required params (is_reload/type/... )', async () => {
     const response = { ok: 1, data: [], total_number: 0 } as any
 
