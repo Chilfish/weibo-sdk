@@ -13,12 +13,14 @@
 
 > 对应 review K1 / K2 / K3 与契约卫生（C3/E2/E5/F2）。
 
-- [ ] **P0-1 冻结 ITweet 为 v1 存档契约**（K1）：定义版本机制——给存档条目加 `schemaVersion`（外层包裹 `{v, tweet}`，ITweet 本体保持稳定）或文档冻结 v1 + 迁移策略；与 web-archiver 阶段 C 的 dexie `version()` 升级联动设计。
-- [ ] **P0-2 裁定媒体契约**（K3，**跨项目，先开会**）：SDK 归档时下载媒体到本地/持久存储，还是明示「media URL 临时、消费方自抓」；与 archiver 拍板后写入 requirements-spec。该决定同时定义 `ArchiveItem` 形状（`{tweet}` vs `{tweet, mediaFiles}`）。
-- [ ] **P0-3 版本策略解耦**（K2）：不再「主版本跟随协议漂移」；契约变更才 major，协议漂移走内部 schema 修复 + patch/minor。写入 `release-checklist.md`。
-- [ ] **P0-4 契约卫生**：C3 消 `args as any`（comments / searchByDate / friendTimeline 走 argsSchema 类型推导）；E2 `filterTweets` 的 `any` → `unknown` + 收窄；F2 raw 方法标 `@deprecated`（show / myMblog / friendTimeline 等），normalized 为默认。
-- [ ] **P0-5 离线契约回归落地**（E5）：`scripts/validate-fixtures.ts` 遍历 `tests/fixtures/raw/*.json` × 对应 schema 做 safeParse，入 CI。
-- [ ] **P0-6 版本声明**：0.x 明确「实现不稳定、契约冻结」，或直接发 1.0；与 archiver 锁版本策略对齐（集成文档 §9.6）。
+- [x] **P0-1 冻结 ITweet 为 v1 存档契约**（K1）：`TWEET_CONTRACT_VERSION = 1`；`ArchiveItem` 信封携带 `schemaVersion`；契约规则/冻结表/迁移策略见 [contract-itweet-v1.md](../engineering/contract-itweet-v1.md)，形状锁在 `tests/unit/contract/itweet-v1.test.ts`。（2026-09-04，`10c1e3e`）
+- [x] **P0-2 裁定媒体契约**（K3）：选「URL 临时、消费方自抓」；`ArchiveItem` 定形 `{ schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`（无 `mediaFiles`）；媒体下载辅助留 P1-7。裁定与理由见 [contract-itweet-v1.md §4](../engineering/contract-itweet-v1.md)。（2026-09-04）
+- [x] **P0-3 版本策略解耦**（K2）：契约版本 ≠ 包版本；协议漂移走内部 schema 修复 + patch/minor，契约破坏性变更才 major。已写入 [release-checklist.md](../engineering/release-checklist.md)「版本纪律」。（2026-09-04/2026-10-19）
+- [x] **P0-4 契约卫生**：C3 消 `args as any`；E2 `filterTweets` `any` → `unknown` + `isRawTweet` 收窄；F2 raw 方法标 `@deprecated`。见 `dc18389`。（2026-09-04）
+- [x] **P0-5 离线契约回归落地**（E5）：`scripts/validate-fixtures.ts` 遍历 fixtures × schema 做 safeParse，接入 CI 与单测；落地时抓到 `specialAttention` 真实漂移并修复（`0671638`、`7a8bfd4`）。（2026-09-04）
+- [x] **P0-6 版本声明**：0.x 明确「实现可随上游漂移修复，ITweet 存档契约自 v1 冻结、只增不改」；README/CHANGELOG 与 archiver 锁版本策略对齐。（2026-09-04 裁定，2026-10-19 文档回填）
+
+> **2026-10-19 状态**：P0 六项全部收口；真实 E2E 18/18（Cookie 只读 `.env`，结构快照改为纯类型占位）。剩余 DoD（万条级验证 / 媒体职责跨项目确认 / browser 冒烟）转入 P1/P2 跟踪；调研结论见 [research-weibo-ecosystem-2026-10-19.md](./research-weibo-ecosystem-2026-10-19.md)。
 
 ## P1 · 归档硬化（产品主线）
 
@@ -32,6 +34,7 @@
 - [ ] **P1-6 评论归档**（K4）：ArchiveService 加 comments 阶段，「完整镜像」不缺评论。
 - [ ] **P1-7 媒体下载进归档流**（若 P0-2 裁定 SDK 负责）。
 - [ ] **P1-8 E3 变种测试补全**：含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag`（长图文）/ 广告（`isAd`）四类，覆盖 `extractMedia` 最复杂路径。
+- [ ] **P1-9 raw / enrich 访问 API**（K5 衍生，2026-10-19 裁定）：`ArchiveItem` 不携带 raw；设计请求级 / 归档级 raw 回调 + 独立 `enrich` 方法，下游自行落盘 raw。规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。
 
 ## P2 · 下游集成就绪
 
@@ -48,12 +51,12 @@
 
 ## 完成定义（DoD）
 
-- [ ] `pnpm test` 通过（默认离线，e2e 全跳）；`pnpm run typecheck` 通过
-- [ ] ITweet 契约冻结为 v1（含版本机制或冻结文档）
+- [x] `pnpm test` 通过（默认离线，e2e 全跳）；`pnpm run typecheck` 通过（2026-10-19：135 passed / 18 skipped）
+- [x] ITweet 契约冻结为 v1（含版本机制或冻结文档）
 - [ ] ArchiveService 大号验证：万条级账号可完整镜像、无 O(N²) 序列化、可断点续传、有进度
-- [ ] 媒体契约与 archiver 拍板
+- [x] 媒体契约裁定（URL 临时、消费方自抓；与 archiver 的最终同步仍待其仓库可读）
 - [ ] browser 冒烟通过（web-v3 / monkey 可消费）
-- [ ] 文档与代码一致（docs-as-truth）
-- [ ] 开发日志记录本阶段；关键返工沉淀 postmortem
+- [x] 文档与代码一致（docs-as-truth；2026-10-19 已回填 P0 状态与调研）
+- [x] 开发日志记录本阶段；关键返工沉淀 postmortem（[009-cookie-env-shadowing](../postmortem/009-cookie-env-shadowing.md)）
 
 > 阶段完成后本档移入 `docs/archive/`，未完成项回流 [backlog.md](./backlog.md)。

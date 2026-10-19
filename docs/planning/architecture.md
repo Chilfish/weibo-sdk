@@ -85,7 +85,7 @@
 - **决策**: 选 citty（unjs 生态、零依赖、函数式 `defineCommand`）实现 CLI；确立「每个 SDK 功能必须通过 CLI 暴露」的强制规范。
 - **背景**: 对比 cac（类型推导浅）、clipanion（装饰器 + RC），citty 匹配项目风格。
 - **理由**: 可观测性 + 可测试性：所有服务能力可用 CLI 验证，无需写测试代码；JSON 输出可管道处理。
-- **后果**: 新增公开 Service 方法时必须加 CLI 子命令；Cookie 从 `WEIBO_COOKIE`/`.env` 读取，`--cookie` 可选覆盖；错误输出 stderr + 非零退出码。
+- **后果**: 新增公开 Service 方法时必须加 CLI 子命令；Cookie 只从 `.env` 读取（默认 `<pwd>/.env`，`--env-file` 可指定），`--cookie` 显式覆盖，不读取环境变量；错误输出 stderr + 非零退出码。
 
 ## ADR-010: Fixture 脱敏策略（类型感知占位符）
 
@@ -100,10 +100,10 @@
 
 - **日期**: 2026-05-16
 - **状态**: accepted
-- **决策**: E2E 快照用 `stripVolatileKeys()` 把可变值替换为类型占位符，只验证响应结构（key 路径 + 值类型），不验证具体值。
-- **背景**: 微博 API 的计数器、签名 URL、ID 每次请求都不同，值快照 = flaky test。
-- **理由**: 快照应作为「Schema 漂移检测器」，而非数据正确性断言。
-- **后果**: `tests/e2e/__snapshots__/` 结构快照覆盖全部核心 endpoint；E2E 失败 = 结构变更信号，需人工确认。
+- **决策**: E2E 快照用 `stripVolatileKeys()` 把可变值替换为类型占位符，只验证响应结构（key 路径 + 值类型），不验证具体值。实现为通用归一化：对象保留全部 key、数组只保留首元素、原始值统一为 `<STR>` / `<NUM>` / `<BOOL>` / `null`（2026-10-19 从 key 白名单改为通用规则）。
+- **背景**: 微博 API 的计数器、签名 URL、ID 每次请求都不同，值快照 = flaky test；旧白名单不完整，动态字段仍会误报。
+- **理由**: 快照应作为「Schema 漂移检测器」，而非数据正确性断言；字段增删/类型变化必须触发、单纯值变化必须不触发。
+- **后果**: `tests/e2e/__snapshots__/` 结构快照覆盖全部核心 endpoint；E2E 失败 = 结构变更信号，需人工确认。E2E 与 `ArchiveService.schemaDigest` 统一复用 `src/utils/structure.ts`。
 
 ## ADR-012: 文档即事实（docs-as-truth）+ 文档体系
 

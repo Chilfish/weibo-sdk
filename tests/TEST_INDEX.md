@@ -63,8 +63,10 @@
 
 | 文件 | 覆盖内容 | 前提条件 |
 |---|---|---|
-| `e2e/user.e2e.test.ts` | 真实网络下 UserService 端到端 | `WEIBO_E2E=1` + 有效 `WEIBO_COOKIE` |
-| `e2e/tweet.e2e.test.ts` | 真实网络下 TweetService 端到端 | `WEIBO_E2E=1` + 有效 `WEIBO_COOKIE` |
+| `e2e/user.e2e.test.ts` | 真实网络下 UserService 端到端 | `WEIBO_E2E=1` + `.env` 中有效 `WEIBO_COOKIE` |
+| `e2e/tweet.e2e.test.ts` | 真实网络下 TweetService 端到端 | `WEIBO_E2E=1` + `.env` 中有效 `WEIBO_COOKIE` |
+| `e2e/new-endpoints.e2e.test.ts` | longtext / friendships / followContent / searchProfile / favorites 结构快照 | 同上 |
+| `e2e/snapshot.e2e.test.ts` | profile / mymblog / show 结构快照 + 归一化形状 + SDK 生命周期 | 同上；2026-10-19 起 18/18 通过 |
 
 ---
 
@@ -72,7 +74,7 @@
 
 所有 component/unit 测试均使用 **mock HTTP**（`tests/testkit/fakeAxios.ts`），不依赖真实网络。
 
-E2E 测试从 `.env` 中读取 `WEIBO_COOKIE` 并使用真实 API。
+E2E 测试只从 `.env` 中读取 `WEIBO_COOKIE`（`tests/e2e/setup-env.ts` 会覆盖环境变量）并使用真实 API。结构快照统一使用 `src/utils/structure.ts` 的 `stripVolatileKeys`（只保留 key 路径 + 值类型），快照失败 = 上游结构变更信号。
 
 ### 真实 API 响应 Fixtures
 

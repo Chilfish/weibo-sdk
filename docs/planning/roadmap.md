@@ -59,6 +59,14 @@
 **核心教训**：Schema ≠ 真相。所有生产 Bug 均源于"合理推断"而非"数据验证"，必须抓包取真实 fixture。
 **第二教训（2026-08-09）**：上游分页策略会漂移——mymblog 曾用 `since_id`（2026-05 实测），数月后弃用改 `page`。分页/字段类型需周期性用真实数据回归，不能一次验证终身有效。
 
+**2026-10-19 真实回归**（Cookie 只读 `.env` 后跑通 18/18 E2E）：
+
+- `mymblog`：`since_id` 已不可用，`page` 游标成立；`listByUserId()` 返回 `page`，不再返回 `sinceId`。
+- `favorites`：`data = { status, total_number }` 对象，不是数组。
+- `searchProfile`：无日期与带日期参数均可用；曾出现一次瞬时空列表，重跑恢复——测试需容忍瞬时空结果。
+- `friendships`：raw 用户字段继续增加（`pay_date` / `brand_ability` 等），`passthrough` 承接。
+- `statuses/show` + `mix_media_info`：稳定；LivePhoto 的 `gif_mp4` 作为 `videoUrl` 输出。
+
 ---
 
 ## 开发路线图
@@ -90,16 +98,20 @@
 - [ ] 含 `continue_tag`（长图文）
 - [ ] 广告（`isAd: true`）
 
-### Phase 4：自动化 Schema 校验（P2）
-- [ ] 编写 `scripts/validate-fixtures.ts`：遍历 `tests/fixtures/raw/*.json` 用对应 schema 做 safeParse，输出校验报告
+### Phase 4：自动化 Schema 校验（P2）— ✅ 已完成
+- [x] 编写 `scripts/validate-fixtures.ts`：遍历 `tests/fixtures/raw/*.json` 用对应 schema 做 safeParse，输出校验报告（`pnpm run validate:fixtures`，已入 CI；2026-10-19 复核 38 fixtures / 33 mapped / 0 fail）
 
 ### Phase 5：新端点开发（P1）
 已完成：`longtext` / `buildComments` / `friendstimeline` / `bandUnified` / `searchProfile` / `friendships/friends` / `followContent` / `favorites/all_fav` / `search*`
 
-待扩展（按优先级）：
-1. [ ] 转发列表 `/ajax/statuses/repostTimeline`
-2. [ ] 粉丝列表（`ajax/friendships/friends` 对偶）
-3. [ ] 收藏夹标签 `/ajax/favorites/tags`（fixture 已有 `favorites_tags.json`）
+> 注：`searchUsers` / `searchTweets` 公开关键词搜索已**产品暂缓**（2026-10-19：官方搜索体验差、接口失效）；`searchProfile`（个人主页内按日期搜索）仍可用，属于归档主线。
+
+已完成（归档 MVP）：
+1. [x] 转发列表 `/ajax/statuses/repostTimeline`
+2. [x] 粉丝列表（`ajax/friendships/friends` 对偶）
+3. [x] 收藏夹标签 `/ajax/favorites/tags`（fixture 已有 `favorites_tags.json`）
+
+后续扩展候选见 [backlog.md](./backlog.md)（评论回复树 / 搜索增强 / 搜索接口恢复）。
 
 每个新端点流程：
 1. curl 获取真实响应并存 fixture
@@ -120,7 +132,7 @@
 | Fixture-based | 无 | 真实脱敏 fixture | `pnpm test` |
 | E2E | 真实 | 真实 Cookie | `WEIBO_E2E=1`（由 `vitest.e2e.config.ts` 显式设置） |
 
-> **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `WEIBO_COOKIE` 存在时运行，否则整组 `describe.skip`。`WEIBO_E2E` 不放入 `.env`（Vitest 默认加载 `.env`，会污染默认 `pnpm test`）；真实 Cookie 仅存于 `.env` / 环境变量。
+> **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `.env` 中存在 `WEIBO_COOKIE` 时运行，否则整组 `describe.skip`。`WEIBO_E2E` 不放入 `.env`（Vitest 默认加载 `.env`，会污染默认 `pnpm test`）；真实 Cookie 仅存于 `.env`（`tests/e2e/setup-env.ts` 只读该文件，不继承环境变量）。
 
 ---
 
@@ -176,7 +188,7 @@ for p in data['data']['list']:
 
 ## 现有 Fixture 清单
 
-完整清单与脱敏规则见 `tests/fixtures/raw/INDEX.md`（**唯一事实源**）。当前 31 个 JSON fixture，按端点分组：
+完整清单与脱敏规则见 `tests/fixtures/raw/INDEX.md`（**唯一事实源**）。当前 38 个 JSON fixture（33 个已映射 schema + 5 个显式 unmodeled），按端点分组：
 
 | 端点 | fixture | 说明 |
 |---|---|---|

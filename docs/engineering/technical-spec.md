@@ -183,7 +183,7 @@ interface IWeiboConfig {
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
 **FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)` / `getTags()`（返回 `FavoritesTagsResponse`）
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
-**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue（2026-08）**：m.weibo.cn 搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），微博已移除公开 JSON 搜索 API；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），替代见 backlog.md
+**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
 
 **ArchiveService**（`sdk.archive`）：单账号归档编排层（不直接发请求，注入子 Service）
 
@@ -191,7 +191,7 @@ interface IWeiboConfig {
 |---|---|---|
 | `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline → reposts → favorites 一条可恢复流 |
 
-- `ArchiveItem = { source, mblogId, tweet, schemaDigest, checkpoint }`：`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
+- `ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`：`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`：只保留 key 路径 + 值类型），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
 - `ArchiveCheckpoint = { uid, phase, page?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`page` 语义 = timeline 阶段下一页页码（mymblog 用 page 游标，恢复时从该页继续）。
 - 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
 

@@ -53,7 +53,7 @@
 | 角色 | 权限 | 说明 |
 |---|---|---|
 | **只读归档** | 公开数据（本人账号：全部；他人账号：公开内容） | SDK 不提供发布/删除/私信等写能力 |
-| **Cookie 持有者** | 本人账号全量公开数据 | 依赖 `WEIBO_COOKIE` 会话 |
+| **Cookie 持有者** | 本人账号全量公开数据 | 依赖 `.env` 中的 `WEIBO_COOKIE` 会话 |
 
 > **边界**：SDK 仅归档**公开可见**数据。私信、仅粉丝可见、付费内容不在范围内（见 §3.2）。
 
@@ -75,6 +75,7 @@
 |---|---|
 | 发布 / 点赞 / 转发 / 评论（写操作） | 归档是只读任务；写操作涉及风控与责任，非产品主线 |
 | 私信 / 仅粉丝可见内容 | 超出「公开数据归档」范围，涉及他人隐私数据（产品决策，见 [backlog.md](../planning/backlog.md)） |
+| 公开关键词搜索（`searchUsers` / `searchTweets`） | 官方搜索体验差、上游接口已失效；逆向收益低，**产品暂缓**。个人主页内按日期搜索（`searchProfile`）不受影响，仍属归档能力 |
 | 通用 API 封装的全量端点镜像 | 聚焦归档链，非归档端点只保留对归档有贡献的部分 |
 | 数据渲染 / 前端 UI | SDK 是库 + CLI，不做展示层 |
 
@@ -91,19 +92,19 @@
 | F1.1 | 获取用户公开微博列表（分页 + 广告过滤） | ✅ `listByUserId` / `streamByUserId` |
 | F1.2 | 按日期范围搜索用户微博 | ✅ `searchByDate` |
 | F1.3 | 获取微博详情 / 长微博全文 | ✅ `show` / `longText` |
-| F1.4 | 获取转发列表 | 🔜 todo-archive-mvp A1 |
-| F1.5 | 获取收藏夹（含标签） | ✅ `getFavorites` / 🔜 A3 标签 |
-| F1.6 | 获取关注 / 粉丝列表 | ✅ 关注 / 🔜 A2 粉丝 |
+| F1.4 | 获取转发列表 | ✅ `getReposts` |
+| F1.5 | 获取收藏夹（含标签） | ✅ `getFavorites` / `getTags` |
+| F1.6 | 获取关注 / 粉丝列表 | ✅ `getFollowings` / `getFans` |
 | F1.7 | 首页 Feed（双向关注时间线） | ✅ `listFriendTimeline` |
 
 ### F2 归档链路
 
 | ID | 需求 | 状态 |
 |---|---|---|
-| F2.1 | 单一入口串起全部数据源 | 🔜 todo-archive-mvp A5 |
-| F2.2 | 断点续传（checkpoint 持久化） | 🔜 todo-archive-mvp A6 |
-| F2.3 | 全链路进度与事件可观测 | ✅ 事件打点 / 🔜 JSONL exporter |
-| F2.4 | CLI 一键归档 | 🔜 todo-archive-mvp A8 |
+| F2.1 | 单一入口串起全部数据源 | ✅ `archive.streamArchive` |
+| F2.2 | 断点续传（checkpoint 持久化） | ✅ `ArchiveCheckpoint` + CLI `--checkpoint` |
+| F2.3 | 全链路进度与事件可观测 | ✅ 事件打点 / 🔜 P1-3 `archive_progress` / P2-3 JSONL exporter |
+| F2.4 | CLI 一键归档 | ✅ `weibo-sdk archive <uid>`（NDJSON） |
 
 ### F3 数据契约
 
@@ -111,8 +112,8 @@
 |---|---|---|
 | F3.1 | normalized 领域模型（`User`/`Tweet`）含 fallback 链 | ✅ |
 | F3.2 | 结构化错误（code/level/retryable/context） | ✅ |
-| F3.3 | 公开 API 类型以真实响应为准（`sinceId: string`） | 🔜 todo-archive-mvp P0-2 |
-| F3.4 | 版本单一来源 + semver 策略 | 🔜 todo-archive-mvp P0-1 |
+| F3.3 | 公开 API 类型以真实响应为准（分页游标按端点：mymblog `page` / friendstimeline `sinceId`） | ✅ |
+| F3.4 | 版本单一来源 + semver 策略 + 契约版本解耦 | ✅（P0-1/P0-3/P0-6） |
 
 ### F4 可观测性与诊断
 

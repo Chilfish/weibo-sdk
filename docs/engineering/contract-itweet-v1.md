@@ -89,6 +89,18 @@
 - 过期后的恢复路径：经 SDK 重新拉取单条微博（`getByMblogId` / `show`）获取新 URL。
 - 媒体下载辅助 API（可选增强）= [backlog](../planning/backlog.md) P1-7，不阻塞本契约。
 
+## 4.1 原始数据（raw）与 enrich 边界（2026-10-19 裁定）
+
+**裁定**：`ArchiveItem` **不携带 raw**；raw 由下游按需另行保存。
+
+- **信封保持 v1 形状**：`{ schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`，不新增 `raw` 字段（避免磁盘膨胀与契约耦合）。
+- **raw 获取路径**（API 形状在 P1 设计时定稿）：
+  1. **请求级**：通过 hooks/回调拿到端点原始响应（现有 `config.hooks.onFetched` 可拿到 raw，但它已标记 deprecated，P1 会设计专门的 raw 回调）；
+  2. **归档级**：`streamArchive` 增加 raw 回调（例如 `onRaw(item, raw)`）或独立 raw 迭代器；
+  3. **单条补拉**：raw 方法（`myMblog` / `show` 等）保留为 raw 数据源（部分标 `@deprecated`，不删除）。
+- **enrich 方法**：提供独立的 `enrich` 能力（按 mblogId / uid 补拉原始字段或扩展字段），**不改变 `ITweet` v1**；enrich 结果由调用方决定是否落盘。
+- **下游职责**：需要 raw 的消费方（如 archiver）自行保存 raw 字节/JSON，并按 `mblogId` 与 `{ schemaVersion, tweet }` 关联。
+
 ## 5. 迁移策略（v1 → v2）
 
 1. v2 随包 **major** 版本发布，`TWEET_CONTRACT_VERSION` 升为 `2`，`ArchiveItem.schemaVersion` 类型随之收紧。
