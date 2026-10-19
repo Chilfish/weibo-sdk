@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 interface PackageJson {
+  name?: string
+  bin?: Record<string, string>
   exports?: Record<string, unknown>
   main?: string
   module?: string
@@ -24,6 +26,9 @@ describe('package exports', () => {
   it('keeps package.json#exports stable', async () => {
     const pkg = await readPackageJson()
 
+    // 发布身份：scoped 包名 + 稳定的 CLI 二进制名
+    expect(pkg.name).toBe('@chilfish/weibo-sdk')
+    expect(pkg.bin).toEqual({ 'weibo-cli': './dist/cli.mjs' })
     expect(pkg.sideEffects).toBe(false)
     expect(pkg.types).toBe('./dist/index.d.mts')
     // exports field supersedes main/module (tsdown auto-manages)

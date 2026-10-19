@@ -118,7 +118,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 
 ## 发布流程
 
-weibo-sdk 发布到 npm（`pnpm publish`）：
+`@chilfish/weibo-sdk` 发布到 npm（`pnpm publish`；`publishConfig.access=public`）：
 
 ### 里程碑发布（按需）
 

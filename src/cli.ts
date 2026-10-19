@@ -171,7 +171,7 @@ const archive = defineCommand({
 
 const main = defineCommand({
   meta: {
-    name: 'weibo-sdk',
+    name: 'weibo-cli',
     version: pkg.version,
     description: '微博 API 逆向 SDK 命令行工具\n\nCookie：从 .env 文件读取（默认 <pwd>/.env，可用 --env-file 指定；--cookie/-c 显式覆盖）',
   },

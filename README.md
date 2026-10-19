@@ -15,7 +15,7 @@
 - **Wide Events 可观测**：内置扁平化遥测事件（`request_start/success/error` 等），支持 trace_id 全链路追踪
 - **会话自检**：`selfCheck()` 支持 lazy/eager/none 三种模式，Cookie 过期提前诊断
 - **速率控制**：令牌桶算法，支持并发控制，避免触发风控
-- **浏览器可用**：`dist/browser.mjs` 自包含 ESM（axios/zod 内联），web-v3 / userscript 可直接 `import 'weibo-sdk/browser'`
+- **浏览器可用**：`dist/browser.mjs` 自包含 ESM（axios/zod 内联），web-v3 / userscript 可直接 `import '@chilfish/weibo-sdk/browser'`
 
 ## 版本与契约
 
@@ -25,19 +25,26 @@
 
 ## 快速开始
 
-### 安装与构建
+### 安装
+
+```bash
+pnpm add @chilfish/weibo-sdk
+# 或 npm install @chilfish/weibo-sdk
+```
+
+从源码开发：
 
 ```bash
 pnpm install
 pnpm run build
 ```
 
-浏览器 / userscript 使用 `weibo-sdk/browser` 子路径（Node 入口保持 `weibo-sdk`）；构建后可用 `pnpm run smoke:browser` 在真实 Chromium 做冒烟。
+浏览器 / userscript 使用 `@chilfish/weibo-sdk/browser` 子路径（Node 入口为 `@chilfish/weibo-sdk`）；构建后可用 `pnpm run smoke:browser` 在真实 Chromium 做冒烟。
 
 ### 获取用户信息
 
 ```typescript
-import { WeiboSDK } from 'weibo-sdk'
+import { WeiboSDK } from '@chilfish/weibo-sdk'
 
 const sdk = new WeiboSDK({
   cookie: process.env.WEIBO_COOKIE || '',
@@ -111,6 +118,10 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 CLI 的 Cookie **只从 `.env` 读取**（默认 `<pwd>/.env`，可用 `--env-file` 指定），不读取环境变量；`--cookie`/`-c` 为显式覆盖。
 
 ```bash
+# 安装后（全局或 npx）
+npx weibo-cli whoami
+
+# 本地开发
 pnpm build
 node dist/cli.mjs whoami
 ```
@@ -125,6 +136,8 @@ node dist/cli.mjs whoami
 - 架构决策（ADR）：`docs/planning/architecture.md`
 - CLI 命令参考：`docs/engineering/cli.md`
 - 错误排障手册：`docs/engineering/error-diagnostics.md`
+- 端点开发指南：`docs/engineering/endpoint-authoring.md`
+- 后续行动计划（0.2 数据丰富度）：`docs/planning/todo-post-0.1.0.md`
 
 ## 测试
 

@@ -1,5 +1,5 @@
 {
-  "name": "weibo-sdk",
+  "name": "@chilfish/weibo-sdk",
   "type": "module",
   "version": "0.1.0",
   "description": "A maintainable, offline-testable Weibo reverse-engineering SDK in TypeScript.",
@@ -29,7 +29,10 @@
   },
   "types": "./dist/index.d.mts",
   "bin": {
-    "weibo-sdk": "./dist/cli.mjs"
+    "weibo-cli": "./dist/cli.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist"

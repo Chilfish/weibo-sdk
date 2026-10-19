@@ -1,8 +1,8 @@
 # Release Checklist
 
-**项目**: weibo-sdk | **最后更新**: 2026-10-19
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-19
 
-> weibo-sdk 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
+> `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（打 tag + GitHub Release + `pnpm publish`）时的完整清单。
 
 ## 版本纪律
@@ -23,6 +23,14 @@
 - [x] `pnpm test` 全绿（默认离线；2026-10-19：189 passed / 18 skipped）
 - [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-19：38 / 0 fail）
 - [ ] simple-git-hooks pre-commit 钩子无跳过
+
+## 包身份核验
+
+- [ ] `package.json#name` = `@chilfish/weibo-sdk`
+- [ ] `package.json#bin` = `{ "weibo-cli": "./dist/cli.mjs" }`
+- [ ] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
+- [ ] `npm pack --dry-run` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`
+- [ ] `@chilfish/weibo-sdk` 在 npm registry 上可发布（未被他人占用）
 
 ## 公共导出面核验
 
@@ -48,7 +56,8 @@
 4. 跑通验证门禁 + 功能冒烟
 5. 打 Tag：`git tag v0.1.0 && git push --tags`
 6. GitHub Release：`gh release create v0.1.0 --generate-notes`
-7. `pnpm publish`（`prepublishOnly` 会自动 `nr build`）
-8. 发布后回填冒烟勾选日期，归档本阶段计划文档
+7. `pnpm publish`（`prepublishOnly` 会自动 `nr build`；`publishConfig.access=public` 已固定 scoped 包权限）
+8. 发布后核验：`npm view @chilfish/weibo-sdk version`、`npm i -g @chilfish/weibo-sdk && weibo-cli --version`
+9. 发布后回填冒烟勾选日期，归档本阶段计划文档
 
 > 真实外网验证由维护者在发布前执行，勾选并记录日期。

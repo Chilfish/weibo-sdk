@@ -1,13 +1,13 @@
 # 文档索引
 
-> `weibo-sdk` 文档中央索引。所有文档按分类组织，新增文档请登记到对应分类。
+> `weibo-sdk`（npm: `@chilfish/weibo-sdk`，CLI: `weibo-cli`）文档中央索引。所有文档按分类组织，新增文档请登记到对应分类。
 > 约定：**文档即事实** —— 文档必须与代码一致，不一致以代码为准并修正文档；**文档先行** —— 写码前先更新文档。
 
 ## 产品定位
 
-**个人数据归档**（2026-08-09 产品决策）：`weibo-sdk` = 可靠地把一个微博账号的公开数据镜像下来——可断点续传、可观测、默认离线可测。详见 [requirements/requirements-spec.md](requirements/requirements-spec.md) 与 [reviews/review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md)。
+**个人数据归档**（2026-08-09 产品决策）：`weibo-sdk` = 可靠地把一个微博账号的公开数据镜像下来——可断点续传、可观测、默认离线可测。npm 包名为 `@chilfish/weibo-sdk`，CLI 为 `weibo-cli`。详见 [requirements/requirements-spec.md](requirements/requirements-spec.md) 与 [reviews/review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md)。
 
-> **发布形态**（2026-08-10）：weibo-sdk 将发布为 npm 包，被 `I:\dev\Weibo-archiver` 的 web-v3（SPA）/ monkey / CLI 消费，`ITweet` 定为下游存档终局契约。见 [reviews/review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) 与 [planning/todo-contract-freeze.md](planning/todo-contract-freeze.md)。
+> **发布形态**（2026-10-19）：发布为 npm 包 `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`），被 `I:\dev\Weibo-archiver` 的 web-v3（SPA）/ monkey / CLI 消费，`ITweet` 定为下游存档终局契约。见 [reviews/review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) 与 [planning/todo-contract-freeze.md](planning/todo-contract-freeze.md)。
 
 ---
 
@@ -25,7 +25,8 @@
 |---|---|---|
 | [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~012），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
 | [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-5）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
-| [todo-contract-freeze.md](planning/todo-contract-freeze.md) | **当前行动计划**：契约冻结 + 归档硬化（发布就绪，P0/P1/P2） | 承接下一阶段任务 |
+| [todo-contract-freeze.md](planning/todo-contract-freeze.md) | 上一阶段行动计划：契约冻结 + 归档硬化（P0/P1/P2，已完成） | 历史承接记录 |
+| [todo-post-0.1.0.md](planning/todo-post-0.1.0.md) | **当前行动计划**：0.1.0 发布收口 + 0.2.0 用户数据丰富度 / 可靠性 / DX | 承接下一阶段任务 |
 | [research-weibo-ecosystem-2026-10-19.md](planning/research-weibo-ecosystem-2026-10-19.md) | 同类活跃项目调研（API 逆向 / CLI / 归档），含可借鉴设计与差距映射 | 规划 P1/P2 顺序、评估功能边界 |
 | [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已归档） | 历史记录，不主动读取 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下下阶段 |
@@ -45,7 +46,8 @@
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |
-| [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty） | 添加/修改 CLI 子命令 |
+| [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty，二进制 `weibo-cli`） | 添加/修改 CLI 子命令 |
+| [endpoint-authoring.md](engineering/endpoint-authoring.md) | 端点开发指南：抓包 → schema → spec → service → CLI → 测试 → 文档；含分页约定与高频雷区 | 新增/修改任何 endpoint |
 | [error-diagnostics.md](engineering/error-diagnostics.md) | 错误排障手册（结构化错误码表、排查流程） | 排障时 |
 | [skill.md](engineering/skill.md) | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 | 理解可观测性/SDD |
 | [browser-capture.md](engineering/browser-capture.md) | CDP 浏览器自动化抓取调研与方案（对应 `capture/` SDK，见 `capture/README.md`） | 真实数据获取 / 排障 |

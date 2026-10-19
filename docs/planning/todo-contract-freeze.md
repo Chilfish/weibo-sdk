@@ -1,7 +1,7 @@
 # 行动计划：契约冻结与归档硬化（发布就绪）
 
 > 承接 [todo-archive-mvp.md](../archive/todo-archive-mvp.md)（A1-A8 + P0 已完成，已移入 `docs/archive/`）。
-> **前提事实**：weibo-sdk 发布为 npm 包，被 Weibo-archiver 的 web-v3（浏览器 SPA）/ monkey / CLI 消费；`ITweet` 被定为下游 **UI 与存档终局契约**（ADR-007/008，存进 IndexedDB）。
+> **前提事实**：`@chilfish/weibo-sdk`（CLI `weibo-cli`）发布为 npm 包，被 Weibo-archiver 的 web-v3（浏览器 SPA）/ monkey / CLI 消费；`ITweet` 被定为下游 **UI 与存档终局契约**（ADR-007/008，存进 IndexedDB）。
 > 本阶段主题：**让 ITweet 成为可靠的磁盘格式 + 让归档主线在规模下成立**。
 > 来源：[review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)（K/R 编号）。候选任务见 [backlog.md](./backlog.md)。
 
@@ -40,7 +40,7 @@
 
 > 对应 review K6 / K5 / E4 / F3 / E6。
 
-- [x] **P2-1 browser 构建 + 冒烟**（K6）：tsdown 新增 `browser` target（`dist/browser.mjs`，axios/zod 内联）+ `weibo-sdk/browser` 子路径；`proxyUrl` 在浏览器运行时跳过 axios `proxy`；`pnpm run smoke:browser` 在真实 Chromium 验证 import/构造/无网络请求，8 项检查 PASS。（2026-10-19）
+- [x] **P2-1 browser 构建 + 冒烟**（K6）：tsdown 新增 `browser` target（`dist/browser.mjs`，axios/zod 内联）+ `@chilfish/weibo-sdk/browser` 子路径；`proxyUrl` 在浏览器运行时跳过 axios `proxy`；`pnpm run smoke:browser` 在真实 Chromium 验证 import/构造/无网络请求，8 项检查 PASS。（2026-10-19）
 - [x] **P2-2 有损迁移评估**（K5）：裁定 `ITweet` v1 保持最小展示契约（`comments` 已作为 optional 字段落地），`card` 等不进 v1；raw 走 `onRaw`/`enrich` sidecar。详见 [p2-readiness.md](./p2-readiness.md#p2-2-有损迁移评估k5)。（2026-10-19）
 - [x] **P2-3 telemetry 消费端**（E4）：`createJsonlTelemetry` / `formatArchiveProgress` + `examples/telemetry-jsonl.mjs` + 12 条离线测试；JSONL 一行一事件、永不抛错，供 web-v3 长任务消费。（2026-10-19）
 - [x] **P2-4 CLI 裁剪复审**（F3）：有消费者（monkey/cli），保留 hero 命令（`archive` / `whoami` / `trends`）；不删命令，`search` 标 deprecated、低频能力标 advanced。详见 [p2-readiness.md](./p2-readiness.md#p2-4-cli-裁剪复审f3)。（2026-10-19）

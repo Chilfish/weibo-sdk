@@ -201,7 +201,7 @@ interface IWeiboConfig {
 - `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, sliceEnd?, slicePage?, sliceWindow?, lastMblogId? }`（P1-1/P1-2/P1-5）：**不再携带 `visitedMblogIds`**。`page` 语义 = mymblog 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博（mymblog 与日期切片页内共用）；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标（unix 秒），`sliceEnd` 存在即表示恢复时跳过 mymblog；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。
 - 反向兼容：`timelineSource='mymblog'` 时若 `data.total` 证明已完整则不切片；否则从最旧一条微博之前继续日期切片。单片 `total` 超过 `maxSliceItems` 时对半缩小窗口，避免 `searchProfile` 大范围下 `total` 失真与分页窗口重置；空切片会自动放大窗口跨过长期空档。
 - 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
-- 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
+- 判别标准：≤20 行代码 + 一条 `weibo-cli archive <uid>` 命令镜像单账号。
 
 ### 3.4 EndpointSpec
 
@@ -255,7 +255,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - Telemetry JSONL 消费端（P2-3）：`createJsonlTelemetry` / `serializeTelemetryEvent` / `formatArchiveProgress` / `isArchiveProgress`
 - 结构化错误类：`WeiboSDKError` 基类与全部 6 个子类（见 §4）
 
-**构建产物**（P2-1）：Node 入口 `weibo-sdk` → `dist/index.mjs`；CLI → `dist/cli.mjs`；浏览器/userscript 入口 `weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxyUrl` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
+**构建产物**（P2-1）：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxyUrl` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 
 **规则**：
 - 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。

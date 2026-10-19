@@ -4,7 +4,7 @@
 > 直接产出真实 JSON，供**数据驱动开发**（抓真实 fixture）与**排障**（查看某端点的真实返回）使用。
 > 调研背景见 [docs/engineering/browser-capture.md](../../docs/engineering/browser-capture.md)。
 
-**形态**：项目内独立工具库（`capture/`），不进入主包 `weibo-sdk` 发布面；独立 CLI `pnpm capture`。
+**形态**：项目内独立工具库（`capture/`），不进入主包 `@chilfish/weibo-sdk` 发布面；独立 CLI `pnpm capture`。
 
 ## 快速开始
 

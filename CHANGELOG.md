@@ -4,7 +4,16 @@
 
 ## Unreleased
 
-（暂无）
+### Changed
+
+- **包名与 CLI 发布身份**：改为 `@chilfish/weibo-sdk`；CLI 二进制改为 `weibo-cli`；新增 `publishConfig.access = public`（scoped 包首发）。
+- README / CLI 文档 / 示例的安装、import、子路径与命令示例同步为 `@chilfish/weibo-sdk` / `weibo-cli`。
+
+### Added
+
+- [docs/planning/todo-post-0.1.0.md](./docs/planning/todo-post-0.1.0.md)：0.1.0 发布收口 + 0.2.0 用户数据丰富度、可靠性、端点 DX 的完整行动清单（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 432 / Agent 等）。
+- [docs/engineering/endpoint-authoring.md](./docs/engineering/endpoint-authoring.md)：端点开发指南（抓包 → schema → spec → service → CLI → 测试 → 文档；分页约定与高频雷区）。
+- 包身份回归测试：断言 `package.json#name` 与 `bin.weibo-cli`。
 
 ## 0.1.0 (2026-10-19)
 

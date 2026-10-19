@@ -27,16 +27,16 @@ API endpoint 定义统一放在 `src/services/endpoints/<domain>.ts`，使用 `d
 
 Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → hooks emission → telemetry 全流程。
 
-当前已定义 **15 个 endpoint spec / 14 个 resource type**（按 domain 分文件）：
+当前已定义 **17 个 endpoint spec / 16 个 resource type**（按 domain 分文件）：
 
 | 文件 | EndpointSpec | 资源 |
 |---|---|---|
 | `endpoints/user.ts` | `userInfoSpec` / `userDetailsSpec` / `myDetailsSpec` | `USER_INFO` / `USER_DETAILS` |
-| `endpoints/tweet.ts` | `myMblogSpec` / `statusShowSpec` / `longtextSpec` / `searchProfileSpec` / `buildCommentsSpec` / `friendstimelineSpec` | `TWEET_*` |
+| `endpoints/tweet.ts` | `myMblogSpec` / `statusShowSpec` / `longtextSpec` / `searchProfileSpec` / `buildCommentsSpec` / `friendstimelineSpec` / `repostTimelineSpec` | `TWEET_*` |
 | `endpoints/search.ts` | `searchUsersSpec` / `searchTweetsSpec` | `SEARCH_USERS` / `SEARCH_TWEETS` |
 | `endpoints/side.ts` | `bandUnifiedSpec` | `SIDE_BANDUNIFIED` |
 | `endpoints/follow.ts` | `friendshipsSpec` / `followContentSpec` | `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT` |
-| `endpoints/favorite.ts` | `favoritesSpec` | `FAVORITES_ALLFAV` |
+| `endpoints/favorite.ts` | `favoritesSpec` / `favoritesTagsSpec` | `FAVORITES_ALLFAV` / `FAVORITES_TAGS` |
 
 ### 服务能力速览
 
@@ -44,8 +44,8 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 |---|---|---|
 | `UserService` | `sdk.users` | `info` / `details` / `myDetails` / `getById` |
 | `TweetService` | `sdk.tweets` | `myMblog` / `listByUserId` / `streamByUserId` / `show` / `getByMblogId` / `comments` / `longText` / `searchByDate` / `friendTimeline` / `listFriendTimeline` |
-| `FollowingsService` | `sdk.followings` | `getFollowings` / `getMyFollowings` |
-| `FavoriteService` | `sdk.favorites` | `getFavorites` |
+| `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` |
+| `FavoriteService` | `sdk.favorites` | `getFavorites` / `getTags` |
 | `TrendsService` | `sdk.trends` | `hotBand` |
 | `SearchService` | `sdk.search` | `searchUsers` / `searchTweets` |
 
@@ -78,11 +78,24 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 
 文档中央索引见 `docs/README.md`。
 
-## 快速开始（本仓库）
+## 快速开始
+
+作为依赖使用：
+
+```bash
+pnpm add @chilfish/weibo-sdk
+npx weibo-cli --help
+```
+
+本仓库开发：
 
 - 安装：`pnpm install`
 - 测试：`pnpm test`
 - 构建：`pnpm run build`
 - 类型检查：`pnpm run typecheck`
 
-> 若需要运行真实微博请求，请通过环境变量提供 Cookie，并使用专门的 e2e 测试入口（默认不运行）。
+> 若需要运行真实微博请求，请在项目根目录 `.env` 中提供 `WEIBO_COOKIE`，并使用专门的 e2e 测试入口（默认不运行）。
+
+## 后续规划
+
+0.1.0 发布收口与 0.2.0 用户数据丰富度（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 可靠性 / DX）见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md)；端点开发流程见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。

@@ -13,7 +13,7 @@
 
 - **契约版本常量**：`TWEET_CONTRACT_VERSION`（`src/types/domain/ITweet.ts`，当前 `1`；类型 `TweetContractVersion`）
 - **归档信封**：`ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`
-  ——磁盘条目自描述；CLI `weibo-sdk archive` 的 NDJSON 进度事件同样携带 `schemaVersion`
+  ——磁盘条目自描述；CLI `weibo-cli archive` 的 NDJSON 进度事件同样携带 `schemaVersion`
 - **下游最小存档记录**建议：`{ schemaVersion: TweetContractVersion, tweet: ITweet }`
   （`source` / `checkpoint` 等为 SDK 归档流的附加元数据，消费方可按需取舍）
 - **契约版本 ≠ 包版本**（K2/P0-3 解耦，详见 [release-checklist.md](./release-checklist.md)）：

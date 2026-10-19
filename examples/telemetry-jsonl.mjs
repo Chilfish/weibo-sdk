@@ -14,7 +14,7 @@
  *   `fetch(...).body` / IndexedDB 批量写入；Node 端可换成 `fs.createWriteStream().write`。
  * - stdout 只放 JSONL，人类可读的摘要走 stderr，方便直接重定向给下游消费。
  * - 本文件直接 import TS 源码（Node ≥ 22.18 / 24 的类型剥离），因此无需先 `pnpm build`；
- *   真实下游从包入口取同样的函数：`import { createJsonlTelemetry } from 'weibo-sdk'`。
+ *   真实下游从包入口取同样的函数：`import { createJsonlTelemetry } from '@chilfish/weibo-sdk'`。
  */
 import { createJsonlTelemetry, formatArchiveProgress, isArchiveProgress } from '../src/utils/telemetryJsonl.ts'
 
@@ -63,7 +63,7 @@ const fakeEvents = [
 async function main() {
   // 1) 接入 SDK：`telemetry.emit` 就是 JSONL 出口，长任务里每个进度事件都会变成一行。
   try {
-    const { WeiboSDK } = await import('weibo-sdk')
+    const { WeiboSDK } = await import('@chilfish/weibo-sdk')
     const sdk = new WeiboSDK({
       cookie: 'SUB=example; XSRF-TOKEN=example',
       telemetry,

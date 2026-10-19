@@ -1,10 +1,16 @@
-# Weibo SDK CLI
+# Weibo CLI（`weibo-cli`）
 
 基于 [citty](https://github.com/unjs/citty) 构建的命令行工具，类型安全、零依赖。
 
 ## 安装
 
 ```bash
+# 作为依赖安装后使用
+npx weibo-cli --help
+# 或全局安装
+npm i -g @chilfish/weibo-sdk && weibo-cli --help
+
+# 本仓库开发
 pnpm build        # 构建 dist/
 node dist/cli.mjs --help
 # 或开发模式直接运行
@@ -25,9 +31,9 @@ WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 所有命令默认输出 **JSON 格式**（`JSON.stringify(data, null, 2)`），可用于管道处理：
 
 ```bash
-weibo-sdk user info 1111681197 | jq '.name, .stats'
-weibo-sdk tweet detail QqsYymYOS | jq '.media[0]'
-weibo-sdk search users 新闻 | jq '.data.cards[0].card_group[:3]'
+weibo-cli user info 1111681197 | jq '.name, .stats'
+weibo-cli tweet detail QqsYymYOS | jq '.media[0]'
+weibo-cli search users 新闻 | jq '.data.cards[0].card_group[:3]'
 ```
 
 ## 命令参考
@@ -36,35 +42,35 @@ weibo-sdk search users 新闻 | jq '.data.cards[0].card_group[:3]'
 
 ```bash
 # 获取用户信息（info + details 归一化为 User 模型）
-weibo-sdk user info <uid>
+weibo-cli user info <uid>
 
 # 获取用户微博时间线（归一化为 TweetPageResult）
-weibo-sdk user timeline <uid> [--page/-p <n>] [--count <n>]
+weibo-cli user timeline <uid> [--page/-p <n>] [--count <n>]
 ```
 
 ### 微博操作（`tweet`）
 
 ```bash
 # 获取微博详情（归一化为 Tweet 模型）
-weibo-sdk tweet detail <mblogId>
+weibo-cli tweet detail <mblogId>
 
 # 补拉原始响应 + 归一化模型（下游自行保存 raw；--longtext 额外补拉全文）
-weibo-sdk tweet enrich <mblogId> [--longtext] [--no-longtext]
+weibo-cli tweet enrich <mblogId> [--longtext] [--no-longtext]
 
 # 获取微博评论
-weibo-sdk tweet comments <mblogId> [--count <n>] [--flow 0|1]
+weibo-cli tweet comments <mblogId> [--count <n>] [--flow 0|1]
 
 # 获取首页 Feed（关注时间线，归一化为 TweetPageResult）
-weibo-sdk tweet home [--since_id/-s <cursor>] [--count <n>]
+weibo-cli tweet home [--since_id/-s <cursor>] [--count <n>]
 
 # 获取长微博全文
-weibo-sdk tweet longtext <mblogId>
+weibo-cli tweet longtext <mblogId>
 
 # 获取微博转发列表（分页用 --page；实测 next_cursor 参数无效）
-weibo-sdk tweet reposts <mblogId> [--page <n>]
+weibo-cli tweet reposts <mblogId> [--page <n>]
 
 # 按日期范围搜索用户微博
-weibo-sdk tweet search-profile <uid> [--page <n>] [--starttime <yyyyMMdd>] [--endtime <yyyyMMdd>] \
+weibo-cli tweet search-profile <uid> [--page <n>] [--starttime <yyyyMMdd>] [--endtime <yyyyMMdd>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
 ```
 
@@ -72,47 +78,47 @@ weibo-sdk tweet search-profile <uid> [--page <n>] [--starttime <yyyyMMdd>] [--en
 
 ```bash
 # 获取指定用户关注列表（cursor 分页）
-weibo-sdk follow list <uid> [--page <n>]
+weibo-cli follow list <uid> [--page <n>]
 
 # 获取指定用户粉丝列表（relate=fans）
-weibo-sdk follow fans <uid> [--page <n>]
+weibo-cli follow fans <uid> [--page <n>]
 
 # 获取自己关注列表
-weibo-sdk follow my [--page <n>]
+weibo-cli follow my [--page <n>]
 ```
 
 ### 收藏夹（`favorite`）
 
 ```bash
 # 获取指定用户收藏夹（按页遍历）
-weibo-sdk favorite list <uid> [--page <n>]
+weibo-cli favorite list <uid> [--page <n>]
 
 # 获取收藏夹标签
-weibo-sdk favorite tags
+weibo-cli favorite tags
 ```
 
 ### 搜索（`search`）
 
 ```bash
 # 搜索用户
-weibo-sdk search users <query> [--page <n>]
+weibo-cli search users <query> [--page <n>]
 
 # 搜索微博
-weibo-sdk search tweets <query> [--page <n>]
+weibo-cli search tweets <query> [--page <n>]
 ```
 
 ### 其他
 
 ```bash
 # 热搜榜单（--type 可选：hot/topic/entertainment，默认 hot）
-weibo-sdk trends [--type hot|topic|entertainment]
+weibo-cli trends [--type hot|topic|entertainment]
 
 # 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
-weibo-sdk whoami
+weibo-cli whoami
 
 # 镜像单个账号（timeline + 日期切片 + reposts + favorites，可断点续传）
 # 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
-weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
+weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
   [--source mymblog|search] [--since <unix-seconds>] [--comments] [--comment-pages <n>] \
   [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
   [--checkpoint <file>] [--max-pages <n>]

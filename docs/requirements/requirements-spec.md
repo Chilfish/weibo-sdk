@@ -26,7 +26,7 @@
 | **断点续传** | ArchiveService 提供可恢复的归档流（checkpoint 持久化），中断不重来 |
 | **可观测** | Wide Events 覆盖归档全链路，故障可定位、进度可追踪 |
 | **离线可测** | 默认 `pnpm test` 不依赖真实网络，E2E 显式门控 |
-| **低上手成本** | 一个入口（`ArchiveService`）+ 一条 CLI 命令（`weibo-sdk archive`），≤20 行代码完成单账号镜像 |
+| **低上手成本** | 一个入口（`ArchiveService`）+ 一条 CLI 命令（`weibo-cli archive`），≤20 行代码完成单账号镜像 |
 
 ### 1.4 技术约束
 
@@ -63,9 +63,9 @@
 
 ### 3.1 范围内
 
-- **账号数据镜像**：微博列表（`mymblog`）、按日期搜索（`searchProfile`）、转发（`repostTimeline`）、收藏（`favorites`）、用户信息/详情
-- **关系数据**：关注列表、粉丝列表
-- **媒体资源**：图片 / 视频 / 长图 / 视频封面 URL 与元数据
+- **账号数据镜像**：微博列表（`mymblog`）、按日期搜索（`searchProfile`）、转发（`repostTimeline`）、收藏（`favorites`）、点赞、当前用户历史评论、用户信息/详情
+- **媒体集合**：微博内图片 / 视频 / 长图 / 视频封面 URL 与元数据；用户图片墙、视频瀑布、音频播放列表等账号级媒体集合（0.2 目标）
+- **关系数据**：关注列表、粉丝列表、关注分组
 - **归档链路**：断点续传流、进度可观测、单一入口
 - **数据导出基础**：normalized 领域模型（`User` / `Tweet`）+ 结构化错误
 
@@ -96,6 +96,10 @@
 | F1.5 | 获取收藏夹（含标签） | ✅ `getFavorites` / `getTags` |
 | F1.6 | 获取关注 / 粉丝列表 | ✅ `getFollowings` / `getFans` |
 | F1.7 | 首页 Feed（双向关注时间线） | ✅ `listFriendTimeline` |
+| F1.8 | 获取用户点赞过的微博 | 🔜 `likes.listByUserId`（端点待真实抓包确认） |
+| F1.9 | 获取当前登录用户发布的历史评论 | 🔜 `comments.listMine`（`/ajax/message/myCmt`，cursor 分页） |
+| F1.10 | 获取用户图片墙 / 视频瀑布 / 音频等账号级媒体集合 | 🔜 `media.*`（`getImageWall` / `getWaterFallContent` / `user_playlists_get`） |
+| F1.11 | 获取微博点赞者列表 | 🔜 `tweets.likers`（`/ajax/statuses/likeShow`） |
 
 ### F2 归档链路
 
@@ -103,8 +107,11 @@
 |---|---|---|
 | F2.1 | 单一入口串起全部数据源 | ✅ `archive.streamArchive` |
 | F2.2 | 断点续传（checkpoint 持久化） | ✅ `ArchiveCheckpoint` + CLI `--checkpoint` |
-| F2.3 | 全链路进度与事件可观测 | ✅ 事件打点 / 🔜 P1-3 `archive_progress` / P2-3 JSONL exporter |
-| F2.4 | CLI 一键归档 | ✅ `weibo-sdk archive <uid>`（NDJSON） |
+| F2.3 | 全链路进度与事件可观测 | ✅ `archive_progress` + telemetry JSONL exporter |
+| F2.4 | CLI 一键归档 | ✅ `weibo-cli archive <uid>`（NDJSON） |
+| F2.5 | 增量归档（时间游标 / 已见 mblogId 早停） | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
+| F2.6 | 多账号批量归档（uid 列表） | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
+| F2.7 | 点赞 / 历史评论 / 图片 / 视频 / 音频进入归档流 | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
 
 ### F3 数据契约
 
@@ -114,13 +121,14 @@
 | F3.2 | 结构化错误（code/level/retryable/context） | ✅ |
 | F3.3 | 公开 API 类型以真实响应为准（分页游标按端点：mymblog `page` / friendstimeline `sinceId`） | ✅ |
 | F3.4 | 版本单一来源 + semver 策略 + 契约版本解耦 | ✅（P0-1/P0-3/P0-6） |
+| F3.5 | 领域模型补充阅读数 / 播放数 / 话题 / @用户 / 音频 / 编辑历史等 optional 字段 | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
 
 ### F4 可观测性与诊断
 
 | ID | 需求 | 状态 |
 |---|---|---|
 | F4.1 | Wide Events 覆盖 Happy/Error Path | ✅ |
-| F4.2 | 事件有消费端（JSONL exporter 示例） | 🔜 todo-archive-mvp E4 |
+| F4.2 | 事件有消费端（JSONL exporter 示例） | ✅ `createJsonlTelemetry` + `examples/telemetry-jsonl.mjs` |
 | F4.3 | 错误排障手册（`error-diagnostics.md`） | ✅ |
 
 ---
