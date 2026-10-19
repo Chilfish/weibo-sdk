@@ -19,6 +19,7 @@
 - **Wide Events 遥测系统**：`TelemetryEvent` 扁平 KV 事件（`request_start/success/error`、`rate_limit_wait`、`normalize_done`），含 `trace_id` 全链路追踪。通过 `config.telemetry.emit()` 接入。
 - **`defineEndpoint()` helper**：让 endpoint 定义的 args 类型从 `argsSchema` 自动推导，减少类型断言。
 - **Endpoint 目录**：将 Zod schema 与 EndpointSpec 定义从 Service 文件中抽离到 `src/services/endpoints/`（`tweet.ts`、`user.ts`），Service 文件只保留业务逻辑。
+- **raw / enrich 访问 API**（P1-9/K5）：新增请求级 `config.hooks.onRaw(raw, meta)`（Zod 校验前触发，失败响应也可获取）、归档级 `streamArchive(uid, { onRaw })`（逐原始项）与 `tweets.enrich(mblogId) → { tweet, raw, longText? }`；`ArchiveItem` 保持 v1 形状、不携带 raw。
 - **SDK hooks 系统**：`config.hooks.onLifecycle` / `onFetched` / `onError`，覆盖生命周期、请求完成、错误三大阶段。
 - **会话自检**：`WeiboSDK.selfCheck()` 与 `checkSession()`，支持 `lazy` / `eager` / `none` 三种自检模式。
 - **`WeiboSessionExpiredError`**：Cookie 过期/无效时的结构化业务错误。
@@ -43,7 +44,7 @@
 - `RateLimitService` 去递归（`while` 循环替代递归等待），并支持注入 `clock` 与 `telemetry`。
 - `RateLimitService` 去递归（`while` 循环替代递归等待），支持 fake clock 注入。
 - 配置校验错误结构化：缺失 cookie 抛 `InvalidConfigError`。
-- `FetcherService.onFetched` 标记为 deprecated（请使用 `config.telemetry` 替代）。
+- `FetcherService.onFetched` / `config.hooks.onFetched` 标记为 deprecated（请使用 `onRaw` 或 `config.telemetry` 替代）。
 
 ### Removed
 

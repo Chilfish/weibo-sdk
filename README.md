@@ -58,6 +58,32 @@ const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
 console.log(tweet.text, tweet.media)
 ```
 
+### 获取原始响应（raw）与 enrich
+
+`ArchiveItem` 不携带 raw；需要原始 JSON 时，下游自行落盘：
+
+```typescript
+// 请求级：所有端点的原始响应（Zod 校验前触发）
+const sdk = new WeiboSDK({
+  cookie: '',
+  hooks: {
+    onRaw: async (raw, meta) => {
+      await saveRaw(meta.endpoint, meta.args, raw)
+    },
+  },
+})
+
+// 归档级：逐条原始微博（归一化前触发；ArchiveItem 仍不含 raw）
+for await (const item of sdk.archive.streamArchive('1111681197', {
+  onRaw: async (raw, meta) => saveRaw(`tweet:${meta.mblogId}`, raw),
+})) {
+  await persist(item.tweet)
+}
+
+// 单条补拉：raw + 归一化模型（可选长微博全文）
+const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', { includeLongText: true })
+```
+
 ### CLI
 
 CLI 的 Cookie **只从 `.env` 读取**（默认 `<pwd>/.env`，可用 `--env-file` 指定），不读取环境变量；`--cookie`/`-c` 为显式覆盖。

@@ -34,7 +34,7 @@
 - [ ] **P1-6 评论归档**（K4）：ArchiveService 加 comments 阶段，「完整镜像」不缺评论。
 - [ ] **P1-7 媒体下载进归档流**（若 P0-2 裁定 SDK 负责）。
 - [ ] **P1-8 E3 变种测试补全**：含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag`（长图文）/ 广告（`isAd`）四类，覆盖 `extractMedia` 最复杂路径。
-- [ ] **P1-9 raw / enrich 访问 API**（K5 衍生，2026-10-19 裁定）：`ArchiveItem` 不携带 raw；设计请求级 / 归档级 raw 回调 + 独立 `enrich` 方法，下游自行落盘 raw。规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。
+- [x] **P1-9 raw / enrich 访问 API**（K5 衍生，2026-10-19 裁定）：`ArchiveItem` 不携带 raw；新增请求级 `hooks.onRaw(raw, meta)`（Zod 校验前触发）、归档级 `streamArchive(uid, { onRaw })`（逐原始项）、`tweets.enrich(mblogId, { includeLongText? }) → { tweet, raw, longText? }`，下游自行落盘 raw。规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。（2026-10-19）
 
 ## P2 · 下游集成就绪
 

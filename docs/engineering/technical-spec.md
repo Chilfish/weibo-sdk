@@ -141,7 +141,7 @@ interface IWeiboConfig {
   logging?: boolean
   maxConcurrent?: number                      // 默认 3（令牌桶容量）
   delay?: number | ((retryCount: number) => number)   // 默认 1000ms
-  hooks?: WeiboSDKHooks                       // onLifecycle / onFetched / onError
+  hooks?: WeiboSDKHooks                       // onLifecycle / onRaw / onFetched(deprecated) / onError
   telemetry?: WeiboSDKTelemetry               // Wide Events（扁平 KV）
   selfCheck?: { mode?: 'none' | 'lazy' | 'eager' }    // 默认 lazy
 }
@@ -169,6 +169,7 @@ interface IWeiboConfig {
 | `streamByUserId` | `(uid, options?) => AsyncIterableIterator<Tweet>` | 自动翻页流式 |
 | `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw；**@deprecated**：用 `getByMblogId`） |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
+| `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v1 |
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
@@ -176,6 +177,7 @@ interface IWeiboConfig {
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
+> `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
 > `TweetPageResult = { page?: number, sinceId?: string, hasMore: boolean, tweets: Tweet[] }`。
 > 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码，mymblog 自 2026-08 弃用 since_id）；
 > `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。
@@ -192,6 +194,7 @@ interface IWeiboConfig {
 | `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline → reposts → favorites 一条可恢复流 |
 
 - `ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`：`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`：只保留 key 路径 + 值类型），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
+- `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [contract-itweet-v1.md §4.1](./contract-itweet-v1.md)）。
 - `ArchiveCheckpoint = { uid, phase, page?, lastMblogId?, favoritesPage?, visitedMblogIds[] }`；`page` 语义 = timeline 阶段下一页页码（mymblog 用 page 游标，恢复时从该页继续）。
 - 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
 
@@ -222,7 +225,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 ### 3.6 Hooks 与 Telemetry
 
-**Hooks**（`WeiboSDKHooks`）：`onLifecycle(event)` / `onFetched(resource, data, meta)` / `onError(error, meta)`。meta 含 `trace_id`、`timestamp`、`endpoint`、`request`、`args`、`phase`（`preflight|request|response|parse`）、`ok`、`message`。
+**Hooks**（`WeiboSDKHooks`）：`onLifecycle(event)` / `onRaw(raw, meta)` / `onFetched(resource, data, meta)`（**@deprecated**，用 `onRaw` + telemetry）/ `onError(error, meta)`。`onRaw` 在 Zod 校验前触发（raw 为端点原始响应，未校验），meta 含 `trace_id`、`timestamp`、`endpoint`、`resourceType`、`request`、`args`。其余 hook meta 含 `phase`（`preflight|request|response|parse`）、`ok`、`message`。
 
 **Telemetry**（`WeiboSDKTelemetry.emit(event)`）：Wide Events，扁平 KV，必含 `event_name/timestamp/trace_id`，其余字段 MUST 为 primitive。事件集：
 
@@ -239,7 +242,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 - `VERSION`（包版本号）
 - `WeiboSDK` 类（门面）
-- 类型与枚举（`types/*`）：`IWeiboConfig`、`IUser`/`ITweet` 及其子类型、`IResource`、hooks/telemetry 类型、以及**所有 endpoint 响应类型**（`UserInfoResponse` / `UserDetailsResponse` / `MyMblogResponse` / `StatusShowResponse` / `LongtextResponse` / `SearchProfileResponse` / `BuildCommentsResponse` / `FriendstimelineResponse` / `SearchUsersResponse` / `SearchTweetsResponse` / `BandUnifiedResponse` / `FriendshipsResponse` / `FollowContentResponse` / `FavoritesResponse`）
+- 类型与枚举（`types/*`）：`IWeiboConfig`、`IUser`/`ITweet` 及其子类型、`IResource`、hooks/telemetry 类型（含 `WeiboSDKRawMeta`）、raw/enrich 类型（`ArchiveRawMeta` / `TweetEnrichOptions` / `TweetEnrichResult`）、以及**所有 endpoint 响应类型**（`UserInfoResponse` / `UserDetailsResponse` / `MyMblogResponse` / `StatusShowResponse` / `LongtextResponse` / `SearchProfileResponse` / `BuildCommentsResponse` / `FriendstimelineResponse` / `SearchUsersResponse` / `SearchTweetsResponse` / `BandUnifiedResponse` / `FriendshipsResponse` / `FollowContentResponse` / `FavoritesResponse`）
 - 领域模型：`User`、`Tweet`（类）、`normalizeTweet`（函数）、`RawTweet`（类型）
 - 结构化错误类：`WeiboSDKError` 基类与全部 6 个子类（见 §4）
 

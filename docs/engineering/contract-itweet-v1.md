@@ -94,11 +94,12 @@
 **裁定**：`ArchiveItem` **不携带 raw**；raw 由下游按需另行保存。
 
 - **信封保持 v1 形状**：`{ schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`，不新增 `raw` 字段（避免磁盘膨胀与契约耦合）。
-- **raw 获取路径**（API 形状在 P1 设计时定稿）：
-  1. **请求级**：通过 hooks/回调拿到端点原始响应（现有 `config.hooks.onFetched` 可拿到 raw，但它已标记 deprecated，P1 会设计专门的 raw 回调）；
-  2. **归档级**：`streamArchive` 增加 raw 回调（例如 `onRaw(item, raw)`）或独立 raw 迭代器；
-  3. **单条补拉**：raw 方法（`myMblog` / `show` 等）保留为 raw 数据源（部分标 `@deprecated`，不删除）。
-- **enrich 方法**：提供独立的 `enrich` 能力（按 mblogId / uid 补拉原始字段或扩展字段），**不改变 `ITweet` v1**；enrich 结果由调用方决定是否落盘。
+- **raw 获取路径**（P1-9 定稿，2026-10-19）：
+  1. **请求级**：`config.hooks.onRaw(raw, meta)` —— 在 Zod 校验前触发，拿到端点**原始响应**；即使 `ok !== 1` 或 schema 校验失败也会先收到 raw。`meta` 含 `endpoint` / `resourceType` / `request` / `args` / `trace_id` / `timestamp`。`onFetched` 保留但标记 `@deprecated`。
+  2. **归档级**：`streamArchive(uid, { onRaw(raw, meta) })` —— 每个原始微博项在归一化前触发；`meta` 含 `uid` / `source` / `mblogId` / `page?` / `parentMblogId?`（repost 阶段为被转发原微博）。`ArchiveItem` 仍不携带 raw。
+  3. **单条补拉**：`tweets.enrich(mblogId, options?)` 返回 `{ tweet, raw, longText? }`，把 raw 响应与归一化模型一起交给调用方；raw 方法（`myMblog` / `show` 等）保留为底层数据源（部分标 `@deprecated`，不删除）。
+- **enrich 方法**：**不改变 `ITweet` v1**。`tweet` 与 `getByMblogId` 同构；`raw` 为 `statuses/show` 的 passthrough 原始响应；`longText` 仅在 `includeLongText: true` 时补拉 `longtext` 端点。enrich 结果由调用方决定是否落盘；uid 级扩展字段走 `users.info` / `users.details` 或请求级 `onRaw`。
+- **回调失败语义**：`onRaw` 抛错会使该次请求 / 该条归档失败（不静默丢失 raw），与其它 hooks 一致。
 - **下游职责**：需要 raw 的消费方（如 archiver）自行保存 raw 字节/JSON，并按 `mblogId` 与 `{ schemaVersion, tweet }` 关联。
 
 ## 5. 迁移策略（v1 → v2）

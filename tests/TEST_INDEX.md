@@ -57,7 +57,8 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `component/public/UserService.test.ts` | `UserService` | info/details/myDetails 端点调用与 params、getById 归一化+正常化事件、session expired 错误、schema 校验失败 |
-| `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败 |
+| `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败、`enrich` raw+归一化（含可选 longtext）、请求级 `onRaw` 在校验/ok 检查前触发 |
+| `component/public/ArchiveService.test.ts` | `ArchiveService` | timeline → reposts → favorites 编排、checkpoint 续传、schemaDigest、归档级 `onRaw` 逐项交付且信封不含 raw、onRaw 抛错向上传播 |
 
 ### E2E
 

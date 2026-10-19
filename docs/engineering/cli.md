@@ -48,6 +48,9 @@ weibo-sdk user timeline <uid> [--page/-p <n>] [--count <n>]
 # 获取微博详情（归一化为 Tweet 模型）
 weibo-sdk tweet detail <mblogId>
 
+# 补拉原始响应 + 归一化模型（下游自行保存 raw；--longtext 额外补拉全文）
+weibo-sdk tweet enrich <mblogId> [--longtext] [--no-longtext]
+
 # 获取微博评论
 weibo-sdk tweet comments <mblogId> [--count <n>] [--flow 0|1]
 
@@ -112,6 +115,8 @@ weibo-sdk whoami
 weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [--max-pages <n>]
 ```
 
+> raw 落盘不在 CLI 默认输出中：SDK 使用方通过 `config.hooks.onRaw` / `streamArchive({ onRaw })` 接收原始项自行保存（P1-9，见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)）。
+
 ## 输出形态速查
 
 | 子命令 | 底层 Service 方法 | 输出 |
@@ -119,6 +124,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 | `user info` | `users.getById()` | `User` 领域模型 |
 | `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`） |
 | `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
+| `tweet enrich` | `tweets.enrich()` | `{ tweet, raw, longText? }`（raw 为 `statuses/show` 原始响应） |
 | `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |

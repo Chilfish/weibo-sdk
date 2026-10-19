@@ -23,7 +23,6 @@
 | C5 | 错误分类统一（level 与类名解耦） | ⏸️ | P2 | `level` 由实例声明而非类继承决定，两套真相；选一个明显且唯一的系统 | review C5 |
 | E1 | 框架层瘦身评估 | ⏸️ | P2 | EndpointSpec/IResource 是否过度泛化：先承接 P0 契约卫生（消 `as any`、schema 回归）后，用真实使用量评估抽象是否成立 | review E1 |
 | — | 领域模型继续精确化 | ⏸️ | P2 | 更多变种字段（`annotations` 异构、`page_info` 类型漂移）的 fallback 链补充，随真实 fixture 驱动 | 渐进式开发计划 Phase 2 |
-| K5 | raw / enrich 访问策略 | ⏸️ | P1 | **2026-10-19 裁定**：raw 不进 `ArchiveItem`，下游自行保存；SDK 通过 hooks/回调（请求级或归档级）暴露 raw，并提供独立 `enrich` 方法。API 形状在 P1-9 设计 | review K5 + 2026-10-19 裁定 |
 | — | 432 风控信号与退避 | ⏸️ | P1 | 将 HTTP 432 映射为 `RateLimitError(retryable)` 并做指数退避；当前令牌桶不区分 432 | 2026-10-19 调研 |
 
 ### 端点扩展（暂缓，非归档优先）
@@ -61,5 +60,6 @@
 | ArchiveService 断点续传流 + 全链路快照 + CLI 归档 | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
 | 契约卫生（消 `as any` / 变种测试 / schema 回归 / 收窄双 API） | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P0-4/P0-5、P1-8 |
 | telemetry 消费端 / CLI 裁剪 / 流程简化 / TSDOC / 快速开始示例 | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P2 |
+| raw / enrich 访问策略（K5） | ✅ 已完成 | [todo-contract-freeze.md](./todo-contract-freeze.md) P1-9（`hooks.onRaw` / `streamArchive({ onRaw })` / `tweets.enrich`） |
 
 > 各阶段交付细节见 [development-log/](../development-log/README.md)；完成后移入 [archive/](../archive/README.md)（存档不主动读取）。
