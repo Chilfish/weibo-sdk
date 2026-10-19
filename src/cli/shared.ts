@@ -20,6 +20,22 @@ export function getCookie(args: Record<string, unknown>): string {
   return readEnvValue(getEnvFilePath(args), 'WEIBO_COOKIE') ?? ''
 }
 
+/**
+ * archive 的负向开关（citty：`--no-reposts` 会把 `reposts` 设为 false，而非产出 `no-reposts`）。
+ * 未传时默认全部开启。
+ */
+export function resolveArchiveIncludeFlags(args: {
+  'reposts'?: boolean
+  'favorites'?: boolean
+  'date-slices'?: boolean
+}): { includeReposts: boolean, includeFavorites: boolean, includeDateSlices: boolean } {
+  return {
+    includeReposts: args.reposts !== false,
+    includeFavorites: args.favorites !== false,
+    includeDateSlices: args['date-slices'] !== false,
+  }
+}
+
 export function createSDK(args: Record<string, unknown>): WeiboSDK {
   const cookie = getCookie(args)
   const config: IWeiboConfig = { cookie, selfCheck: { mode: 'lazy' } }

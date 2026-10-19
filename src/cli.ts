@@ -8,7 +8,7 @@ import { followFans, followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
 import { tweetComments, tweetDetail, tweetEnrich, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
 import { userInfo, userTimeline } from './cli/commands/user'
-import { cookieArg, createSDK, getCookie, getEnvFilePath } from './cli/shared'
+import { cookieArg, createSDK, getCookie, getEnvFilePath, resolveArchiveIncludeFlags } from './cli/shared'
 
 const trends = defineCommand({
   meta: { name: 'trends', description: '获取热搜榜单' },
@@ -64,9 +64,9 @@ const archive = defineCommand({
   meta: { name: 'archive', description: '镜像单个微博账号（timeline + 日期切片 + reposts + favorites，可断点续传）' },
   args: {
     'uid': { type: 'positional', description: '用户 UID', required: true },
-    'no-reposts': { type: 'boolean', description: '跳过转发归档' },
-    'no-favorites': { type: 'boolean', description: '跳过收藏归档' },
-    'no-date-slices': { type: 'boolean', description: 'mymblog 翻到底后不补 searchProfile 日期切片' },
+    'reposts': { type: 'boolean', default: true, description: '归档转发（--no-reposts 跳过）' },
+    'favorites': { type: 'boolean', default: true, description: '归档收藏（--no-favorites 跳过）' },
+    'date-slices': { type: 'boolean', default: true, description: '日期切片补齐（--no-date-slices 跳过）' },
     'source': { type: 'string', description: 'timeline 数据源：mymblog（默认）或 search（直接日期切片）' },
     'since': { type: 'string', description: '日期切片下界（unix 秒，可选）' },
     'comments': { type: 'boolean', description: '拉取并挂载评论到 tweet.comments（默认关闭）' },
@@ -95,9 +95,7 @@ const archive = defineCommand({
       value === 'abort' || value === 'skip' || value === 'retry' ? value : undefined
     let latestProgress: ArchiveProgress | undefined
     const stream = createSDK(args).archive.streamArchive(args.uid, {
-      includeReposts: !args['no-reposts'],
-      includeFavorites: !args['no-favorites'],
-      includeDateSlices: !args['no-date-slices'],
+      ...resolveArchiveIncludeFlags(args),
       timelineSource: source,
       since: args.since ? Number(args.since) : undefined,
       includeComments: !!args.comments,
@@ -139,6 +137,8 @@ const archive = defineCommand({
     try {
       for await (const item of stream) {
         last = item.checkpoint
+        // 每产出一项即落盘，进程被中断（Ctrl+C）时仍可从最近进度续跑。
+        writeFileSync(checkpointPath, JSON.stringify(item.checkpoint, null, 2))
         count += 1
         console.log(JSON.stringify({
           event: 'item',
