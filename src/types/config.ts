@@ -2,13 +2,25 @@
 import type { WeiboSDKHooks, WeiboSDKSelfCheckMode } from './hooks'
 import type { WeiboSDKTelemetry } from './telemetry'
 
+/**
+ * `new WeiboSDK(...)` 的构造配置。
+ *
+ * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、懒自检）。
+ */
 export interface IWeiboConfig {
+  /** 微博登录 Cookie（必填）；失效会在自检或 `ok !== 1` 时以结构化错误暴露 */
   cookie: string
+  /** XSRF Token；部分 POST 端点需要，缺省时仅发送 Cookie */
   xsrfToken?: string
+  /** 上游代理地址（如 `http://127.0.0.1:7890`）；仅 Node 生效，浏览器运行时忽略 */
   proxyUrl?: string
+  /** 单请求超时毫秒数（默认 30000） */
   timeout?: number
+  /** 是否输出调试日志（默认关闭；库入口不产生副作用日志） */
   logging?: boolean
+  /** 令牌桶最大并发数（默认 3） */
   maxConcurrent?: number
+  /** 请求间隔毫秒数，或按重试次数返回间隔的函数（默认 1000） */
   delay?: number | ((retryCount: number) => number)
 
   /**
@@ -31,6 +43,7 @@ export interface IWeiboConfig {
    * - `eager`: new 后立即启动自检（失败不会产生未处理 Promise；错误会在后续请求前被抛出，同时触发 hooks）
    */
   selfCheck?: {
+    /** 自检模式（默认 `lazy`） */
     mode?: WeiboSDKSelfCheckMode
   }
 }

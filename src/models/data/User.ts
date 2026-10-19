@@ -2,25 +2,53 @@ import type { Gender, IUser, IUserVerification } from '~/types/domain/IUser'
 import type { IRawUserDetails } from '~/types/raw/user/Details'
 import type { IRawUserInfo } from '~/types/raw/user/Info'
 
+/**
+ * 用户领域模型（`IUser` 的具体实现）。
+ *
+ * 由两份 raw 响应（`userInfo` + `userDetails`）归一化而来，纯数据载体、不发请求：
+ * 缺失字段按 fallback 链取值，无法确定的字段（如 `birthday` / `realName` / `school`）
+ * 保持 `undefined`，而不是伪造默认值。
+ */
 export class User implements IUser {
+  /** 头像 URL，fallback 链：`avatar_hd` → `avatar_large` → `profile_image_url` */
   public avatar: string
+  /** 生日（raw `birthday`，如 `1990-01-01`）；未公开时为 `undefined` */
   public birthday?: string
+  /** 公司（raw `company`，否则取 `career.company`） */
   public company?: string
+  /** 主页封面图（raw `cover_image_phone`） */
   public cover: string
+  /** 注册时间（raw `created_at` 原样字符串） */
   public createdAt: string
+  /** 阳光信用等级（raw `sunshine_credit.level`，缺省为 `'0'`） */
   public creditLevel?: string
+  /** 个人简介，fallback 到详情页 `desc_text` */
   public description: string
+  /** 外部链接（raw `links`，仅保留 `title` / `url`） */
   public externalLinks?: Array<{ title: string, url: string }>
+  /** 性别，fallback 到详情页 `gender`，仍缺省则 `Unknown`（`'n'`） */
   public gender: Gender
+  /** 数字 UID 字符串（优先 `idstr`） */
   public id: string
+  /** 所在地（优先详情页 `ip_location`，去掉 `IP属地：` 前缀） */
   public location: string
+  /** 昵称（raw `screen_name`） */
   public name: string
+  /** 实名（raw `real_name.name`，去掉 `姓名：` 前缀） */
   public realName?: string
+  /** 学校（raw `education.school`） */
   public school?: string
+  /** 计数器（粉丝 / 关注 / 微博数），非数字按 0 处理 */
   public stats: { followers: number, friends: number, statuses: number }
+  /** 主页地址；`https://weibo.com` + raw `profile_url` */
   public url: string
+  /** 认证信息：是否认证、认证类型（缺省 -1）、认证说明 */
   public verification: IUserVerification
 
+  /**
+   * @param userInfo 用户简版 raw 响应（`ajax/profile/info` 的 `data.user`）
+   * @param userDetails 用户详情 raw 响应（`ajax/profile/detail` 的 `data`）
+   */
   constructor(userInfo: IRawUserInfo, userDetails: IRawUserDetails) {
     this.id = String(userInfo.idstr || userInfo.id)
     this.name = userInfo.screen_name || ''
