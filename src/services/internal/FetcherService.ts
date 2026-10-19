@@ -36,6 +36,41 @@ function getArgsKeys(args?: Record<string, unknown>): string | undefined {
   return keys.join(',')
 }
 
+/**
+ * 判断当前是否运行在浏览器/浏览器类环境（SPA、userscript、Electron renderer）。
+ *
+ * 不直接写 `typeof window` 是因为本仓库 tsconfig 的 `lib` 不含 DOM，
+ * 这里通过 `globalThis` 做结构化判断，既能通过类型检查，也能覆盖 worker 场景。
+ */
+function isBrowserRuntime(): boolean {
+  const scope = globalThis as typeof globalThis & { window?: { document?: unknown } }
+  return typeof scope.window !== 'undefined' && typeof scope.window?.document !== 'undefined'
+}
+
+/**
+ * 创建 axios 实例。
+ *
+ * `proxy` 是 Node-only 配置（仅 http/https adapter 使用）：浏览器（XHR/fetch adapter）会忽略它，
+ * 且 `new URL(proxyUrl)` 在受限环境（userscript 沙箱、部分 worker）可能抛错。
+ * 因此只在非浏览器环境注入 proxy，浏览器下退化为直连（由浏览器/宿主决定代理）。
+ */
+function createAxiosClient(config: IWeiboConfig): AxiosInstance {
+  const options: AxiosRequestConfig = {
+    timeout: config.timeout || 30000,
+  }
+
+  if (!isBrowserRuntime()) {
+    options.proxy = config.proxyUrl
+      ? {
+          host: new URL(config.proxyUrl).hostname,
+          port: Number.parseInt(new URL(config.proxyUrl).port),
+        }
+      : false
+  }
+
+  return axios.create(options)
+}
+
 function toTelemetryErrorFields(error: unknown): Pick<
   Extract<TelemetryEvent, { event_name: 'request_error' }>,
   'error_name' | 'error_message' | 'error_code' | 'error_level' | 'error_retryable'
@@ -86,15 +121,7 @@ export class FetcherService {
       preflight?: () => Promise<void>
     },
   ) {
-    this.client = deps?.client ?? axios.create({
-      timeout: config.timeout || 30000,
-      proxy: config.proxyUrl
-        ? {
-            host: new URL(config.proxyUrl).hostname,
-            port: Number.parseInt(new URL(config.proxyUrl).port),
-          }
-        : false,
-    })
+    this.client = deps?.client ?? createAxiosClient(config)
     this.authService = deps?.authService ?? new AuthService(config)
     this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
       config.maxConcurrent || 3,

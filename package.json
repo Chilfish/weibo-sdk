@@ -21,7 +21,11 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./cli": "./dist/cli.mjs",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./browser": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/browser.mjs"
+    }
   },
   "types": "./dist/index.d.mts",
   "bin": {
@@ -37,6 +41,7 @@
     "lint": "eslint . --fix",
     "prepublishOnly": "nr build",
     "release": "bumpp && pnpm publish",
+    "smoke:browser": "node scripts/browser-smoke.mjs",
     "start": "tsx src/index.ts",
     "test": "vitest",
     "test:e2e": "vitest --config vitest.e2e.config.ts",

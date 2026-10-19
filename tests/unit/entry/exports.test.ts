@@ -32,5 +32,10 @@ describe('package exports', () => {
     expect(pkg.exports!['./package.json']).toBe('./package.json')
     // tsdown auto-generates cli subpath
     expect(pkg.exports!['./cli']).toBeDefined()
+
+    // P2-1：浏览器安全入口（自包含 ESM，无 Node-only API），类型复用 node 入口
+    const browser = pkg.exports!['./browser'] as { default?: string, types?: string } | undefined
+    expect(browser?.default).toBe('./dist/browser.mjs')
+    expect(browser?.types).toBe('./dist/index.d.mts')
   })
 })
