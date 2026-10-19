@@ -110,10 +110,22 @@ weibo-sdk trends [--type hot|topic|entertainment]
 # 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
 weibo-sdk whoami
 
-# 镜像单个账号（timeline + reposts + favorites，可断点续传）
+# 镜像单个账号（timeline + 日期切片 + reposts + favorites，可断点续传）
 # 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
-weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [--max-pages <n>]
+weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
+  [--source mymblog|search] [--since <unix-seconds>] [--comments] [--comment-pages <n>] \
+  [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
+  [--checkpoint <file>] [--max-pages <n>]
 ```
+
+> `archive` 默认先翻 `mymblog`；翻到底后若 `total` 表明仍有剩余（或 total 不可用），
+> 自动从最旧一条继续用 `searchProfile` 做日期切片。`--source search` 可跳过 mymblog
+> 直接切片；`--no-date-slices` 关闭回填；`--since` 设置切片下界（unix 秒）。
+>
+> `--comments` 会把评论挂到 `tweet.comments`（favorite 项不拉取）；`--comment-pages` 限制每条微博评论页数。
+> 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
+> 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
+> `item` / `done` 事件也携带 `count/total/remaining`。
 
 > raw 落盘不在 CLI 默认输出中：SDK 使用方通过 `config.hooks.onRaw` / `streamArchive({ onRaw })` 接收原始项自行保存（P1-9，见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)）。
 
@@ -129,7 +141,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
 | `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
-| `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse` |
+| `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 为 unix 秒） |
 | `follow list` | `followings.getFollowings()` | raw `FriendshipsResponse` |
 | `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
 | `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |
@@ -139,7 +151,7 @@ weibo-sdk archive <uid> [--no-reposts] [--no-favorites] [--checkpoint <file>] [-
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
-| `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, checkpoint }`（数据本体走 SDK 流；`schemaVersion` 为 ITweet 存档契约版本） |
+| `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 为 ITweet 存档契约版本；`checkpoint` 可能含 `sliceEnd/slicePage/sliceWindow` 日期切片游标） |
 
 ## 架构
 

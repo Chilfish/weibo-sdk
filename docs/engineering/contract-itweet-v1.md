@@ -51,6 +51,7 @@
 | `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType }` |
 | `media` | `TweetMedia[]` | 见下；**恒为数组**（无媒体 = 空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
+| `comments?` | `ITweetComment[]` | 评论（P1-6，v1 新增 optional 字段）：普通 `normalizeTweet` 不填充；仅 `streamArchive({ includeComments: true })` 拉取并挂载。`ITweetComment = { id, createdAt, text, textHtml, source, likes, user, replies? }`，`replies` 递归同构 |
 
 ### TweetUser（简版用户）
 
@@ -87,7 +88,7 @@
 - **SDK 不负责下载/持久化媒体**；`ArchiveItem` 不含 `mediaFiles`（裁定同时定义了信封形状）。
 - 存档消费方（archiver）必须在归档时及时下载媒体字节；仅存 URL 的展示属「临时可用」，不是长期存档。
 - 过期后的恢复路径：经 SDK 重新拉取单条微博（`getByMblogId` / `show`）获取新 URL。
-- 媒体下载辅助 API（可选增强）= [backlog](../planning/backlog.md) P1-7，不阻塞本契约。
+- 媒体下载辅助 API（可选增强，默认关闭）= [backlog](../planning/backlog.md)「媒体下载辅助」，不阻塞本契约；P1-7 复核结论为 SDK 不负责下载。
 
 ## 4.1 原始数据（raw）与 enrich 边界（2026-10-19 裁定）
 

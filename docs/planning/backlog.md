@@ -24,6 +24,7 @@
 | E1 | 框架层瘦身评估 | ⏸️ | P2 | EndpointSpec/IResource 是否过度泛化：先承接 P0 契约卫生（消 `as any`、schema 回归）后，用真实使用量评估抽象是否成立 | review E1 |
 | — | 领域模型继续精确化 | ⏸️ | P2 | 更多变种字段（`annotations` 异构、`page_info` 类型漂移）的 fallback 链补充，随真实 fixture 驱动 | 渐进式开发计划 Phase 2 |
 | — | 432 风控信号与退避 | ⏸️ | P1 | 将 HTTP 432 映射为 `RateLimitError(retryable)` 并做指数退避；当前令牌桶不区分 432 | 2026-10-19 调研 |
+| — | 媒体下载辅助（可选） | ⏸️ | P3 | P0-2 裁定 SDK 不下载/持久化媒体；可提供**可选、默认关闭**的 helper（及时抓取临时 URL、LivePhoto `.mov`、失败记录），不改变 `ITweet`/`ArchiveItem` 契约 | P1-7 复核（2026-10-19） |
 
 ### 端点扩展（暂缓，非归档优先）
 

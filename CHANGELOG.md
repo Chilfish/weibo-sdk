@@ -20,6 +20,12 @@
 - **`defineEndpoint()` helper**：让 endpoint 定义的 args 类型从 `argsSchema` 自动推导，减少类型断言。
 - **Endpoint 目录**：将 Zod schema 与 EndpointSpec 定义从 Service 文件中抽离到 `src/services/endpoints/`（`tweet.ts`、`user.ts`），Service 文件只保留业务逻辑。
 - **raw / enrich 访问 API**（P1-9/K5）：新增请求级 `config.hooks.onRaw(raw, meta)`（Zod 校验前触发，失败响应也可获取）、归档级 `streamArchive(uid, { onRaw })`（逐原始项）与 `tweets.enrich(mblogId) → { tweet, raw, longText? }`；`ArchiveItem` 保持 v1 形状、不携带 raw。
+- **归档日期切片**（P1-5/R5）：`streamArchive` 在 mymblog page 翻到底后自动用 `searchProfile` 按日期切片补齐更早内容，单片 `total` 超过 `maxSliceItems` 时对半缩小窗口；新增 `timelineSource` / `includeDateSlices` / `since` / `until` / `sliceWindow` / `maxSliceItems` 选项与 `sliceEnd` / `slicePage` / `sliceWindow` checkpoint 游标。大号（万条级）完整镜像成立。
+- **归档进度事件**（P1-3/R3）：`streamArchive({ onProgress })` 每页/每阶段给出 `{ processed, total?, remaining?, phase, source, page }`；telemetry 新增 `archive_progress` Wide Event；CLI 输出 `progress` NDJSON，`item`/`done` 事件带 `count/total/remaining`。
+- **单条失败策略**（P1-4/R4）：`streamArchive({ onItemError, repostErrorPolicy, commentsErrorPolicy, maxRetries, retryDelayMs })`；转发/评论单页失败默认 `skip` 并继续，仅 `retryable` 结构化错误会重试；telemetry 新增 `archive_item_error`。
+- **评论归档**（P1-6/K4）：`streamArchive({ includeComments: true })` 分页拉取评论并挂到 `tweet.comments`（`ITweetComment[]`，含楼中楼 `replies`）；`ITweet` v1 新增 optional `comments` 字段，favorite 项不拉取。CLI 新增 `--comments` / `--comment-pages`。
+- **浏览器构建**（P2-1/K6）：新增 `dist/browser.mjs`（platform browser，自包含 ESM）与 `weibo-sdk/browser` 子路径导出；`proxyUrl` 在浏览器运行时不再注入 axios `proxy`；新增 `pnpm run smoke:browser` 真实 Chromium 冒烟脚本。
+- **Telemetry JSONL 消费端**（P2-3/E4）：新增 `createJsonlTelemetry` / `formatArchiveProgress` 与 `examples/telemetry-jsonl.mjs`，一行一事件、永不抛错，可直接作为 `config.telemetry` 接入长任务进度 UI。
 - **SDK hooks 系统**：`config.hooks.onLifecycle` / `onFetched` / `onError`，覆盖生命周期、请求完成、错误三大阶段。
 - **会话自检**：`WeiboSDK.selfCheck()` 与 `checkSession()`，支持 `lazy` / `eager` / `none` 三种自检模式。
 - **`WeiboSessionExpiredError`**：Cookie 过期/无效时的结构化业务错误。
@@ -38,6 +44,7 @@
 - **归档 checkpoint 瘦身 + 转发内联**（P1-1/P1-2）：`ArchiveCheckpoint` 删除 `visitedMblogIds`（checkpoint 大小恒定），改用 `page`（当前页）+ `lastTimelineMblogId` 游标；reposts 改为 timeline 阶段内联拉取，删除 `collectTimelineMblogIds` 全量重放；旧 `phase:'reposts'` checkpoint 自动兼容。
 - **raw 边界裁定**：`ArchiveItem` 不携带 raw，下游自行保存；SDK 通过 hooks/回调 + 独立 `enrich` 方法提供 raw/enrich（P1-9）。
 - **公开关键词搜索暂缓**：`searchUsers` / `searchTweets` 不再作为候选能力；`searchProfile`（个人主页内按日期搜索）保留。
+- **`searchByDate` 日期参数改为 unix 秒**：`starttime` / `endtime` 传 **unix 秒**（类型 `number | string`，字符串仅兼容透传）；日期字符串会被上游静默忽略。真实网页端请求为 `searchProfile?...&starttime=<秒>&endtime=<秒>`。
 - **E2E 对齐真实契约**：`listByUserId` 断言改为 `page` 游标；favorites 断言改为 `data.status`；快照按新结构更新。
 - **EndpointSpec 泛型签名变更**：`EndpointSpec<TResource, TArgsSchema>` — `TArgsSchema` 替换了旧的 `TArgs`，args 类型现在从 Zod schema 推导。
 - SDK 入口不再产生 `console.*` 副作用。

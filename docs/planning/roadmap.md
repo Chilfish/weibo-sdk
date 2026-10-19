@@ -63,7 +63,7 @@
 
 - `mymblog`：`since_id` 已不可用，`page` 游标成立；`listByUserId()` 返回 `page`，不再返回 `sinceId`。
 - `favorites`：`data = { status, total_number }` 对象，不是数组。
-- `searchProfile`：无日期与带日期参数均可用；曾出现一次瞬时空列表，重跑恢复——测试需容忍瞬时空结果。
+- `searchProfile`：无日期与带日期参数均可用；`starttime` / `endtime` 为 **unix 秒**（日期字符串会被静默忽略）；单页约 50 条，大范围 `total` 会失真且 page 越界会重置，归档需用自适应日期窗口；曾出现一次瞬时空列表，重跑恢复——测试需容忍瞬时空结果。
 - `friendships`：raw 用户字段继续增加（`pay_date` / `brand_ability` 等），`passthrough` 承接。
 - `statuses/show` + `mix_media_info`：稳定；LivePhoto 的 `gif_mp4` 作为 `videoUrl` 输出。
 
@@ -104,7 +104,9 @@
 ### Phase 5：新端点开发（P1）
 已完成：`longtext` / `buildComments` / `friendstimeline` / `bandUnified` / `searchProfile` / `friendships/friends` / `followContent` / `favorites/all_fav` / `search*`
 
-> 注：`searchUsers` / `searchTweets` 公开关键词搜索已**产品暂缓**（2026-10-19：官方搜索体验差、接口失效）；`searchProfile`（个人主页内按日期搜索）仍可用，属于归档主线。
+> 注：`searchUsers` / `searchTweets` 公开关键词搜索已**产品暂缓**（2026-10-19：官方搜索体验差、接口失效）；`searchProfile`（个人主页内按日期搜索）仍可用，属于归档主线，且已作为 P1-5 日期切片的数据源。
+>
+> 下游集成：P2-1 已新增 `weibo-sdk/browser` 自包含 ESM 入口（真实 Chromium 冒烟），P2-3 已提供 JSONL telemetry 消费端；决策见 [p2-readiness.md](./p2-readiness.md)。
 
 已完成（归档 MVP）：
 1. [x] 转发列表 `/ajax/statuses/repostTimeline`

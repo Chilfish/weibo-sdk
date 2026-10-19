@@ -104,6 +104,7 @@ request(spec, args)
 | `pageInfo` | `TweetPageCard` | OPTIONAL | 链接/视频卡片 |
 | `media` | `TweetMedia[]` | REQUIRED | 媒体列表（图片/视频/LivePhoto/GIF） |
 | `geo` | `TweetGeo` | OPTIONAL | 发博定位 |
+| `comments` | `ITweetComment[]` | OPTIONAL | 评论（P1-6）；普通 `normalizeTweet` 不填充，仅 `streamArchive({ includeComments: true })` 挂载 |
 
 **不变性**：`id`/`mblogId` 非空；`media` 为数组（可为空）；`stats.*` ≥ 0。
 
@@ -173,7 +174,7 @@ interface IWeiboConfig {
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
-| `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索 |
+| `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 为 **unix 秒**） |
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
@@ -191,11 +192,15 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（内联 reposts）→ favorites 一条可恢复流 |
+| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（mymblog + 可选 searchProfile 日期切片，内联 reposts）→ favorites 一条可恢复流 |
 
 - `ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`：`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`：只保留 key 路径 + 值类型），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
 - `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [contract-itweet-v1.md §4.1](./contract-itweet-v1.md)）。
-- `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, lastMblogId? }`（P1-1/P1-2）：**不再携带 `visitedMblogIds`**，checkpoint 大小恒定。`page` 语义 = timeline 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博，恢复时跳过该项及之前的项；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。转发在 timeline 阶段内联拉取，不再重放整个 timeline。
+- `ArchiveStreamOptions`（P1-5）：`timelineSource?: 'mymblog' | 'search'`（默认 `mymblog`）；`includeDateSlices?: boolean`（默认 `true`）；`since?: number`（unix 秒，默认 2009-08-14）；`until?: number`（unix 秒，默认当前时间）；`sliceWindow?: number`（初始自适应窗口秒数，默认 30 天）；`maxSliceItems?: number`（单片超过该条数就对半缩小窗口，默认 800）。
+- `ArchiveStreamOptions`（P1-3/P1-4/P1-6）：`onProgress(progress)`（每页/每阶段一次，`ArchiveProgress = { uid, phase, processed, total?, remaining?, source?, page? }`）；`onItemError(error, context)` 返回 `'abort' | 'skip' | 'retry'`；`repostErrorPolicy` / `commentsErrorPolicy`（默认 `skip`，转发/评论单页失败不中止归档）；`maxRetries`（默认 1，仅 `retryable` 错误）/ `retryDelayMs`；`includeComments`（默认 `false`）、`commentCount`（默认 20）、`maxCommentPagesPerTweet`（默认不限）。`onProgress` 与 telemetry 异常不影响归档。
+- `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, sliceEnd?, slicePage?, sliceWindow?, lastMblogId? }`（P1-1/P1-2/P1-5）：**不再携带 `visitedMblogIds`**。`page` 语义 = mymblog 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博（mymblog 与日期切片页内共用）；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标（unix 秒），`sliceEnd` 存在即表示恢复时跳过 mymblog；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。
+- 反向兼容：`timelineSource='mymblog'` 时若 `data.total` 证明已完整则不切片；否则从最旧一条微博之前继续日期切片。单片 `total` 超过 `maxSliceItems` 时对半缩小窗口，避免 `searchProfile` 大范围下 `total` 失真与分页窗口重置；空切片会自动放大窗口跨过长期空档。
+- 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
 - 判别标准：≤20 行代码 + 一条 `weibo-sdk archive <uid>` 命令镜像单账号。
 
 ### 3.4 EndpointSpec
@@ -233,6 +238,8 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - `request_start` / `request_success` / `request_error`
 - `rate_limit_wait`
 - `normalize_done`
+- `archive_progress`（P1-3）：`uid / phase / processed / total? / remaining? / source? / page?`
+- `archive_item_error`（P1-4）：`uid / phase / stage / source? / mblogId? / parentMblogId? / page? / action / error_*`
 
 `telemetry.emit()` 的任何异常 MUST NOT 影响 SDK 正常功能（外层 try/catch）。
 
@@ -243,8 +250,12 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - `VERSION`（包版本号）
 - `WeiboSDK` 类（门面）
 - 类型与枚举（`types/*`）：`IWeiboConfig`、`IUser`/`ITweet` 及其子类型、`IResource`、hooks/telemetry 类型（含 `WeiboSDKRawMeta`）、raw/enrich 类型（`ArchiveRawMeta` / `TweetEnrichOptions` / `TweetEnrichResult`）、以及**所有 endpoint 响应类型**（`UserInfoResponse` / `UserDetailsResponse` / `MyMblogResponse` / `StatusShowResponse` / `LongtextResponse` / `SearchProfileResponse` / `BuildCommentsResponse` / `FriendstimelineResponse` / `SearchUsersResponse` / `SearchTweetsResponse` / `BandUnifiedResponse` / `FriendshipsResponse` / `FollowContentResponse` / `FavoritesResponse`）
-- 领域模型：`User`、`Tweet`（类）、`normalizeTweet`（函数）、`RawTweet`（类型）
+- 领域模型：`User`、`Tweet`（类）、`normalizeTweet` / `normalizeComment`（函数）、`RawTweet`（类型）
+- 归档类型：`ArchiveItem` / `ArchiveCheckpoint` / `ArchiveStreamOptions` / `ArchiveProgress` / `ArchiveItemErrorContext` / `ArchiveRawMeta`
+- Telemetry JSONL 消费端（P2-3）：`createJsonlTelemetry` / `serializeTelemetryEvent` / `formatArchiveProgress` / `isArchiveProgress`
 - 结构化错误类：`WeiboSDKError` 基类与全部 6 个子类（见 §4）
+
+**构建产物**（P2-1）：Node 入口 `weibo-sdk` → `dist/index.mjs`；CLI → `dist/cli.mjs`；浏览器/userscript 入口 `weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxyUrl` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 
 **规则**：
 - 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。
@@ -321,8 +332,9 @@ WeiboSDKError (abstract: code / level / retryable / context)
 
 ```
 src/
-  index.ts                  # 公共导出（VERSION + types + WeiboSDK）
-  WeiboSDK.ts               # 门面，6 个 Service
+  index.ts                  # 公共导出（VERSION + types + WeiboSDK + telemetryJsonl）
+  WeiboSDK.ts               # 门面，7 个 Service（含 ArchiveService）
+  utils/telemetryJsonl.ts   # P2-3 JSONL telemetry 消费端
   cli.ts                    # CLI 入口（citty）
   cli/commands/*.ts         # user / tweet / follow / favorite / search
   types/

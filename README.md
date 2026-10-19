@@ -15,6 +15,7 @@
 - **Wide Events 可观测**：内置扁平化遥测事件（`request_start/success/error` 等），支持 trace_id 全链路追踪
 - **会话自检**：`selfCheck()` 支持 lazy/eager/none 三种模式，Cookie 过期提前诊断
 - **速率控制**：令牌桶算法，支持并发控制，避免触发风控
+- **浏览器可用**：`dist/browser.mjs` 自包含 ESM（axios/zod 内联），web-v3 / userscript 可直接 `import 'weibo-sdk/browser'`
 
 ## 版本与契约
 
@@ -30,6 +31,8 @@
 pnpm install
 pnpm run build
 ```
+
+浏览器 / userscript 使用 `weibo-sdk/browser` 子路径（Node 入口保持 `weibo-sdk`）；构建后可用 `pnpm run smoke:browser` 在真实 Chromium 做冒烟。
 
 ### 获取用户信息
 
@@ -82,6 +85,25 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 
 // 单条补拉：raw + 归一化模型（可选长微博全文）
 const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', { includeLongText: true })
+```
+
+### 完整镜像大号（日期切片）
+
+`streamArchive` 默认先翻 `mymblog`；page 游标翻到底后，如果 `total` 表明仍有剩余（或 total 不可用），会自动从最旧一条继续用 `searchProfile` 做日期切片，单片过密时对半缩小窗口。万条级账号也能完整镜像：
+
+```typescript
+for await (const item of sdk.archive.streamArchive('1111681197', {
+  includeReposts: true,
+  includeFavorites: true,
+  includeComments: true, // P1-6：评论挂到 item.tweet.comments
+  onProgress: p => console.log(p.phase, p.processed, p.total, p.remaining),
+  // 可选：直接按日期切片（跳过 mymblog）、限制下界（unix 秒）
+  // timelineSource: 'search',
+  // since: Math.floor(Date.UTC(2009, 7, 14) / 1000),
+})) {
+  await persist(item.tweet)
+  await saveCheckpoint(item.checkpoint) // sliceEnd/slicePage/sliceWindow 可断点续传
+}
 ```
 
 ### CLI
