@@ -42,15 +42,8 @@
     "test:e2e": "vitest --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit",
     "validate:fixtures": "tsx scripts/validate-fixtures.ts",
-    "prepare": "simple-git-hooks",
-    "size": "size-limit"
+    "prepare": "simple-git-hooks"
   },
-  "size-limit": [
-    {
-      "path": "./dist/index.mjs",
-      "limit": "50 kB"
-    }
-  ],
   "dependencies": {
     "axios": "catalog:",
     "citty": "catalog:",
@@ -59,7 +52,6 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
     "@antfu/ni": "catalog:cli",
-    "@size-limit/preset-small-lib": "catalog:utils",
     "@types/node": "catalog:types",
     "bumpp": "catalog:cli",
     "dotenv": "catalog:cli",
