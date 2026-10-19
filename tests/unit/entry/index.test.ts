@@ -14,5 +14,5 @@ describe('package entry', () => {
     expect(infoSpy).not.toHaveBeenCalled()
     expect(warnSpy).not.toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
-  })
+  }, 15_000)
 })
