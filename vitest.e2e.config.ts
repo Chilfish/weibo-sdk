@@ -19,6 +19,6 @@ export default defineConfig({
     },
     globals: true,
     include: ['tests/e2e/**/*.test.ts'],
-    setupFiles: ['dotenv/config'],
+    setupFiles: ['tests/e2e/setup-env.ts'],
   },
 })

@@ -1,5 +1,4 @@
 import type { ArchiveCheckpoint } from './services/public/ArchiveService'
-// Auto-load .env file (Node.js 21.7+)
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, runMain } from 'citty'
@@ -9,14 +8,7 @@ import { followFans, followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
 import { tweetComments, tweetDetail, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
 import { userInfo, userTimeline } from './cli/commands/user'
-import { cookieArg, createSDK, getCookie } from './cli/shared'
-
-try {
-  process.loadEnvFile()
-}
-catch {
-  // .env file not found — use env vars directly
-}
+import { cookieArg, createSDK, getCookie, getEnvFilePath } from './cli/shared'
 
 const trends = defineCommand({
   meta: { name: 'trends', description: '获取热搜榜单' },
@@ -37,7 +29,7 @@ const whoami = defineCommand({
   async run({ args }) {
     const cookie = getCookie(args)
     if (!cookie) {
-      console.error('❌ 请设置 WEIBO_COOKIE 环境变量或通过 --cookie 参数传入')
+      console.error(`❌ 未在 ${getEnvFilePath(args)} 中找到 WEIBO_COOKIE，或通过 --cookie 参数传入`)
       process.exit(1)
     }
     const sdk = createSDK(args)
@@ -125,7 +117,7 @@ const main = defineCommand({
   meta: {
     name: 'weibo-sdk',
     version: pkg.version,
-    description: '微博 API 逆向 SDK 命令行工具\n\nCookie：通过 --cookie/-c 参数或 WEIBO_COOKIE 环境变量 / .env 文件',
+    description: '微博 API 逆向 SDK 命令行工具\n\nCookie：从 .env 文件读取（默认 <pwd>/.env，可用 --env-file 指定；--cookie/-c 显式覆盖）',
   },
   subCommands: {
     user: defineCommand({

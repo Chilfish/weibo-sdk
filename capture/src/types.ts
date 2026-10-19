@@ -17,8 +17,10 @@ export interface CaptureOptions {
   outDir?: string
   /** 调试端口起点，默认 9222，自动找空闲 */
   port?: number
-  /** 覆盖 .env 的 WEIBO_COOKIE */
+  /** 显式覆盖 .env 中的 WEIBO_COOKIE */
   cookie?: string
+  /** .env 文件路径（默认 `<pwd>/.env`）；Cookie 只从此文件读取 */
+  envFile?: string
   /** 覆盖 Chrome 可执行路径（默认 CHROME_PATH 或标准安装路径） */
   chromePath?: string
   /** 自定义请求过滤（默认 isApi） */

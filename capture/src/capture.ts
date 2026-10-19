@@ -5,7 +5,8 @@ import { existsSync } from 'node:fs'
 //
 // 依赖注入（CaptureDeps）使全部 IO 可在测试中替换，离线验证编排逻辑。
 import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { readEnvValue } from '../../src/utils/envFile'
 import { connect } from './cdp'
 import { buildChromeArgs, findFreePort, spawnChrome, waitForEndpoint } from './chrome'
 import { parseCookies } from './cookie'
@@ -23,14 +24,12 @@ export interface CaptureDeps {
 
 const DEFAULT_CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 
-function loadEnvCookie(): string {
-  try {
-    process.loadEnvFile()
-  }
-  catch {
-    // .env 不存在时直接用环境变量
-  }
-  return process.env.WEIBO_COOKIE || ''
+/** Cookie 只从指定 .env 读取（默认 `<pwd>/.env`），不读取环境变量 */
+function resolveCookie(options: CaptureOptions): { cookie: string, source: string } {
+  if (options.cookie !== undefined)
+    return { cookie: options.cookie, source: '--cookie' }
+  const envFile = resolve(process.cwd(), options.envFile ?? '.env')
+  return { cookie: readEnvValue(envFile, 'WEIBO_COOKIE') ?? '', source: envFile }
 }
 
 function resolveChromePath(): string {
@@ -68,9 +67,9 @@ export async function capture(options: CaptureOptions, deps: CaptureDeps = {}): 
   const seconds = options.seconds ?? 15
   const headless = options.headless ?? true
   const filter = options.filter ?? defaultFilter
-  const cookieStr = options.cookie ?? loadEnvCookie()
+  const { cookie: cookieStr, source: cookieSource } = resolveCookie(options)
   if (!cookieStr)
-    throw new Error('WEIBO_COOKIE 缺失：请在 .env 配置或传 --cookie')
+    throw new Error(`WEIBO_COOKIE 缺失：请在 ${cookieSource} 配置或传 --cookie`)
   const chromePath = options.chromePath ?? resolveChromePath()
   const targetUrl = options.url ?? (options.uid ? `https://weibo.com/u/${options.uid}` : 'https://weibo.com/')
 
