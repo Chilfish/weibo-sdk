@@ -52,7 +52,7 @@ async function collect(stream: AsyncIterableIterator<any>) {
 }
 
 describe('archiveService', () => {
-  it('chains timeline -> reposts -> favorites and advances checkpoint', async () => {
+  it('chains timeline with inline reposts -> favorites and keeps checkpoint constant-size', async () => {
     const { deps, myMblog, getReposts, getFavorites } = createDeps()
     mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
     getReposts.mockResolvedValue({ ok: 1, data: [mkRaw('R1')], total_number: 1, max_page: 1, next_cursor: 0, empty_tip: '' })
@@ -61,25 +61,33 @@ describe('archiveService', () => {
     const service = new ArchiveService(deps)
     const items = await collect(service.streamArchive('111') as any)
 
-    expect(items.map(i => i.source)).toEqual(['timeline', 'timeline', 'repost', 'repost', 'favorite'])
+    // P1-2：转发紧跟所属 timeline item，不再有独立的 reposts 阶段
+    expect(items.map(i => i.source)).toEqual(['timeline', 'repost', 'timeline', 'repost', 'favorite'])
+    expect(items.map(i => i.mblogId)).toEqual(['A', 'R1', 'B', 'R1', 'F1'])
     // 每条归档 item 自带契约版本（K1 / P0-1 信封层，磁盘条目自描述）
     expect(items.map(i => i.schemaVersion)).toEqual([1, 1, 1, 1, 1])
-    expect(items[0].mblogId).toBe('A')
-    expect(items[2].mblogId).toBe('R1')
-    expect(items[4].mblogId).toBe('F1')
 
-    // 最后一个 favorite item 的 checkpoint 仍处于 favorites 阶段（done 是流结束后的内部态）
-    expect(items[4].checkpoint.phase).toBe('favorites')
-    // 每条 timeline item 携带 page（下一页页码；第一页 → 2）
-    expect(items[0].checkpoint.page).toBe(2)
-    // 每个 item 都是归一化 Tweet
-    expect(items[0].tweet.mblogId).toBe('A')
-    // 访问去重列表累积
-    expect(items[4].checkpoint.visitedMblogIds).toContain('R1')
+    // P1-1：checkpoint 恒定大小，不再携带 visitedMblogIds
+    expect(Object.keys(items[0].checkpoint).sort()).toEqual([
+      'favoritesPage',
+      'lastTimelineMblogId',
+      'page',
+      'phase',
+      'uid',
+    ])
+    expect('visitedMblogIds' in items[4].checkpoint).toBe(false)
 
-    // timeline 阶段 2 次（第 1 页 + 空页到底）+ collect 重放 2 次
-    expect(myMblog).toHaveBeenCalledTimes(4)
-    expect(myMblog.mock.calls.map(c => c[1])).toEqual([1, 2, 1, 2])
+    // timeline item A 尚未完成转发 → lastTimelineMblogId 仍为空；B 时 A 已完成
+    expect(items[0].checkpoint).toMatchObject({ uid: '111', phase: 'timeline', page: 1 })
+    expect(items[0].checkpoint.lastTimelineMblogId).toBeUndefined()
+    expect(items[1].checkpoint.lastTimelineMblogId).toBeUndefined()
+    expect(items[2].checkpoint.lastTimelineMblogId).toBe('A')
+    expect(items[3].checkpoint.lastTimelineMblogId).toBe('A')
+    expect(items[4].checkpoint).toMatchObject({ phase: 'favorites', favoritesPage: 1 })
+
+    // P1-2：timeline 只翻一次（第 1 页 + 空页到底），不再重放
+    expect(myMblog).toHaveBeenCalledTimes(2)
+    expect(myMblog.mock.calls.map(c => c[1])).toEqual([1, 2])
     expect(getReposts).toHaveBeenCalledTimes(2)
     expect(getFavorites).toHaveBeenCalledTimes(1)
   })
@@ -90,7 +98,6 @@ describe('archiveService', () => {
       uid: '111',
       phase: 'favorites',
       favoritesPage: 2,
-      visitedMblogIds: ['A', 'B', 'R1'],
     }
     myMblog.mockResolvedValue(mkPage([]))
     getFavorites.mockResolvedValue({ ok: 1, data: { status: [mkRaw('F2')], total_number: 1 } })
@@ -101,8 +108,77 @@ describe('archiveService', () => {
     expect(items).toHaveLength(1)
     expect(items[0].source).toBe('favorite')
     expect(items[0].checkpoint.favoritesPage).toBe(2)
-    // timeline/reposts 阶段不重放
+    // timeline 阶段不重放
     expect(myMblog).not.toHaveBeenCalled()
+  })
+
+  it('resumes mid-timeline using lastTimelineMblogId', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const checkpoint: ArchiveCheckpoint = {
+      uid: '111',
+      phase: 'timeline',
+      page: 1,
+      lastTimelineMblogId: 'A',
+    }
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', { checkpoint }) as any)
+
+    expect(items.map(i => i.mblogId)).toEqual(['B'])
+    // A 已完成，不再请求其转发
+    expect(getReposts).toHaveBeenCalledTimes(1)
+    expect(getReposts.mock.calls[0][0]).toBe('B')
+  })
+
+  it('normalizes legacy reposts checkpoint back to timeline', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    // P1-2 之前的 checkpoint：reposts 阶段 + lastMblogId + visitedMblogIds
+    const checkpoint = {
+      uid: '111',
+      phase: 'reposts',
+      lastMblogId: 'A',
+      visitedMblogIds: ['A'],
+    } as unknown as ArchiveCheckpoint
+
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', { checkpoint }) as any)
+
+    expect(items.map(i => i.mblogId)).toEqual(['B'])
+    expect(getReposts).toHaveBeenCalledTimes(1)
+    expect(getReposts.mock.calls[0][0]).toBe('B')
+  })
+
+  it('dedupes duplicate ids within a page', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('A'), mkRaw('B')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111') as any)
+
+    expect(items.map(i => i.mblogId)).toEqual(['A', 'B'])
+  })
+
+  it('stops when upstream repeats the same page (page ignored)', async () => {
+    const { deps, myMblog, getReposts, getFavorites } = createDeps()
+    // 无论 page 多少都返回同一页 → 必须在第 2 次请求后停止
+    myMblog.mockResolvedValue(mkPage([mkRaw('A')]))
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', { maxPagesPerPhase: 5 }) as any)
+
+    expect(items.map(i => i.mblogId)).toEqual(['A'])
+    expect(myMblog.mock.calls.map(c => c[1])).toEqual([1, 2])
   })
 
   it('produces schemaDigest structure snapshot for drift detection (A7)', async () => {
@@ -138,13 +214,13 @@ describe('archiveService', () => {
       },
     }) as any)
 
-    expect(calls.map(c => c.meta.source)).toEqual(['timeline', 'timeline', 'repost', 'repost', 'favorite'])
+    expect(calls.map(c => c.meta.source)).toEqual(['timeline', 'repost', 'timeline', 'repost', 'favorite'])
     expect(calls[0].meta).toEqual({ uid: '111', source: 'timeline', mblogId: 'A', page: 1 })
-    expect(calls[1].meta).toEqual({ uid: '111', source: 'timeline', mblogId: 'B', page: 1 })
-    expect(calls[2].meta).toEqual({ uid: '111', source: 'repost', mblogId: 'R1', page: 1, parentMblogId: 'A' })
+    expect(calls[1].meta).toEqual({ uid: '111', source: 'repost', mblogId: 'R1', page: 1, parentMblogId: 'A' })
+    expect(calls[2].meta).toEqual({ uid: '111', source: 'timeline', mblogId: 'B', page: 1 })
     expect(calls[3].meta).toEqual({ uid: '111', source: 'repost', mblogId: 'R1', page: 1, parentMblogId: 'B' })
     expect(calls[4].meta).toEqual({ uid: '111', source: 'favorite', mblogId: 'F1', page: 1 })
-    expect(calls[2].raw.mblogid).toBe('R1')
+    expect(calls[1].raw.mblogid).toBe('R1')
 
     // 契约 §4.1：归档信封不新增 raw 字段
     expect(items.every(item => !('raw' in item))).toBe(true)
@@ -165,7 +241,7 @@ describe('archiveService', () => {
     }) as any)).rejects.toThrow('disk full')
   })
 
-  it('honors includeReposts=false to skip the reposts phase', async () => {
+  it('honors includeReposts=false to skip inline reposts', async () => {
     const { deps, getReposts, getFavorites } = createDeps()
     const { myMblog } = deps.tweets as any
     mockTimelinePages(myMblog, [mkRaw('A')])
@@ -175,6 +251,8 @@ describe('archiveService', () => {
     const items = await collect(service.streamArchive('111', { includeReposts: false }) as any)
 
     expect(items.map(i => i.source)).toEqual(['timeline'])
+    // 无转发时该 item 本身即视为完成，恢复时不会重复
+    expect(items[0].checkpoint.lastTimelineMblogId).toBe('A')
     expect(getReposts).not.toHaveBeenCalled()
     expect(getFavorites).toHaveBeenCalledTimes(1)
   })
@@ -196,9 +274,9 @@ describe('archiveService', () => {
     const items = await collect(service.streamArchive('111', { maxPagesPerPhase: 3 }) as any)
 
     expect(items.map(i => i.mblogId)).toEqual(['A', 'B'])
-    // timeline 阶段 3 次（page 1,2,3）+ collect 重放 3 次
-    expect(myMblog.mock.calls.map(c => c[1])).toEqual([1, 2, 3, 1, 2, 3])
-    // checkpoint.page = 该项所在页的下一页页码（第二页 → 3）
-    expect(items[1].checkpoint.page).toBe(3)
+    // 不再重放 timeline
+    expect(myMblog.mock.calls.map(c => c[1])).toEqual([1, 2, 3])
+    // checkpoint.page = 该项所在的**当前页**（第二页 → 2，恢复时重跑该页）
+    expect(items[1].checkpoint.page).toBe(2)
   })
 })

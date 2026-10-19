@@ -90,9 +90,11 @@ const archive = defineCommand({
     })
 
     let last: ArchiveCheckpoint | undefined
+    let count = 0
     try {
       for await (const item of stream) {
         last = item.checkpoint
+        count += 1
         console.log(JSON.stringify({
           event: 'item',
           schemaVersion: item.schemaVersion,
@@ -102,7 +104,7 @@ const archive = defineCommand({
           checkpoint: item.checkpoint,
         }))
       }
-      console.log(JSON.stringify({ event: 'done', uid: args.uid, count: last?.visitedMblogIds.length ?? 0 }))
+      console.log(JSON.stringify({ event: 'done', uid: args.uid, count }))
     }
     catch (e: any) {
       console.error(JSON.stringify({ event: 'error', message: e?.message }))

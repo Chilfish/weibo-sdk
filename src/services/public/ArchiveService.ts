@@ -8,28 +8,34 @@ import { stripVolatileKeys } from '~/utils/structure'
 /**
  * 归档进度类型。
  *
- * `timeline`（用户微博，page 游标）→ `reposts`（逐条转发，page）→ `favorites`（收藏，page）→ `done`
+ * `timeline`（用户微博 + 内联转发，page 游标）→ `favorites`（收藏，page）→ `done`
+ *
+ * `reposts` 仅用于兼容 P1-2 之前的旧 checkpoint；新流程不再产生该阶段。
  */
 export type ArchivePhase = 'timeline' | 'reposts' | 'favorites' | 'done'
 
 /**
- * 归档进度 checkpoint（A6 断点续传）。
+ * 归档进度 checkpoint（A6 断点续传；P1-1/P1-2 后大小恒定）。
  *
  * 保存最后一个 `ArchiveItem.checkpoint`，中断后传入 `streamArchive` 的 `options.checkpoint` 即可续跑。
- * 粒度说明：reposts 阶段以「整条微博」为断点单位（`lastMblogId` 之后的微博才会处理其转发）；
- * timeline/favorites 以页游标断点。
+ *
+ * - `page`：timeline **当前页**（恢复时重跑该页）；`lastTimelineMblogId` 用于跳过页内已处理项。
+ * - `lastTimelineMblogId`：已完整处理（含其转发）的最后一条微博。
+ * - `lastMblogId`：仅兼容旧 `phase:'reposts'` checkpoint，新流程不产生。
  */
 export interface ArchiveCheckpoint {
   uid: string
   phase: ArchivePhase
-  /** timeline 阶段页码游标（下一页页码；恢复时从该页继续） */
+  /** timeline 阶段当前页（恢复时从该页重跑） */
   page?: number
-  /** reposts 阶段：已处理到的最后一条微博 id（其转发已翻完） */
-  lastMblogId?: string
+  /** timeline 阶段：已完整处理（含其转发）的最后一条微博 mblogId */
+  lastTimelineMblogId?: string
   /** favorites 阶段：当前页 */
   favoritesPage?: number
-  /** 已访问的微博 id（幂等/去重参考） */
-  visitedMblogIds: string[]
+  /**
+   * @deprecated P1-2 之前的 reposts 阶段断点字段；仅用于兼容旧 checkpoint。
+   */
+  lastMblogId?: string
 }
 
 /**
@@ -56,7 +62,7 @@ export interface ArchiveRawMeta {
   uid: string
   source: ArchiveItem['source']
   mblogId: string
-  /** 当前阶段页码（timeline / favorites） */
+  /** 当前阶段页码（timeline / reposts / favorites） */
   page?: number
   /** repost 阶段：转发所属原微博 mblogId */
   parentMblogId?: string
@@ -95,8 +101,29 @@ export interface ArchiveStreamOptions {
   onRaw?: (raw: unknown, meta: ArchiveRawMeta) => void | Promise<void>
 }
 
+/** 单页内按 mblogid 去重（保持上游顺序）。 */
+function uniqueByMblogId<T extends { mblogid: string }>(list: T[]): T[] {
+  const seen = new Set<string>()
+  const out: T[] = []
+  for (const item of list) {
+    if (seen.has(item.mblogid))
+      continue
+    seen.add(item.mblogid)
+    out.push(item)
+  }
+  return out
+}
+
 /**
- * 单账号归档流（A5）：把 timeline + reposts + favorites 串成一条可恢复的 AsyncIterator。
+ * 整页重复保护：所有 id 都出现在上一页 → 上游忽略了 page/游标，视为到底。
+ * 避免上游重复返回同一页时无限翻页。
+ */
+function isRepeatedPage(ids: string[], previousPageIds: Set<string>): boolean {
+  return ids.length > 0 && ids.every(id => previousPageIds.has(id))
+}
+
+/**
+ * 单账号归档流（A5）：把 timeline（内联转发）+ favorites 串成一条可恢复的 AsyncIterator。
  *
  * 用法（≤20 行镜像单账号）：
  * ```ts
@@ -114,132 +141,168 @@ export class ArchiveService {
     const includeFavorites = options.includeFavorites ?? true
     const maxPages = options.maxPagesPerPhase ?? Number.POSITIVE_INFINITY
     const count = options.count ?? 20
-    const cp: ArchiveCheckpoint = options.checkpoint
-      ? { ...options.checkpoint, uid }
-      : { uid, phase: 'timeline', visitedMblogIds: [] }
+    // 只复制已知字段：旧 checkpoint 可能含 visitedMblogIds 等历史字段，避免它们回流。
+    const input = options.checkpoint
+    let phase: ArchivePhase = input?.phase ?? 'timeline'
+    let page = input?.page
+    let lastTimelineMblogId = input?.lastTimelineMblogId
+    let favoritesPage = input?.favoritesPage
 
-    // Phase 1: timeline（raw myMblog，page 游标）
-    if (cp.phase === 'timeline' || cp.phase === 'reposts') {
-      // checkpoint.page 语义 = 下一页页码（该页 raw 之后的页码；恢复时从该页继续）
-      let page = cp.phase === 'timeline' ? (cp.page ?? 1) : 1
+    // 旧 checkpoint 的 page 语义是「下一页」，新语义是「当前页」：倒退一页重跑，避免漏项。
+    const legacyVisited = (input as { visitedMblogIds?: unknown } | undefined)?.visitedMblogIds
+    if (legacyVisited !== undefined && phase === 'timeline' && page !== undefined)
+      page = Math.max(1, page - 1)
+
+    // P1-2 兼容：旧 reposts 阶段等价于「timeline 已处理到 lastMblogId」，新流程内联转发。
+    if (phase === 'reposts') {
+      phase = 'timeline'
+      page = 1
+      lastTimelineMblogId = input?.lastMblogId ?? lastTimelineMblogId
+    }
+
+    const cp: ArchiveCheckpoint = { uid, phase, page, lastTimelineMblogId, favoritesPage }
+
+    // Phase 1: timeline（mymblog page 游标；转发内联，P1-2）
+    if (phase === 'timeline') {
+      let currentPage = page ?? 1
       let pages = 0
+      let previousPageIds = new Set<string>()
+
       while (pages < maxPages) {
-        const raw = await this.deps.tweets.myMblog(uid, page, count)
-        const list = raw.data.list || []
-        for (const item of list) {
-          await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page })
-          cp.visitedMblogIds.push(item.mblogid)
+        const raw = await this.deps.tweets.myMblog(uid, currentPage, count)
+        const list = uniqueByMblogId(raw.data.list || [])
+        const ids = list.map(item => item.mblogid)
+        if (ids.length === 0)
+          break // 空列表 = 到底（真实 API 翻到底返回 list: []）
+        if (isRepeatedPage(ids, previousPageIds))
+          break // 上游忽略 page 重复返回上一页 → 视为到底
+
+        // 恢复：跳过上次已完整处理（含转发）的项；找不到则整页重跑（重复但不会漏）。
+        const resumeAt = lastTimelineMblogId ? ids.indexOf(lastTimelineMblogId) : -1
+        const pending = resumeAt >= 0 ? list.slice(resumeAt + 1) : list
+
+        for (const item of pending) {
+          await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page: currentPage })
+
+          cp.phase = 'timeline'
+          cp.page = currentPage
+          cp.favoritesPage = undefined
+          // 转发完成前仍指向上一条已完成项；中断会重跑当前项（重复但不会漏）。
+          cp.lastTimelineMblogId = includeReposts ? lastTimelineMblogId : item.mblogid
           yield {
             schemaVersion: TWEET_CONTRACT_VERSION,
             source: 'timeline',
             mblogId: item.mblogid,
             tweet: new Tweet(item),
             schemaDigest: stripVolatileKeys(item),
-            checkpoint: { ...cp, page: page + 1 },
+            checkpoint: { ...cp },
           }
-        }
-        if (list.length === 0)
-          break // 空列表 = 到底（真实 API 翻到底返回 list: []）
-        page += 1
-        pages += 1
-      }
-      cp.page = page
-      cp.phase = includeReposts ? 'reposts' : (includeFavorites ? 'favorites' : 'done')
-    }
 
-    // Phase 2: reposts（对每条 timeline 微博翻转发）
-    if (cp.phase === 'reposts' && includeReposts) {
-      const timelineIds = await this.collectTimelineMblogIds(uid)
-      let skipUntil = cp.lastMblogId
-      for (const mblogId of timelineIds) {
-        if (skipUntil !== undefined) {
-          if (mblogId === skipUntil) {
-            skipUntil = undefined // 命中断点，开始处理后续微博
-          }
-          continue
-        }
-        let page = 1
-        let pages = 0
-        while (pages < maxPages) {
-          const reposts = await this.deps.tweets.getReposts(mblogId, { page })
-          const list = reposts.data || []
-          for (const item of list) {
-            await options.onRaw?.(item, {
-              uid,
-              source: 'repost',
-              mblogId: item.mblogid,
-              page,
-              parentMblogId: mblogId,
-            })
-            cp.visitedMblogIds.push(item.mblogid)
-            yield {
-              schemaVersion: TWEET_CONTRACT_VERSION,
-              source: 'repost',
-              mblogId: item.mblogid,
-              tweet: new Tweet(item),
-              schemaDigest: stripVolatileKeys(item),
-              checkpoint: { ...cp, lastMblogId: mblogId },
+          if (includeReposts) {
+            let repostPage = 1
+            let repostPages = 0
+            let previousRepostIds = new Set<string>()
+
+            while (repostPages < maxPages) {
+              const reposts = await this.deps.tweets.getReposts(item.mblogid, { page: repostPage })
+              const rawReposts = reposts.data || []
+              const repostList = uniqueByMblogId(rawReposts)
+              const repostIds = repostList.map(repost => repost.mblogid)
+              if (repostIds.length === 0)
+                break
+              if (isRepeatedPage(repostIds, previousRepostIds))
+                break
+
+              for (const repost of repostList) {
+                await options.onRaw?.(repost, {
+                  uid,
+                  source: 'repost',
+                  mblogId: repost.mblogid,
+                  page: repostPage,
+                  parentMblogId: item.mblogid,
+                })
+                yield {
+                  schemaVersion: TWEET_CONTRACT_VERSION,
+                  source: 'repost',
+                  mblogId: repost.mblogid,
+                  tweet: new Tweet(repost),
+                  schemaDigest: stripVolatileKeys(repost),
+                  checkpoint: { ...cp },
+                }
+              }
+
+              previousRepostIds = new Set(repostIds)
+              const total = reposts.total_number ?? 0
+              const perPage = rawReposts.length
+              if (repostPage * perPage >= total || perPage === 0)
+                break
+              repostPage += 1
+              repostPages += 1
             }
           }
-          cp.lastMblogId = mblogId
-          const total = reposts.total_number ?? 0
-          const perPage = list.length
-          if (page * perPage >= total || perPage === 0)
-            break
-          page += 1
-          pages += 1
+
+          lastTimelineMblogId = item.mblogid
+          cp.lastTimelineMblogId = lastTimelineMblogId
         }
+
+        previousPageIds = new Set(ids)
+        currentPage += 1
+        pages += 1
       }
-      cp.lastMblogId = undefined
-      cp.phase = includeFavorites ? 'favorites' : 'done'
+
+      page = currentPage
+      phase = includeFavorites ? 'favorites' : 'done'
+      lastTimelineMblogId = undefined
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = includeFavorites ? (favoritesPage ?? 1) : undefined
+      favoritesPage = cp.favoritesPage
     }
 
-    // Phase 3: favorites（page 翻页）
-    if (cp.phase === 'favorites' && includeFavorites) {
-      let page = cp.favoritesPage ?? 1
+    // Phase 2: favorites（page 翻页）
+    if (phase === 'favorites' && includeFavorites) {
+      let currentPage = favoritesPage ?? 1
       let pages = 0
+      let previousPageIds = new Set<string>()
+
       while (pages < maxPages) {
-        const favs = await this.deps.favorites.getFavorites(uid, page)
-        const list = favs.data.status || []
+        const favs = await this.deps.favorites.getFavorites(uid, currentPage)
+        const rawFavorites = favs.data.status || []
+        const list = uniqueByMblogId(rawFavorites)
+        const ids = list.map(item => item.mblogid)
+        if (ids.length === 0)
+          break
+        if (isRepeatedPage(ids, previousPageIds))
+          break
+
         for (const item of list) {
-          await options.onRaw?.(item, { uid, source: 'favorite', mblogId: item.mblogid, page })
-          cp.visitedMblogIds.push(item.mblogid)
+          await options.onRaw?.(item, { uid, source: 'favorite', mblogId: item.mblogid, page: currentPage })
+
+          cp.phase = 'favorites'
+          cp.page = undefined
+          cp.lastTimelineMblogId = undefined
+          cp.favoritesPage = currentPage
           yield {
             schemaVersion: TWEET_CONTRACT_VERSION,
             source: 'favorite',
             mblogId: item.mblogid,
             tweet: new Tweet(item),
             schemaDigest: stripVolatileKeys(item),
-            checkpoint: { ...cp, favoritesPage: page },
+            checkpoint: { ...cp },
           }
         }
-        cp.favoritesPage = page
+
+        previousPageIds = new Set(ids)
         const total = favs.data.total_number ?? 0
-        const perPage = list.length
-        if (page * perPage >= total || perPage === 0)
+        const perPage = rawFavorites.length
+        if (currentPage * perPage >= total || perPage === 0)
           break
-        page += 1
+        currentPage += 1
         pages += 1
       }
+
       cp.phase = 'done'
     }
-  }
-
-  /** 重放 timeline 获取全部微博 id（reposts 阶段用；幂等，可重复调用） */
-  private async collectTimelineMblogIds(uid: string): Promise<string[]> {
-    const ids: string[] = []
-    let page = 1
-    let guard = 0
-    while (guard < 1000) {
-      const raw = await this.deps.tweets.myMblog(uid, page, 20)
-      const list = raw.data.list || []
-      for (const item of list)
-        ids.push(item.mblogid)
-      if (list.length === 0)
-        break
-      page += 1
-      guard += 1
-    }
-    return ids
   }
 }
