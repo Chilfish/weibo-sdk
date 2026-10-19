@@ -104,13 +104,12 @@ WeiboSDK（门面）
 
 ## Git / 变更管理
 
-- 开发分支前缀必须是 `claude/`。
 - 每次变更需能通过 `git diff` 清晰审阅；不做无关重构；优先小步快跑。
 - **先写 commit message 再写代码**，diff >10 文件或 >200 行时主动拆分（见「开发纪律」）。
 
 ## 分支 / PR / 合并
 
-- **分支生命周期**：单个 `claude/*` 分支只承载一个清晰主题，尽快合并回 `main`。
+- **分支生命周期**：单个功能分支只承载一个清晰主题，尽快合并回 `main`。
 - **PR 粒度**：优先拆成多个 PR，每个 PR 可独立 review / 可独立回滚 / 不依赖未合并分支。
 - **PR 正文格式**：禁止在命令行里用字面量 `\n` 拼 body。优先使用 `gh pr create/edit --body-file <file>`。
 - **提交规范**：建议 Conventional Commits（`feat:`, `fix:`, `docs:`, `test:`, `refactor:`）。
