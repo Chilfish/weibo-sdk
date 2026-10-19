@@ -115,10 +115,13 @@ describe('archiveService', () => {
     const items = await collect(service.streamArchive('111') as any)
 
     const digest = items[0].schemaDigest as Record<string, unknown>
-    expect(digest.mblogid).toBe('<ID>')
-    expect(digest.idstr).toBe('<ID>')
-    expect(digest.created_at).toBe('<DATE>')
-    expect(digest.text_raw).toBe('<STR>') // 内容字段在结构快照中替换为类型占位符
+    // 结构快照只保留 key 路径 + 值类型：所有字符串统一为 <STR>
+    expect(digest.mblogid).toBe('<STR>')
+    expect(digest.idstr).toBe('<STR>')
+    expect(digest.created_at).toBe('<STR>')
+    expect(digest.text_raw).toBe('<STR>')
+    expect(digest.id).toBe('<NUM>')
+    expect(digest.user).toEqual({ id: '<NUM>', idstr: '<STR>', screen_name: '<STR>' })
   })
 
   it('honors includeReposts=false to skip the reposts phase', async () => {
