@@ -8,9 +8,9 @@
 
 ## 当前方向
 
-**契约冻结与归档硬化（发布就绪）**（2026-08-10，承接归档 MVP）——[todo-contract-freeze.md](./todo-contract-freeze.md) 承接产品主线（契约冻结 P0 / 归档硬化 P1 / 下游集成就绪 P2）。**P0/P1/P2 已于 2026-10-19 全部收口**，当前转入发布准备（0.1.0，见 [release-checklist.md](../engineering/release-checklist.md)）；发布完成后再从本清单挑选下一阶段任务。同类项目调研见 [research-weibo-ecosystem-2026-10-19.md](./research-weibo-ecosystem-2026-10-19.md)。
+**0.1.0 发布收口 + 0.2.0 用户数据丰富度**（2026-10-19）——契约冻结与归档硬化阶段（[todo-contract-freeze.md](./todo-contract-freeze.md)）的 P0/P1/P2 已全部收口。当前行动清单见 [todo-post-0.1.0.md](./todo-post-0.1.0.md)：先完成 `@chilfish/weibo-sdk` / `weibo-cli` 发布，再扩展点赞、历史评论、图片墙、视频、音频、增量归档与端点开发体验。发布细节见 [release-checklist.md](../engineering/release-checklist.md)；同类项目调研见 [research-weibo-ecosystem-2026-10-19.md](./research-weibo-ecosystem-2026-10-19.md)。
 
-> 背景：weibo-sdk 发布为 npm 包，`ITweet` 定为 Weibo-archiver 存档终局契约。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)。
+> 背景：`@chilfish/weibo-sdk` 发布为 npm 包（CLI `weibo-cli`），`ITweet` 定为 Weibo-archiver 存档终局契约。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)。
 
 ---
 

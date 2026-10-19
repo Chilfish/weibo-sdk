@@ -108,7 +108,7 @@
 
 > 注：`searchUsers` / `searchTweets` 公开关键词搜索已**产品暂缓**（2026-10-19：官方搜索体验差、接口失效）；`searchProfile`（个人主页内按日期搜索）仍可用，属于归档主线，且已作为 P1-5 日期切片的数据源。
 >
-> 下游集成：P2-1 已新增 `weibo-sdk/browser` 自包含 ESM 入口（真实 Chromium 冒烟），P2-3 已提供 JSONL telemetry 消费端；决策见 [p2-readiness.md](./p2-readiness.md)。
+> 下游集成：P2-1 已新增 `@chilfish/weibo-sdk/browser` 自包含 ESM 入口（真实 Chromium 冒烟），P2-3 已提供 JSONL telemetry 消费端；决策见 [p2-readiness.md](./p2-readiness.md)。
 
 已完成（归档 MVP）：
 1. [x] 转发列表 `/ajax/statuses/repostTimeline`
@@ -124,6 +124,22 @@
 4. 实现 endpoint spec
 5. Service 中提供 public 方法 + CLI 子命令
 6. 写测试
+
+> 标准流程、分页约定与高频雷区见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。
+
+### Phase 6：用户数据丰富度（0.2，已承接）
+
+> 目标：从「微博正文归档」扩展到用户的完整公开数据面。行动清单见 [todo-post-0.1.0.md](./todo-post-0.1.0.md)。
+
+- [ ] 用户点赞过的微博（`likes`）
+- [ ] 当前用户历史评论（`/ajax/message/myCmt`）
+- [ ] 图片墙 / 相册 / 视频瀑布 / 音频播放列表
+- [ ] 微博点赞者、@我的、消息通知、关注分组
+- [ ] 个人主页关键词搜索（`searchProfile` 增加 `q`）与二级评论完整分页
+- [ ] 增量归档、多账号批量、仅原创
+- [ ] `ITweet` / `IUser` / `ITweetComment` 可选字段补齐
+- [ ] 432 退避、请求级重试、代理抽象
+- [ ] 端点脚手架 / 抓包助手 / `capabilities` / 分页抽象
 
 ---
 
