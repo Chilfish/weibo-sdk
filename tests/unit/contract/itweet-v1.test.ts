@@ -14,7 +14,7 @@ import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
  *
  * 冻结规则与迁移策略见 docs/engineering/contract-itweet-v1.md。
  */
-describe('ITweet v1 contract freeze', () => {
+describe('iTweet v1 contract freeze', () => {
   it('exports TWEET_CONTRACT_VERSION = 1 (frozen 2026-09-04)', () => {
     expect(TWEET_CONTRACT_VERSION).toBe(1)
     expectTypeOf<TweetContractVersion>().toEqualTypeOf<1>()
@@ -37,8 +37,20 @@ describe('ITweet v1 contract freeze', () => {
     const tweet = normalizeTweet(item)
 
     expect(Object.keys(tweet).sort()).toEqual([
-      'createdAt', 'geo', 'id', 'mblogId', 'media', 'pageInfo', 'regionName',
-      'retweetedStatus', 'source', 'stats', 'text', 'textHtml', 'user', 'visible',
+      'createdAt',
+      'geo',
+      'id',
+      'mblogId',
+      'media',
+      'pageInfo',
+      'regionName',
+      'retweetedStatus',
+      'source',
+      'stats',
+      'text',
+      'textHtml',
+      'user',
+      'visible',
     ])
     expect(Object.keys(tweet.stats).sort()).toEqual(['comments', 'likes', 'reposts'])
     expect(Object.keys(tweet.user).sort()).toEqual(['avatar', 'id', 'name', 'verified', 'verifiedType'])
