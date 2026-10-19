@@ -9,13 +9,9 @@ const describeE2E = isE2E ? describe : describe.skip
 
 describeE2E('snapshot: /ajax/statuses/longtext', () => {
   it('longtext structure snapshot', async () => {
-    const { userId } = await import('tests/utils')
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
-    const page = await weibo.tweets.myMblog(userId)
-    const longTweet = page.data.list.find((t: any) => t.isLongText)
-    if (!longTweet)
-      return
-    const raw = await weibo.tweets.longText(longTweet.mblogid)
+    // 固定长文 mblogId（来自 `mymblog_page1.json` 的 continue_tag 条目），避免随第一条时间线变化。
+    const raw = await weibo.tweets.longText('RcbHecsos')
     expect(raw.ok).toBe(1)
     expect(raw.data.longTextContent).toBeTruthy()
     expect(stripVolatileKeys(raw)).toMatchSnapshot()
@@ -30,7 +26,8 @@ describeE2E('snapshot: /ajax/friendships/friends', () => {
     expect(raw.ok).toBe(1)
     expect(Array.isArray(raw.users)).toBe(true)
     expect(raw.users.length).toBeGreaterThan(0)
-    expect(stripVolatileKeys(raw)).toMatchSnapshot()
+    // 用户字段持续增加且列表内容会变；只锁响应信封，列表项由 schema/归一化断言覆盖。
+    expect(stripVolatileKeys({ ...raw, users: [] })).toMatchSnapshot()
   })
 })
 
@@ -40,7 +37,10 @@ describeE2E('snapshot: /ajax/profile/followContent', () => {
     const raw = await weibo.followings.getMyFollowings()
     expect(raw.ok).toBe(1)
     expect(raw.data.follows.users.length).toBeGreaterThan(0)
-    expect(stripVolatileKeys(raw)).toMatchSnapshot()
+    expect(stripVolatileKeys({
+      ...raw,
+      data: { ...raw.data, follows: { ...raw.data.follows, users: [] } },
+    })).toMatchSnapshot()
   })
 })
 
@@ -52,7 +52,7 @@ describeE2E('snapshot: /ajax/statuses/searchProfile', () => {
     expect(raw.ok).toBe(1)
     expect(Array.isArray(raw.data.list)).toBe(true)
     expect(raw.data.list.length).toBeGreaterThan(0)
-    expect(stripVolatileKeys(raw)).toMatchSnapshot()
+    expect(stripVolatileKeys({ ...raw, data: { ...raw.data, list: [] } })).toMatchSnapshot()
   })
 })
 
@@ -64,6 +64,6 @@ describeE2E('snapshot: /ajax/favorites/all_fav', () => {
     expect(raw.ok).toBe(1)
     expect(Array.isArray(raw.data.status)).toBe(true)
     expect(raw.data.status.length).toBeGreaterThan(0)
-    expect(stripVolatileKeys(raw)).toMatchSnapshot()
+    expect(stripVolatileKeys({ ...raw, data: { ...raw.data, status: [] } })).toMatchSnapshot()
   })
 })

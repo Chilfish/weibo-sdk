@@ -47,25 +47,21 @@ describeE2E('snapshot: user profile structure', () => {
 })
 
 describeE2E('snapshot: tweet structure', () => {
-  // 缓存第一次 mymblog 的结果，避免重复请求
-  let cachedMblogIds: string[] | null = null
-
-  async function getFirstMblogIds(): Promise<string[]> {
-    if (cachedMblogIds)
-      return cachedMblogIds
-    const { userId } = await import('tests/utils')
-    const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
-    const page = await weibo.tweets.listByUserId(userId)
-    cachedMblogIds = page.tweets.slice(0, 3).map(t => t.mblogId)
-    return cachedMblogIds
-  }
+  /**
+   * 固定 mblogId（来自真实 fixture）：避免「取时间线第一条」导致快照随上游内容漂移。
+   * `QqsYymYOS` = 长文 + 视频 + 地理；`P6yhlzD3j` = 转发。
+   */
+  const STABLE_MBLOG_IDS = ['QqsYymYOS', 'P6yhlzD3j'] as const
 
   it('mymblog response structure matches', async () => {
     const { userId } = await import('tests/utils')
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
     const raw = await weibo.tweets.myMblog(userId)
-    expect(stripVolatileKeys(raw)).toMatchSnapshot()
+    expect(raw.data.list.length).toBeGreaterThan(0)
+    // 列表元素随上游内容变化（同端点不同变种微博结构不同），只锁响应信封；
+    // 列表项漂移由 Zod schema + 归一化断言覆盖。
+    expect(stripVolatileKeys({ ...raw, data: { ...raw.data, list: [] } })).toMatchSnapshot()
   })
 
   it('normalized Tweet list has valid shape', async () => {
@@ -95,11 +91,10 @@ describeE2E('snapshot: tweet structure', () => {
     }
   })
 
-  it('statuses/show response structure matches (first tweet from timeline)', async () => {
-    const mblogIds = await getFirstMblogIds()
+  it('statuses/show response structure matches (fixed tweets)', async () => {
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    for (const mblogId of mblogIds) {
+    for (const mblogId of STABLE_MBLOG_IDS) {
       const raw = await weibo.tweets.show(mblogId, true)
       expect(raw.ok).toBe(1)
       expect(raw.mblogid).toBe(mblogId)
@@ -109,10 +104,9 @@ describeE2E('snapshot: tweet structure', () => {
   })
 
   it('normalized single tweet has valid shape', async () => {
-    const mblogIds = await getFirstMblogIds()
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    for (const mblogId of mblogIds) {
+    for (const mblogId of STABLE_MBLOG_IDS) {
       const tweet = await weibo.tweets.getByMblogId(mblogId)
 
       expect(typeof tweet.id).toBe('string')
