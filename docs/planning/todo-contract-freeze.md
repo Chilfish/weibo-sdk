@@ -33,7 +33,7 @@
 - [x] **P1-5 searchProfile 时间片补齐**（R5）：mymblog page 翻到底后按需自动切 `searchProfile` 日期切片；单片 `total` 过大时对半缩小窗口（避开大范围 total 失真与分页窗口重置），空切片放大窗口跨过空档；`since` / `until` / `timelineSource` / `sliceWindow` / `maxSliceItems` 可调；checkpoint 新增 `sliceEnd/slicePage/sliceWindow`。真实冒烟：`timelineSource:'search'` 与 mymblog→切片回退均成功。（2026-10-19）
 - [x] **P1-6 评论归档**（K4）：`ArchiveStreamOptions.includeComments` 分页拉取评论并挂到 `tweet.comments`（`ITweetComment[]`，含楼中楼），`ITweet` v1 新增 optional `comments`；favorite 项不拉取；失败按 `commentsErrorPolicy` 默认 `skip`。（2026-10-19）
 - [x] **P1-7 媒体下载进归档流**：**不适用**——P0-2 已裁定「URL 临时、消费方自抓」，SDK 不下载/持久化媒体；可选媒体下载辅助回流 [backlog](./backlog.md)（⏸️ P3）。（2026-10-19 复核）
-- [ ] **P1-8 E3 变种测试补全**：含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag`（长图文）/ 广告（`isAd`）四类，覆盖 `extractMedia` 最复杂路径。
+- [x] **P1-8 E3 变种测试补全**：含视频（`mix_media_info`）/ 含位置（`geo`）/ 含 `continue_tag`（长图文）/ 广告（`isAd`）四类，覆盖 `extractMedia` 最复杂路径。落地于 `tests/unit/models/Tweet.variants.test.ts`（四类共 13 条用例，文件 21/21 通过）。（2026-10-19）
 - [x] **P1-9 raw / enrich 访问 API**（K5 衍生，2026-10-19 裁定）：`ArchiveItem` 不携带 raw；新增请求级 `hooks.onRaw(raw, meta)`（Zod 校验前触发）、归档级 `streamArchive(uid, { onRaw })`（逐原始项）、`tweets.enrich(mblogId, { includeLongText? }) → { tweet, raw, longText? }`，下游自行落盘 raw。规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。（2026-10-19）
 
 ## P2 · 下游集成就绪
@@ -45,7 +45,7 @@
 - [x] **P2-3 telemetry 消费端**（E4）：`createJsonlTelemetry` / `formatArchiveProgress` + `examples/telemetry-jsonl.mjs` + 12 条离线测试；JSONL 一行一事件、永不抛错，供 web-v3 长任务消费。（2026-10-19）
 - [x] **P2-4 CLI 裁剪复审**（F3）：有消费者（monkey/cli），保留 hero 命令（`archive` / `whoami` / `trends`）；不删命令，`search` 标 deprecated、低频能力标 advanced。详见 [p2-readiness.md](./p2-readiness.md#p2-4-cli-裁剪复审f3)。（2026-10-19）
 - [x] **P2-5 流程回流**（E6）：保留 semver / changelog / @deprecated / 契约冻结 / 发布门禁；砍掉 per-commit 文档仪式，改为轻量 DoD 清单。详见 [p2-readiness.md](./p2-readiness.md#p2-5-流程回流e6)。（2026-10-19）
-- [ ] **P2-6 TSDOC 公共 API 全覆盖**：npm 包 DX 底线。
+- [x] **P2-6 TSDOC 公共 API 全覆盖**：npm 包 DX 底线。`df929c7` 补齐 public types / errors / services 的 TSDoc（参数边界、异常、Wide Event 触发点），2026-10-19 复核门面与 6 个领域服务均已覆盖。（2026-10-19）
 
 ---
 
@@ -59,4 +59,4 @@
 - [x] 文档与代码一致（docs-as-truth；2026-10-19 已回填 P0 状态与调研）
 - [x] 开发日志记录本阶段；关键返工沉淀 postmortem（[009-cookie-env-shadowing](../postmortem/009-cookie-env-shadowing.md)）
 
-> 阶段完成后本档移入 `docs/archive/`，未完成项回流 [backlog.md](./backlog.md)。
+> **2026-10-19 状态**：P0/P1/P2 全部收口，DoD 全绿；本阶段转为**发布准备**（按 [release-checklist.md](../engineering/release-checklist.md) 执行 0.1.0 发布）。发布完成后本档移入 `docs/archive/`，未完成项回流 [backlog.md](./backlog.md)。

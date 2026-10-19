@@ -91,12 +91,14 @@
 > - `favorites.data` 真实为**对象** `{status: [...]}` 而非数组 → schema 与 `Favorites.test.ts` 同步修正
 > - `feed_groups.json` 为另一端点（feed groups）的 fixture，不适用 friendstimeline schema（已注明）
 
-### Phase 3：微博变种场景测试（P2）— 基础完成
+### Phase 3：微博变种场景测试（P2）— ✅ 已完成
 - [x] 纯文本 / 转发递归 / 多图 / 长微博 / 链接卡片 / 话题 变种测试（`tests/unit/models/Tweet.variants.test.ts`）
-- [ ] 含视频（`mix_media_info`）
-- [ ] 含位置（`geo`）
-- [ ] 含 `continue_tag`（长图文）
-- [ ] 广告（`isAd: true`）
+- [x] 含视频（`mix_media_info`）
+- [x] 含位置（`geo`）
+- [x] 含 `continue_tag`（长图文）
+- [x] 广告（`isAd: true`）
+
+> 2026-10-19：P1-8 补齐后四类变种（共 13 条用例），文件 21/21 通过；真实 fixture 优先，形状边界用内联最小样本精确断言。
 
 ### Phase 4：自动化 Schema 校验（P2）— ✅ 已完成
 - [x] 编写 `scripts/validate-fixtures.ts`：遍历 `tests/fixtures/raw/*.json` 用对应 schema 做 safeParse，输出校验报告（`pnpm run validate:fixtures`，已入 CI；2026-10-19 复核 38 fixtures / 33 mapped / 0 fail）

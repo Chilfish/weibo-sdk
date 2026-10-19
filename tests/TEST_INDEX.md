@@ -39,6 +39,12 @@
 | `unit/entry/exports.test.ts` | 导出完整性回归 | `package.json#exports` 中声明的子路径均可正确导入 |
 | `unit/sdk/WeiboSDK.test.ts` | `WeiboSDK` 门面类 | 构造器初始化 UserService/TweetService、selfCheck 模式 |
 
+### Unit — CLI
+
+| 文件 | 覆盖内容 | 关键测试点 |
+|---|---|---|
+| `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 默认全开；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
+
 ### Unit — 错误
 
 | 文件 | 覆盖内容 | 关键测试点 |
@@ -66,8 +72,8 @@
 |---|---|---|
 | `e2e/user.e2e.test.ts` | 真实网络下 UserService 端到端 | `WEIBO_E2E=1` + `.env` 中有效 `WEIBO_COOKIE` |
 | `e2e/tweet.e2e.test.ts` | 真实网络下 TweetService 端到端 | `WEIBO_E2E=1` + `.env` 中有效 `WEIBO_COOKIE` |
-| `e2e/new-endpoints.e2e.test.ts` | longtext / friendships / followContent / searchProfile / favorites 结构快照 | 同上 |
-| `e2e/snapshot.e2e.test.ts` | profile / mymblog / show 结构快照 + 归一化形状 + SDK 生命周期 | 同上；2026-10-19 起 18/18 通过 |
+| `e2e/new-endpoints.e2e.test.ts` | longtext（固定 `RcbHecsos`）/ friendships / followContent / searchProfile / favorites 结构快照 | 同上；列表端点只快照响应信封，避免内容漂移 |
+| `e2e/snapshot.e2e.test.ts` | profile / mymblog / show 结构快照 + 归一化形状 + SDK 生命周期 | 同上；show 用固定 mblogId（`QqsYymYOS` / `P6yhlzD3j`），2026-10-19 起 18/18 稳定通过 |
 
 ---
 

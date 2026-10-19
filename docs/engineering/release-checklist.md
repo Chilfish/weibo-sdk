@@ -17,11 +17,11 @@
 
 ## 验证门禁（发布前必过）
 
-- [ ] `pnpm run typecheck` 通过
-- [ ] `pnpm run lint` 通过
-- [ ] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` 生成）
-- [ ] `pnpm test` 全绿（默认离线）
-- [ ] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse）
+- [x] `pnpm run typecheck` 通过（2026-10-19）
+- [x] `pnpm run lint` 通过（2026-10-19）
+- [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` 生成；2026-10-19）
+- [x] `pnpm test` 全绿（默认离线；2026-10-19：189 passed / 18 skipped）
+- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-19：38 / 0 fail）
 - [ ] simple-git-hooks pre-commit 钩子无跳过
 
 ## 公共导出面核验
@@ -34,11 +34,11 @@
 
 > 真实 Cookie **只从项目根目录 `.env` 读取**（`tests/e2e/setup-env.ts` 会覆盖环境变量），勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
 
-- [ ] `pnpm test:e2e` 全绿（E2E 结构快照通过）
-- [ ] CLI 关键命令冒烟：`whoami` / `archive`（如已实现）/ `tweet detail` / `trends`
-- [ ] `sdk.selfCheck()` 在真实 Cookie 下返回 ok
-- [ ] 一次真实归档链路（如已实现 A5-A8）跑通：断点续传 + 进度事件
-- [ ] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5）
+- [x] `pnpm test:e2e` 全绿（E2E 结构快照通过；2026-10-19：18/18，连续两次）
+- [x] CLI 关键命令冒烟：`whoami` / `archive` / `tweet detail` / `trends`（2026-10-19）
+- [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-19，E2E lifecycle 用例）
+- [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-19：checkpoint 续跑 20 条新项、0 重叠）
+- [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-19）
 
 ## 发布步骤
 

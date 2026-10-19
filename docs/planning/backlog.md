@@ -8,7 +8,7 @@
 
 ## 当前方向
 
-**契约冻结与归档硬化（发布就绪）**（2026-08-10，承接归档 MVP）——[todo-contract-freeze.md](./todo-contract-freeze.md) 承接产品主线（契约冻结 P0 / 归档硬化 P1 / 下游集成就绪 P2）。P0 已于 2026-10-19 收口。本清单收拢**下下阶段**候选；同类项目调研见 [research-weibo-ecosystem-2026-10-19.md](./research-weibo-ecosystem-2026-10-19.md)。
+**契约冻结与归档硬化（发布就绪）**（2026-08-10，承接归档 MVP）——[todo-contract-freeze.md](./todo-contract-freeze.md) 承接产品主线（契约冻结 P0 / 归档硬化 P1 / 下游集成就绪 P2）。**P0/P1/P2 已于 2026-10-19 全部收口**，当前转入发布准备（0.1.0，见 [release-checklist.md](../engineering/release-checklist.md)）；发布完成后再从本清单挑选下一阶段任务。同类项目调研见 [research-weibo-ecosystem-2026-10-19.md](./research-weibo-ecosystem-2026-10-19.md)。
 
 > 背景：weibo-sdk 发布为 npm 包，`ITweet` 定为 Weibo-archiver 存档终局契约。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)。
 
@@ -59,8 +59,8 @@
 | P0 契约一致性（版本单一来源 / `sinceId` 对齐 / 合并 cli-gap-fill） | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
 | 归档链端点（repostTimeline / 粉丝列表 / favorites-tags） | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
 | ArchiveService 断点续传流 + 全链路快照 + CLI 归档 | ✅ 已完成 | 归档 MVP（[archive](../archive/todo-archive-mvp.md)） |
-| 契约卫生（消 `as any` / 变种测试 / schema 回归 / 收窄双 API） | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P0-4/P0-5、P1-8 |
-| telemetry 消费端 / CLI 裁剪 / 流程简化 / TSDOC / 快速开始示例 | 🔜 已承接 | [todo-contract-freeze.md](./todo-contract-freeze.md) P2 |
+| 契约卫生（消 `as any` / 变种测试 / schema 回归 / 收窄双 API） | ✅ 已完成 | [todo-contract-freeze.md](./todo-contract-freeze.md) P0-4/P0-5、P1-8 |
+| telemetry 消费端 / CLI 裁剪 / 流程简化 / TSDOC / 快速开始示例 | ✅ 已完成 | [todo-contract-freeze.md](./todo-contract-freeze.md) P2 |
 | raw / enrich 访问策略（K5） | ✅ 已完成 | [todo-contract-freeze.md](./todo-contract-freeze.md) P1-9（`hooks.onRaw` / `streamArchive({ onRaw })` / `tweets.enrich`） |
 
 > 各阶段交付细节见 [development-log/](../development-log/README.md)；完成后移入 [archive/](../archive/README.md)（存档不主动读取）。

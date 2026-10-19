@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+（暂无）
+
+## 0.1.0 (2026-10-19)
+
 ### Docs
 
 - **文档体系重构**：新增 `docs/README.md` 中央索引、`docs/requirements/glossary.md` 术语表、`docs/planning/architecture.md`（ADR-001~012）、`docs/postmortem/` 规范化（索引 + 高频雷区自查清单 + TEMPLATE）、`docs/development-log/` 按天开发日志、`docs/archive/` 归档机制。
@@ -57,3 +61,8 @@
 ### Removed
 
 - 移除 `size-limit` 体积门禁（`@size-limit/preset-small-lib` 依赖、`size` 脚本与 50 kB 配置），发布门禁不再检查包体积。
+
+### Fixed
+
+- **CLI `archive` 负向开关**：`--no-reposts` / `--no-favorites` / `--no-date-slices` 因 citty `--no-X` 语义失效（读到的始终是 `undefined`）；改为正向布尔 + `resolveArchiveIncludeFlags()` 映射，并在每产出一项时落盘 checkpoint（Ctrl+C 中断后可续传）。
+- **E2E 结构快照稳定性**：列表端点只快照响应信封，单条端点改用固定 mblogId（`QqsYymYOS` / `P6yhlzD3j` / 长文 `RcbHecsos`），避免上游内容变化导致快照漂移。
