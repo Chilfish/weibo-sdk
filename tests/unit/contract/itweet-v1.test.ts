@@ -23,7 +23,7 @@ describe('iTweet v1 contract freeze', () => {
   it('freezes top-level field names at the type level', () => {
     expectTypeOf<keyof ITweet>().toEqualTypeOf<
       | 'id' | 'mblogId' | 'createdAt' | 'text' | 'textHtml' | 'regionName' | 'source'
-      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo'
+      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo' | 'comments'
     >()
   })
 

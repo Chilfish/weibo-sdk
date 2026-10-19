@@ -1,4 +1,4 @@
-import type { ITweet, TweetGeo, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetGeo, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
@@ -21,6 +21,18 @@ export function isRawTweet(value: unknown): value is RawTweet {
 
 function isRecord(value: unknown): value is UnknownRecord {
   return !!value && typeof value === 'object'
+}
+
+/** 微博/评论共用的简版用户归一化。 */
+function normalizeUser(raw: unknown): TweetUser {
+  const user = isRecord(raw) ? raw : {}
+  return {
+    id: String(user.idstr || user.id || ''),
+    name: String(user.screen_name || ''),
+    avatar: String(user.avatar_hd || user.avatar_large || user.profile_image_url || ''),
+    verified: !!user.verified,
+    verifiedType: (getNumber(user.verified_type) ?? 0) as unknown as VerificationType,
+  }
 }
 
 function getNumber(value: unknown): number | undefined {
@@ -261,13 +273,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     textHtml: raw.text || '',
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),
-    user: {
-      id: String(raw.user?.idstr || raw.user?.id || ''),
-      name: raw.user?.screen_name || '',
-      avatar: raw.user?.avatar_hd || raw.user?.avatar_large || raw.user?.profile_image_url || '',
-      verified: !!raw.user?.verified,
-      verifiedType: (raw.user?.verified_type ?? 0) as unknown as VerificationType,
-    },
+    user: normalizeUser(raw.user),
     stats: {
       likes: Number(raw.attitudes_count ?? 0),
       comments: Number(raw.comments_count ?? 0),
@@ -279,6 +285,31 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     geo: extractGeo(raw),
     retweetedStatus,
   }
+}
+
+/**
+ * 将 `buildComments` 的原始评论归一化为 `ITweetComment`（P1-6）。
+ *
+ * `replies` 取上游 `comments` 数组并递归归一化；普通时间线归一化不会调用本函数。
+ */
+export function normalizeComment(raw: unknown): ITweetComment {
+  const record = isRecord(raw) ? raw : {}
+  const replies = Array.isArray(record.comments)
+    ? record.comments.map(normalizeComment)
+    : undefined
+
+  const comment: ITweetComment = {
+    id: String(record.idstr || record.id || ''),
+    createdAt: String(record.created_at || ''),
+    text: String(record.text_raw ?? record.text ?? ''),
+    textHtml: String(record.text ?? record.text_raw ?? ''),
+    source: String(record.source || ''),
+    likes: getNumber(record.like_counts ?? record.like_count) ?? 0,
+    user: normalizeUser(record.user),
+  }
+  if (replies && replies.length > 0)
+    comment.replies = replies
+  return comment
 }
 
 export class Tweet implements ITweet {
@@ -296,6 +327,7 @@ export class Tweet implements ITweet {
   public pageInfo?: TweetPageCard
   public retweetedStatus?: ITweet
   public geo?: TweetGeo
+  public comments?: ITweetComment[]
 
   constructor(raw: RawTweet) {
     Object.assign(this, normalizeTweet(raw))

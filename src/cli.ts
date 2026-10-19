@@ -1,4 +1,4 @@
-import type { ArchiveCheckpoint } from './services/public/ArchiveService'
+import type { ArchiveCheckpoint, ArchiveProgress } from './services/public/ArchiveService'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, runMain } from 'citty'
@@ -61,11 +61,19 @@ const whoami = defineCommand({
 })
 
 const archive = defineCommand({
-  meta: { name: 'archive', description: '镜像单个微博账号（timeline + reposts + favorites，可断点续传）' },
+  meta: { name: 'archive', description: '镜像单个微博账号（timeline + 日期切片 + reposts + favorites，可断点续传）' },
   args: {
     'uid': { type: 'positional', description: '用户 UID', required: true },
     'no-reposts': { type: 'boolean', description: '跳过转发归档' },
     'no-favorites': { type: 'boolean', description: '跳过收藏归档' },
+    'no-date-slices': { type: 'boolean', description: 'mymblog 翻到底后不补 searchProfile 日期切片' },
+    'source': { type: 'string', description: 'timeline 数据源：mymblog（默认）或 search（直接日期切片）' },
+    'since': { type: 'string', description: '日期切片下界（unix 秒，可选）' },
+    'comments': { type: 'boolean', description: '拉取并挂载评论到 tweet.comments（默认关闭）' },
+    'comment-pages': { type: 'string', description: '每条微博最多评论页数（默认不限）' },
+    'max-retries': { type: 'string', description: '可重试错误的最大重试次数（默认 1）' },
+    'repost-policy': { type: 'string', description: '转发页失败策略：abort/skip/retry（默认 skip）' },
+    'comments-policy': { type: 'string', description: '评论失败策略：abort/skip/retry（默认 skip）' },
     'checkpoint': { type: 'string', description: 'checkpoint 文件路径（默认 .weibo-sdk-archive-<uid>.json）' },
     'max-pages': { type: 'string', description: '每阶段最大翻页数（测试用）' },
     ...cookieArg,
@@ -82,9 +90,46 @@ const archive = defineCommand({
       // 无 checkpoint，从头归档
     }
 
+    const source = args.source === 'search' ? 'search' : 'mymblog'
+    const errorAction = (value: unknown): 'abort' | 'skip' | 'retry' | undefined =>
+      value === 'abort' || value === 'skip' || value === 'retry' ? value : undefined
+    let latestProgress: ArchiveProgress | undefined
     const stream = createSDK(args).archive.streamArchive(args.uid, {
       includeReposts: !args['no-reposts'],
       includeFavorites: !args['no-favorites'],
+      includeDateSlices: !args['no-date-slices'],
+      timelineSource: source,
+      since: args.since ? Number(args.since) : undefined,
+      includeComments: !!args.comments,
+      maxCommentPagesPerTweet: args['comment-pages'] ? Number(args['comment-pages']) : undefined,
+      maxRetries: args['max-retries'] ? Number(args['max-retries']) : undefined,
+      repostErrorPolicy: errorAction(args['repost-policy']),
+      commentsErrorPolicy: errorAction(args['comments-policy']),
+      onProgress: (progress) => {
+        latestProgress = progress
+        console.log(JSON.stringify({
+          event: 'progress',
+          uid: progress.uid,
+          phase: progress.phase,
+          source: progress.source,
+          processed: progress.processed,
+          total: progress.total,
+          remaining: progress.remaining,
+          page: progress.page,
+        }))
+      },
+      onItemError: (error, context) => {
+        console.error(JSON.stringify({
+          event: 'item-error',
+          stage: context.stage,
+          source: context.source,
+          mblogId: context.mblogId,
+          parentMblogId: context.parentMblogId,
+          page: context.page,
+          message: error instanceof Error ? error.message : String(error),
+        }))
+        return undefined
+      },
       maxPagesPerPhase: args['max-pages'] ? Number(args['max-pages']) : undefined,
       checkpoint,
     })
@@ -101,10 +146,19 @@ const archive = defineCommand({
           source: item.source,
           mblogId: item.mblogId,
           tweetId: item.tweet.id,
+          count,
+          total: latestProgress?.total,
+          remaining: latestProgress?.remaining,
           checkpoint: item.checkpoint,
         }))
       }
-      console.log(JSON.stringify({ event: 'done', uid: args.uid, count }))
+      console.log(JSON.stringify({
+        event: 'done',
+        uid: args.uid,
+        count,
+        total: latestProgress?.total,
+        remaining: latestProgress?.remaining,
+      }))
     }
     catch (e: any) {
       console.error(JSON.stringify({ event: 'error', message: e?.message }))

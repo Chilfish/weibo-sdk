@@ -68,6 +68,23 @@ describe('searchProfile', () => {
     expect(getLastConfig()?.params).toEqual({ uid: '222' })
   })
 
+  it('passes unix-second date range params without stringifying', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+    await service.searchByDate('444', {
+      page: 2,
+      starttime: 1735689600,
+      endtime: 1738368000,
+    })
+    const params = getLastConfig()?.params
+    expect(typeof params?.starttime).toBe('number')
+    expect(params?.starttime).toBe(1735689600)
+    expect(params?.endtime).toBe(1738368000)
+  })
+
   it('passes filter params', async () => {
     const { client, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(

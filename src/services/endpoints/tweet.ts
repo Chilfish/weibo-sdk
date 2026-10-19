@@ -385,8 +385,9 @@ export const longtextSpec: EndpointSpec<'TWEET_LONGTEXT', typeof LongtextArgsSch
 const SearchProfileArgsSchema = z.object({
   uid: z.string(),
   page: z.number().optional(),
-  starttime: z.string().optional(),
-  endtime: z.string().optional(),
+  // 实测为 unix 秒（如 1790784000）；字符串仅作兼容透传，日期字符串会被上游忽略。
+  starttime: z.union([z.number(), z.string()]).optional(),
+  endtime: z.union([z.number(), z.string()]).optional(),
   hasori: z.number().optional(),
   hasret: z.number().optional(),
   hastext: z.number().optional(),
