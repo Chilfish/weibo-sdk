@@ -26,6 +26,7 @@
 | [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~012），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
 | [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-5）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
 | [todo-contract-freeze.md](planning/todo-contract-freeze.md) | **当前行动计划**：契约冻结 + 归档硬化（发布就绪，P0/P1/P2） | 承接下一阶段任务 |
+| [research-weibo-ecosystem-2026-10-19.md](planning/research-weibo-ecosystem-2026-10-19.md) | 同类活跃项目调研（API 逆向 / CLI / 归档），含可借鉴设计与差距映射 | 规划 P1/P2 顺序、评估功能边界 |
 | [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已归档） | 历史记录，不主动读取 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下下阶段 |
 
@@ -64,6 +65,7 @@
 | [2026-08-09.md](development-log/2026-08-09.md) | 当日记录 |
 | [2026-08-10.md](development-log/2026-08-10.md) | 当日记录（契约冻结规划） |
 | [2026-09-04.md](development-log/2026-09-04.md) | 当日记录（契约冻结 P0 实施） |
+| [2026-10-19.md](development-log/2026-10-19.md) | 当日记录（Cookie 来源收口 / 真实 E2E 回归 / 生态调研） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 

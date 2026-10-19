@@ -16,6 +16,7 @@
 | [006](006-fixture-sanitization-and-build-migration.md) | 脱敏与构建迁移 | 工具/数据 | 全量替换破坏数据关联，≤40 字符保留；tsdown 迁移 |
 | [007](007-cli-framework-and-implementation.md) | CLI 框架选型 | 技术选型 | citty 零依赖匹配项目风格；CLI Interface Mandate |
 | [008](008-marathon-session-lessons.md) | 马拉松会话元教训 | 多 Agent 协作 | 并行 Agent 需互不重叠 + 对齐最新范式；脱敏破坏关联 |
+| [009](009-cookie-env-shadowing.md) | Cookie 环境变量遮蔽 `.env` | 工具反馈 / 流程缺失 | 配置来源必须单一显式；`process.loadEnvFile()` 不覆盖已有变量 |
 
 ## 高频雷区（写码前自查）
 
@@ -43,7 +44,9 @@
 - **文档/上下文漂移**：改代码必须同步改文档；完成阶段规划文档归档到 `docs/archive/`（历史记录，不主动读取）。
 - **分页策略不统一**：`mymblog` 用 `page`（2026-08 起，曾用 since_id）、`buildComments` 用 `max_id`、搜索曾用 `page`（现接口已失效）。每个端点单独验证。
 - **并行 Agent 协作**：文件分配互不重叠 + 对齐最新范式（旧 Zod 模式复用会制造风格不一致）；停止的背景 Agent 残留文件要清理。
+- **结构快照只锁结构**：`stripVolatileKeys` 必须把值归一化为类型占位符（`<STR>/<NUM>/<BOOL>`），不要用 key 白名单；否则动态字段会持续误报（2026-10-19）。
 - **脱敏保留关联**：短字符串（≤40 字符，如 `pic_ids`）必须保留，否则破坏 `pic_ids` ↔ `pic_infos` 键匹配。
+- **配置来源单一显式**（2026-10-19 复发）：Cookie 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 指定），不回退到环境变量；`process.loadEnvFile()` 不覆盖已存在的环境变量，旧值会静默遮蔽新值。
 
 ### 4. 流程（非代码）
 
