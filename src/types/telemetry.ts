@@ -137,7 +137,7 @@ export type TelemetryEvent
   | (TelemetryEventBase & {
     /** raw → 领域模型归一化完成（用于观测归一化耗时/条数） */
     event_name: 'normalize_done'
-    model: 'User' | 'Tweet' | 'UserMediaAsset' | 'TweetLiker' | 'CommentNotification' | 'LikeNotification' | 'UserGroup' | 'MblogGroup'
+    model: 'User' | 'Tweet' | 'UserMediaAsset' | 'UserAlbum' | 'TweetLiker' | 'CommentNotification' | 'LikeNotification' | 'UserGroup' | 'MblogGroup' | 'SuperTopicCategory' | 'SuperTopic'
     count?: number
     duration_ms?: number
   })
@@ -157,7 +157,7 @@ export type TelemetryEvent
     event_name: 'archive_item_error'
     uid: string
     phase: string
-    stage: 'comments' | 'commentHistory' | 'likes' | 'reposts' | 'timeline' | 'favorites'
+    stage: 'comments' | 'commentHistory' | 'likes' | 'reposts' | 'timeline' | 'favorites' | 'images' | 'videos'
     source?: string
     mblogId?: string
     parentMblogId?: string
