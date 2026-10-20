@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('~/cli/shared', () => ({
   cookieArg: {},
+  streamLimitArg: {},
+  streamRangeArg: {},
+  streamRangeFromArgs: () => ({ maxItems: undefined, since: undefined, until: undefined }),
   createSDK: () => ({ tweets: { comments: mocks.comments } }),
 }))
 
