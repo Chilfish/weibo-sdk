@@ -22,6 +22,7 @@
 
 ### Fixed
 
+- `mymblog` 的 `data.since_id` 真实类型现在可能是 `number` 或带后缀的 `string`（如 `"...kp2"`），schema 由 `string` 放宽为 `z.union([z.string(), z.number()])`，避免真实响应被误判为 `API_BAD_RESPONSE`；同步更新 raw 类型与 fixture（`mymblog_page1_since_id_numeric.json`）。该漂移是账号相关的：部分账号 `since_id` 与 `page` 分页等价、`total` 为真实总数，另一些账号仍返回 `""` + `-1`。
 - `weibo-cli favorite list --page 0`（及其他非法页码）不再把 `0` 透传给上游导致 HTTP 400；`page < 1` / 非有限数按第一页处理。
 
 ## 0.1.1 (2026-10-20)

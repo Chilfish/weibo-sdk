@@ -588,12 +588,19 @@ describe('tweetService', () => {
   it('validates real mymblog fixtures against schema (offline contract regression)', () => {
     const page1 = JSON.parse(readFileSync('tests/fixtures/raw/mymblog_page1.json', 'utf8'))
     const pageEnd = JSON.parse(readFileSync('tests/fixtures/raw/mymblog_page_end.json', 'utf8'))
+    const numericCursor = JSON.parse(readFileSync('tests/fixtures/raw/mymblog_page1_since_id_numeric.json', 'utf8'))
 
     // 有数据页：since_id=""、total=-1（page 分页漂移样本）通过
     const parsed1 = myMblogSpec.schema.parse(page1)
     expect(parsed1.data.list.length).toBeGreaterThan(0)
     expect(parsed1.data.since_id).toBe('')
     expect(parsed1.data.total).toBe(-1)
+
+    // 2026-10-20 漂移样本：since_id 为 number、total 为真实总数，必须通过
+    const parsedNumeric = myMblogSpec.schema.parse(numericCursor)
+    expect(parsedNumeric.data.list.length).toBeGreaterThan(0)
+    expect(typeof parsedNumeric.data.since_id).toBe('number')
+    expect(parsedNumeric.data.total).toBeGreaterThan(0)
 
     // 翻到底页：list 为空、since_id/total 缺省，且必须通过（此前 schema 强制必填会失败）
     const parsedEnd = myMblogSpec.schema.parse(pageEnd)

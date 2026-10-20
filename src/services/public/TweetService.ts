@@ -51,7 +51,7 @@ export interface TweetEnrichResult {
   longText?: string
 }
 
-/** 首页 Feed 默认关注分组 id（实测 friendstimeline 不带 list_id 会返回服务端 500） */
+/** 首页 Feed 兼容用分组 id；2026-10-20 实测缺省 list_id 也能返回默认首页 Feed，保留仅为兼容旧行为 */
 const DEFAULT_HOME_LIST_ID = '4665452701982436'
 
 /**
@@ -77,8 +77,9 @@ export class TweetService extends FetcherService {
   /**
    * 获取用户微博列表（mymblog，raw 响应）
    *
-   * 说明：真实 API 自 2026-08 起分页从 `since_id` 漂移为 `page`（`since_id` 恒返回空串、
-   * `total` 恒为 -1，翻到底时 `data.list` 为空数组）。归一化分页见 `listByUserId`。
+   * 说明：mymblog 曾在 2026-08 把分页从 `since_id` 漂移为 `page`（`since_id` 恒空串、`total` 恒 -1）；
+   * 2026-10-20 实测两种游标均可用且等价（`since_id` 为 number 或带后缀的 string，`total` 为真实值）。
+   * 归一化分页仍以 `page` 为主，避免大 ID 在后缀形态下丢失。翻到底时 `data.list` 为空数组。
    *
    * @param uid 用户 UID
    * @param page 页码（从 1 开始；缺省 = 第一页）
@@ -112,7 +113,7 @@ export class TweetService extends FetcherService {
    * - `listByUserId(uid, { page?, count? })` —— 指定页/每页条数
    *
    * 广告（`isAd`）等无效项会被过滤；`hasMore` 依据过滤后是否有内容判断
-   * （mymblog 的 `total` 恒为 -1，不能作为依据）。
+   * （不依赖 `total`：其形态在 -1 与真实总数之间漂移过）。
    *
    * @param uid 用户 UID
    * @param options 分页选项
@@ -387,7 +388,7 @@ export class TweetService extends FetcherService {
    *
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
    *
-   * 默认带上首页关注分组 `list_id`（上游缺省该参数会返回 500）。
+   * 默认带上 `list_id` 仅为兼容旧行为；2026-10-20 实测缺省该参数同样返回默认首页 Feed。
    *
    * @param options Feed 选项（全部可选）
    * @param options.list_id 关注分组 id（默认首页分组）

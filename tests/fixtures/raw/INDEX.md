@@ -56,6 +56,12 @@
 ## 新增端点（2026-08-09 晚间：mymblog 分页漂移验证）
 
 > 实测：mymblog 已弃用 `since_id` 分页（恒返回 `""`）、`total` 恒为 `-1`，改用 `page`；翻到底时 `list: []` 且 `since_id`/`total` 缺省。
+>
+> **2026-10-20 复测（账号相关漂移）**：部分账号 `since_id` 与 `total` 已恢复真实值，且 `since_id` 翻页与 `page` 等价。`since_id` 形态不固定：本账号返回 **number**（如 `5353953288260002`），另一公开账号返回带后缀的 **string**（如 `"5348185968740754kp2"`）；但也有公开账号（uid `1111681197`）仍返回 `""` + `total: -1`。schema 必须同时接受 `string | number`，且不能依赖 `total` 判断更多页。样本见下方 `mymblog_page1_since_id_numeric.json`。
+>
+> | 文件 | 大小 | 端点 |
+> |------|------|------|
+> | `mymblog_page1_since_id_numeric.json` | 65K | `/ajax/statuses/mymblog?page=1` — 2026-10-20 抓包：`since_id` 为 number、`total` 为真实值 |
 
 | 文件 | 大小 | 端点 |
 |------|------|------|
