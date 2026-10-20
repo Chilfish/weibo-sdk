@@ -69,24 +69,25 @@
 
 | ID | 能力 | 候选端点 | 验证状态 | 备注 |
 |---|---|---|---|---|
-| D1 | 用户点赞过的微博 | `GET https://weibo.com/ajax/statuses/likes?uid=<uid>&page=<n>` | ⚠️ 待抓包 | 与 D8「微博点赞者」语义不同；需用真实账号确认路径与游标 |
-| D2 | 当前用户发布的历史评论 | `GET https://weibo.com/ajax/message/myCmt?cursor=<cursor>` | ✅ 开源实现已用 | 仅当前登录用户；cursor 分页 |
+| D1 | 用户点赞过的微博 | `GET /ajax/statuses/likelist?uid=&page=`；备选 `GET /ajax/profile/getLikeList?uid=&cursor=` | ✅ 2026-10-20 抓包 | 候选 `/ajax/statuses/likes` **已下线**（200 + HTML 404 页）。`likelist` 为 page 型、只有 `data.list`、越界空数组；`getLikeList` 为 cursor 型、`next_cursor === -1` 表示到底 |
+| D2 | 当前用户发布的历史评论 | `GET /ajax/message/myCmt` | ✅ 2026-10-20 抓包 | 仅当前登录用户；翻页用 `max_id=<上一页 data.next_cursor>` 或 `page`（等价）；`cursor` 参数被忽略；`next_cursor === 0` 表示到底 |
 | D3 | 收藏夹 | `GET /ajax/favorites/all_fav?uid=&page=&with_total=true` + `/ajax/favorites/tags` | ✅ 已实现 | 增加全量流、标签过滤、归档集成 |
-| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=`；`GET /ajax/profile/getAlbumDetail?...` | ✅ 路径已确认 | 需要确认 `sinceid` 语义与相册详情参数 |
-| D5 | 用户视频瀑布 | `GET /ajax/profile/getWaterFallContent?uid=&cursor=` | ✅ 路径已确认 | 需要确认 cursor 与返回结构 |
-| D6 | 用户音频 / 播放列表 | `GET /ajax/multimedia/user_playlists_get?...` | ⚠️ 待抓包 | 参数与返回结构待确认 |
-| D7 | 超话 / 话题 | `GET /ajax/stopic/list?sort_id=0&keyword=&page=` | ⚠️ 待抓包 | 可能是发现页而非「我关注/我参与」；需确认 |
-| D8 | 微博点赞者列表 | `GET /ajax/statuses/likeShow?id=<mid>&page=<n>` | ✅ 路径已确认 | 与 D1 区分；用于单条微博的点赞用户 |
-| D9 | @我的微博 / @我的评论 | `GET /ajax/statuses/mentions`；`GET /ajax/comments/mentions` | ✅ 路径已确认 | 仅当前账号；可用于增量发现 |
-| D10 | 消息计数 / 评论通知 / 点赞通知 | `GET /ajax/message/count`；`/ajax/message/cmt`；`/ajax/message/likeNotice` | ✅ 路径已确认 | 用于增量同步与「有新内容」判定 |
-| D11 | 关注分组 / 微博分组 | `GET /ajax/feed/allGroups`；`GET /ajax/mblog/querygroup` | ✅ 路径已确认 | 归档分组元数据 |
+| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=`；`GET /ajax/profile/getAlbumDetail?...` | ✅ 图片墙已确认；相册待参数 | `getImageWall` 返回 `{ data: { since_id, list }, bottom_tips_* }`；`getAlbumDetail?uid=&page=` 返回 400，参数仍未知 |
+| D5 | 用户视频瀑布 | `GET /ajax/profile/getWaterFallContent?uid=&cursor=` | ✅ 2026-10-20 抓包 | `{ data: { list, next_cursor } }`，cursor 型 |
+| D6 | 用户音频 / 播放列表 | `GET /ajax/multimedia/user_playlists_get?uid=` | ⚠️ 路径可用、样本为空 | 当前账号返回 `{ data: { playlists: [], total_count: 0 } }`；元素结构仍缺真实样本 |
+| D7 | 超话 / 话题 | `GET /ajax/stopic/list?sort_id=0&keyword=&page=` | ⚠️ 参数不符 | 上述参数返回 `{ errno, errmsg, errcode, ok }`，需继续确认发现页/我的超话的真实参数 |
+| D8 | 微博点赞者列表 | `GET /ajax/statuses/likeShow?id=<mid>&page=<n>` | ✅ 2026-10-20 抓包 | 返回 `{ ok, data: 数组, total_number }`（`data` 是数组，不是对象） |
+| D9 | @我的微博 / @我的评论 | `GET /ajax/statuses/mentions`；`GET /ajax/comments/mentions` | ✅ mentions 已确认 | `data.statuses` + cursor 分页；`/ajax/comments/mentions` 未单独验证 |
+| D10 | 消息计数 / 评论通知 / 点赞通知 | `GET /ajax/message/cmt`；`/ajax/message/attitudes` | ✅ cmt/attitudes 已确认；count/likeNotice 已失效 | `message/count` 与 `message/likeNotice` 返回 200 + HTML 404 页；`cmt` → `data.comments`，`attitudes` → `data.attitudes` |
+| D11 | 关注分组 / 微博分组 | `GET /ajax/feed/allGroups`；`GET /ajax/mblog/querygroup` | ✅ 2026-10-20 抓包 | `allGroups` → `groups[].group[]`（`gid` / `title` / `type`）；`querygroup` → `data.join_groups` |
 | D12 | 个人主页关键词搜索 | `GET /ajax/statuses/searchProfile?uid=&q=&starttime=&endtime=&page=` | ✅ 真实网页端 | 现有 spec 增加 `q`，与日期切片组合 |
 | D13 | 二级评论完整分页 | `buildComments` + `is_reply=1` / `fetch_level` | ⚠️ 待抓包 | 当前只拿上游内联 replies；需确认独立分页参数 |
-| D14 | 文章 / 头条 | 候选 `/ajax/profile/getArticleList` 等 | ❌ 低置信 | 先抓包再决定是否进入范围 |
-| D15 | 用户转发历史 | 候选 `/ajax/message/myRepost`（待确认） | ⚠️ 待抓包 | `mymblog` 已含转发；独立历史用于增量/只抓转发 |
+| D14 | 文章 / 头条 | 候选 `/ajax/profile/getArticleList` 等 | ❌ 路径已失效 | `getArticleList` 返回 200 + HTML 404 页 |
+| D15 | 用户转发历史 | 候选 `/ajax/message/myRepost` | ❌ 路径已失效 | `myRepost` 返回 200 + HTML 404 页；继续用 `mymblog` + 转发过滤 |
 
 > 验证方法：用 `capture/`（CDP）或浏览器 DevTools 抓真实请求 → 保存到 `tests/fixtures/raw/` →
 > 在 `tests/fixtures/raw/INDEX.md` 登记 → 再写 `argsSchema` / response schema。
+> 2026-10-20 的验证由 OpenCLI browser bridge 复用已登录 Chrome 完成（见 [dev log](../development-log/2026-10-20.md)）。
 
 ### 2.2 Likes（用户点赞）
 
@@ -199,12 +200,21 @@
 - [ ] `audio?: TweetAudio[]`（语音/音频）
 - [ ] `sourceUrl?: string`（微博网页永久链接）
 
+> 2026-10-20 抓包确认可用字段（真实样本：friendstimeline / searchProfile / favorites / likes）：
+> `topic_struct[].topic_title`（话题，7/25 条出现）、`reads_count`（仅自己微博/主页可见）、`title.text`（如「仅自己可见」）、
+> `edit_count`、`mblogtype`/`repost_type`/`isNoReasonRepost`、`url_struct[]`（超话/链接卡片，含 `url_title`/`h5_target_url`）。
+> 视频永久页在 `mix_media_info.items[].data.media_info.h5_url`（`https://video.weibo.com/show?fid=...`）；
+> 未发现 `play_count`（`online_users_number` 是在线人数，不是播放数），`audio` 也无样本。
+
 ### 3.2 IUser / IComment 可选字段
 
 - [ ] `IUser.ipLocation?` / `creditScore?` / `labels?` / `svip?`
 - [ ] `IUserVerification` 增加 `verifiedType` 映射说明
 - [ ] `ITweetComment.rootId?` / `replyTo?` / `floorNumber?` / `liked?` / `totalReplies?`
 - [ ] `ITweetComment.parentMblogId?`（历史评论归属的原微博）
+
+> 2026-10-20 抓包确认：`profile/info.data.user` 有 `svip` / `vvip` / `mbrank` / `mbtype` / `status_total_counter` / `cover_image_phone`；
+> `profile/detail.data` 有 `hometown` / `label_desc[]` / `verified_url`。`ip_location` 已在 `User.location` 使用，但未作为独立字段暴露。
 
 ### 3.3 契约治理
 

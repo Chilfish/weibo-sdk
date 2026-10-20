@@ -192,8 +192,8 @@ interface IWeiboConfig {
 
 > `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
 > `TweetPageResult = { page?: number, sinceId?: string, hasMore: boolean, tweets: Tweet[] }`。
-> 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码，mymblog 自 2026-08 弃用 since_id）；
-> `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。
+> 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码；2026-08 曾弃用 `since_id`，2026-10-20 复测 `since_id` 与 `page` 均可用且等价，归一化仍以 `page` 为主）；
+> `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
 
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
 **FavoriteService**（`sdk.favorites`）：

@@ -164,14 +164,14 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 
 ## 4. 高频雷区（写码前自查）
 
-- [ ] `since_id` 真实类型是 `string`（空串表示结束），不是 `number`
-- [ ] `total` 可能为 `-1`（防爬），不能直接当真实总数
+- [ ] `since_id` 真实类型不固定：可能是 `number`，也可能是带后缀的 `string`（如 `"5348185968740754kp2"`）；schema 用 `z.union([z.string(), z.number()])`，禁止 `Number()` 强转（2026-10-20 复测）
+- [ ] `total` 可能为 `-1`（防爬），也可能为真实总数（2026-10-20 mymblog 实测恢复）；不能无条件当真实总数，也不能无条件当无效值
 - [ ] `searchProfile` 的 `starttime` / `endtime` 是 **unix 秒**；日期字符串会被静默忽略（`TweetService.searchByDate` 已在边界把 `YYYY-MM-DD` / `YYYYMMDD` 换算为秒；直接发请求时仍需传秒）
 - [ ] `favorites` 的 `data` 是 `{ status, total_number }`，不是数组；顶层另有 `count` / `total_page`
 - [ ] `favorites/all_fav` 的 `page` 从 1 开始，`page=0` 会返回 HTTP 400；非法页码应按第一页处理
 - [ ] `favorites/all_fav` 的 `tag_id` / `tag` 参数会被上游忽略（2026-10-20 实测），标签过滤只能客户端做
 - [ ] `favorites` 的 `total_number` 可能大于实际可翻页条目（含已删除收藏），`hasMore` 优先用 `total_page`
-- [ ] `mymblog` 已从 `since_id` 漂移为 `page`；`page` 越界可能重置到较新区间
+- [ ] `mymblog` 分页会在 `since_id` 与 `page` 之间漂移（2026-08 实测 `since_id` 失效、`total=-1`；2026-10-20 实测两者都可用且等价、`total` 恢复真实值）；实现以 `page` 为主并保留 `since_id: string | number` 兼容，`page` 越界可能重置到较新区间
 - [ ] `retweeted_status` / `user` 可能为 `null`
 - [ ] `geo` 可能是空字符串、对象或 `null`
 - [ ] `pic_infos.width/height` 可能是 `number | string`

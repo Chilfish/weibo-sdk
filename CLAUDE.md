@@ -134,7 +134,7 @@ WeiboSDK（门面）
 
 1. **新增/修改任何 Zod schema 前**，必须先获取对应的真实 API 响应并存为 fixture（`tests/fixtures/raw/`）。
 2. **新增/修改任何 Model 归一化逻辑前**，必须用至少 2 种不同变种的真实 fixture 验证。
-3. **字段类型声明**必须以真实 API 返回的实际类型为准，而非直觉（例如 `since_id` 实际是 `string` 而非 `number`）。
+3. **字段类型声明**必须以真实 API 返回的实际类型为准，而非直觉（例如 `since_id` 可能是 `number`，也可能是带后缀的 `string`；`total` 可能是 `-1`，也可能是真实总数）。
 4. **不得仅凭手写的 Raw 接口来推导 Schema**——应先看真实数据再写 Schema。
 
 获取真实数据的操作手册见 `docs/渐进式开发计划.md`。

@@ -49,7 +49,7 @@
 
 | # | 问题 | 真实值 | 修复 |
 |---|---|---|---|
-| B1 | `since_id` 类型错误 | `string`（空串 `""`） | ✅ `data.since_id: string` |
+| B1 | `since_id` 类型错误 | `string`（空串 `""`） | ✅ `data.since_id: string \| number`（2026-10-20 复测：number 与带后缀 string 均存在） |
 | B2 | `total` 为 `-1` | `-1`（非范围值） | ✅ `raw.data.total > 0` 前置条件 |
 | B3 | `mymblog` 响应 `data` 包装层 | `{ok, data: {since_id, list, total}}` | ✅ Service 路径改为 `raw.data.*` |
 | B4 | `retweeted_status` 嵌套可 null | `user` / 嵌套 retweet 均可 null | ✅ Schema 兼容 nullable |
@@ -57,6 +57,8 @@
 | B6 | mymblog 分页契约漂移（2026-08-09） | `since_id` 失效（传任意值均回第一页）、`total` 恒 `-1`，改用 `page` | ✅ schema `since_id`/`total` optional + Service/Archive 改 page 游标 |
 
 **核心教训**：Schema ≠ 真相。所有生产 Bug 均源于"合理推断"而非"数据验证"，必须抓包取真实 fixture。
+**第三教训（2026-10-20）**：分页策略还会「漂移回摆」，且可能是**账号相关**的——部分账号 `since_id` 恢复为可用游标且与 `page` 等价、`total` 恢复真实总数，另一些账号仍返回 `""` + `-1`；`since_id` 还会在数字与带后缀字符串之间变化。schema 必须接受 `string | number`，不能按单账号单次实测锁死类型，也不能依赖 `total` 判断更多页。
+
 **第二教训（2026-08-09）**：上游分页策略会漂移——mymblog 曾用 `since_id`（2026-05 实测），数月后弃用改 `page`。分页/字段类型需周期性用真实数据回归，不能一次验证终身有效。
 
 **2026-10-19 真实回归**（Cookie 只读 `.env` 后跑通 18/18 E2E）：

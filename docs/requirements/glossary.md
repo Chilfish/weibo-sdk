@@ -65,8 +65,8 @@ _Avoid_: status、success
 EndpointSpec 对 `ok !== 1` 的错误处理策略（`none` / `require_ok_1`）。
 
 **since_id**:
-时间线分页游标。**实际类型是 `string`**（空串表示无更多），不是 `number`。
-⚠️ 上游分页会漂移（2026-08-09）：`mymblog` 已弃用 `since_id`（恒 `""`），改用 `page` 游标；`friendstimeline` 仍用 `since_id`。
+时间线分页游标。**类型不固定**：可能是 `number`，也可能是带后缀的 `string`（如 `"5348185968740754kp2"`）；空串 / 缺省表示无更多。
+⚠️ 上游分页会漂移：2026-08-09 实测 `mymblog` 弃用 `since_id`（恒 `""`）改用 `page`；2026-10-20 复测两者都可用且等价，`total` 也恢复真实值。schema 必须接受 `string | number`。
 _Avoid_: cursor（新浪还有其他游标语义，如 `next_cursor`）
 
 **hasMore**:
