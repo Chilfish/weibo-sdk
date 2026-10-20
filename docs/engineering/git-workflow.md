@@ -118,19 +118,35 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 
 ## 发布流程
 
-`@chilfish/weibo-sdk` 发布到 npm（`pnpm publish`；`publishConfig.access=public`）：
+`@chilfish/weibo-sdk` 由 tag 触发的 GitHub Actions 发布到 npm，使用 npm Trusted Publisher（OIDC），**不保存长期 token**。
 
-### 里程碑发布（按需）
+### 一键发布（默认路径）
 
-1. 从 `main` 创建 `release/x.y.z` 分支（或直接在 main）
-2. 更新 `CHANGELOG.md`（Unreleased → 版本节）
-3. 更新 `docs/README.md` 索引（如涉及新增文档）
-4. 跑通全部验证门禁 + [release-checklist.md](./release-checklist.md) 冒烟
-5. 打 Tag：`git tag v0.1.0 && git push --tags`
-6. GitHub Release：`gh release create v0.1.0 --generate-notes`
-7. `pnpm publish`
+1. 在 `main` 上把本版变化写进 `CHANGELOG.md` 的 `## Unreleased`（脚本会把它转成版本节）
+2. 执行 `pnpm release <patch|minor|major|x.y.z>`
+   - 校验当前分支为 `main`、工作区干净、`HEAD === origin/main`、tag 与 npm 版本尚未存在
+   - 跑本地门禁：`typecheck` / `eslint .` / `test --run` / `validate:fixtures` / `build`
+   - `bumpp` 更新 `package.json`，把 `Unreleased` 转成 `## <version> (<date>)`，提交 `chore(release): v<version>`，打 `v<version>` tag 并推送
+3. tag 推送触发 `.github/workflows/publish.yml`：
+   - 复核 tag 与 `package.json` 版本一致、CHANGELOG 有对应版本节
+   - 复跑 CI 门禁，然后 `pnpm publish --provenance`
+   - 只负责发布 npm，不自动创建 GitHub Release
+4. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，用 `gh release create v<version> --notes-file <file>` 提交
+5. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、GitHub Release、npm 页面的 provenance
 
-> 版本号单一来源为 `package.json`（SemVer 2.0.0），详见 [release-checklist.md](./release-checklist.md)。
+### 发布凭据
+
+- npm Trusted Publisher 绑定 `Chilfish/weibo-sdk` + `publish.yml` 工作流，权限为 publish / stage publish / dist-tag
+- workflow 需要 `id-token: write`（换取 OIDC token）；`contents` 保持只读，GitHub Release 由维护者手动创建
+- 不再使用 `NPM_TOKEN`；本地 `pnpm publish` 只用于排障，不作为正式发布路径
+
+### 硬约束
+
+- **禁止 `npm publish`**：项目依赖使用 pnpm `catalog:`，npm 不会重写，产物会写成 `"catalog:"`（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫
+- 版本号单一来源为 `package.json`（SemVer 2.0.0），tag 必须与它一致
+- 只有 CI 门禁全绿才会发布；tag 已推送但发布失败时，从 GitHub Actions 页面重跑失败的工作流，不要删除 tag 重打
+
+> 手动冒烟与产物核验清单见 [release-checklist.md](./release-checklist.md)。
 
 ## AI 协作开发
 

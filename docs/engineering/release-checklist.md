@@ -52,15 +52,42 @@
 
 ## 发布步骤
 
-1. 从 `main` 创建 `release/x.y.z` 分支（或直接在 main）
-2. 更新 `CHANGELOG.md`（Unreleased → 版本节）
+发布由 tag 触发的 GitHub Actions 完成，本地只负责版本收口与推送 tag。
+
+### 发布前（本地）
+
+1. 确认 `main` 已推送且 CI 全绿
+2. 更新 `CHANGELOG.md` 的 `## Unreleased`（本版全部变化）
 3. 更新 `docs/README.md` 索引（如涉及新增文档）
-4. 跑通验证门禁 + 功能冒烟
-5. 打 Tag：`git tag v<version> && git push --tags`
-6. GitHub Release：`gh release create v<version> --generate-notes`
-7. `pnpm publish`（`prepublishOnly` 会自动 `nr build`；`publishConfig.access=public` 已固定 scoped 包权限）
-   - **禁止 `npm publish`**：项目依赖使用 pnpm `catalog:`，npm 不会重写，产物会写成 `"catalog:"` 导致消费者安装失败（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
-8. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
-9. 发布后回填冒烟勾选日期，归档本阶段计划文档
+4. 需要时跑功能冒烟（`WEIBO_E2E=1`），勾选并记录日期
+5. 执行 `pnpm release <patch|minor|major|x.y.z>`
+   - 脚本会校验分支 / 工作区 / 远端同步 / tag 与 npm 版本，跑本地门禁
+   - `bumpp` 更新 `package.json`、把 `Unreleased` 转成 `## <version> (<date>)`、提交、打 tag、推送
+   - 不传版本类型时不会猜测：必须显式指定
+
+### 发布（CI）
+
+6. `.github/workflows/publish.yml` 由 tag 触发：
+   - 校验 tag 与 `package.json` 版本一致、CHANGELOG 存在对应版本节
+   - 复跑 `typecheck` / `eslint` / `test --run` / `validate:fixtures` / `build` / `browser-smoke --no-browser`
+   - `pnpm publish --no-git-checks --access public --provenance`
+   - 流水线不创建 GitHub Release
+7. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，`gh release create v<version> --notes-file <file>`
+8. **禁止 `npm publish`**：pnpm `catalog:` 不会被 npm 重写，产物会写成 `"catalog:"`（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
+9. tag 已推送但发布失败：从 GitHub Actions 重跑失败的工作流，不要删除 tag 重打。
+
+### 发布后（核验）
+
+10. `npm view @chilfish/weibo-sdk dist-tags` 指向新版本
+11. 解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
+12. npm 页面显示 provenance，GitHub Release 内容与 CHANGELOG 一致
+13. 回填冒烟勾选日期与开发日志
 
 > 真实外网验证由维护者在发布前执行，勾选并记录日期。
+
+## 发布凭据（Trusted Publisher / OIDC）
+
+- npm 包设置里的 Trusted Publisher：GitHub 仓库 `Chilfish/weibo-sdk`、工作流文件名 `publish.yml`、权限 publish / stage publish / dist-tag
+- workflow 需要 `permissions.id-token: write`（换取 npm OIDC token）；`contents` 保持只读，GitHub Release 由维护者手写
+- 不使用 `NPM_TOKEN` / `NODE_AUTH_TOKEN`；`actions/setup-node` 不配置 `registry-url`，避免写入占位 token 的 `.npmrc`
+- 首次配置后必须在 npm 要求的期限内成功发布一次，Trusted Publisher 才会从 `Pending validation` 变为生效
