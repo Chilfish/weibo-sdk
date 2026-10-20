@@ -49,7 +49,7 @@ export interface MediaDownloaderResult {
 
 interface EffectiveMedia {
   media: TweetMedia[]
-  source: 'tweet' | 'retweeted'
+  source: 'tweet' | 'repost' | 'retweeted'
 }
 
 interface PlannedTask {
@@ -58,7 +58,7 @@ interface PlannedTask {
   item: MediaDownloadItemBase
   media: TweetMedia
   variant: MediaVariant
-  source: 'tweet' | 'retweeted'
+  source: 'tweet' | 'repost' | 'retweeted'
 }
 
 interface PlanResult {
@@ -110,12 +110,37 @@ function combineSignals(...signals: Array<AbortSignal | undefined>): AbortSignal
   return controller.signal
 }
 
+/**
+ * 合并一条微博可下载的全部媒体：本层 `media` + 转发链各层配图 + 被转发原微博媒体。
+ *
+ * 转发链配图（reppic）不在 `media` 里，只在 `repostChain[].media`；按 `id + type` 去重，
+ * 保证同一张图不会因上游重复下发而重复下载。
+ */
 function effectiveMedia(tweet: ITweet): EffectiveMedia {
+  const media: TweetMedia[] = []
+  const seen = new Set<string>()
+  const push = (list: TweetMedia[] | undefined): void => {
+    for (const item of list ?? []) {
+      const key = `${item.id}:${item.type}`
+      if (seen.has(key))
+        continue
+      seen.add(key)
+      media.push(item)
+    }
+  }
+
+  push(tweet.media)
+  const repostMedia = tweet.repostChain?.flatMap(entry => entry.media)
+  push(repostMedia)
+  push(tweet.retweetedStatus?.media)
+
+  if (repostMedia && repostMedia.length > 0)
+    return { media, source: 'repost' }
   if (tweet.media.length > 0)
-    return { media: tweet.media, source: 'tweet' }
+    return { media, source: 'tweet' }
   if (tweet.retweetedStatus?.media.length)
-    return { media: tweet.retweetedStatus.media, source: 'retweeted' }
-  return { media: [], source: 'tweet' }
+    return { media, source: 'retweeted' }
+  return { media, source: 'tweet' }
 }
 
 function variantsFor(media: TweetMedia): Array<{ variant: MediaVariant, url: string }> {
@@ -315,12 +340,19 @@ async function planMedia(
 }
 
 function findRefreshedUrl(tweet: ITweet, task: PlannedTask): string | undefined {
+  const repostMedia = tweet.repostChain?.flatMap(entry => entry.media)
   const lists: TweetMedia[][] = []
-  const preferred = task.source === 'retweeted' ? tweet.retweetedStatus?.media : tweet.media
+  const preferred = task.source === 'retweeted'
+    ? tweet.retweetedStatus?.media
+    : task.source === 'repost'
+      ? repostMedia
+      : tweet.media
   if (preferred)
     lists.push(preferred)
   if (tweet.media)
     lists.push(tweet.media)
+  if (repostMedia)
+    lists.push(repostMedia)
   if (tweet.retweetedStatus?.media)
     lists.push(tweet.retweetedStatus.media)
 
