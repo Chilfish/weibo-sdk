@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it } from 'vitest'
-import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { WeiboAPINotOkError, WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { likeListSpec } from '~/services/endpoints/like'
 import { LikeService } from '~/services/public/LikeService'
@@ -176,10 +176,16 @@ describe('likeService.listByUserId', () => {
     expect(getLastConfig()?.params).toEqual({ uid: '111', page: 1 })
   })
 
-  it('throws WeiboAPINotOkError when ok !== 1', async () => {
-    const { service } = createService({ 1: { ok: 0, message: 'need login' } })
+  it('throws WeiboAPINotOkError for generic ok !== 1', async () => {
+    const { service } = createService({ 1: { ok: 0, message: 'operation failed' } })
 
     await expect(service.listByUserId('111')).rejects.toBeInstanceOf(WeiboAPINotOkError)
+  })
+
+  it('maps login-required ok !== 1 to WeiboSessionExpiredError', async () => {
+    const { service } = createService({ 1: { ok: 0, message: 'need login' } })
+
+    await expect(service.listByUserId('111')).rejects.toBeInstanceOf(WeiboSessionExpiredError)
   })
 
   it('throws UnexpectedAPIResponseError when the payload fails schema validation', async () => {

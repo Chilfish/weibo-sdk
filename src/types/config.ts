@@ -39,6 +39,35 @@ export interface IWeiboRetryConfig {
 }
 
 /**
+ * 代理解析上下文（每次请求 / 每次重试都会调用一次）。
+ */
+export interface IProxyRequestContext {
+  /** 请求 URL */
+  url: string
+  /** HTTP 方法（当前全部为 GET） */
+  method: 'GET' | 'POST'
+  /** 端点名（如 `ajax/statuses/mymblog`） */
+  endpoint?: string
+  /** 第几次尝试（1 = 首次请求） */
+  attempt: number
+  /** 请求 trace_id */
+  traceId: string
+}
+
+/**
+ * 动态代理提供者。
+ *
+ * 返回值可以是代理 URL 字符串；返回 `undefined` / `null` / `false` 表示本次直连。
+ * 抛错会中断本次请求（错误不会被吞掉）。
+ */
+export interface IProxyProvider {
+  getProxy: (context: IProxyRequestContext) => string | null | undefined | false | Promise<string | null | undefined | false>
+}
+
+/** 代理配置：静态 URL、动态 Provider，或 `false` 显式直连。 */
+export type WeiboProxyInput = string | false | IProxyProvider
+
+/**
  * `new WeiboSDK(...)` 的构造配置。
  *
  * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、重试 2 次、懒自检）。
@@ -56,7 +85,19 @@ export interface IWeiboConfig {
   cookie: string
   /** XSRF Token；部分 POST 端点需要，缺省时仅发送 Cookie */
   xsrfToken?: string
-  /** 上游代理地址（如 `http://127.0.0.1:7890`）；仅 Node 生效，浏览器运行时忽略 */
+  /**
+   * 上游代理：静态 URL、动态 Provider，或 `false` 显式直连（仅 Node 生效）。
+   *
+   * - `'http://127.0.0.1:7890'`：固定代理
+   * - `{ getProxy: ctx => ... }`：按请求 / 重试动态选择代理（可返回 Promise）
+   * - `false`：忽略环境变量代理，强制直连
+   */
+  proxy?: WeiboProxyInput
+  /**
+   * 上游代理地址（如 `http://127.0.0.1:7890`）；仅 Node 生效，浏览器运行时忽略。
+   *
+   * @deprecated 请使用 `proxy`（支持动态 Provider）。
+   */
   proxyUrl?: string
   /** 单请求超时毫秒数（默认 30000） */
   timeout?: number

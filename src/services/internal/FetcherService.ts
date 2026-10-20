@@ -7,7 +7,8 @@ import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks, WeiboSDKRawMe
 import type { IResource, IResourceType } from '~/types/resources'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
 import axios from 'axios'
-import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
+import { WeiboAPINotOkError, WeiboSessionExpiredError } from '~/models/errors/BusinessError'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { getMessage, getOk, isRecord } from '~/utils/response'
@@ -91,20 +92,9 @@ function isBrowserRuntime(): boolean {
  * 因此只在非浏览器环境注入 proxy，浏览器下退化为直连（由浏览器/宿主决定代理）。
  */
 function createAxiosClient(config: IWeiboConfig): AxiosInstance {
-  const options: AxiosRequestConfig = {
+  return axios.create({
     timeout: config.timeout || 30000,
-  }
-
-  if (!isBrowserRuntime()) {
-    options.proxy = config.proxyUrl
-      ? {
-          host: new URL(config.proxyUrl).hostname,
-          port: Number.parseInt(new URL(config.proxyUrl).port),
-        }
-      : false
-  }
-
-  return axios.create(options)
+  })
 }
 
 function toTelemetryErrorFields(error: unknown): Pick<
@@ -252,7 +242,7 @@ export class FetcherService {
     // 重试循环：用 for 而不是递归（见 postmortem「递归等待 = 深层 Promise 链」）
     for (let attempt = 1; ; attempt++) {
       try {
-        return await this.sendAttempt<T>(resource, args, traceId)
+        return await this.sendAttempt<T>(resource, args, traceId, attempt, options?.endpoint)
       }
       catch (rawError) {
         const error = this.mapError(rawError, attempt)
@@ -328,6 +318,8 @@ export class FetcherService {
     resource: IRequestResource,
     args: Record<string, unknown> | undefined,
     traceId: string,
+    attempt: number,
+    endpoint?: string,
   ): Promise<T> {
     await this.rateLimitService.acquire({ trace_id: traceId })
     // host 头从请求 URL 推导，避免跨 host 端点（如 m.weibo.cn）被强加 weibo.com 而 404
@@ -339,16 +331,89 @@ export class FetcherService {
       ...resource.headers,
     }
 
+    const proxy = await this.resolveProxy(resource, traceId, attempt, endpoint)
     const config: AxiosRequestConfig = {
       method: resource.method,
       url: resource.url,
       headers: resource.headers,
       params: resource.method === 'GET' ? args : undefined,
       data: resource.method === 'POST' ? args : undefined,
+      ...(proxy === undefined ? {} : { proxy }),
     }
 
     const response = await this.client.request<T>(config)
     return response.data
+  }
+
+  /**
+   * 解析本次请求的代理配置。
+   *
+   * - 浏览器运行时忽略代理（由宿主决定）；
+   * - `config.proxy` 支持静态 URL / 动态 Provider / `false`；
+   * - 未配置时返回 `false`（显式直连，避免 Node 环境变量代理造成意外行为）。
+   */
+  private async resolveProxy(
+    resource: IRequestResource,
+    traceId: string,
+    attempt: number,
+    endpoint?: string,
+  ): Promise<AxiosRequestConfig['proxy'] | undefined> {
+    if (isBrowserRuntime())
+      return undefined
+
+    const input = this.config.proxy ?? this.config.proxyUrl
+    if (input === undefined || input === false)
+      return false
+
+    let value: string | null | undefined | false
+    if (typeof input === 'string') {
+      value = input
+    }
+    else {
+      value = await input.getProxy({
+        url: resource.url,
+        method: resource.method,
+        endpoint,
+        attempt,
+        traceId,
+      })
+    }
+
+    if (value === undefined || value === null || value === '' || value === false)
+      return false
+
+    let parsed: URL
+    try {
+      parsed = new URL(value)
+    }
+    catch {
+      throw new InvalidConfigError(`Invalid proxy URL: ${value}`, {
+        field: 'proxy',
+        value,
+      })
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new InvalidConfigError(`Proxy URL must use http(s): ${value}`, {
+        field: 'proxy',
+        value,
+      })
+    }
+
+    return {
+      protocol: parsed.protocol.replace(':', ''),
+      host: parsed.hostname,
+      port: parsed.port === ''
+        ? (parsed.protocol === 'https:' ? 443 : 80)
+        : Number.parseInt(parsed.port),
+      ...(parsed.username === '' && parsed.password === ''
+        ? {}
+        : {
+            auth: {
+              username: decodeURIComponent(parsed.username),
+              password: decodeURIComponent(parsed.password),
+            },
+          }),
+    }
   }
 
   /**
@@ -404,19 +469,34 @@ export class FetcherService {
       const okNumber = ok ?? 0
       const message = getMessage(raw)
       if (okNumber !== 1) {
-        const error = spec.okPolicy.notOkError?.({
-          endpoint: spec.endpoint,
-          args: argsRecord,
-          ok: okNumber,
-          message,
-          raw,
-        }) ?? new WeiboAPINotOkError(`Weibo API returned ok != 1 (${spec.endpoint}).`, {
+        const notOkContext = {
           endpoint: spec.endpoint,
           ok: okNumber,
           message,
           args: argsRecord,
+        }
+        const looksLikeAuthFailure = okNumber === -100
+          || /未登录|请登录|登录已过期|登录失效|login|passport/i.test(message ?? '')
+
+        let error = spec.okPolicy.notOkError?.({
+          endpoint: spec.endpoint,
+          args: argsRecord,
+          ok: okNumber,
+          message,
           raw,
         })
+        if (!error) {
+          error = looksLikeAuthFailure
+            ? new WeiboSessionExpiredError('Weibo session is missing or expired (ok != 1).', {
+                ...notOkContext,
+                hint: 'Cookie 可能已过期或未登录',
+                next: '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后更新 .env 的 WEIBO_COOKIE（或传 --cookie）',
+              })
+            : new WeiboAPINotOkError(`Weibo API returned ok != 1 (${spec.endpoint}).`, {
+                ...notOkContext,
+                raw,
+              })
+        }
 
         await this.emitError(error, {
           phase: 'response',
@@ -451,6 +531,10 @@ export class FetcherService {
     const parsed = spec.schema.safeParse(raw)
     if (!parsed.success) {
       const isNonJson = !isRecord(raw)
+      const rawText = typeof raw === 'string' ? raw : ''
+      const looksLikeLoginPage = isNonJson
+        && /<html/i.test(rawText)
+        && /登录|login|passport/i.test(rawText)
       const error = new UnexpectedAPIResponseError(
         isNonJson
           ? `Weibo API response is not a JSON object (${spec.endpoint}). Likely login/challenge page or endpoint removed; raw was ${typeof raw}.`
@@ -460,6 +544,16 @@ export class FetcherService {
           args: argsRecord,
           raw: isNonJson && typeof raw === 'string' ? raw.slice(0, 200) : raw,
           zodIssues: isNonJson ? [] : parsed.error.issues,
+          ...(isNonJson
+            ? {
+                hint: looksLikeLoginPage
+                  ? '响应是 HTML 登录 / 风控页，而不是 JSON'
+                  : '响应不是 JSON，端点可能已下线或需要登录态',
+                next: looksLikeLoginPage
+                  ? '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后重试'
+                  : '检查该端点是否仍存在；如为登录态问题，请更新 Cookie',
+              }
+            : {}),
         },
       )
 
