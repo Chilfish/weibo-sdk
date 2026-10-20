@@ -1,5 +1,5 @@
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
@@ -381,6 +381,135 @@ function extractLinkCards(rawRecord: UnknownRecord): TweetLinkCard[] | undefined
   return out.length > 0 ? out : undefined
 }
 
+/** 正文里的图片短链（`http://t.cn/XXXX`）。 */
+const SHORT_URL_RE = /https?:\/\/t\.cn\/[A-Za-z0-9]+/g
+
+/** 短链归一化键：只比较 `t.cn/<code>`，兼容 http/https。 */
+function shortUrlKey(value: string | undefined): string | undefined {
+  if (!value)
+    return undefined
+  const match = value.match(/t\.cn\/([A-Za-z0-9]+)/)
+  return match ? match[1] : value
+}
+
+interface ParsedRepostLevel {
+  authorName?: string
+  text: string
+  shortUrls: string[]
+}
+
+/**
+ * 把拍平的转发链正文（`//@name:正文 //@name:正文`）切成层级。
+ *
+ * 第 0 段是当前微博正文；后续每段以 `//@` 开头，作者名到第一个 `:` 为止。
+ * 段内的 `t.cn` 短链单独收集，用于和 `url_struct[].short_url` 配对。
+ */
+function parseRepostText(rawText: string): ParsedRepostLevel[] {
+  const chunks = rawText.split('//@')
+  const levels: ParsedRepostLevel[] = []
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    let body = chunks[index] ?? ''
+    let authorName: string | undefined
+
+    if (index > 0) {
+      const separator = body.indexOf(':')
+      if (separator >= 0) {
+        authorName = decodeHtmlText(body.slice(0, separator)).replace(/^@/, '') || undefined
+        body = body.slice(separator + 1)
+      }
+    }
+
+    const shortUrls = body.match(SHORT_URL_RE) ?? []
+    levels.push({
+      ...(authorName ? { authorName } : {}),
+      text: body.replace(SHORT_URL_RE, '').replace(/\u200B/g, '').trim(),
+      shortUrls,
+    })
+  }
+
+  return levels
+}
+
+/**
+ * 转发链分层 + 层内配图（2026-10-20）。
+ *
+ * 只对转发微博产出；正文没有 `//@` 且没有 reppic 配图的单层转发不返回（避免噪音）。
+ * 图片按 `pic_id` 去重（上游会重复下发）；无法在正文中定位的图片追加到末尾补充层。
+ */
+function extractRepostChain(rawRecord: UnknownRecord): TweetRepostEntry[] | undefined {
+  const hasRetweet = isRecord(rawRecord.retweeted_status)
+  if (!hasRetweet && (rawRecord.repost_type === undefined || rawRecord.repost_type === null))
+    return undefined
+
+  // `text_raw` 通常就在；退回 HTML 时先去标签，`//<a>@name</a>:` 才会还原成 `//@name:`
+  const rawText = getString(rawRecord.text_raw) ?? decodeHtmlText(getString(rawRecord.text) ?? '')
+  const levels = parseRepostText(rawText)
+  const user = normalizeUser(rawRecord.user)
+
+  const entries: TweetRepostEntry[] = levels.map((level, index) => {
+    const entry: TweetRepostEntry = {
+      index,
+      text: level.text,
+      media: [],
+    }
+    if (index === 0 ? user.name.length > 0 : level.authorName !== undefined)
+      entry.authorName = index === 0 ? user.name : level.authorName
+    return entry
+  })
+
+  const urlStruct = rawRecord.url_struct
+  const seenPics = new Set<string>()
+  const unmatched: TweetMedia[] = []
+
+  if (Array.isArray(urlStruct)) {
+    for (const item of urlStruct) {
+      if (!isRecord(item))
+        continue
+
+      const picInfos = isRecord(item.pic_infos) ? item.pic_infos : undefined
+      const picIds = Array.isArray(item.pic_ids)
+        ? item.pic_ids
+        : picInfos
+          ? Object.keys(picInfos)
+          : []
+      const key = shortUrlKey(getString(item.short_url))
+      const levelIndex = key
+        ? levels.findIndex(level => level.shortUrls.some(url => shortUrlKey(url) === key))
+        : -1
+
+      for (const picId of picIds) {
+        if (typeof picId !== 'string' || picId.length === 0 || seenPics.has(picId))
+          continue
+        const info = picInfos?.[picId]
+        if (!isRecord(info))
+          continue
+        const media = mediaFromPicInfo(picId, info)
+        if (!media)
+          continue
+        seenPics.add(picId)
+        if (levelIndex >= 0)
+          entries[levelIndex]?.media.push(media)
+        else
+          unmatched.push(media)
+      }
+    }
+  }
+
+  if (unmatched.length > 0) {
+    // 正文没有 `//@` 时图片就是当前微博自己的配图；否则无法定位，追加到末尾补充层
+    if (entries.length === 1)
+      entries[0]?.media.push(...unmatched)
+    else
+      entries.push({ index: entries.length, text: '', media: unmatched })
+  }
+
+  if (entries.length <= 1 && !entries.some(entry => entry.media.length > 0))
+    return undefined
+
+  return entries
+}
+
 /** 顶栏标题：`title.text`（少数端点直接下发字符串）。 */
 function extractTitle(rawRecord: UnknownRecord): string | undefined {
   const title = rawRecord.title
@@ -624,6 +753,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     pageInfo: extractPageInfo(rawRecord),
     geo: extractGeo(raw),
     retweetedStatus,
+    repostChain: extractRepostChain(rawRecord),
     topics: extractTopics(rawRecord),
     linkCards: extractLinkCards(rawRecord),
     readCount: getNumber(rawRecord.reads_count),

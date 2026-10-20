@@ -59,6 +59,15 @@ export interface ITweet {
   /** 被转发的原微博（同构递归；非转发微博缺省） */
   retweetedStatus?: ITweet
 
+  /**
+   * 转发链分层（仅转发微博；正文 `//@` 由近到远，`index` 0 = 当前微博）。
+   *
+   * 转发时附带的图片（reppic）不在 `pic_ids` / `pic_infos`，只在 `url_struct[]`；
+   * 多层转发链会把各层配图全部聚合到顶层 `url_struct[]`。本字段用 `short_url`
+   * 把图片挂回所属层，避免丢失「哪张图属于哪一层」的对应关系。
+   */
+  repostChain?: TweetRepostEntry[]
+
   // 网页卡片或视频卡片
   /** 网页卡片 / 视频卡片信息（链接预览等；无卡片时缺省） */
   pageInfo?: TweetPageCard
@@ -173,6 +182,24 @@ export interface TweetUser {
   verified: boolean
   /** 认证类型（对应上游 `verified_type`，未认证为 -1） */
   verifiedType: VerificationType
+}
+
+/**
+ * 转发链中的一层（`repostChain[]`）。
+ *
+ * 上游把转发链的各层正文拍平在顶层 `text_raw`（`//@name:正文`），图片则聚合在顶层
+ * `url_struct[]`（`url_type: 39`）。本类型把「层」与「层内配图」重新配对：
+ * 用 `url_struct[].short_url` 匹配该层正文里的 `http://t.cn/...` 短链。
+ */
+export interface TweetRepostEntry {
+  /** 层级索引：`0` = 当前微博，`1..n` = `text` 中由近到远的 `//@` 层级 */
+  index: number
+  /** 该层作者昵称（0 层取 `user.name`；其余从 `//@name:` 解析；无法解析时缺省） */
+  authorName?: string
+  /** 该层正文（去掉 `//@` 前缀与图片短链；可能为空串） */
+  text: string
+  /** 该层配图（`url_struct[]` 的 reppic 条目；按 `pic_id` 去重；无图时为空数组） */
+  media: TweetMedia[]
 }
 
 /**
