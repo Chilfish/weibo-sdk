@@ -42,7 +42,7 @@
     "capture": "tsx capture/bin/index.ts",
     "dev": "tsdown --watch",
     "lint": "eslint . --fix",
-    "prepublishOnly": "nr build",
+    "prepublishOnly": "node scripts/verify-publish-tool.mjs && nr build",
     "release": "bumpp && pnpm publish",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "start": "tsx src/index.ts",
