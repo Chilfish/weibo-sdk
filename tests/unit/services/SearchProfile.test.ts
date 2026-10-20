@@ -1,5 +1,5 @@
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { TweetService } from '~/services/public/TweetService'
 
 describe('searchProfile', () => {
@@ -35,7 +35,7 @@ describe('searchProfile', () => {
     },
   }
 
-  it('calls searchProfile with correct params', async () => {
+  it('converts date strings to unix seconds before requesting', async () => {
     const { client, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/searchProfile')
       return fixture
@@ -54,7 +54,8 @@ describe('searchProfile', () => {
     const cfg = getLastConfig()
     expect(cfg?.params?.uid).toBe('111')
     expect(cfg?.params?.page).toBe(1)
-    expect(cfg?.params?.starttime).toBe('2024-01-01')
+    expect(cfg?.params?.starttime).toBe(Math.floor(new Date(2024, 0, 1).getTime() / 1000))
+    expect(cfg?.params?.endtime).toBe(Math.floor(new Date(2024, 11, 31, 23, 59, 59, 999).getTime() / 1000))
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
   })
 
@@ -83,6 +84,35 @@ describe('searchProfile', () => {
     expect(typeof params?.starttime).toBe('number')
     expect(params?.starttime).toBe(1735689600)
     expect(params?.endtime).toBe(1738368000)
+  })
+
+  it('converts compact dates and numeric strings to unix seconds', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+    await service.searchByDate('555', {
+      starttime: '20240101',
+      endtime: '1735689600',
+    })
+    const params = getLastConfig()?.params
+    expect(params?.starttime).toBe(Math.floor(new Date(2024, 0, 1).getTime() / 1000))
+    expect(params?.endtime).toBe(1735689600)
+  })
+
+  it('rejects invalid date strings before sending a request', async () => {
+    const handler = vi.fn(async () => fixture)
+    const { client } = createFakeAxios(handler)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await expect(service.searchByDate('666', { starttime: '2024-02-30' }))
+      .rejects
+      .toMatchObject({ code: 'CONFIG_INVALID' })
+    expect(handler).not.toHaveBeenCalled()
   })
 
   it('passes filter params', async () => {

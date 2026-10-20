@@ -2,6 +2,7 @@ import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, Fri
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import { isRawTweet, Tweet } from '~/models/data/Tweet'
+import { resolveTimeInput } from '~/utils/timeInput'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -323,16 +324,21 @@ export class TweetService extends FetcherService {
   /**
    * 按日期范围搜索用户微博 GET /ajax/statuses/searchProfile
    *
-   * `starttime` / `endtime` 为 **unix 秒**（真实网页端传 `start_time` / `end_time` 的秒值）；
-   * 传日期字符串（如 `2024-01-01`）会被上游忽略并返回未过滤结果。
+   * `starttime` / `endtime` 支持两种写法，请求前统一换算为**unix 秒**（上游只认秒，
+   * 直接传日期字符串会被静默忽略）：
+   * - 数字 / 纯数字字符串：按 unix 秒原样使用
+   * - `YYYY-MM-DD` / `YYYYMMDD`：`starttime` 取当天 00:00:00、`endtime` 取当天 23:59:59
+   *   （**运行环境本地时区**）
+   *
+   * 非法日期或无法识别的格式抛 `InvalidConfigError`（`CONFIG_INVALID`），不再静默透传。
    *
    * `has*` 系列过滤位（`0` / `1`）语义未经上游文档确认，默认不传即不加限制。
    *
    * @param uid 用户 UID
    * @param options 检索选项（全部可选）
    * @param options.page 页码（从 1 开始；缺省 = 第一页）
-   * @param options.starttime 时间下界（unix 秒，含）
-   * @param options.endtime 时间上界（unix 秒，含）
+   * @param options.starttime 时间下界（unix 秒或日期字符串，含）
+   * @param options.endtime 时间上界（unix 秒或日期字符串，含）
    * @param options.hasori 是否包含原创（0 / 1）
    * @param options.hasret 是否包含转发（0 / 1）
    * @param options.hastext 是否包含纯文字（0 / 1）
@@ -357,9 +363,9 @@ export class TweetService extends FetcherService {
       if (options.page !== undefined)
         args.page = options.page
       if (options.starttime !== undefined)
-        args.starttime = options.starttime
+        args.starttime = resolveTimeInput(options.starttime, { boundary: 'start', field: 'starttime' })
       if (options.endtime !== undefined)
-        args.endtime = options.endtime
+        args.endtime = resolveTimeInput(options.endtime, { boundary: 'end', field: 'endtime' })
       if (options.hasori !== undefined)
         args.hasori = options.hasori
       if (options.hasret !== undefined)

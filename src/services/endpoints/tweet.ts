@@ -385,7 +385,7 @@ export const longtextSpec: EndpointSpec<'TWEET_LONGTEXT', typeof LongtextArgsSch
 const SearchProfileArgsSchema = z.object({
   uid: z.string(),
   page: z.number().optional(),
-  // 实测为 unix 秒（如 1790784000）；字符串仅作兼容透传，日期字符串会被上游忽略。
+  // 实测为 unix 秒（如 1790784000）；字符串由 TweetService.searchByDate 在请求前换算（上游会忽略日期字符串）。
   starttime: z.union([z.number(), z.string()]).optional(),
   endtime: z.union([z.number(), z.string()]).optional(),
   hasori: z.number().optional(),

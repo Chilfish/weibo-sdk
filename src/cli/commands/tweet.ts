@@ -89,8 +89,8 @@ export const tweetSearchProfile = defineCommand({
   args: {
     id: { type: 'positional', description: '用户 UID', required: true },
     page: { type: 'string', description: '分页（可选）' },
-    starttime: { type: 'string', description: '开始时间（可选）' },
-    endtime: { type: 'string', description: '结束时间（可选）' },
+    starttime: { type: 'string', description: '开始时间：YYYY-MM-DD / YYYYMMDD 或 unix 秒（可选，含当天起点）' },
+    endtime: { type: 'string', description: '结束时间：YYYY-MM-DD / YYYYMMDD 或 unix 秒（可选，含当天终点）' },
     hasori: { type: 'string', description: '是否仅原创：0/1（可选）' },
     hasret: { type: 'string', description: '是否含转发：0/1（可选）' },
     hastext: { type: 'string', description: '是否含文本：0/1（可选）' },
