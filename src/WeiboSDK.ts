@@ -1,6 +1,11 @@
+import type { CapabilityFilter, WeiboCapability } from './capabilities'
 // src/WeiboSDK.ts
 import type { IWeiboConfig } from './types/config'
-import type { WeiboSDKLifecycleEvent, WeiboSDKSelfCheckMode } from './types/hooks'
+import type {
+  WeiboSDKLifecycleEvent,
+  WeiboSDKSelfCheckMode,
+} from './types/hooks'
+import { listCapabilities } from './capabilities'
 import { InvalidConfigError } from './models/errors/ConfigError'
 import { ArchiveService } from './services/public/ArchiveService'
 import { CommentHistoryService } from './services/public/CommentHistoryService'
@@ -10,6 +15,7 @@ import { LikeService } from './services/public/LikeService'
 import { MediaService } from './services/public/MediaService'
 import { NotificationService } from './services/public/NotificationService'
 import { SearchService } from './services/public/SearchService'
+import { TopicService } from './services/public/TopicService'
 import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
@@ -54,6 +60,8 @@ export class WeiboSDK {
   public readonly media: MediaService
   /** 消息通知服务：评论通知 / 点赞通知（max_id 游标）。 */
   public readonly notifications: NotificationService
+  /** 超话服务：分类、列表与关键词搜索（D7）。 */
+  public readonly topics: TopicService
   /** 热搜服务：热搜 / 话题 / 文娱榜单。 */
   public readonly trends: TrendsService
   /** 搜索服务：搜索用户与微博（上游接口当前失效，见方法注释）。 */
@@ -91,6 +99,7 @@ export class WeiboSDK {
     this.commentHistory = new CommentHistoryService(config, deps)
     this.media = new MediaService(config, deps)
     this.notifications = new NotificationService(config, deps)
+    this.topics = new TopicService(config, deps)
     this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
     this.archive = new ArchiveService({
@@ -101,6 +110,12 @@ export class WeiboSDK {
       },
       commentHistory: {
         fetchRawPage: options => this.commentHistory.fetchRawPage(options),
+      },
+      media: {
+        fetchRawImagePage: (uid, options) =>
+          this.media.fetchRawImagePage(uid, options),
+        fetchRawVideoPage: (uid, options) =>
+          this.media.fetchRawVideoPage(uid, options),
       },
       telemetry: config.telemetry,
     })
@@ -118,9 +133,12 @@ export class WeiboSDK {
 
   private validateConfig(config: IWeiboConfig): void {
     if (!config.cookie) {
-      throw new InvalidConfigError('Weibo SDK requires a valid cookie in configuration.', {
-        field: 'cookie',
-      })
+      throw new InvalidConfigError(
+        'Weibo SDK requires a valid cookie in configuration.',
+        {
+          field: 'cookie',
+        },
+      )
     }
   }
 
@@ -185,6 +203,17 @@ export class WeiboSDK {
 
   private async emitLifecycle(event: WeiboSDKLifecycleEvent): Promise<void> {
     await this.config.hooks?.onLifecycle?.(event)
+  }
+
+  /**
+   * 返回 SDK 能力清单（离线静态注册表，不发请求）。
+   *
+   * 适合 Agent / 脚本在运行时发现「有哪些能力、是否需要 Cookie、分页类型、当前状态」。
+   *
+   * @param filter 可按服务名 / 状态过滤
+   */
+  public capabilities(filter: CapabilityFilter = {}): WeiboCapability[] {
+    return listCapabilities(filter)
   }
 
   /**
