@@ -115,8 +115,8 @@
 | F2.2 | 断点续传（checkpoint 持久化） | ✅ `ArchiveCheckpoint` + CLI `--checkpoint` |
 | F2.3 | 全链路进度与事件可观测 | ✅ `archive_progress` + telemetry JSONL exporter |
 | F2.4 | CLI 一键归档 | ✅ `weibo-cli archive <uid>`（NDJSON） |
-| F2.5 | 增量归档（时间游标 / 已见 mblogId 早停） | 🔜 进行中（`incremental` + `state.json`） |
-| F2.6 | 多账号批量归档（uid 列表） | 🔜 进行中（`streamUsersArchive` + CLI `--uid-file`） |
+| F2.5 | 增量归档（时间游标 / 已见 mblogId 早停） | ✅ `streamArchive({ incremental })` + CLI `--state` |
+| F2.6 | 多账号批量归档（uid 列表） | ✅ `streamUsersArchive` + CLI `--uid-file` |
 | F2.7 | 点赞 / 历史评论 / 图片 / 视频 / 音频进入归档流 | ✅ 点赞 / 历史评论 / 图片 / 视频；🔜 音频 |
 
 ### F3 数据契约

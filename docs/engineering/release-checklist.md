@@ -1,6 +1,6 @@
 # Release Checklist
 
-**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-19
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-20
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（打 tag + GitHub Release + `pnpm publish`）时的完整清单。
@@ -17,37 +17,38 @@
 
 ## 验证门禁（发布前必过）
 
-- [x] `pnpm run typecheck` 通过（2026-10-19）
-- [x] `pnpm run lint` 通过（2026-10-19）
-- [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` 生成；2026-10-19）
-- [x] `pnpm test` 全绿（默认离线；2026-10-19：189 passed / 18 skipped）
-- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-19：38 / 0 fail）
+- [x] `pnpm run typecheck` 通过（2026-10-20）
+- [x] `pnpm run lint` 通过（2026-10-20）
+- [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20）
+- [x] `pnpm test` 全绿（默认离线；2026-10-20：552 passed / 18 skipped）
+- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-20：84 ok / 7 unmodeled / 0 fail）
 - [ ] simple-git-hooks pre-commit 钩子无跳过
 
 ## 包身份核验
 
-- [ ] `package.json#name` = `@chilfish/weibo-sdk`
-- [ ] `package.json#bin` = `{ "weibo-cli": "./dist/cli.mjs" }`
-- [ ] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
-- [ ] `npm pack --dry-run` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`
-- [ ] 打包产物 `dependencies` 已由 pnpm 重写（无 `catalog:` / `workspace:`）
-- [ ] `@chilfish/weibo-sdk` 在 npm registry 上可发布（未被他人占用）
+- [x] `package.json#name` = `@chilfish/weibo-sdk`（2026-10-20）
+- [x] `package.json#bin` = `{ "weibo-cli": "./dist/cli.mjs" }`（2026-10-20）
+- [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
+- [x] `pnpm pack` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
+- [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `citty ^0.2.2` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-20）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.1.1`，2026-10-20）
 
 ## 公共导出面核验
 
-- [ ] `src/index.ts` 导出面与规格书 §3.7 一致（无内部实现泄漏）
-- [ ] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`）
-- [ ] 新增响应类型已用 `z.infer` 推导并导出
+- [x] `src/index.ts` 导出面与规格书 §3.7 一致（无内部实现泄漏；2026-10-20）
+- [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20）
+- [x] 新增响应类型已用 `z.infer` 推导并导出（2026-10-20）
 
 ## 功能冒烟（真实环境，`WEIBO_E2E=1`）
 
 > 真实 Cookie **只从项目根目录 `.env` 读取**（`tests/e2e/setup-env.ts` 会覆盖环境变量），勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
 
-- [x] `pnpm test:e2e` 全绿（E2E 结构快照通过；2026-10-19：18/18，连续两次）
-- [x] CLI 关键命令冒烟：`whoami` / `archive` / `tweet detail` / `trends`（2026-10-19）
-- [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-19，E2E lifecycle 用例）
-- [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-19：checkpoint 续跑 20 条新项、0 重叠）
-- [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-19）
+- [x] `pnpm test:e2e` 全绿（2026-10-20：18/18；首跑发现 `favorites/all_fav` 快照缺少顶层 `count` / `total_page`，已更新快照后复跑通过）
+- [x] CLI 关键命令冒烟：`whoami` / `archive` / `tweet detail` / `trends` / `capabilities` / `tweet home-stream`（2026-10-20；含从打包 tarball 安装后执行 `whoami`）
+- [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-20，E2E lifecycle 用例）
+- [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-20：`archive --max-pages 1` 产出 20 条，checkpoint 落盘正常）
+- [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-20：84 ok / 7 unmodeled / 0 fail）
+- [x] 打包产物安装冒烟：`npm i --prefix <tmp> <tarball>` 后 CLI `--version` = `0.2.0`、`whoami` 成功、SDK 入口可导入（2026-10-20）
 
 ## 发布步骤
 
