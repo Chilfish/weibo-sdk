@@ -98,7 +98,8 @@
 | F1.7 | 首页 Feed（双向关注时间线） | ✅ `listFriendTimeline` |
 | F1.8 | 获取用户点赞过的微博 | 🔜 `likes.listByUserId`（端点待真实抓包确认） |
 | F1.9 | 获取当前登录用户发布的历史评论 | 🔜 `comments.listMine`（`/ajax/message/myCmt`，cursor 分页） |
-| F1.10 | 获取用户图片墙 / 视频瀑布 / 音频等账号级媒体集合 | 🔜 `media.*`（`getImageWall` / `getWaterFallContent` / `user_playlists_get`） |
+| F1.10 | 获取用户图片墙 / 视频瀑布 / 音频等账号级媒体集合 | ✅ 图片墙 / 视频瀑布；🔜 音频 | `media.listImages/streamImages` / `media.listVideos/streamVideos` |
+| F1.11 | 下载单条微博媒体（可选辅助，默认不启用） | ✅ `media.downloadTweetMedia` / `downloadByMblogId`；CLI `media download` |
 | F1.11 | 获取微博点赞者列表 | 🔜 `tweets.likers`（`/ajax/statuses/likeShow`） |
 
 ### F2 归档链路

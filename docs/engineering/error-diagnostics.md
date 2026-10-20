@@ -15,9 +15,18 @@
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 请求超时 |
 | `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 网络错误（含 4xx/5xx） |
 | `RATE_LIMITED` | `RateLimitError` | transport | ✅ | 上游限流/风控（HTTP 432 / 429） |
+| `MEDIA_DOWNLOAD_FAILED` | `MediaDownloadError` | transport | ✅ | 媒体 CDN 5xx/429/408/超时/连接/空闲超时/截断/0 字节 |
+| `MEDIA_BAD_RESPONSE` | `MediaInvalidResponseError` | protocol | ❌ | HTML/JSON、类型族不符、超上限、非法重定向 |
+| `MEDIA_STORAGE_FAILED` | `MediaStorageError` | storage | ❌ | mkdir/write/rename/unlink 失败 |
 
 ---
 
+### 媒体下载错误（`MEDIA_*`）
+
+- `MEDIA_DOWNLOAD_FAILED`：CDN 传输层失败；检查 `context.status` / `reason`，可重试。403/404/410 会先尝试刷新微博 URL。
+- `MEDIA_BAD_RESPONSE`：响应不是媒体文件（常见 `text/html` 登录/风控页）、类型族不符或超过 `maxBytes`；用 `context.contentType` / `snippet` 判断。
+- `MEDIA_STORAGE_FAILED`：本地落盘失败（`ENOSPC` / `EACCES` / `EPERM`）；换输出目录或释放空间，下载器会停止后续调度。
+- 失败清单：`<out>/<mblogId>-media-errors.json`；详细规则见 [media-download.md](./media-download.md)。
 ## 1. CONFIG_INVALID
 
 **含义**：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 文件无法解析。

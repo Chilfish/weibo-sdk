@@ -112,3 +112,82 @@
 
 > 探针结论：任务书候选的 `GET /ajax/statuses/likes?uid=&page=` **已下线**——返回 200 + `text/html` 的「404错误」页（同理 `/ajax/statuses/likesMe`、`/ajax/statuses/likeList`、`/ajax/message/like`、`/ajax/attitudes/myattitudes`、`/ajax/statuses/like` 全部 404 HTML）。真实路径由线上 bundle（`h5.sinaimg.cn/m/weibo-pro-next/assets/index-*.js`）中的调用点确认。
 
+## 新增端点（2026-10-20 媒体集合：图片墙 / 视频瀑布）
+
+> 抓包环境：已登录 Chrome（uid `2365795232`），经 `fetch(..., { credentials: 'include' })` 取原始响应。
+> 已建模：`image_wall_*` → `imageWallSpec`，`waterfall_*` → `waterfallSpec`（`FIXTURE_RULES` 均为 mapped）。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `image_wall_p1.json` | 4.5K | `/ajax/profile/getImageWall?uid=&sinceid=0` | 第 1 页，23 条（22 条有效 `pid` + 1 条缺 `pid` 的破损项）；`pic` + `livephoto` 混合 |
+| `image_wall_p2.json` | 4.6K | 同上 `sinceid=<第1页 data.since_id>` | 第 2 页，23 条 |
+| `waterfall_p1.json` | 126K | `/ajax/profile/getWaterFallContent?uid=&cursor=0` | 第 1 页，17 条视频微博 |
+| `waterfall_p2.json` | 63K | 同上 `cursor=<第1页 data.next_cursor>` | 第 2 页，8 条视频微博 |
+
+### D4 图片墙 —— `/ajax/profile/getImageWall`（复合游标 `sinceid`）
+
+- **响应**：`{ ok: 1, data: { since_id: string, list: Array<媒体资产> }, bottom_tips_visible: boolean, bottom_tips_text: string }`
+- **媒体资产**：`{ pid, mid, is_paid, timeline_year, timeline_month, object_id, type, video? }`
+  - `type` 实测为 `pic` / `livephoto`；`video` 仅 livephoto 下发（`video.weibo.com/media/play?livephoto=...mov`）。
+  - 图片 URL 由 `pid` 构造：`https://wx3.sinaimg.cn/large/<pid>.jpg`（GIF 用 `.gif`）。
+  - 真实样本存在 `pid` 缺失、`object_id: null` 的破损条目，schema 允许并在服务层过滤。
+- **分页**：首屏 `sinceid=0`，下一页传上一页 `data.since_id`；`sinceid=-1` 等同第一页。结束条件按「空列表 / 游标缺失 / 游标不前进」判断（未抓到明确空页样本）。
+
+### D5 视频瀑布 —— `/ajax/profile/getWaterFallContent`（游标 `cursor`）
+
+- **响应**：`{ ok: 1, data: { list: Array<微博>, next_cursor: string } }`
+- **微博条目**与 mymblog 同构；视频在 `page_info.media_info`（`media_type: 'video'`、`h5_url`、`mp4_hd_url` / `stream_url_hd`、`big_pic_info.pic_big` 封面）。
+- **分页**：首屏 `cursor=0`，下一页传上一页 `data.next_cursor`；**`cursor=-1` 返回 HTTP 400**（不要发送负游标）。
+- 归一化后可复用 `normalizeTweet`（已支持 `page_info.media_info` → `TweetMedia`）。
+
+## 新增端点（2026-10-20 真实抓包：D8 点赞者 / D9 @我 / D10 消息 / D11 分组）
+
+> 抓包环境：已登录 Chrome，经 `fetch(..., { credentials: 'include' })` 取原始响应。
+> 脱敏：ID 使用确定性假值（同一原始 ID 跨页映射一致），分页游标保留真实数值。
+> 已建模：`likers_*` → `likersSpec`，`mentions_*` → `mentionsSpec`，`message_cmt_*` → `messageCommentsSpec`，
+> `message_attitudes_*` → `messageAttitudesSpec`，`mblog_groups` → `mblogGroupsSpec`，`feed_groups` → `feedGroupsSpec`。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `likers_p1.json` | 19K | `m.weibo.cn/api/attitudes/show?id=&page=1` | 50 条点赞者；`data.total_number = 107` |
+| `likers_p2.json` | 17K | 同上 `page=2` | 45 条 |
+| `likers_end.json` | 0K | 同上 `page=3` | `data.data: null`（越界停止态） |
+| `mentions_p1.json` | 64K | `/ajax/statuses/mentions` | 第 1 页，16 条；`next_cursor = 5337232611217339` |
+| `mentions_p2.json` | 44K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，11 条 |
+| `mentions_end.json` | 0K | 同上越界 `page=999` | `statuses: []`、`next_cursor: 0` |
+| `message_cmt_p1.json` | 428K | `/ajax/message/cmt` | 评论通知第 1 页，18 条 |
+| `message_cmt_p2.json` | 467K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，20 条 |
+| `message_cmt_end.json` | 0K | 同上越界 `page=999` | `comments: []`、`next_cursor: 0` |
+| `message_attitudes_p1.json` | 316K | `/ajax/message/attitudes` | 点赞通知第 1 页，20 条（1 条缺 `status`） |
+| `message_attitudes_p2.json` | 329K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，20 条（2 条缺 `status`） |
+| `message_attitudes_end.json` | 0K | 同上越界 `page=999` | `attitudes: []`、`next_cursor: 0` |
+| `mblog_groups.json` | 0K | `/ajax/mblog/querygroup` | `data.join_groups`，2 个分组 |
+| `feed_groups.json` | 18K | `/ajax/feed/allGroups` | 5 个分类、共 68 个分组；`groups[].group[]` |
+
+### D8 微博点赞者 —— 网页端 `likeShow` vs m 站 `attitudes/show`
+
+- **网页端** `GET /ajax/statuses/likeShow?id=<mid>&page=<n>`：`id` 必须是数字 mid（字母 mblogid 返回 400），响应能返回正确的 `total_number`，但 `data` 恒为 `[]`（2026-10-20 实测多账号/多微博；疑似隐私/风控门控）。
+- **m 站** `GET https://m.weibo.cn/api/attitudes/show?id=<mid>&page=<n>`：可用。
+  - **响应**：`{ ok: 1, msg, data: { max, total_number, data: Array<{ id, created_at, source, user }> | null } }`
+  - **分页**：page 型（1 基），每页约 50 条；越界页 `data: null`（仍 `ok: 1`），服务层按空页停止。
+  - `total_number` 可能大于实际可翻到的条数（隐藏点赞者 / 隐私设置），停止以空页为准。
+- SDK 采用 m 站端点；字段与网页端一致（`data.data[]` / `total_number`）。
+
+### D9 @我的微博 —— `/ajax/statuses/mentions`
+
+- **响应**：`{ ok: 1, data: { statuses: Array<微博>, next_cursor, previous_cursor, total_number } }`。
+- **分页**：`page=<n>` 与 `max_id=<上一页 data.next_cursor>` 等价；`since_id` 被上游忽略（始终返回第一页）。
+- 到底：`next_cursor: 0` + `statuses: []`。
+
+### D10 消息中心 —— `/ajax/message/cmt` 与 `/ajax/message/attitudes`
+
+- `cmt`：`data.comments[]`，每条为评论（含内嵌 `status` 被评论微博）；`attitudes`：`data.attitudes[]`，每条为点赞记录（`attitude: 'heart'` + `user` + 内嵌 `status`）。
+- **分页**：两者都用 `max_id=<上一页 data.next_cursor>`（`page` 等价）；`cursor` 被忽略；到底 `next_cursor: 0` + 空数组。
+- 被赞/被评论微博已删除时，条目可能没有 `status`（schema 允许 optional，服务层跳过）。
+- `message/count` 与 `message/likeNotice` 已失效（200 + HTML 404 页），不建模。
+
+### D11 分组 —— `/ajax/feed/allGroups` 与 `/ajax/mblog/querygroup`
+
+- `feed/allGroups`：`groups[]` 是分类（默认分组 / 我的分组 / 订阅分组 / 我的频道），每个分类下 `group[]` 才是分组（`gid` / `title` / `count` / `type` / `apipath`）。
+- `mblog/querygroup`：`data.join_groups[]`，元素为 `{ page_objectid, name, system_name, id }`；不带 `gid` 即返回当前账号加入的分组。
+

@@ -46,6 +46,7 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 | `TweetService` | `sdk.tweets` | `myMblog` / `listByUserId` / `streamByUserId` / `show` / `getByMblogId` / `comments` / `longText` / `searchByDate` / `friendTimeline` / `listFriendTimeline` |
 | `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` |
 | `FavoriteService` | `sdk.favorites` | `getFavorites` / `getTags` |
+| `MediaService` | `sdk.media` | `listImages` / `streamImages` / `listVideos` / `streamVideos` / `downloadTweetMedia` / `downloadByMblogId` |
 | `TrendsService` | `sdk.trends` | `hotBand` |
 | `SearchService` | `sdk.search` | `searchUsers` / `searchTweets` |
 

@@ -6,7 +6,7 @@
 
 | 日期 | 主题 |
 |---|---|
-| [2026-10-20](2026-10-20.md) | 0.1.0 发布收口：CI 补强（build / browser smoke / Node 22+24）+ 正式发布；`npm publish` 打包 `catalog:` 协议事故 → `pnpm publish` 重发 0.1.1（postmortem 010）；D3 收藏增强（`favorite stream`）；Cookie 支持文件路径输入（Netscape / header 串） |
+| [2026-10-20](2026-10-20.md) | 0.1.0 发布收口：CI 补强（build / browser smoke / Node 22+24）+ 正式发布；`npm publish` 打包 `catalog:` 协议事故 → `pnpm publish` 重发 0.1.1（postmortem 010）；D3 收藏增强（`favorite stream`）；Cookie 支持文件路径输入（Netscape / header 串）；媒体下载辅助（单条微博） |
 | [2026-10-19](2026-10-19.md) | 发布就绪审计 + Cookie 只读 `.env` + 真实 E2E 回归（18/18）+ 生态调研 |
 | [2026-09-04](2026-09-04.md) | 契约冻结 P0 实施（依赖升级收口 + P0-2/P0-6 裁定 + P0-1/3/4/5/6 落地） |
 | [2026-08-10](2026-08-10.md) | 契约冻结规划（第二轮 Apple 审查 → todo-contract-freeze 行动计划） |

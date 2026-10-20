@@ -23,6 +23,9 @@
 | `unit/models/User.test.ts` | `User` 构造器 | avatar fallback 链（avatar_hd > avatar_large > profile_image_url）、IP属地前缀裁剪、stats映射、扩展属性（company/creditLevel/externalLinks/school） |
 | `unit/models/Tweet.test.ts` | `Tweet` 构造器（mymblog 来源） | 核心字段映射、media 提取（pic_infos）、regionName、visible、stats、geo 坐标兼容（lon/lat 顺序）、retweeted_status 递归构造 |
 | `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
+| `unit/models/Media.test.ts` | `normalizeImageWallItem` / `normalizeWaterfallVideo` | 图片墙 pic/livephoto/gif/unknown（URL 由 pid 构造）、视频瀑布 `page_info.media_info` 提取、`normalizeTweet` 的 page_info 视频映射 |
+| `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl`） |
+| `unit/contract/itweet-v1.test.ts` | ITweet v1 契约冻结 | `TWEET_CONTRACT_VERSION = 1`、顶层键集类型/运行时锁定（含 2026-10-20 新增 optional 字段） |
 
 ### Unit — 服务基础设施
 
@@ -80,6 +83,11 @@
 | `component/public/ArchiveService.test.ts` | `ArchiveService` | timeline（内联 reposts）→ favorites 编排、恒定大小 checkpoint + `lastTimelineMblogId` 续传、整页重复即停止、无 timeline 重放、schemaDigest、归档级 `onRaw` 逐项交付且信封不含 raw、onRaw 抛错向上传播 |
 | `component/public/FavoriteService.test.ts` | `FavoriteService` | `getTags` 响应解析与 referer、`getFavorites` 透传 uid/page |
 | `component/public/LikeService.test.ts` | `LikeService` | 真实 `likes_p1` 归一化、`normalize_done` 事件、p1+p2+end 流式去重与请求序列 |
+| `component/public/MediaService.test.ts` | `MediaService` | 真实图片墙/视频瀑布 fixture、`sinceid` / `cursor` 翻页、跨页去重、空页停止、负游标归一化、`normalize_done` 事件 |
+| `component/public/Likers.test.ts` | `TweetService.likers` / `streamLikers`（D8） | 真实 `likers_p1/p2/end` fixture、m 站 URL/referer、数字 mid 参数、越界 `data: null`、跨页去重、`page=0` 归一化、`normalize_done` |
+| `component/public/UserSocial.test.ts` | `UserService` mentions / groups（D9/D11） | 真实 `mentions_*` fixture、`max_id` 翻页与 `next_cursor=0` 停止、`feed_groups` 分类拍平、`mblog_groups` join_groups、`normalize_done` |
+| `component/public/NotificationService.test.ts` | `NotificationService`（D10） | 真实 `message_cmt_*` / `message_attitudes_*` fixture、`max_id` 翻页、`next_cursor=0` 停止、缺失 `status` 条目跳过、`normalize_done` |
+| `component/public/ArchiveService.extensions.test.ts` | `ArchiveService` D1/D2 归档集成 | `includeLikes` / `includeCommentHistory` 编排、source/`item.comment`、`likesPage` / `commentHistoryCursor` checkpoint、续跑、依赖缺失抛错、checkpoint 恒定大小 |
 
 ### E2E
 
@@ -121,6 +129,8 @@ E2E 测试只从 `.env` 中读取 `WEIBO_COOKIE`（`tests/e2e/setup-env.ts` 会�
 | `search_users_p2.json` | 搜索用户（第 2 页） |
 | `search_users_p3.json` | 搜索用户（第 3 页） |
 | `hot_trends.json` | 热搜榜单（52 条） |
+| `image_wall_p1.json` / `image_wall_p2.json` | 用户图片墙两页（pic + livephoto，含破损条目） |
+| `waterfall_p1.json` / `waterfall_p2.json` | 用户视频瀑布两页（`page_info.media_info` 视频微博） |
 
 完整索引见 `tests/fixtures/raw/INDEX.md`。
 
@@ -177,3 +187,15 @@ curl -s -H "Cookie: $WEIBO_COOKIE" \
 - **含视频**：有 `mix_media_info`，验证视频媒体提取
 - **广告**：`isAd === true`，验证过滤逻辑
 - **付费可见**：`is_paid === true`
+
+### Unit / Component — 媒体下载
+
+| 文件 | 覆盖内容 | 关键测试点 |
+|---|---|---|
+| `unit/services/media/MediaNaming.test.ts` | 文件名与扩展名 | Content-Type 映射、URL 兜底、类型默认、HTML/类型族拒绝、Windows sanitize、保留名、`-motion` 后缀、host 后缀匹配 |
+| `unit/services/media/MediaSemaphore.test.ts` | 媒体并发 | 峰值限制、FIFO、异常归还、limit clamp |
+| `unit/services/media/MediaRetry.test.ts` | 媒体重试分类 | 429/5xx/408/超时/连接错误、expired、storage、退避确定性 |
+| `unit/services/media/MediaStreamWriter.test.ts` | 流式落盘 | 背压写入、原子 rename、maxBytes、截断/空响应、overwrite、rename 失败、abort 清理 |
+| `unit/services/media/MediaHttpClient.test.ts` | 独立 CDN 客户端 | 无 Cookie、Referer/UA/identity、重定向与 host 白名单、403/429/4xx 映射 |
+| `unit/cli/mediaDownload.test.ts` | `media download` 参数与事件 | include 解析、数字/`--no-refresh`、默认 out、item/item-error/done 键集 |
+| `component/public/MediaServiceDownload.test.ts` | `MediaService` 下载编排 | 图片/视频/LivePhoto、exists 跳过、去重、HTML 失败继续、dryRun、无 fs、403 刷新、storage fatal |

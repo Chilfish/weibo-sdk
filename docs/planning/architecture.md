@@ -113,3 +113,12 @@
 - **背景**: 早期 README/规格书与代码大面积脱节（monorepo 假象、SearchService 占位误述、ErrorService 不存在），误导 contributor 与 Agent。
 - **理由**: 对齐 Float 项目沉淀的文档纪律——先更新文档再写码、完成阶段归档、开发日志按天、postmortem 高频雷区写码前自查，降低上下文漂移。
 - **后果**: 陈旧文档被修正；新增 `docs/README.md` 索引、`docs/requirements/glossary.md` 术语表、`docs/planning/architecture.md`（本文）、`docs/postmortem/` 规范化、`docs/development-log/` 按天日志、`docs/archive/` 归档机制。
+
+## ADR-013: 媒体下载辅助（单条微博）
+
+- **日期**: 2026-10-20
+- **状态**: accepted
+- **决策**: 归档流仍不自动下载媒体；新增显式调用的 `sdk.media.downloadTweetMedia` / `downloadByMblogId` 与 `weibo-cli media download <mblogId>`。CDN 请求只带微博域名 Referer，不携带 Cookie；主机后缀白名单；临时文件 + 原子 rename；403/404/410 单飞刷新一次。
+- **背景**: 媒体 URL 约 1 小时过期，下游归档需要及时落盘；P0-2 原裁定「SDK 不下载」导致每个消费方重复实现防盗链、重试与失败记录。
+- **理由**: 把「临时 URL」与「可选下载辅助」拆开：不改变 `ITweet`/`ArchiveItem` 契约，也不把下载耦合进归档流；下载器只处理单条微博，范围可控。
+- **后果**: 下游可直接下载或继续自抓；`ArchiveItem` 仍无 `mediaFiles`；下载器为 Node-only，浏览器入口保持可加载。

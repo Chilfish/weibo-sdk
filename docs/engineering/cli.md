@@ -56,7 +56,18 @@ weibo-cli user info <uid>
 
 # 获取用户微博时间线（归一化为 TweetPageResult）
 weibo-cli user timeline <uid> [--page/-p <n>] [--count <n>]
+
+# @我的微博（max_id 游标；--max-id 为上一页返回的 cursor）
+weibo-cli user mentions [--max-id <cursor>] [--page <n>]
+weibo-cli user mentions-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+
+# 关注分组 / 微博分组（无分页）
+weibo-cli user groups
+weibo-cli user mblog-groups
 ```
+
+> `user mentions` 只读取当前登录用户的 @ 提及（身份由 Cookie 决定）；`mentions-stream` 输出 NDJSON `progress` / `item` / `done`。
+> `user groups` 拍平 `/ajax/feed/allGroups` 的分类结构，`user mblog-groups` 读取 `/ajax/mblog/querygroup` 的 `join_groups`。
 
 ### 微博操作（`tweet`）
 
@@ -82,7 +93,14 @@ weibo-cli tweet reposts <mblogId> [--page <n>]
 # 按日期范围搜索用户微博
 weibo-cli tweet search-profile <uid> [--page <n>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
+
+# 微博点赞者（按页；入参必须是数字 mid，不是字母 mblogid）
+weibo-cli tweet likers <mid> [--page <n>]
+weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>]
 ```
+
+> `likers` 使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 仍返回正确
+> `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，按空页停止。
 
 `--starttime` / `--endtime` 既可以是 unix 秒，也可以是 `YYYY-MM-DD` / `YYYYMMDD`：前者原样透传，后者在请求前换算（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）。非法日期以非零退出码报错，不会静默返回未过滤结果。
 
@@ -138,6 +156,52 @@ weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
 > `comment` 只读取**当前登录用户自己**发表过的评论（身份由 Cookie 决定，端点不接受 uid）；
 > `myCmt` 的翻页参数是 `max_id=<上一页 next_cursor>`，`--page` 与其等价。
 
+### 媒体集合（`media`）
+
+```bash
+# 流式遍历用户图片墙（pic / livephoto / gif；自动翻页 + 跨页去重）
+# NDJSON：progress / item / done 事件
+weibo-cli media images <uid> [--since-id <cursor>] [--max-pages <n>]
+
+# 流式遍历用户视频瀑布（从 page_info.media_info 提取视频）
+# NDJSON：progress / item / done 事件
+weibo-cli media videos <uid> [--cursor <cursor>] [--max-pages <n>]
+```
+
+> `images` 的上游游标是 `sinceid`（首屏不传 / `0`，下一页传上一页 `sinceId`）；`videos` 的游标是 `cursor`
+> （首屏 `0`，下一页传上一页 `cursor`；**不要传 `-1`，上游会 400**）。两者都输出 `IUserMediaAsset`：
+> `id` / `type` / `url` / `coverUrl?` / `videoUrl?` / `duration?` / `createdAt?` / `sourceMblogId?` / `permanentPageUrl?`。
+
+### 消息通知（`notification`）
+
+```bash
+# 评论通知（别人评论我 / 回复我；--max-id 为上一页返回的 cursor）
+weibo-cli notification comments [--max-id <cursor>] [--page <n>]
+weibo-cli notification comments-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+
+# 点赞通知（别人赞我）
+weibo-cli notification likes [--max-id <cursor>] [--page <n>]
+weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+```
+
+> 两个消息端点都使用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 到底。
+> 评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博）；点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。
+> 被点赞/被评论微博已删除时，对应条目会被跳过（上游不返回 `status`）。
+
+### 媒体下载（`media download`）
+
+```bash
+weibo-cli media download <mblogId> \
+  [--out/-o <dir>] [--include pic,video,livephoto,gif,unknown] \
+  [--concurrency <n>] [--retries <n>] [--timeout <ms>] [--idle-timeout <ms>] [--max-bytes <n>] \
+  [--overwrite] [--fail-fast] [--dry-run] [--referer <url>] [--no-refresh]
+```
+
+- 输出扁平 `<out>/<mblogId>-<index>-<mediaId>.<ext>`；LivePhoto 动态帧加 `-motion`。
+- `--out` 默认 `<pwd>/weibo-media`；`--include` 缺省全部类型。
+- URL 过期（403/404/410）默认重新拉取微博换新 URL；`--no-refresh` 关闭。
+- NDJSON：`progress` / `item` / `item-error`（stderr）/ `done`；任一失败退出码 1，Ctrl+C 退出码 130。
+- 失败清单：`<out>/<mblogId>-media-errors.json`。
 ### 搜索（`search`）
 
 ```bash
@@ -159,7 +223,7 @@ weibo-cli whoami
 
 # 镜像单个账号（timeline + 日期切片 + reposts + favorites，可断点续传）
 # 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
-weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
+weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-history] [--no-date-slices] \
   [--source mymblog|search] [--since <unix-seconds>] [--comments] [--comment-pages <n>] \
   [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
   [--checkpoint <file>] [--max-pages <n>]
@@ -170,6 +234,9 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 > 直接切片；`--no-date-slices` 关闭回填；`--since` 设置切片下界（unix 秒）。
 >
 > `--comments` 会把评论挂到 `tweet.comments`（favorite 项不拉取）；`--comment-pages` 限制每条微博评论页数。
+> `--likes` / `--comment-history` 把「我赞过的微博」与「当前用户历史评论」接入归档：
+> `source='like'`（微博本体为 `item.tweet`）与 `source='comment'`（评论在 `item.comment`，`item.tweet` 为被评论微博）。
+> 阶段顺序为 timeline → likes → comments → favorites。
 > 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
 > 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
 > `item` / `done` 事件也携带 `count/total/remaining`。
@@ -182,6 +249,10 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 |---|---|---|
 | `user info` | `users.getById()` | `User` 领域模型 |
 | `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`） |
+| `user mentions` | `users.listMentions()` | `UserMentionsPageResult`（`cursor`/`hasMore`/`total?`/`tweets[]`） |
+| `user mentions-stream` | `users.streamMentions()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', count }` |
+| `user groups` | `users.groups()` | `UserGroup[]`（`id`/`title`/`category?`/`count?`/`type?`/`apiPath?`） |
+| `user mblog-groups` | `users.mblogGroups()` | `MblogGroup[]`（`id`/`name`/`systemName?`/`pageObjectId?`） |
 | `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
 | `tweet enrich` | `tweets.enrich()` | `{ tweet, raw, longText? }`（raw 为 `statuses/show` 原始响应） |
 | `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
@@ -189,16 +260,25 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
 | `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
 | `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒） |
+| `tweet likers` | `tweets.likers()` | `TweetLikersPageResult`（`page`/`hasMore`/`total?`/`likers[]`） |
+| `tweet likers-stream` | `tweets.streamLikers()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, liker }` / `{ event: 'done', mblogId, count }` |
 | `follow list` | `followings.getFollowings()` | raw `FriendshipsResponse` |
 | `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
 | `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |
 | `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
 | `favorite stream` | `favorites.streamFavorites()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
 | `favorite tags` | `favorites.getTags()` | raw `FavoritesTagsResponse` |
+| `media download` | `media.downloadByMblogId()` | NDJSON `progress` / `item` / `item-error` / `done` |
 | `like list` | `likes.listByUserId()` | `LikePageResult`（`page`/`hasMore`/`tweets[]`） |
 | `like stream` | `likes.streamByUserId()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
 | `comment mine` | `commentHistory.listMine()` | `CommentHistoryPageResult`（`cursor`/`hasMore`/`total?`/`comments[]`） |
 | `comment stream` | `commentHistory.streamMine()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, comment }` / `{ event: 'done', count }` |
+| `media images` | `media.streamImages()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, asset }` / `{ event: 'done', uid, count }` |
+| `media videos` | `media.streamVideos()` | 同上（`asset.type = 'video'`） |
+| `notification comments` | `notifications.listComments()` | `CommentNotificationPageResult`（`cursor`/`hasMore`/`total?`/`items[]`） |
+| `notification comments-stream` | `notifications.streamComments()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, notification }` / `{ event: 'done', count }` |
+| `notification likes` | `notifications.listLikes()` | `LikeNotificationPageResult`（`cursor`/`hasMore`/`total?`/`items[]`） |
+| `notification likes-stream` | `notifications.streamLikes()` | 同上（`notification.user` 为点赞者） |
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
@@ -212,12 +292,14 @@ src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archi
 src/cli/
   shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file）
   commands/
-    user.ts             # user info / user timeline
-    tweet.ts            # tweet detail / comments / home / longtext / reposts / search-profile
+    user.ts             # user info / timeline / mentions / groups
+    tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
     follow.ts           # follow list / follow fans / follow my
     favorite.ts         # favorite list / favorite stream / favorite tags
     like.ts             # like list / like stream
     comment.ts          # comment mine / comment stream
+    media.ts            # media images / media videos
+    notification.ts     # notification comments / comments-stream / likes / likes-stream
     search.ts           # search users / search tweets
 src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一解析
 ```

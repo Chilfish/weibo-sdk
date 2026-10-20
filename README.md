@@ -78,6 +78,42 @@ const page = await sdk.tweets.listByUserId('1111681197')
 console.log(page.page, page.hasMore, page.tweets[0]?.id)
 ```
 
+### 遍历用户媒体集合
+
+```typescript
+// 图片墙（sinceid 游标）：pic / livephoto / gif
+for await (const asset of sdk.media.streamImages('1111681197', { maxPages: 2 })) {
+  console.log(asset.type, asset.url, asset.createdAt)
+}
+
+// 视频瀑布（cursor 游标）：从 page_info.media_info 提取视频
+for await (const video of sdk.media.streamVideos('1111681197', { maxPages: 2 })) {
+  console.log(video.sourceMblogId, video.duration, video.permanentPageUrl)
+}
+```
+
+### 下载单条微博媒体
+
+```typescript
+const result = await sdk.media.downloadByMblogId('QqsYymYOS', {
+  dir: './media',
+  // include: [MediaType.PIC, MediaType.VIDEO, MediaType.LIVEPHOTO, MediaType.GIF],
+  // overwrite: true,
+})
+
+console.log(result.totals) // { total, downloaded, skipped, failed, bytes }
+console.log(result.items)  // 逐项 path / url / status / attempts
+```
+
+CLI：
+
+```bash
+weibo-cli media download QqsYymYOS --out ./media
+weibo-cli media download QqsYymYOS --out ./media --dry-run
+weibo-cli media download QqsYymYOS --out ./media --include pic,video --no-refresh
+```
+
+> 下载使用独立 CDN 客户端：只带 `Referer: https://weibo.com/`，不携带 Cookie；支持重试、URL 过期刷新、临时文件原子落盘与失败清单。规则见 [media-download.md](./docs/engineering/media-download.md)。
 ### 流式遍历收藏夹
 
 ```typescript
@@ -100,6 +136,35 @@ for await (const comment of sdk.commentHistory.streamMine({ maxPages: 3 })) {
   console.log(comment.createdAt, comment.parentMblogId, comment.text)
 }
 ```
+
+### 点赞者 / @我 / 消息 / 分组
+
+```typescript
+// 微博点赞者（page 游标；入参必须是数字 mid，不是字母 mblogid）
+for await (const liker of sdk.tweets.streamLikers('5355873276528697', { maxPages: 2 })) {
+  console.log(liker.name, liker.likedAt)
+}
+
+// @我的微博（max_id 游标；next_cursor === 0 停止）
+for await (const tweet of sdk.users.streamMentions({ maxPages: 2 })) {
+  console.log(tweet.mblogId, tweet.text)
+}
+
+// 消息中心：评论通知 / 点赞通知（max_id 游标）
+for await (const item of sdk.notifications.streamComments()) {
+  console.log(item.tweet.mblogId, item.comment.text)
+}
+for await (const item of sdk.notifications.streamLikes()) {
+  console.log(item.tweet.mblogId, item.user.name)
+}
+
+// 关注分组 / 微博分组（无分页）
+const groups = await sdk.users.groups()
+const mblogGroups = await sdk.users.mblogGroups()
+```
+
+> 点赞者使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 目前仍返回正确
+> `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，服务层按空页停止。
 
 ### 获取单条微博详情
 
@@ -142,6 +207,8 @@ const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', { includeL
 for await (const item of sdk.archive.streamArchive('1111681197', {
   includeReposts: true,
   includeFavorites: true,
+  includeLikes: true, // D1：我赞过的微博（source='like'）
+  includeCommentHistory: true, // D2：历史评论（source='comment'，评论在 item.comment）
   includeComments: true, // P1-6：评论挂到 item.tweet.comments
   onProgress: p => console.log(p.phase, p.processed, p.total, p.remaining),
   // 可选：直接按日期切片（跳过 mymblog）、限制下界（unix 秒）

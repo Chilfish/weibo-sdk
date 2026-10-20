@@ -51,8 +51,24 @@
 | `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType }` |
 | `media` | `TweetMedia[]` | 见下；**恒为数组**（无媒体 = 空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
+| `topics?` | `string[]` | 话题（`topic_struct[].topic_title`，缺省退回 `title`；去重保序） |
+| `linkCards?` | `TweetLinkCard[]` | 链接 / 超话卡片（`url_struct[]`；见下） |
+| `readCount?` | `number` | 阅读数（`reads_count`；仅部分端点 / 自己可见时下发） |
+| `editCount?` | `number` | 编辑次数（`edit_count`；未编辑或未下发时缺省） |
+| `title?` | `string` | 顶栏标题（`title.text`，如「公开」「仅自己可见」） |
+| `permanentVideoUrl?` | `string` | 视频永久播放页（`media_info.h5_url`） |
+| `isOriginal?` | `boolean` | 是否原创（无 `retweeted_status`） |
+| `sourceUrl?` | `string` | 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
 | `comments?` | `ITweetComment[]` | 评论（P1-6，v1 新增 optional 字段）：普通 `normalizeTweet` 不填充；仅 `streamArchive({ includeComments: true })` 拉取并挂载。`ITweetComment = { id, createdAt, text, textHtml, source, likes, user, replies? }`，`replies` 递归同构 |
 
+| `topics?` | `string[]` | 话题列表（`topic_struct[].topic_title`；无话题缺省） |
+| `linkCards?` | `TweetLinkCard[]` | 链接 / 超话卡片（`url_struct[]`；无卡片缺省） |
+| `readCount?` | `number` | 阅读数（`reads_count`；未下发或缺省时无此键） |
+| `editCount?` | `number` | 编辑次数（`edit_count`；未下发或缺省时无此键） |
+| `title?` | `string` | 顶栏标题（`title.text`，如「公开」；无则缺省） |
+| `permanentVideoUrl?` | `string` | 视频永久播放页（`media_info.h5_url`；无视频缺省） |
+| `isOriginal?` | `boolean` | 是否原创（无 `retweeted_status`；转发为 `false`） |
+| `sourceUrl?` | `string` | 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
 ### TweetUser（简版用户）
 
 | 字段 | 类型 | 语义 |
@@ -74,6 +90,17 @@
 | `duration?` | `number` | 视频时长（秒） |
 | `width` / `height` | `number` | 像素尺寸（缺省 0） |
 
+### TweetLinkCard（链接 / 超话卡片）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `title` | `string` | 卡片标题（`url_title`；缺省 `''`） |
+| `url` | `string` | 跳转地址（`h5_target_url` → `long_url` → `ori_url`；缺省 `''`） |
+| `shortUrl?` | `string` | 展示短地址（`short_url`） |
+| `pageId?` | `string` | 卡片 page id（`page_id`） |
+| `objectType?` | `string` | 对象类型（`object_type`） |
+| `typePic?` | `string` | 卡片图标（`url_type_pic`） |
+
 ### 嵌套说明
 
 - `retweetedStatus` 递归为同一 `ITweet` 形状（深度由上游数据决定）。
@@ -85,10 +112,11 @@
 
 - `media[].imageUrl` / `videoUrl`（及 `pageInfo.pagePic`）是上游**临时签名 URL**：
   有效期 = 请求时间 + 1 小时、一次性（服务端再次下发新 URL 后旧链接作废）。
-- **SDK 不负责下载/持久化媒体**；`ArchiveItem` 不含 `mediaFiles`（裁定同时定义了信封形状）。
+- **归档流不下载/持久化媒体**；`ArchiveItem` 不含 `mediaFiles`（裁定同时定义了信封形状）。
+- **SDK 提供显式可选的媒体下载辅助**（`sdk.media.downloadTweetMedia` / `weibo-cli media download`），默认不启用，不改变本契约；详见 §4.2。
 - 存档消费方（archiver）必须在归档时及时下载媒体字节；仅存 URL 的展示属「临时可用」，不是长期存档。
 - 过期后的恢复路径：经 SDK 重新拉取单条微博（`getByMblogId` / `show`）获取新 URL。
-- 媒体下载辅助 API（可选增强，默认关闭）= [backlog](../planning/backlog.md)「媒体下载辅助」，不阻塞本契约；P1-7 复核结论为 SDK 不负责下载。
+- 媒体下载辅助 API（可选增强，显式调用）= `sdk.media.downloadTweetMedia` / `weibo-cli media download`；不阻塞本契约，`ArchiveItem` 仍不含 `mediaFiles`。
 
 ## 4.1 原始数据（raw）与 enrich 边界（2026-10-19 裁定）
 
@@ -103,6 +131,16 @@
 - **回调失败语义**：`onRaw` 抛错会使该次请求 / 该条归档失败（不静默丢失 raw），与其它 hooks 一致。
 - **下游职责**：需要 raw 的消费方（如 archiver）自行保存 raw 字节/JSON，并按 `mblogId` 与 `{ schemaVersion, tweet }` 关联。
 
+## 4.2 媒体下载辅助（2026-10-20 补充裁定）
+
+**裁定**：在「归档流不下载」的前提下，SDK 提供**显式调用**的单条微博媒体下载辅助；不是归档自动行为。
+
+- 范围：单条微博（含转发兜底）；不做账号级图片墙/视频瀑布的自动下载。
+- 落盘：扁平 `<mblogId>-<index>-<mediaId>.<ext>`；LivePhoto 动态帧加 `-motion`。
+- 安全：CDN 请求只带 `Referer`（默认 `https://weibo.com/`），**不携带 Cookie/XSRF**；主机后缀白名单。
+- 稳定性：403/404/410 重新拉取微博换新 URL（每条微博最多一次）；临时文件 + 原子 rename；字节上限、空闲超时、Content-Length 校验、重试退避。
+- 失败：单项失败不中断其余项；`<mblogId>-media-errors.json` 汇总；CLI 有失败时非零退出。
+- 详见 [media-download.md](./media-download.md)。
 ## 5. 迁移策略（v1 → v2）
 
 1. v2 随包 **major** 版本发布，`TWEET_CONTRACT_VERSION` 升为 `2`，`ArchiveItem.schemaVersion` 类型随之收紧。
@@ -135,4 +173,4 @@
 1. 集成文档 §3.1「主版本跟随协议漂移」改为本文件 §1 的解耦规则（K2）。
 2. M0 前完成：dexie 存档记录采用 `{ schemaVersion, tweet }` 信封；升级回调用按 §5 设计。
 3. §9.6 版本锁定策略与 weibo-sdk 的 0.x 契约冻结声明对齐（见 [CHANGELOG](../../CHANGELOG.md) / README）。
-4. 媒体持久化职责按 §4 落实到 archiver 需求规格（P0-2 裁定）。
+4. 媒体持久化职责按 §4 落实；archiver 可在归档时调用 sdk.media.downloadTweetMedia，或继续自行抓取。

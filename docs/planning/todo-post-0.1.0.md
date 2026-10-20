@@ -72,8 +72,8 @@
 | D1 | 用户点赞过的微博 | `GET /ajax/statuses/likelist?uid=&page=`；备选 `GET /ajax/profile/getLikeList?uid=&cursor=` | ✅ 2026-10-20 抓包 | 候选 `/ajax/statuses/likes` **已下线**（200 + HTML 404 页）。`likelist` 为 page 型、只有 `data.list`、越界空数组；`getLikeList` 为 cursor 型、`next_cursor === -1` 表示到底 |
 | D2 | 当前用户发布的历史评论 | `GET /ajax/message/myCmt` | ✅ 2026-10-20 抓包 | 仅当前登录用户；翻页用 `max_id=<上一页 data.next_cursor>` 或 `page`（等价）；`cursor` 参数被忽略；`next_cursor === 0` 表示到底 |
 | D3 | 收藏夹 | `GET /ajax/favorites/all_fav?uid=&page=&with_total=true` + `/ajax/favorites/tags` | ✅ 已实现 | 增加全量流、标签过滤、归档集成 |
-| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=`；`GET /ajax/profile/getAlbumDetail?...` | ✅ 图片墙已确认；相册待参数 | `getImageWall` 返回 `{ data: { since_id, list }, bottom_tips_* }`；`getAlbumDetail?uid=&page=` 返回 400，参数仍未知 |
-| D5 | 用户视频瀑布 | `GET /ajax/profile/getWaterFallContent?uid=&cursor=` | ✅ 2026-10-20 抓包 | `{ data: { list, next_cursor } }`，cursor 型 |
+| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=`；`GET /ajax/profile/getAlbumDetail?...` | ✅ 图片墙已实现；相册待参数 | `getImageWall` 返回 `{ data: { since_id, list }, bottom_tips_* }`；`getAlbumDetail?uid=&page=` 返回 400，参数仍未知 |
+| D5 | 用户视频瀑布 | `GET /ajax/profile/getWaterFallContent?uid=&cursor=` | ✅ 已实现 | `{ data: { list, next_cursor } }`；视频在 `page_info.media_info`，`cursor=-1` 返回 400 |
 | D6 | 用户音频 / 播放列表 | `GET /ajax/multimedia/user_playlists_get?uid=` | ⚠️ 路径可用、样本为空 | 当前账号返回 `{ data: { playlists: [], total_count: 0 } }`；元素结构仍缺真实样本 |
 | D7 | 超话 / 话题 | `GET /ajax/stopic/list?sort_id=0&keyword=&page=` | ⚠️ 参数不符 | 上述参数返回 `{ errno, errmsg, errcode, ok }`，需继续确认发现页/我的超话的真实参数 |
 | D8 | 微博点赞者列表 | `GET /ajax/statuses/likeShow?id=<mid>&page=<n>` | ✅ 2026-10-20 抓包 | 返回 `{ ok, data: 数组, total_number }`（`data` 是数组，不是对象） |
@@ -96,8 +96,8 @@
 - [x] `LikeService` / `sdk.likes`：`listByUserId` + `streamByUserId`（page 型；空页 / 整页重复 / `maxPages` 停止）
 - [x] 归一化复用 `Tweet`；上游不提供「点赞时间」，只有微博发布时间 `created_at`
 - [x] CLI：`weibo-cli like list|stream <uid> [--page] [--max-pages]`
-- [ ] 归档集成：`streamArchive({ includeLikes: true })`，`ArchiveItem.source = 'like'`
-- [ ] checkpoint：独立 `likesPage` / `likesCursor`，中断续跑
+- [x] 归档集成：`streamArchive({ includeLikes: true })`，`ArchiveItem.source = 'like'`（2026-10-20）
+- [x] checkpoint：独立 `likesPage`，中断续跑（2026-10-20；likes 是 page 型，无需额外 cursor）
 - [x] tests：fixture safeParse、分页停止、重复页保护、归一化、错误路径（2026-10-20：`tests/unit/services/LikeService.test.ts` 21 例 + component 3 例）
 
 ### 2.3 Comment history（当前用户历史评论）
@@ -108,7 +108,7 @@
 - [x] 归一化：`ITweetComment` 扩展 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`
 - [x] 评论若带原微博引用，保留 `parentMblogId`；不挂完整 `parentTweet`（单页内嵌 status ~460K，避免归一化结果翻倍）
 - [x] CLI：`weibo-cli comment mine|stream [--max-id] [--page] [--max-pages]`
-- [ ] 归档集成：`streamArchive({ includeCommentHistory: true })`，`ArchiveItem.source = 'comment'`
+- [x] 归档集成：`streamArchive({ includeCommentHistory: true })`，`ArchiveItem.source = 'comment'`，评论本体在 `item.comment`（2026-10-20；checkpoint 使用 `commentHistoryCursor`）
 - [x] 隐私边界：**只允许当前登录用户读取自己的历史评论**，不做他人评论历史（端点不接受 uid，身份由 Cookie 决定）
 - [x] tests：分页、空结果、删除评论/微博的容错、归一化（2026-10-20：`tests/unit/services/CommentHistory.test.ts` 31 例）
 
@@ -125,24 +125,24 @@
 
 ### 2.5 账号级媒体集合
 
-- [ ] **D4** 图片墙：`getImageWall` 分页 + `getAlbumDetail`（相册）
-- [ ] **D5** 视频瀑布：`getWaterFallContent` 分页
+- [x] **D4** 图片墙：`getImageWall` 分页（`sinceid` 游标）已实现；`getAlbumDetail`（相册）参数仍未知，暂缓
+- [x] **D5** 视频瀑布：`getWaterFallContent` 分页（`cursor` 游标，`page_info.media_info` 提取视频）已实现
 - [ ] **D6** 音频 / 播放列表：`user_playlists_get`
-- [ ] 新领域模型 `IUserMediaAsset`：`id` / `type`（pic/video/audio/livephoto）/ `url` / `coverUrl` / `width` / `height` / `duration` / `createdAt` / `sourceTweetId?` / `permanentPageUrl?`
-- [ ] CLI：`weibo-cli media images|videos|audio <uid>`
+- [x] 新领域模型 `IUserMediaAsset`：`id` / `type`（pic/video/livephoto/gif/unknown）/ `url` / `coverUrl` / `videoUrl` / `width` / `height` / `duration` / `createdAt` / `sourceTweetId?` / `sourceMblogId?` / `permanentPageUrl?` / `objectId?`（audio 待 D6 样本）
+- [x] CLI：`weibo-cli media images|videos <uid>`（`audio` 待 D6）
 - [ ] 归档集成：`includeImages` / `includeVideos` / `includeAudio`
-- [ ] 可选下载 helper（默认关闭）：`downloadMedia(asset, { dir })`，失败写 `media-errors.json`
-- [ ] tests：分页、去重、URL 过期提示、下载失败不中断
+- [x] 可选下载 helper（默认关闭）：`downloadTweetMedia` / `weibo-cli media download`，失败写 `<mblogId>-media-errors.json`（2026-10-20）
+- [x] tests：分页、跨页去重、空页/游标不前进停止、归一化（`tests/unit/models/Media.test.ts` + `tests/component/public/MediaService.test.ts`）；URL 过期提示 / 下载失败待下载 helper
 
 ### 2.6 关系 / 提及 / 分组 / 通知
 
-- [ ] **D8** `tweets.likers(mblogId, { page })` + `streamLikers`
-- [ ] **D9** `users.mentions({ sinceId })` / `comments.mentions({ sinceId })`
-- [ ] **D10** `notifications.count()` / `notifications.comments()` / `notifications.likes()`
-- [ ] **D11** `users.groups()` / `users.mblogGroups()`
+- [x] **D8** `tweets.likers(mid, { page })` + `streamLikers`（2026-10-20；网页端 `likeShow` 恒返回空数组，改用 `m.weibo.cn/api/attitudes/show`，入参必须是数字 mid；越界页 `data: null`）
+- [x] **D9** `users.mentions({ maxId })` + `streamMentions`（2026-10-20；`/ajax/statuses/mentions`，`max_id` 游标；`/ajax/comments/mentions` 未单独验证，暂不实现）
+- [x] **D10** `notifications.comments()` / `notifications.likes()`（2026-10-20；含 list + stream；`message/count` 与 `message/likeNotice` 已失效，不提供未读数）
+- [x] **D11** `users.groups()` / `users.mblogGroups()`（2026-10-20；`feed/allGroups` + `mblog/querygroup`）
 - [ ] **D15** 转发历史：优先抓包确认独立端点；否则复用 `mymblog` + 「转发」过滤
 - [ ] 增量同步可利用 D10 判断「是否有新内容」，避免全量扫描
-- [ ] tests + CLI（`weibo-cli notification ...`，低频能力标 advanced）
+- [x] tests + CLI（`weibo-cli notification ...`、`tweet likers`、`user mentions|groups`）（2026-10-20：`Likers.test.ts` 7 + `UserSocial.test.ts` 7 + `NotificationService.test.ts` 10 + `ArchiveService.extensions.test.ts` 8）
 
 ### 2.7 搜索与评论完整性
 
@@ -168,9 +168,11 @@
 
 ### 2.9 归档编排扩展
 
-- [ ] `ArchiveItem.source` 扩展：`'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video' | 'audio'`
-- [ ] `ArchiveStreamOptions` 增加：`includeLikes` / `includeCommentHistory` / `includeImages` / `includeVideos` / `includeAudio`
-- [ ] `ArchiveCheckpoint` 增加各数据源游标（保持恒定大小，禁止全量 id 数组）
+- [x] `ArchiveItem.source` 扩展 `'like' | 'comment'`（2026-10-20；`comment` 项带 `item.comment`）
+- [ ] `ArchiveItem.source` 扩展 `'image' | 'video' | 'audio'`（随 D4/D5/D6 归档集成）
+- [x] `ArchiveStreamOptions` 增加 `includeLikes` / `includeCommentHistory`（2026-10-20）
+- [ ] `ArchiveStreamOptions` 增加 `includeImages` / `includeVideos` / `includeAudio`
+- [x] `ArchiveCheckpoint` 增加各数据源游标（保持恒定大小，禁止全量 id 数组）（2026-10-20：`likesPage` / `commentHistoryCursor`；按阶段删除无关字段）
 - [ ] **增量模式**：`incremental: { since?: number, stopAtMblogId?: string }`
   - 时间游标：只抓上次之后的新内容
   - 早停：翻到已知 `mblogId` 即停止
@@ -189,22 +191,23 @@
 
 ### 3.1 ITweet 可选字段
 
-- [ ] `topics?: string[]`（话题）
-- [ ] `atUsers?: TweetUser[]`（@ 用户）
-- [ ] `readCount?: number`（阅读数，仅自己可见/部分账号）
-- [ ] `playCount?: number`（视频播放数）
-- [ ] `isOriginal?: boolean`（原创 / 转发）
-- [ ] `isTop?: boolean`（置顶）
-- [ ] `editHistory?`（编辑历史，若 raw 提供）
-- [ ] `permanentVideoUrl?: string`（`video.weibo.com/show` / `weibo.com/tv/show` 永久页）
-- [ ] `audio?: TweetAudio[]`（语音/音频）
-- [ ] `sourceUrl?: string`（微博网页永久链接）
+- [x] `topics?: string[]`（`topic_struct[].topic_title`，去重保序）
+- [ ] `atUsers?: TweetUser[]`（@ 用户；未找到稳定的 raw 字段）
+- [x] `readCount?: number`（`reads_count`，仅自己可见/部分账号）
+- [ ] `playCount?: number`（视频播放数；真实响应未下发）
+- [x] `isOriginal?: boolean`（无 `retweeted_status`）
+- [ ] `isTop?: boolean`（置顶；当前样本无此字段）
+- [x] `editCount?: number`（`edit_count`；完整编辑历史 raw 未提供）
+- [x] `permanentVideoUrl?: string`（`media_info.h5_url`）
+- [x] `linkCards?: TweetLinkCard[]`（`url_struct[]`：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?`）
+- [x] `title?: string`（`title.text`，如「公开」「仅自己可见」）
+- [ ] `audio?: TweetAudio[]`（语音/音频；暂无真实样本）
+- [x] `sourceUrl?: string`（`https://weibo.com/<uid>/<mblogid>`）
 
-> 2026-10-20 抓包确认可用字段（真实样本：friendstimeline / searchProfile / favorites / likes）：
-> `topic_struct[].topic_title`（话题，7/25 条出现）、`reads_count`（仅自己微博/主页可见）、`title.text`（如「仅自己可见」）、
-> `edit_count`、`mblogtype`/`repost_type`/`isNoReasonRepost`、`url_struct[]`（超话/链接卡片，含 `url_title`/`h5_target_url`）。
-> 视频永久页在 `mix_media_info.items[].data.media_info.h5_url`（`https://video.weibo.com/show?fid=...`）；
-> 未发现 `play_count`（`online_users_number` 是在线人数，不是播放数），`audio` 也无样本。
+> 2026-10-20 已实现（v1 optional）：`topics` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl` / `linkCards`。
+> 真实样本与断言：`tests/unit/models/Tweet.variants.test.ts`（feed_home / favorites / likes / searchProfile / waterfall / mymblog）。
+> 仍未建模：`atUsers`（无稳定字段）、`playCount`（`online_users_number` 是在线人数，不是播放数）、`isTop`（无样本）、`audio`（无样本）；
+> `mblogtype` / `repost_type` / `isNoReasonRepost` 已抓到但语义未确认，暂不进入契约。
 
 ### 3.2 IUser / IComment 可选字段
 
