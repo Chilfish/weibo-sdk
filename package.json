@@ -44,6 +44,7 @@
     "new:endpoint": "node scripts/new-endpoint.mjs",
     "dev": "tsdown --watch",
     "lint": "eslint . --fix",
+    "play": "tsx playground/run.ts",
     "prepublishOnly": "node scripts/verify-publish-tool.mjs && nr build",
     "release": "bumpp && pnpm publish",
     "smoke:browser": "node scripts/browser-smoke.mjs",

@@ -1,0 +1,4 @@
+output/
+.weibo-sdk-archive-*.json
+.weibo-archive-state.json
+*-media-errors.json

@@ -6,7 +6,8 @@
     "moduleResolution": "Bundler",
     "paths": {
       "~/*": ["./src/*"],
-      "tests/*": ["./tests/*"]
+      "tests/*": ["./tests/*"],
+      "@chilfish/weibo-sdk": ["./src/index.ts"]
     },
     "resolveJsonModule": true,
     "types": ["node"],
@@ -18,5 +19,5 @@
     "skipDefaultLibCheck": true,
     "skipLibCheck": true
   },
-  "include": ["src", "capture", "tests", "scripts"]
+  "include": ["src", "capture", "tests", "scripts", "playground"]
 }
