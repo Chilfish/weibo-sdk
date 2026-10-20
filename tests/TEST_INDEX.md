@@ -25,7 +25,8 @@
 | `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
 | `unit/models/Media.test.ts` | `normalizeImageWallItem` / `normalizeWaterfallVideo` | 图片墙 pic/livephoto/gif/unknown（URL 由 pid 构造）、视频瀑布 `page_info.media_info` 提取、`normalizeTweet` 的 page_info 视频映射 |
 | `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl`） |
-| `unit/contract/itweet-v1.test.ts` | ITweet v1 契约冻结 | `TWEET_CONTRACT_VERSION = 1`、顶层键集类型/运行时锁定（含 2026-10-20 新增 optional 字段） |
+| `unit/models/Tweet.commentPics.test.ts` | `normalizeComment` 图片评论 | 真实 `comments.json` / `comments_pic_multi.json` / `my_comments_p1.json`、`url_struct[].pic_infos` 提取、多图重复 `url_struct` 去重、尺寸优先 `woriginal`、`reply_comment` / 楼中楼递归、无图时省略 `pics` |
+| `unit/contract/itweet-v1.test.ts` | ITweet v1 契约冻结 | `TWEET_CONTRACT_VERSION = 1`、顶层键集类型/运行时锁定（含 2026-10-20 新增 optional 字段）、`ITweetComment` 键集与 `pics` 形状 |
 
 ### Unit — 服务基础设施
 
@@ -43,7 +44,7 @@
 | `unit/services/FavoriteStream.test.ts` | `listFavorites` / `streamFavorites` | 单页与跨页去重、整页重复停止、`total_page` / `total_number`、空收藏、`maxPages`、标签过滤、进度回调异常 |
 | `unit/services/LikeService.test.ts` | `LikeService` | 真实 fixture safeParse、page 归一化（0/负数/NaN）、单页与跨页去重、空页/整页重复/`maxPages` 停止、进度回调异常、错误路径 |
 | `unit/services/CommentHistory.test.ts` | `CommentHistoryService` + `normalizeComment` | 真实 fixture safeParse、`max_id` 游标翻页、`next_cursor === 0`/空页/游标不前进/整页重复停止、`ITweetComment` 新字段与 `reply_comment` 递归归一化 |
-| `unit/services/Comments.test.ts` | `buildComments` schema + 请求契约 | 真实 `comments` / `comments_no_type_*` / `comments_firewall` / `comments_hot_empty` fixture、`type=feed` 参数拒绝、20/18/2 分页与 `max_id=0`、防火墙部分可见、空页但 `max_id` 非 0 |
+| `unit/services/Comments.test.ts` | `buildComments` schema + 请求契约 | 真实 `comments` / `comments_no_type_*` / `comments_firewall` / `comments_hot_empty` / `comments_pic_multi` fixture、`type=feed` 参数拒绝、20/18/2 分页与 `max_id=0`、防火墙部分可见、空页但 `max_id` 非 0、图片评论 `pic_num` / `mix_media_ids` / `url_struct.pic_infos` |
 | `unit/models/Favorite.test.ts` | `matchesFavoriteTag` | 标签 id / 名称 / 原始字符串匹配，缺失与畸形 tags 返回 false |
 
 ### Unit — 入口/导出
@@ -60,6 +61,7 @@
 |---|---|---|
 | `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 默认全开；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
 | `unit/cli/parsePositiveInt.test.ts` | `parsePositiveInt` | 正整数字符串解析、小数取整；`0` / 负数 / 非数字 / 空串返回 undefined |
+| `unit/cli/tweetCommentsArgs.test.ts` | `tweet comments` 参数 | `--max-id` 已声明并作为 `max_id` 透传（缺省 undefined） |
 
 ### Unit — 错误
 
@@ -125,7 +127,8 @@ E2E 测试只从 `.env` 中读取 `WEIBO_COOKIE`（`tests/e2e/setup-env.ts` 会�
 | `profile_info_u2365795232.json` | 用户信息变种 |
 | `profile_detail.json` | 用户详情 |
 | `profile_detail_v2.json` | 用户详情变种 |
-| `comments.json` | 评论列表（20 条） |
+| `comments.json` | 评论列表（20 条，含图片评论 `url_struct[].pic_infos`） |
+| `comments_pic_multi.json` | 图片评论样本（单图 + 多图；多图评论的多个 `url_struct` 项重复同一 `pic_infos`） |
 | `comments_no_type_p1/p2/end.json` | `buildComments` 去掉 `type=feed` 后的真实三页（20 / 18 / 2，最后一页 `max_id=0`） |
 | `comments_firewall.json` | 博主开启防火墙的部分可见样本（`data` < `total_number`，`trendsText` 提示） |
 | `comments_hot_empty.json` | hot 排序空页停止态（`data: []`、`max_id` 仍非 0） |

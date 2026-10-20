@@ -6,6 +6,7 @@
 
 ### Added
 
+- **转发链配图（`repostChain`）**：`ITweet` v1 新增 optional `repostChain: TweetRepostEntry[]`，按正文 `//@` 由近到远分层（`index` 0 = 当前微博），把 `url_struct[]` 里的 reppic 配图按 `short_url` 挂回所属层（按 `pic_id` 去重；无法定位的图片追加到末尾补充层）。修复「带图转发 / 多层转发链」的图片完全丢失：此前只存在于 `url_struct`，`media` 为空。`sdk.media.downloadByMblogId` / `weibo-cli media download` 现在会合并下载 `media + repostChain[].media + retweetedStatus.media`。
 - **公共流式分页（0.2 DX）**：新增 `tweets.streamComments` / `streamReplies` / `streamReposts`、`followings.streamFollowings` / `streamFans` / `streamMyFollowings`；统一「空页 / 整页重复 / 游标不前进 / maxPages」停止语义（分页型端点另可按 total 提前停止；评论流的 total 含楼中楼，不参与停止）。CLI 新增 `tweet comments-stream|replies|replies-stream|reposts-stream`、`follow stream|fans-stream|my-stream`。
 - **通用分页器 `paginate()`**（`src/utils/pagination.ts`）：page / cursor / since_id / max_id 共用实现，支持跨页去重、进度回调与 `maxPages`。
 - **二级评论（D13）**：`tweets.replies` / `streamReplies`（`is_reply=1` + `fetch_level=1`，请求 `id=<一级评论 id>`）；CLI `tweet replies|replies-stream`。`buildComments` args 增加 `is_reply`。
@@ -22,6 +23,7 @@
 - **端点开发工具**：`pnpm new:endpoint <domain>/<name>` 生成 EndpointSpec 骨架；`pnpm capture:endpoint <url>` 抓取真实响应、脱敏、写 fixture 并追加 `INDEX.md`。
 - **Agent / 分发文档**：新增 [`.agents/skills/weibo-sdk/SKILL.md`](./.agents/skills/weibo-sdk/SKILL.md)（按 skill-creator 模板：指令 / 示例 / 故障排除 / 边界）与 [AGENTS.md](./AGENTS.md#agent-使用速查sdk--cli) 的「Agent 使用速查」（安装、登录、常用命令、分页、错误码、安全边界）。不提供 `llms.txt`（本项目不暴露 HTTP 服务）。
 - **ITweet v1 可选字段（第二批）**：`atUsers`（从 `text` HTML 锚点解析）、`playCount`（仅 `online_users` 含「次观看」）、`isTop`（`isTop === 1`）、`audio`（`page_info` / `mix_media_info` 播客音频）。新增 `TweetAtUser` / `TweetAudio` 类型。
+- **图片评论**：`ITweetComment` 在 v1 内新增 optional `pics`（`TweetCommentPic[]`：`id` / `imageUrl` / `width` / `height`）。上游图片在 `url_struct[].pic_infos`（「查看图片」卡片），多图时可能重复下发同一 `pic_infos`，归一化按 `pic_id` 去重；`buildComments` schema 新增 `pic_num` / `mix_media_ids` / `url_struct[].pic_infos` 校验；新增真实 fixture `comments_pic_multi.json`。
 - **IUser 可选字段**：`svip` / `mbrank` / `hometown` / `labelDesc`（含 `IUserLabel` 深浅色配色）。
 - **Fixture**：新增 `searchProfile_q` / `comment_replies_*` / `mymblog_pinned` / `at_status` / `audio_status` / `image_wall_with_albums` / `album_*` / `stopic_*` / `profile_detail_hometown`，并在 `FIXTURE_RULES` 登记（`album_detail_*` / `stopic_*` 为 mapped；`album_list` 因 mobile containerid 不兼容保留 unmodeled）。
 - **相册（D4）**：`media.listAlbums(uid)`（`getImageWall?has_album=true` 的 `album_list`）与 `listAlbumPhotos` / `streamAlbumPhotos`（`getAlbumDetail`，`since_id` 游标）；CLI `media albums|album`。
@@ -31,6 +33,7 @@
 - **请求级重试（指数退避 + jitter）**：新增可选 `IWeiboConfig.retry = { retries?, baseDelayMs?, maxDelayMs?, retryOn? }`（默认 `retries: 2`、`baseDelayMs: 500`、`maxDelayMs: 8000`、四类全开）。覆盖 `rate_limit`（432/429）/ `server_error`（5xx）/ `timeout` / `network_error`（无响应的连接类失败）；支持 `Retry-After`（秒或 HTTP date，受 `maxDelayMs` 截断）；`retries` 归一化到 `[0, 10]`，`0` 即关闭；不可重试错误（其余 4xx / `API_NOT_OK` / `API_BAD_RESPONSE` 等）永不重试。
 - **432 后暂停全局令牌桶**：`RateLimitService.pause(ms)` + `acquire()` 先等暂停结束再取令牌，避免并发请求同时撞墙；暂停期等待以 `rate_limit_wait.reason = 'rate_limited'` 记录。
 - 新增 telemetry 事件 `request_retry`（`attempt / max_attempts / delay_ms / reason / status? / error_*`）；`request_error` 新增可选 `attempt`，`rate_limit_wait` 新增可选 `reason`。
+- **修复 `weibo-cli tweet comments --max-id` 静默失效**：该子命令未声明 `max-id`，citty 会丢弃未声明的 flag，导致翻页始终返回首屏；现已声明并透传为 `max_id`（原始响应分页）。
 - 新增 `tests/testkit/telemetryCollector.ts`（`TelemetryCollector`）并收敛测试内重复实现。
 - **点赞服务（D1）**：新增 `sdk.likes.listByUserId(uid, { page? })` 与 `streamByUserId(uid, { page?, maxPages?, onProgress? })`。真实端点为 `/ajax/statuses/likelist`（page 型、只有 `data.list`，越界页返回空数组）；自动翻页按空页 / 整页重复 / `maxPages` 停止，并跨页去重。CLI `weibo-cli like list|stream <uid>`。
 - **历史评论服务（D2）**：新增 `sdk.commentHistory.listMine({ maxId?, page? })` 与 `streamMine({ maxPages?, onProgress? })`。真实端点为 `/ajax/message/myCmt`，用 `max_id=<上一页 next_cursor>` 翻页、`next_cursor === 0` 停止；只读当前登录用户自己的评论。`ITweetComment` 在 v1 契约内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`。CLI `weibo-cli comment mine|stream`。
