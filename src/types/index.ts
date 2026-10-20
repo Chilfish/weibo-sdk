@@ -1,5 +1,6 @@
 export type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 export type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
+export type { LikeItem, LikeListArgs, LikeListResponse } from '../services/endpoints/like'
 export type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 export type { BandUnifiedResponse } from '../services/endpoints/side'
 export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
@@ -8,6 +9,7 @@ export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, 
 export type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
 export type { ArchiveCheckpoint, ArchiveErrorAction, ArchiveErrorStage, ArchiveItem, ArchiveItemErrorContext, ArchivePhase, ArchiveProgress, ArchiveRawMeta, ArchiveServiceDeps, ArchiveStreamOptions, ArchiveTimelineSource } from '../services/public/ArchiveService'
 export type { FavoriteListOptions, FavoritePageResult, FavoriteStreamOptions, FavoriteStreamProgress } from '../services/public/FavoriteService'
+export type { LikeListOptions, LikePageResult, LikeStreamOptions, LikeStreamProgress } from '../services/public/LikeService'
 export type { TweetEnrichOptions, TweetEnrichResult } from '../services/public/TweetService'
 
 export * from './config'

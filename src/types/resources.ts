@@ -1,5 +1,6 @@
 import type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 import type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
+import type { LikeListResponse } from '../services/endpoints/like'
 import type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 import type { BandUnifiedResponse } from '../services/endpoints/side'
 import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
@@ -18,6 +19,7 @@ export interface IResource {
   SIDE_BANDUNIFIED: BandUnifiedResponse
   FAVORITES_ALLFAV: FavoritesResponse
   FAVORITES_TAGS: FavoritesTagsResponse
+  LIKES_LIST: LikeListResponse
   SEARCH_USERS: SearchUsersResponse
   SEARCH_TWEETS: SearchTweetsResponse
   FRIENDSHIPS_FRIENDS: FriendshipsResponse
