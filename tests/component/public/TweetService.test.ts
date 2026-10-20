@@ -274,7 +274,7 @@ describe('tweetService', () => {
     expect(page.tweets).toHaveLength(1)
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ list_id: '4665452701982436', since_id: '12345' })
+    expect(cfg?.params).toEqual({ since_id: '12345' })
   })
 
   it('getReposts calls repostTimeline with correct params and parses data', async () => {

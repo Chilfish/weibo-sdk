@@ -1,4 +1,5 @@
-import type { ITweet, ITweetComment, TweetGeo, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
+import type { TweetLiker } from '~/types/domain/ILiker'
+import type { ITweet, ITweetComment, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
@@ -35,9 +36,27 @@ function normalizeUser(raw: unknown): TweetUser {
   }
 }
 
+/**
+ * 把任意 raw 用户对象归一化为简版 `TweetUser`。
+ *
+ * 供点赞者 / 点赞通知等「只有用户片段」的场景复用；微博与评论内部仍走私有 `normalizeUser`。
+ */
+export function normalizeTweetUser(raw: unknown): TweetUser {
+  return normalizeUser(raw)
+}
+
 function getNumber(value: unknown): number | undefined {
   const num = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(num) ? num : undefined
+}
+
+/** 取第一个非空字符串（`number` 转字符串）；空串 / 非法值返回 undefined。 */
+function getString(value: unknown): string | undefined {
+  if (typeof value === 'string')
+    return value.trim().length > 0 ? value : undefined
+  if (typeof value === 'number' && Number.isFinite(value))
+    return String(value)
+  return undefined
 }
 
 function isTweetVisible(value: number): value is TweetVisible {
@@ -244,12 +263,149 @@ function extractMediaFromPicInfos(raw: RawTweet): TweetMedia[] {
   return out
 }
 
+function extractMediaFromPageInfo(rawRecord: UnknownRecord): TweetMedia[] {
+  const page = rawRecord.page_info
+  if (!isRecord(page))
+    return []
+
+  const mediaInfo = isRecord(page.media_info) ? page.media_info : undefined
+  if (!mediaInfo)
+    return []
+
+  const mediaType = typeof mediaInfo.media_type === 'string'
+    ? mediaInfo.media_type
+    : typeof page.object_type === 'string'
+      ? page.object_type
+      : undefined
+  if (mediaType !== 'video')
+    return []
+
+  const bigPic = isRecord(mediaInfo.big_pic_info) && isRecord(mediaInfo.big_pic_info.pic_big)
+    ? mediaInfo.big_pic_info.pic_big
+    : undefined
+  const coverUrl = typeof page.page_pic === 'string' && page.page_pic.length > 0
+    ? page.page_pic
+    : bigPic && typeof bigPic.url === 'string' && bigPic.url.length > 0
+      ? bigPic.url
+      : undefined
+  const videoUrl = [mediaInfo.mp4_hd_url, mediaInfo.stream_url_hd, mediaInfo.stream_url, mediaInfo.mp4_sd_url]
+    .find(value => typeof value === 'string' && value.length > 0) as string | undefined
+  if (!coverUrl || !videoUrl)
+    return []
+
+  const id = String(mediaInfo.media_id || page.page_id || page.object_id || '')
+  if (!id)
+    return []
+
+  return [{
+    id,
+    type: MediaType.VIDEO,
+    imageUrl: coverUrl,
+    videoUrl,
+    duration: getNumber(mediaInfo.duration),
+    width: getNumber(bigPic?.width) ?? 0,
+    height: getNumber(bigPic?.height) ?? 0,
+  }]
+}
+
 function extractMedia(raw: RawTweet, rawRecord: UnknownRecord): TweetMedia[] {
   const fromMix = extractMediaFromMixMediaInfo(rawRecord)
   if (fromMix.length > 0)
     return fromMix
 
+  // 视频瀑布 / 部分详情页把视频放在 page_info.media_info（而不是 mix_media_info）
+  const fromPage = extractMediaFromPageInfo(rawRecord)
+  if (fromPage.length > 0)
+    return fromPage
+
   return extractMediaFromPicInfos(raw)
+}
+
+/** 话题：`topic_struct[].topic_title`（缺省退回 `title`），去重保序。 */
+function extractTopics(rawRecord: UnknownRecord): string[] | undefined {
+  const list = rawRecord.topic_struct
+  if (!Array.isArray(list))
+    return undefined
+
+  const out: string[] = []
+  for (const item of list) {
+    if (!isRecord(item))
+      continue
+    const title = getString(item.topic_title) ?? getString(item.title)
+    if (title && !out.includes(title))
+      out.push(title)
+  }
+  return out.length > 0 ? out : undefined
+}
+
+/** 链接 / 超话卡片：`url_struct[]` → `TweetLinkCard[]`（标题与 URL 都缺失时跳过）。 */
+function extractLinkCards(rawRecord: UnknownRecord): TweetLinkCard[] | undefined {
+  const list = rawRecord.url_struct
+  if (!Array.isArray(list))
+    return undefined
+
+  const out: TweetLinkCard[] = []
+  for (const item of list) {
+    if (!isRecord(item))
+      continue
+    const title = getString(item.url_title)
+    const url = getString(item.h5_target_url) ?? getString(item.long_url) ?? getString(item.ori_url)
+    if (!title && !url)
+      continue
+
+    const card: TweetLinkCard = { title: title ?? '', url: url ?? '' }
+    const shortUrl = getString(item.short_url)
+    if (shortUrl)
+      card.shortUrl = shortUrl
+    const pageId = getString(item.page_id)
+    if (pageId)
+      card.pageId = pageId
+    const objectType = getString(item.object_type)
+    if (objectType)
+      card.objectType = objectType
+    const typePic = getString(item.url_type_pic)
+    if (typePic)
+      card.typePic = typePic
+    out.push(card)
+  }
+  return out.length > 0 ? out : undefined
+}
+
+/** 顶栏标题：`title.text`（少数端点直接下发字符串）。 */
+function extractTitle(rawRecord: UnknownRecord): string | undefined {
+  const title = rawRecord.title
+  if (isRecord(title))
+    return getString(title.text)
+  return getString(title)
+}
+
+/** 视频永久播放页：优先 `page_info.media_info.h5_url`，其次 `mix_media_info.items[].data.media_info.h5_url`。 */
+function extractPermanentVideoUrl(rawRecord: UnknownRecord): string | undefined {
+  const page = isRecord(rawRecord.page_info) ? rawRecord.page_info : undefined
+  const pageMedia = page && isRecord(page.media_info) ? page.media_info : undefined
+  const fromPage = pageMedia ? getString(pageMedia.h5_url) : undefined
+  if (fromPage)
+    return fromPage
+
+  const mix = isRecord(rawRecord.mix_media_info) ? rawRecord.mix_media_info : undefined
+  if (mix && Array.isArray(mix.items)) {
+    for (const item of mix.items) {
+      if (!isRecord(item) || !isRecord(item.data))
+        continue
+      const media = isRecord(item.data.media_info) ? item.data.media_info : undefined
+      const h5 = media ? getString(media.h5_url) : undefined
+      if (h5)
+        return h5
+    }
+  }
+  return undefined
+}
+
+/** 微博网页永久链接：`https://weibo.com/<uid>/<mblogid>`。 */
+function buildSourceUrl(user: TweetUser, mblogId: string): string | undefined {
+  if (!user.id || !mblogId)
+    return undefined
+  return `https://weibo.com/${user.id}/${mblogId}`
 }
 
 /**
@@ -261,6 +417,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
   const rawRecord = raw as unknown as UnknownRecord
 
   const visibleType = Number(raw.visible?.type ?? 0)
+  const user = normalizeUser(raw.user)
 
   const retweeted = rawRecord.retweeted_status
   const retweetedStatus = retweeted ? normalizeTweet(retweeted as unknown as RawTweet) : undefined
@@ -273,7 +430,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     textHtml: raw.text || '',
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),
-    user: normalizeUser(raw.user),
+    user,
     stats: {
       likes: Number(raw.attitudes_count ?? 0),
       comments: Number(raw.comments_count ?? 0),
@@ -284,6 +441,14 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     pageInfo: extractPageInfo(rawRecord),
     geo: extractGeo(raw),
     retweetedStatus,
+    topics: extractTopics(rawRecord),
+    linkCards: extractLinkCards(rawRecord),
+    readCount: getNumber(rawRecord.reads_count),
+    editCount: getNumber(rawRecord.edit_count),
+    title: extractTitle(rawRecord),
+    permanentVideoUrl: extractPermanentVideoUrl(rawRecord),
+    isOriginal: retweetedStatus === undefined,
+    sourceUrl: buildSourceUrl(user, raw.mblogid),
   }
 }
 
@@ -388,6 +553,21 @@ function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComm
  */
 export function normalizeComment(raw: unknown): ITweetComment {
   return normalizeCommentNode(raw, true)
+}
+
+/**
+ * 归一化点赞者（`/api/attitudes/show` 的 `data.data[]`）：简版用户 + 点赞时间/来源。
+ *
+ * 纯函数；缺失用户字段时按 `normalizeUser` 的默认值处理（空串 / false）。
+ */
+export function normalizeLiker(raw: unknown): TweetLiker {
+  const record = isRecord(raw) ? raw : {}
+  const liker: TweetLiker = { ...normalizeUser(record.user) }
+  if (typeof record.created_at === 'string' && record.created_at.length > 0)
+    liker.likedAt = record.created_at
+  if (typeof record.source === 'string' && record.source.length > 0)
+    liker.source = record.source
+  return liker
 }
 
 export class Tweet implements ITweet {

@@ -472,3 +472,65 @@ describe('variant 4: ad tweets (isAd)', () => {
     }
   })
 })
+
+describe('optional metadata fields (v1 additions)', () => {
+  it('extracts readCount / title / isOriginal / sourceUrl from a real mymblog item', async () => {
+    const raw = await loadRawJson('mymblog_page1.json')
+    const tweet = normalizeTweet(raw.data.list[0])
+
+    expect(tweet.readCount).toBe(117)
+    expect(tweet.title).toBe('公开')
+    expect(tweet.isOriginal).toBe(true)
+    expect(tweet.sourceUrl).toBe(`https://weibo.com/${tweet.user.id}/${tweet.mblogId}`)
+  })
+
+  it('extracts topics and linkCards from a real feed item', async () => {
+    const raw = await loadRawJson('feed_home.json')
+    const item = raw.statuses.find((t: any) => t.url_struct?.length && t.topic_struct?.length)
+    expect(item).toBeTruthy()
+
+    const tweet = normalizeTweet(item)
+
+    expect(tweet.topics).toEqual(['科普好视频', '那些被误解的小动物们'])
+    expect(tweet.linkCards).toHaveLength(2)
+    expect(tweet.linkCards?.[0]).toEqual(expect.objectContaining({
+      title: '画渣花小烙的微博视频',
+      url: expect.any(String),
+    }))
+    expect(tweet.linkCards?.[1].title).toBe('画渣花小烙超话')
+  })
+
+  it('extracts editCount and topics from a real favorite item', async () => {
+    const raw = await loadRawJson('favorites_p1.json')
+    const item = raw.data.status.find((t: any) => typeof t.edit_count === 'number')
+    expect(item).toBeTruthy()
+
+    const tweet = normalizeTweet(item)
+
+    expect(tweet.editCount).toBe(2)
+    expect(tweet.topics).toContain('DeepSeek不打卡也不加班')
+  })
+
+  it('extracts the title text and ignores retweets for isOriginal', async () => {
+    const likes = await loadRawJson('likes_p1.json')
+    const titled = likes.data.list.find((t: any) => t.title?.text)
+    expect(normalizeTweet(titled).title).toBe('仅自己可见')
+
+    const search = await loadRawJson('searchProfile_p1.json')
+    const retweet = search.data.list.find((t: any) => t.retweeted_status)
+    const tweet = normalizeTweet(retweet)
+    expect(tweet.isOriginal).toBe(false)
+    expect(tweet.readCount).toBe(172)
+    expect(tweet.topics).toContain('渡濑结月')
+  })
+
+  it('extracts permanentVideoUrl from page_info.media_info (waterfall)', async () => {
+    const raw = await loadRawJson('waterfall_p1.json')
+    const item = raw.data.list[0]
+
+    const tweet = normalizeTweet(item)
+
+    expect(tweet.permanentVideoUrl).toBe(item.page_info.media_info.h5_url)
+    expect(tweet.isOriginal).toBe(true)
+  })
+})

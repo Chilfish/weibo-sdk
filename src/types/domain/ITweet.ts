@@ -70,6 +70,25 @@ export interface ITweet {
   /** 定位信息（发布时选点；未选点缺省） */
   geo?: TweetGeo
 
+  // ---- 2026-10-20 v1 新增 optional 字段（只增不改） ----
+
+  /** 话题列表（上游 `topic_struct[].topic_title`；无话题缺省） */
+  topics?: string[]
+  /** 链接 / 超话卡片（上游 `url_struct[]`；无卡片缺省） */
+  linkCards?: TweetLinkCard[]
+  /** 阅读数（上游 `reads_count`；仅部分端点 / 自己可见时下发） */
+  readCount?: number
+  /** 编辑次数（上游 `edit_count`；未编辑或未下发时缺省） */
+  editCount?: number
+  /** 顶栏标题（上游 `title.text`，如「公开」「仅自己可见」；无则缺省） */
+  title?: string
+  /** 视频永久播放页（上游 `media_info.h5_url`；无视频缺省） */
+  permanentVideoUrl?: string
+  /** 是否原创（无 `retweeted_status`；转发为 `false`） */
+  isOriginal?: boolean
+  /** 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） */
+  sourceUrl?: string
+
   /**
    * 评论（P1-6，可选）。
    *
@@ -203,6 +222,24 @@ export interface TweetMedia {
   width: number
   /** 原始高度（像素） */
   height: number
+}
+
+/**
+ * 链接 / 超话卡片（`url_struct[]` 归一化）。
+ */
+export interface TweetLinkCard {
+  /** 卡片标题（`url_title`；缺省为空串） */
+  title: string
+  /** 跳转地址（`h5_target_url` → `long_url` → `ori_url` fallback；缺省为空串） */
+  url: string
+  /** 展示用短地址（`short_url`） */
+  shortUrl?: string
+  /** 卡片 page id（`page_id`） */
+  pageId?: string
+  /** 对象类型（`object_type`） */
+  objectType?: string
+  /** 卡片图标（`url_type_pic`） */
+  typePic?: string
 }
 
 /**

@@ -7,6 +7,8 @@ import { CommentHistoryService } from './services/public/CommentHistoryService'
 import { FavoriteService } from './services/public/FavoriteService'
 import { FollowingsService } from './services/public/FollowingsService'
 import { LikeService } from './services/public/LikeService'
+import { MediaService } from './services/public/MediaService'
+import { NotificationService } from './services/public/NotificationService'
 import { SearchService } from './services/public/SearchService'
 import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
@@ -48,6 +50,10 @@ export class WeiboSDK {
   public readonly likes: LikeService
   /** 历史评论服务：当前登录用户发表过的评论（max_id 游标，只读自己的）。 */
   public readonly commentHistory: CommentHistoryService
+  /** 媒体服务：用户图片墙与视频瀑布（cursor 分页）。 */
+  public readonly media: MediaService
+  /** 消息通知服务：评论通知 / 点赞通知（max_id 游标）。 */
+  public readonly notifications: NotificationService
   /** 热搜服务：热搜 / 话题 / 文娱榜单。 */
   public readonly trends: TrendsService
   /** 搜索服务：搜索用户与微博（上游接口当前失效，见方法注释）。 */
@@ -83,11 +89,19 @@ export class WeiboSDK {
     this.favorites = new FavoriteService(config, deps)
     this.likes = new LikeService(config, deps)
     this.commentHistory = new CommentHistoryService(config, deps)
+    this.media = new MediaService(config, deps)
+    this.notifications = new NotificationService(config, deps)
     this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
     this.archive = new ArchiveService({
       tweets: this.tweets,
       favorites: this.favorites,
+      likes: {
+        fetchRawPage: (uid, page) => this.likes.fetchRawPage(uid, page),
+      },
+      commentHistory: {
+        fetchRawPage: options => this.commentHistory.fetchRawPage(options),
+      },
       telemetry: config.telemetry,
     })
 

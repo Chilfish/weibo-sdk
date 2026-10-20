@@ -54,7 +54,7 @@ const StatusShowArgsSchema = z.object({
   isGetLongText: z.boolean(),
 }).strict()
 
-const MyMBlogItemSchema: z.ZodType<any> = z.object({
+export const MyMBlogItemSchema: z.ZodType<any> = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mblogid: z.string(),

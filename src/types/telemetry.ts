@@ -99,9 +99,45 @@ export type TelemetryEvent
     reason?: 'token_refill' | 'rate_limited'
   })
   | (TelemetryEventBase & {
+    /** 媒体下载开始（由 MediaService 发出） */
+    event_name: 'media_download_start'
+    mblogId: string
+    dry_run: boolean
+    concurrency: number
+  })
+  | (TelemetryEventBase & {
+    /** 媒体单项失败 */
+    event_name: 'media_download_item_error'
+    mblogId: string
+    media_id: string
+    index: number
+    media_type: string
+    variant: string
+    attempts: number
+    http_status?: number
+    fatal: boolean
+    error_name: string
+    error_message?: string
+    error_code?: string
+    error_level?: WeiboSDKError['level']
+    error_retryable?: boolean
+  })
+  | (TelemetryEventBase & {
+    /** 媒体下载结束 */
+    event_name: 'media_download_done'
+    mblogId: string
+    total: number
+    downloaded: number
+    skipped: number
+    failed: number
+    bytes: number
+    duration_ms: number
+    refreshed: number
+  })
+  | (TelemetryEventBase & {
     /** raw → 领域模型归一化完成（用于观测归一化耗时/条数） */
     event_name: 'normalize_done'
-    model: 'User' | 'Tweet'
+    model: 'User' | 'Tweet' | 'UserMediaAsset' | 'TweetLiker' | 'CommentNotification' | 'LikeNotification' | 'UserGroup' | 'MblogGroup'
     count?: number
     duration_ms?: number
   })
@@ -121,7 +157,7 @@ export type TelemetryEvent
     event_name: 'archive_item_error'
     uid: string
     phase: string
-    stage: 'comments' | 'reposts' | 'timeline' | 'favorites'
+    stage: 'comments' | 'commentHistory' | 'likes' | 'reposts' | 'timeline' | 'favorites'
     source?: string
     mblogId?: string
     parentMblogId?: string

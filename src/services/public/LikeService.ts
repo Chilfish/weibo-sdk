@@ -1,3 +1,4 @@
+import type { LikeListResponse } from '../endpoints/like'
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import { isRawTweet, Tweet } from '~/models/data/Tweet'
@@ -206,13 +207,22 @@ export class LikeService extends FetcherService {
   }
 
   /**
+   * 拉取一页原始响应（schema 已校验），供归档编排生成 `schemaDigest` 使用。
+   *
+   * @internal
+   */
+  public async fetchRawPage(uid: string, page = 1): Promise<LikeListResponse> {
+    return this.request(likeListSpec, { uid, page: normalizePage(page) })
+  }
+
+  /**
    * 拉取一页并做单页去重（`mblogid`）。
    *
    * 注意：`yield` 不能出现在 `try/catch`（含 try/finally）里做 `await` 之后，
    * 因此去重与请求抽到这里，`streamByUserId` 只负责产出与停止判定。
    */
   private async fetchLikePage(uid: string, page: number): Promise<RawTweet[]> {
-    const raw = await this.request(likeListSpec, { uid, page })
+    const raw = await this.fetchRawPage(uid, page)
     return uniqueRawTweets(raw.data.list ?? [])
   }
 }

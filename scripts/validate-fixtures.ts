@@ -14,7 +14,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { myCommentsSpec } from '../src/services/endpoints/commentHistory'
 import { favoritesSpec, favoritesTagsSpec } from '../src/services/endpoints/favorite'
 import { followContentSpec, friendshipsSpec } from '../src/services/endpoints/follow'
+import { feedGroupsSpec, mblogGroupsSpec } from '../src/services/endpoints/groups'
 import { likeListSpec } from '../src/services/endpoints/like'
+import { likersSpec } from '../src/services/endpoints/likers'
+import { imageWallSpec, waterfallSpec } from '../src/services/endpoints/media'
+import { mentionsSpec } from '../src/services/endpoints/mentions'
+import { messageAttitudesSpec, messageCommentsSpec } from '../src/services/endpoints/notifications'
 import { searchUsersSpec } from '../src/services/endpoints/search'
 import { bandUnifiedSpec } from '../src/services/endpoints/side'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../src/services/endpoints/tweet'
@@ -58,6 +63,11 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'searchProfile_p1.json': validate(searchProfileSpec),
   'searchProfile_p2.json': validate(searchProfileSpec),
   'longtext.json': validate(longtextSpec),
+  // media (D4/D5)
+  'image_wall_p1.json': validate(imageWallSpec),
+  'image_wall_p2.json': validate(imageWallSpec),
+  'waterfall_p1.json': validate(waterfallSpec),
+  'waterfall_p2.json': validate(waterfallSpec),
   // favorite
   'favorites_p1.json': validate(favoritesSpec),
   'favorites_tags.json': validate(favoritesTagsSpec),
@@ -88,9 +98,23 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   // getLikeList（个人页「赞」瀑布流）尚未建模
   'like_list_cursor_p1.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 未建模（cursor/next_cursor 分页）' },
   'like_list_cursor_end.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 结束态未建模（list:[]，next_cursor=-1）' },
+  // D8 / D9 / D10 / D11（2026-10-20 真实抓包）
+  'likers_p1.json': validate(likersSpec),
+  'likers_p2.json': validate(likersSpec),
+  'likers_end.json': validate(likersSpec),
+  'mentions_p1.json': validate(mentionsSpec),
+  'mentions_p2.json': validate(mentionsSpec),
+  'mentions_end.json': validate(mentionsSpec),
+  'message_cmt_p1.json': validate(messageCommentsSpec),
+  'message_cmt_p2.json': validate(messageCommentsSpec),
+  'message_cmt_end.json': validate(messageCommentsSpec),
+  'message_attitudes_p1.json': validate(messageAttitudesSpec),
+  'message_attitudes_p2.json': validate(messageAttitudesSpec),
+  'message_attitudes_end.json': validate(messageAttitudesSpec),
+  'mblog_groups.json': validate(mblogGroupsSpec),
+  'feed_groups.json': validate(feedGroupsSpec),
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },
-  'feed_groups.json': { kind: 'unmodeled', note: 'feed 分组端点未建模' },
   'side_cards.json': { kind: 'unmodeled', note: 'side cards 端点未建模' },
   'check_reward.json': { kind: 'unmodeled', note: 'check_reward 端点未建模' },
   'statuses_config.json': { kind: 'unmodeled', note: 'statuses/config 端点未建模' },

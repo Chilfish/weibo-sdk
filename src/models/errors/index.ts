@@ -3,6 +3,7 @@
  */
 export * from './BusinessError'
 export * from './ConfigError'
+export * from './MediaError'
 export * from './ProtocolError'
 export * from './TransportError'
 export * from './WeiboSDKError'

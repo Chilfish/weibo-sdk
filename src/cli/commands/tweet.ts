@@ -1,4 +1,5 @@
 import { defineCommand } from 'citty'
+import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK } from '../shared'
 
 export const tweetDetail = defineCommand({
@@ -81,6 +82,45 @@ export const tweetReposts = defineCommand({
       page: args.page ? Number(args.page) : undefined,
     })
     console.log(JSON.stringify(raw, null, 2))
+  },
+})
+
+export const tweetLikers = defineCommand({
+  meta: { name: 'likers', description: '获取微博点赞者（按页；入参为数字 mid）' },
+  args: {
+    id: { type: 'positional', description: '微博数字 mid（不是字母 mblogid）', required: true },
+    page: { type: 'string', description: '页码（可选，从 1 开始）' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const result = await createSDK(args).tweets.likers(args.id, {
+      page: parsePositiveInt(args.page),
+    })
+    console.log(JSON.stringify(result, null, 2))
+  },
+})
+
+export const tweetLikersStream = defineCommand({
+  meta: { name: 'likers-stream', description: '流式遍历微博点赞者（自动翻页 + 去重）' },
+  args: {
+    'id': { type: 'positional', description: '微博数字 mid（不是字母 mblogid）', required: true },
+    'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
+    'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    let count = 0
+    for await (const liker of createSDK(args).tweets.streamLikers(args.id, {
+      page: parsePositiveInt(args.page),
+      maxPages: parsePositiveInt(args['max-pages']),
+      onProgress: (progress) => {
+        console.log(JSON.stringify({ event: 'progress', ...progress }))
+      },
+    })) {
+      count += 1
+      console.log(JSON.stringify({ event: 'item', count, liker }))
+    }
+    console.log(JSON.stringify({ event: 'done', mblogId: args.id, count }))
   },
 })
 

@@ -1,4 +1,6 @@
+import type { MyCommentsResponse } from '../endpoints/commentHistory'
 import type { FavoritesResponse } from '../endpoints/favorite'
+import type { LikeListResponse } from '../endpoints/like'
 import type { BuildCommentsResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse } from '../endpoints/tweet'
 import type { ITweetComment, TweetContractVersion } from '~/types/domain/ITweet'
 import type { WeiboSDKTelemetry } from '~/types/telemetry'
@@ -12,11 +14,12 @@ import { stripVolatileKeys } from '~/utils/structure'
  * 归档进度类型。
  *
  * `timeline`（用户微博 + 内联转发；mymblog 翻到底后可继续用 searchProfile 日期切片）
+ * → `likes`（我赞过的微博，page）→ `comments`（当前用户历史评论，max_id）
  * → `favorites`（收藏，page）→ `done`
  *
  * `reposts` 仅用于兼容 P1-2 之前的旧 checkpoint；新流程不再产生该阶段。
  */
-export type ArchivePhase = 'timeline' | 'reposts' | 'favorites' | 'done'
+export type ArchivePhase = 'timeline' | 'reposts' | 'likes' | 'comments' | 'favorites' | 'done'
 
 /**
  * timeline 阶段的数据源（P1-5）。
@@ -30,7 +33,7 @@ export type ArchiveTimelineSource = 'mymblog' | 'search'
 export type ArchiveErrorAction = 'abort' | 'skip' | 'retry'
 
 /** P1-4：失败发生的阶段。 */
-export type ArchiveErrorStage = 'comments' | 'reposts' | 'timeline' | 'favorites'
+export type ArchiveErrorStage = 'comments' | 'commentHistory' | 'likes' | 'reposts' | 'timeline' | 'favorites'
 
 /** P1-4：`onItemError` 回调上下文。 */
 export interface ArchiveItemErrorContext {
@@ -62,8 +65,8 @@ export interface ArchiveProgress {
   total?: number
   /** 预估剩余条数（不可用时省略） */
   remaining?: number
-  /** 当前进度数据源：mymblog / search / reposts / favorites / done */
-  source?: 'mymblog' | 'search' | 'reposts' | 'favorites' | 'done'
+  /** 当前进度数据源：mymblog / search / reposts / likes / comments / favorites / done */
+  source?: 'mymblog' | 'search' | 'reposts' | 'likes' | 'comments' | 'favorites' | 'done'
   /** 当前页码（mymblog / searchProfile / favorites） */
   page?: number
 }
@@ -88,6 +91,14 @@ export interface ArchiveCheckpoint {
   lastTimelineMblogId?: string
   /** favorites 阶段：当前页 */
   favoritesPage?: number
+  /** likes 阶段：当前页（恢复时重跑该页） */
+  likesPage?: number
+  /**
+   * comments 阶段：当前页使用的游标（上游 `max_id`）。
+   *
+   * 恢复时重跑该页（重复但不会漏）；缺省表示从第一页开始。
+   */
+  commentHistoryCursor?: number
   /** P1-5 日期切片：当前切片包含的结束时间（unix 秒，含） */
   sliceEnd?: number
   /** P1-5 日期切片：当前 searchProfile 页码 */
@@ -110,11 +121,13 @@ export interface ArchiveCheckpoint {
  */
 export interface ArchiveItem {
   schemaVersion: TweetContractVersion
-  source: 'timeline' | 'repost' | 'favorite'
+  source: 'timeline' | 'repost' | 'favorite' | 'like' | 'comment'
   mblogId: string
   tweet: Tweet
   schemaDigest: unknown
   checkpoint: ArchiveCheckpoint
+  /** `source: 'comment'` 时为对应的历史评论（评论通知项本身不是微博） */
+  comment?: ITweetComment
 }
 
 /**
@@ -161,6 +174,20 @@ export interface ArchiveServiceDeps {
   favorites: {
     getFavorites: (uid: string, page?: number) => Promise<FavoritesResponse>
   }
+  /**
+   * D1 点赞数据源。未提供时 `includeLikes: true` 会抛 `InvalidConfigError`。
+   *
+   * `fetchRawPage` 返回 schema 校验后的原始页（保留 raw 以生成 `schemaDigest`）。
+   */
+  likes?: {
+    fetchRawPage: (uid: string, page?: number) => Promise<LikeListResponse>
+  }
+  /**
+   * D2 历史评论数据源。未提供时 `includeCommentHistory: true` 会抛 `InvalidConfigError`。
+   */
+  commentHistory?: {
+    fetchRawPage: (options: { maxId?: number, page?: number }) => Promise<MyCommentsResponse>
+  }
   /** P1-3：归档进度 Wide Event（可选；失败不影响归档）。 */
   telemetry?: WeiboSDKTelemetry
 }
@@ -176,6 +203,19 @@ export interface ArchiveStreamOptions {
   includeReposts?: boolean
   /** 是否归档收藏（默认 true） */
   includeFavorites?: boolean
+  /**
+   * D1：是否归档「我赞过的微博」（默认 false）。
+   *
+   * 需要注入 `deps.likes`；`ArchiveItem.source = 'like'`。
+   */
+  includeLikes?: boolean
+  /**
+   * D2：是否归档当前登录用户的历史评论（默认 false）。
+   *
+   * 需要注入 `deps.commentHistory`；`ArchiveItem.source = 'comment'`，
+   * 评论本体在 `item.comment`，`item.tweet` 为被评论微博。
+   */
+  includeCommentHistory?: boolean
   /** 每页条数（timeline 阶段，默认 20） */
   count?: number
   /** 每阶段最多翻页数（测试/演示限制，默认不限） */
@@ -228,6 +268,10 @@ export interface ArchiveStreamOptions {
   repostErrorPolicy?: ArchiveErrorAction
   /** P1-4：评论拉取失败策略（默认 `skip`，不影响微博本体）。 */
   commentsErrorPolicy?: ArchiveErrorAction
+  /** P1-4：点赞页失败策略（默认 `abort`）。 */
+  likesErrorPolicy?: ArchiveErrorAction
+  /** P1-4：历史评论页失败策略（默认 `abort`）。 */
+  commentHistoryErrorPolicy?: ArchiveErrorAction
   /** P1-4：可重试错误的最大重试次数（默认 1）。 */
   maxRetries?: number
   /** P1-4：重试间隔毫秒（默认 0）。 */
@@ -312,6 +356,17 @@ function parseTotal(value: unknown): number | undefined {
   return undefined
 }
 
+/** 游标解析：`next_cursor` 实测为 number | string；非法值按 `0`（到底）处理。 */
+function parseCursor(value: unknown): number {
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
 /**
  * 单账号归档流（A5）：把 timeline（内联转发）+ favorites 串成一条可恢复的 AsyncIterator。
  *
@@ -356,6 +411,8 @@ export class ArchiveService {
   async* streamArchive(uid: string, options: ArchiveStreamOptions = {}): AsyncIterableIterator<ArchiveItem> {
     const includeReposts = options.includeReposts ?? true
     const includeFavorites = options.includeFavorites ?? true
+    const includeLikes = options.includeLikes ?? false
+    const includeCommentHistory = options.includeCommentHistory ?? false
     const maxPages = options.maxPagesPerPhase ?? Number.POSITIVE_INFINITY
     const count = options.count ?? 20
     const timelineSource = options.timelineSource ?? 'mymblog'
@@ -377,6 +434,8 @@ export class ArchiveService {
     let page = input?.page
     let lastTimelineMblogId = input?.lastTimelineMblogId
     let favoritesPage = input?.favoritesPage
+    let likesPage = input?.likesPage
+    const commentHistoryCursor = input?.commentHistoryCursor
 
     // 旧 checkpoint 的 page 语义是「下一页」，新语义是「当前页」：倒退一页重跑，避免漏项。
     const legacyVisited = (input as { visitedMblogIds?: unknown } | undefined)?.visitedMblogIds
@@ -391,6 +450,11 @@ export class ArchiveService {
     }
 
     const cp: ArchiveCheckpoint = { uid, phase, page, lastTimelineMblogId, favoritesPage }
+    // 仅在续跑对应阶段时带上该阶段的游标，避免把无关字段写回其它阶段（checkpoint 保持恒定大小）。
+    if (phase === 'likes' && input?.likesPage !== undefined)
+      cp.likesPage = input.likesPage
+    if (phase === 'comments' && input?.commentHistoryCursor !== undefined)
+      cp.commentHistoryCursor = input.commentHistoryCursor
     // 续跑日期切片时保留 slice 游标；新流程不会把这些字段写进 mymblog checkpoint。
     if (input?.sliceEnd !== undefined)
       cp.sliceEnd = input.sliceEnd
@@ -407,10 +471,27 @@ export class ArchiveService {
         field: 'tweets.comments',
       })
     }
+
+    // D1 / D2：新的归档数据源。默认关闭；开启时必须注入对应依赖。
+    const likesDep = this.deps.likes?.fetchRawPage.bind(this.deps.likes)
+    if (includeLikes && !likesDep) {
+      throw new InvalidConfigError('ArchiveService includeLikes=true requires deps.likes.fetchRawPage.', {
+        field: 'likes.fetchRawPage',
+      })
+    }
+    const commentHistoryDep = this.deps.commentHistory?.fetchRawPage.bind(this.deps.commentHistory)
+    if (includeCommentHistory && !commentHistoryDep) {
+      throw new InvalidConfigError('ArchiveService includeCommentHistory=true requires deps.commentHistory.fetchRawPage.', {
+        field: 'commentHistory.fetchRawPage',
+      })
+    }
+
     const maxRetries = options.maxRetries ?? 1
     const retryDelayMs = options.retryDelayMs ?? 0
     const repostErrorPolicy = options.repostErrorPolicy ?? 'skip'
     const commentsErrorPolicy = options.commentsErrorPolicy ?? 'skip'
+    const likesErrorPolicy = options.likesErrorPolicy ?? 'abort'
+    const commentHistoryErrorPolicy = options.commentHistoryErrorPolicy ?? 'abort'
     const progressState = { processed: 0 }
     const archiveTraceId = `${Date.now()}-archive-${uid}`
 
@@ -581,7 +662,8 @@ export class ArchiveService {
       parentMblogId?: string,
     ): Promise<Tweet> => {
       const tweet = new Tweet(raw)
-      if (!includeComments || source === 'favorite')
+      // 评论只挂到 timeline / repost 项；收藏、点赞、历史评论不额外拉评论。
+      if (!includeComments || (source !== 'timeline' && source !== 'repost'))
         return tweet
 
       const comments = await fetchComments(raw.mblogid, {
@@ -846,16 +928,251 @@ export class ArchiveService {
       }
     }
 
-    phase = includeFavorites ? 'favorites' : 'done'
-    lastTimelineMblogId = undefined
-    cp.phase = phase
-    cp.page = undefined
-    delete cp.sliceEnd
-    delete cp.slicePage
-    delete cp.sliceWindow
-    cp.lastTimelineMblogId = undefined
-    cp.favoritesPage = includeFavorites ? (favoritesPage ?? 1) : undefined
-    favoritesPage = cp.favoritesPage
+    // Phase 1c/1d: likes（page）→ comments（max_id）→ favorites（page）→ done
+    if (phase === 'timeline') {
+      phase = includeLikes ? 'likes' : includeCommentHistory ? 'comments' : includeFavorites ? 'favorites' : 'done'
+      lastTimelineMblogId = undefined
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      delete cp.sliceEnd
+      delete cp.slicePage
+      delete cp.sliceWindow
+      if (phase === 'likes') {
+        cp.likesPage = likesPage ?? 1
+        likesPage = cp.likesPage
+      }
+      if (phase === 'comments' && commentHistoryCursor !== undefined)
+        cp.commentHistoryCursor = commentHistoryCursor
+      if (phase === 'favorites') {
+        cp.favoritesPage = favoritesPage ?? 1
+        favoritesPage = cp.favoritesPage
+      }
+    }
+
+    // 续跑 checkpoint 停在 likes / comments 时，补齐该阶段的游标。
+    if (phase === 'likes' && includeLikes) {
+      cp.phase = 'likes'
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.commentHistoryCursor
+      cp.likesPage = likesPage ?? cp.likesPage ?? 1
+      likesPage = cp.likesPage
+    }
+
+    // 关闭 likes 阶段时直接跳到下一个阶段（checkpoint 仍可能停在 likes）。
+    if (phase === 'likes' && !includeLikes) {
+      phase = includeCommentHistory ? 'comments' : includeFavorites ? 'favorites' : 'done'
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.likesPage
+      if (phase === 'comments' && commentHistoryCursor !== undefined)
+        cp.commentHistoryCursor = commentHistoryCursor
+      if (phase === 'favorites') {
+        cp.favoritesPage = favoritesPage ?? 1
+        favoritesPage = cp.favoritesPage
+      }
+    }
+
+    // Phase 1c: likes（page 翻页；上游无 total）
+    if (phase === 'likes' && includeLikes && likesDep) {
+      let currentPage = likesPage ?? 1
+      let pages = 0
+      let previousPageIds = new Set<string>()
+
+      while (pages < maxPages) {
+        const raw = await runWithPolicy(
+          () => likesDep(uid, currentPage),
+          { stage: 'likes', source: 'like', page: currentPage },
+          likesErrorPolicy,
+        )
+        if (!raw)
+          break
+        const list = uniqueByMblogId(raw.data.list || [])
+        const ids = list.map(item => item.mblogid)
+        if (ids.length === 0)
+          break // 空页 = 到底（上游越界页返回 list: []）
+        if (isRepeatedPage(ids, previousPageIds))
+          break // 上游忽略 page 重复返回同一页
+
+        for (const item of list) {
+          await options.onRaw?.(item, { uid, source: 'like', mblogId: item.mblogid, page: currentPage })
+
+          cp.phase = 'likes'
+          cp.page = undefined
+          cp.lastTimelineMblogId = undefined
+          cp.favoritesPage = undefined
+          cp.likesPage = currentPage
+          delete cp.commentHistoryCursor
+          delete cp.sliceEnd
+          delete cp.slicePage
+          delete cp.sliceWindow
+          const tweet = await prepareTweet(item, 'like', currentPage)
+          progressState.processed += 1
+          yield this.buildItem(item, 'like', cp, tweet)
+        }
+
+        previousPageIds = new Set(ids)
+        await reportProgress({ source: 'likes', page: currentPage })
+        likesPage = currentPage + 1
+        currentPage += 1
+        pages += 1
+      }
+    }
+
+    if (phase === 'likes') {
+      phase = includeCommentHistory ? 'comments' : includeFavorites ? 'favorites' : 'done'
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.likesPage
+      if (phase === 'comments' && commentHistoryCursor !== undefined)
+        cp.commentHistoryCursor = commentHistoryCursor
+      if (phase === 'favorites') {
+        cp.favoritesPage = favoritesPage ?? 1
+        favoritesPage = cp.favoritesPage
+      }
+    }
+
+    if (phase === 'comments' && includeCommentHistory) {
+      cp.phase = 'comments'
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.likesPage
+      if (commentHistoryCursor !== undefined)
+        cp.commentHistoryCursor = commentHistoryCursor
+    }
+
+    if (phase === 'comments' && !includeCommentHistory) {
+      phase = includeFavorites ? 'favorites' : 'done'
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.commentHistoryCursor
+      if (phase === 'favorites') {
+        cp.favoritesPage = favoritesPage ?? 1
+        favoritesPage = cp.favoritesPage
+      }
+    }
+
+    // Phase 1d: comments（max_id 游标；评论本体挂到 item.comment）
+    if (phase === 'comments' && includeCommentHistory && commentHistoryDep) {
+      let cursor = commentHistoryCursor
+      let pages = 0
+      const seen = new Set<string>()
+
+      while (pages < maxPages) {
+        const requestOptions = cursor !== undefined ? { maxId: cursor } : {}
+        const raw = await runWithPolicy(
+          () => commentHistoryDep(requestOptions),
+          { stage: 'commentHistory', source: 'comment', page: pages + 1 },
+          commentHistoryErrorPolicy,
+        )
+        if (!raw)
+          break
+        const rawComments = raw.data.comments || []
+        if (rawComments.length === 0)
+          break // 空页 = 到底
+        const nextCursor = parseCursor(raw.data.next_cursor)
+
+        let fresh = 0
+        for (const rawComment of rawComments) {
+          const status = (rawComment as { status?: TimelineRawItem }).status
+          if (!status || typeof status.mblogid !== 'string')
+            continue
+
+          const commentId = String(rawComment.idstr || rawComment.id || '')
+          if (commentId) {
+            if (seen.has(commentId))
+              continue
+            seen.add(commentId)
+          }
+
+          await options.onRaw?.(rawComment, {
+            uid,
+            source: 'comment',
+            mblogId: status.mblogid,
+            page: pages + 1,
+          })
+
+          cp.phase = 'comments'
+          cp.page = undefined
+          cp.lastTimelineMblogId = undefined
+          cp.favoritesPage = undefined
+          delete cp.likesPage
+          if (cursor !== undefined)
+            cp.commentHistoryCursor = cursor
+          else
+            delete cp.commentHistoryCursor
+          delete cp.sliceEnd
+          delete cp.slicePage
+          delete cp.sliceWindow
+
+          const tweet = new Tweet(status)
+          const item = this.buildItem(status, 'comment', cp, tweet)
+          item.comment = normalizeComment(rawComment)
+          progressState.processed += 1
+          fresh += 1
+          yield item
+        }
+
+        pages += 1
+        if (fresh === 0)
+          break // 整页都是无效 / 重复项
+        const total = parseTotal(raw.data.total_number)
+        await reportProgress({
+          source: 'comments',
+          total,
+          remaining: total !== undefined ? Math.max(0, total - progressState.processed) : undefined,
+          page: pages,
+        })
+
+        if (nextCursor === 0)
+          break // 到底
+        if (cursor !== undefined && nextCursor === cursor)
+          break // 游标不前进
+        cursor = nextCursor
+      }
+    }
+
+    if (phase === 'comments') {
+      phase = includeFavorites ? 'favorites' : 'done'
+      cp.phase = phase
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.commentHistoryCursor
+      if (phase === 'favorites') {
+        cp.favoritesPage = favoritesPage ?? 1
+        favoritesPage = cp.favoritesPage
+      }
+    }
+
+    if (phase === 'favorites' && !includeFavorites) {
+      // checkpoint 停在 favorites 但本次关闭收藏：直接收口，避免 phase 卡在 favorites。
+      phase = 'done'
+      cp.phase = 'done'
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = undefined
+      delete cp.likesPage
+      delete cp.commentHistoryCursor
+    }
+    else if (phase === 'favorites') {
+      cp.phase = 'favorites'
+      cp.page = undefined
+      cp.lastTimelineMblogId = undefined
+      cp.favoritesPage = favoritesPage ?? cp.favoritesPage ?? 1
+      favoritesPage = cp.favoritesPage
+      delete cp.likesPage
+      delete cp.commentHistoryCursor
+    }
 
     // Phase 2: favorites（page 翻页）
     if (phase === 'favorites' && includeFavorites) {
@@ -886,6 +1203,8 @@ export class ArchiveService {
           cp.page = undefined
           cp.lastTimelineMblogId = undefined
           cp.favoritesPage = currentPage
+          delete cp.likesPage
+          delete cp.commentHistoryCursor
           const tweet = await prepareTweet(item, 'favorite', currentPage)
           progressState.processed += 1
           yield this.buildItem(item, 'favorite', cp, tweet)

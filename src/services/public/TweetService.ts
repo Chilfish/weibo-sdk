@@ -1,12 +1,69 @@
 import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileArgs, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
-import { isRawTweet, Tweet } from '~/models/data/Tweet'
+import type { TweetLiker } from '~/types/domain/ILiker'
+import { isRawTweet, normalizeLiker, Tweet } from '~/models/data/Tweet'
 import { resolveTimeInput } from '~/utils/timeInput'
+import { likersSpec } from '../endpoints/likers'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
+
+/** 一页点赞者（`likers` 返回值）。 */
+export interface TweetLikersPageResult {
+  /** 下一页页码（page 游标，从 1 开始） */
+  page: number
+  /** 是否可能还有下一页（空页 / 已达 total 时为 `false`） */
+  hasMore: boolean
+  /** 上游 `total_number`（可用时） */
+  total?: number
+  /** 本页归一化点赞者（已按用户 id 去重） */
+  likers: TweetLiker[]
+}
+
+/** `likers` 的选项。 */
+export interface TweetLikersOptions {
+  /** 页码（从 1 开始；`< 1` / 非有限数按第一页处理） */
+  page?: number
+}
+
+/** 点赞者流进度（每页触发一次）。 */
+export interface TweetLikersStreamProgress {
+  /** 微博 mid */
+  mblogId: string
+  /** 当前页码（1 基） */
+  page: number
+  /** 已产出的点赞者数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条数 */
+  pageSize: number
+  /** 上游 `total_number`（可用时） */
+  total?: number
+}
+
+/** `streamLikers` 的选项。 */
+export interface TweetLikersStreamOptions extends TweetLikersOptions {
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；回调抛错不会中断流 */
+  onProgress?: (progress: TweetLikersStreamProgress) => void | Promise<void>
+}
+
+/** 页码归一化：只接受 >= 1 的有限数；其余按第一页处理（上游 `page=0` 与 1 等价）。 */
+function normalizeLikerPage(page?: number): number {
+  if (page === undefined || !Number.isFinite(page))
+    return 1
+  const normalized = Math.floor(page)
+  return normalized >= 1 ? normalized : 1
+}
+
+/** 翻页上限归一化：缺省 / 非有限数 = 不限；其余取非负整数。 */
+function normalizeLikerMaxPages(maxPages?: number): number {
+  if (maxPages === undefined || !Number.isFinite(maxPages))
+    return Number.POSITIVE_INFINITY
+  return Math.max(0, Math.floor(maxPages))
+}
 
 /**
  * 一页微博的归一化结果（`listByUserId` / `listFriendTimeline` 的返回值）。
@@ -50,9 +107,6 @@ export interface TweetEnrichResult {
   /** 长微博全文（仅 `includeLongText: true` 时请求；优先 `longTextContent_raw`） */
   longText?: string
 }
-
-/** 首页 Feed 兼容用分组 id；2026-10-20 实测缺省 list_id 也能返回默认首页 Feed，保留仅为兼容旧行为 */
-const DEFAULT_HOME_LIST_ID = '4665452701982436'
 
 /**
  * 微博领域服务。
@@ -388,10 +442,10 @@ export class TweetService extends FetcherService {
    *
    * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
    *
-   * 默认带上 `list_id` 仅为兼容旧行为；2026-10-20 实测缺省该参数同样返回默认首页 Feed。
+   * 默认不发送 `list_id`（2026-10-20 实测缺省返回默认首页 Feed）；需要指定关注分组时显式传入。
    *
    * @param options Feed 选项（全部可选）
-   * @param options.list_id 关注分组 id（默认首页分组）
+   * @param options.list_id 关注分组 id（可选；缺省 = 上游默认首页）
    * @param options.since_id 分页游标（首屏省略）
    * @param options.count 每页条数
    * @param options.refresh 刷新标记（透传上游）
@@ -404,9 +458,9 @@ export class TweetService extends FetcherService {
     count?: number
     refresh?: number
   }): Promise<FriendstimelineResponse> {
-    const args: FriendstimelineArgs = {
-      list_id: options?.list_id ?? DEFAULT_HOME_LIST_ID,
-    }
+    const args: FriendstimelineArgs = {}
+    if (options?.list_id !== undefined)
+      args.list_id = options.list_id
     if (options?.since_id !== undefined)
       args.since_id = options.since_id
     if (options?.count !== undefined)
@@ -449,6 +503,124 @@ export class TweetService extends FetcherService {
       sinceId: nextSinceId > 0 ? String(nextSinceId) : '',
       hasMore,
       tweets,
+    }
+  }
+
+  /**
+   * 获取一页微博点赞者（D8）。
+   *
+   * 端点采用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 目前恒返回空数组
+   * （见 `likersSpec` 注释）。**入参必须是数字 mid**（如 `tweet.id` / `mid`），
+   * 字母 `mblogid` 会被上游拒绝（HTTP 400）。
+   *
+   * @param mblogId 微博数字 mid（不是字母 mblogid）
+   * @param options 分页选项
+   * @returns 归一化点赞者 + 下一页页码
+   * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
+   */
+  public async likers(mblogId: string, options: TweetLikersOptions = {}): Promise<TweetLikersPageResult> {
+    const page = normalizeLikerPage(options.page)
+    const startAt = Date.now()
+    const raw = await this.request(likersSpec, { id: mblogId, page })
+    const rawLikers = raw.data.data ?? []
+
+    const seen = new Set<string>()
+    const likers: TweetLiker[] = []
+    for (const item of rawLikers) {
+      const liker = normalizeLiker(item)
+      if (liker.id) {
+        if (seen.has(liker.id))
+          continue
+        seen.add(liker.id)
+      }
+      likers.push(liker)
+    }
+
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: this.newTraceId(),
+      model: 'TweetLiker',
+      count: likers.length,
+      duration_ms: Date.now() - startAt,
+    })
+
+    const total = raw.data.total_number
+    const result: TweetLikersPageResult = {
+      page: page + 1,
+      // 上游没有「是否有下一页」字段：空页即到底；有 total 时以页码 × 本页条数估算。
+      hasMore: likers.length > 0 && (total === undefined || page * rawLikers.length < total),
+      likers,
+    }
+    if (total !== undefined)
+      result.total = total
+    return result
+  }
+
+  /**
+   * 流式获取微博点赞者（page 游标 + 跨页按用户 id 去重）。
+   *
+   * 停止条件（任一命中）：空页（越界页 `data: null`）、整页重复、达到 `total_number`、`maxPages`。
+   *
+   * @example
+   * for await (const liker of sdk.tweets.streamLikers('5355873276528697', { maxPages: 2 })) {
+   *   console.log(liker.id, liker.name)
+   * }
+   */
+  async* streamLikers(mblogId: string, options: TweetLikersStreamOptions = {}): AsyncIterableIterator<TweetLiker> {
+    const maxPages = normalizeLikerMaxPages(options.maxPages)
+    const seen = new Set<string>()
+    let page = normalizeLikerPage(options.page)
+    let pages = 0
+    let processed = 0
+    let total: number | undefined
+
+    while (pages < maxPages) {
+      const result = await this.likers(mblogId, { page })
+      pages += 1
+      if (result.likers.length === 0)
+        break
+
+      const fresh = result.likers.filter((liker) => {
+        if (!liker.id)
+          return true
+        if (seen.has(liker.id))
+          return false
+        seen.add(liker.id)
+        return true
+      })
+      if (fresh.length === 0)
+        break // 整页重复：上游忽略了 page
+
+      for (const liker of fresh) {
+        processed += 1
+        yield liker
+      }
+
+      if (result.total !== undefined)
+        total = result.total
+
+      const progress: TweetLikersStreamProgress = {
+        mblogId,
+        page,
+        processed,
+        pageSize: result.likers.length,
+      }
+      if (total !== undefined)
+        progress.total = total
+
+      try {
+        await options.onProgress?.(progress)
+      }
+      catch {
+        // 进度回调异常不影响流
+      }
+
+      if (total !== undefined && processed >= total)
+        break
+      if (!result.hasMore)
+        break
+      page = result.page
     }
   }
 }

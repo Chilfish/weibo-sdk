@@ -28,6 +28,10 @@ function sanitize(node, parentKey) {
       if (typeof v === 'string') {
         if (lk.includes('url'))
           out[k] = '<URL>'
+        else if (lk === 'since_id' || lk === 'next_cursor' || lk === 'previous_cursor')
+          out[k] = v // 分页游标保留真实值（与既有 fixture 惯例一致）
+        else if (lk === 'timeline_month' || lk === 'timeline_year')
+          out[k] = v // 图片墙的时间粒度（YYYY / MM），不是完整日期
         else if (lk === 'created_at' || lk.includes('date') || lk.includes('time'))
           out[k] = '<DATE>'
         else if (lk === 'idstr' || lk === 'mid' || lk === 'uid')

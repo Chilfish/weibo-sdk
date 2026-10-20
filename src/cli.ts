@@ -7,9 +7,11 @@ import { commentMine, commentStream } from './cli/commands/comment'
 import { favoriteList, favoriteStream, favoriteTags } from './cli/commands/favorite'
 import { followFans, followList, followMy } from './cli/commands/follow'
 import { likeList, likeStream } from './cli/commands/like'
+import { mediaDownload, mediaImages, mediaVideos } from './cli/commands/media'
+import { notificationComments, notificationCommentsStream, notificationLikes, notificationLikesStream } from './cli/commands/notification'
 import { searchTweets, searchUsers } from './cli/commands/search'
-import { tweetComments, tweetDetail, tweetEnrich, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
-import { userInfo, userTimeline } from './cli/commands/user'
+import { tweetComments, tweetDetail, tweetEnrich, tweetLikers, tweetLikersStream, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
+import { userGroups, userInfo, userMblogGroups, userMentions, userMentionsStream, userTimeline } from './cli/commands/user'
 import { cookieArg, createSDK, getCookie, getEnvFilePath, resolveArchiveIncludeFlags } from './cli/shared'
 
 const trends = defineCommand({
@@ -68,6 +70,8 @@ const archive = defineCommand({
     'uid': { type: 'positional', description: '用户 UID', required: true },
     'reposts': { type: 'boolean', default: true, description: '归档转发（--no-reposts 跳过）' },
     'favorites': { type: 'boolean', default: true, description: '归档收藏（--no-favorites 跳过）' },
+    'likes': { type: 'boolean', default: false, description: '归档我赞过的微博（includeLikes）' },
+    'comment-history': { type: 'boolean', default: false, description: '归档当前用户历史评论（includeCommentHistory）' },
     'date-slices': { type: 'boolean', default: true, description: '日期切片补齐（--no-date-slices 跳过）' },
     'source': { type: 'string', description: 'timeline 数据源：mymblog（默认）或 search（直接日期切片）' },
     'since': { type: 'string', description: '日期切片下界（unix 秒，可选）' },
@@ -98,6 +102,8 @@ const archive = defineCommand({
     let latestProgress: ArchiveProgress | undefined
     const stream = createSDK(args).archive.streamArchive(args.uid, {
       ...resolveArchiveIncludeFlags(args),
+      includeLikes: !!args.likes,
+      includeCommentHistory: !!args['comment-history'],
       timelineSource: source,
       since: args.since ? Number(args.since) : undefined,
       includeComments: !!args.comments,
@@ -180,11 +186,11 @@ const main = defineCommand({
   subCommands: {
     user: defineCommand({
       meta: { name: 'user', description: '用户相关操作' },
-      subCommands: { info: userInfo, timeline: userTimeline },
+      subCommands: { 'info': userInfo, 'timeline': userTimeline, 'mentions': userMentions, 'mentions-stream': userMentionsStream, 'groups': userGroups, 'mblog-groups': userMblogGroups },
     }),
     tweet: defineCommand({
       meta: { name: 'tweet', description: '微博相关操作' },
-      subCommands: { 'detail': tweetDetail, 'enrich': tweetEnrich, 'comments': tweetComments, 'home': tweetTimeline, 'longtext': tweetLongtext, 'reposts': tweetReposts, 'search-profile': tweetSearchProfile },
+      subCommands: { 'detail': tweetDetail, 'enrich': tweetEnrich, 'comments': tweetComments, 'home': tweetTimeline, 'likers': tweetLikers, 'likers-stream': tweetLikersStream, 'longtext': tweetLongtext, 'reposts': tweetReposts, 'search-profile': tweetSearchProfile },
     }),
     follow: defineCommand({
       meta: { name: 'follow', description: '关注列表' },
@@ -201,6 +207,14 @@ const main = defineCommand({
     comment: defineCommand({
       meta: { name: 'comment', description: '当前登录用户的历史评论' },
       subCommands: { mine: commentMine, stream: commentStream },
+    }),
+    media: defineCommand({
+      meta: { name: 'media', description: '媒体集合与下载（图片墙 / 视频瀑布 / 单条微博下载）' },
+      subCommands: { images: mediaImages, videos: mediaVideos, download: mediaDownload },
+    }),
+    notification: defineCommand({
+      meta: { name: 'notification', description: '消息通知（评论 / 点赞）' },
+      subCommands: { 'comments': notificationComments, 'comments-stream': notificationCommentsStream, 'likes': notificationLikes, 'likes-stream': notificationLikesStream },
     }),
     search: defineCommand({
       meta: { name: 'search', description: '搜索' },

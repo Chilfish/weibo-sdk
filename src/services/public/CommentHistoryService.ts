@@ -1,4 +1,4 @@
-import type { MyCommentsArgs } from '../endpoints/commentHistory'
+import type { MyCommentsArgs, MyCommentsResponse } from '../endpoints/commentHistory'
 import type { IWeiboConfig } from '~/types/config'
 import type { ITweetComment } from '~/types/domain/ITweet'
 import { normalizeComment } from '~/models/data/Tweet'
@@ -296,6 +296,15 @@ export class CommentHistoryService extends FetcherService {
       count: processed,
       duration_ms: Date.now() - startAt,
     })
+  }
+
+  /**
+   * 拉取一页原始响应（schema 已校验），供归档编排生成 `schemaDigest` 使用。
+   *
+   * @internal
+   */
+  public async fetchRawPage(options: CommentHistoryListOptions = {}): Promise<MyCommentsResponse> {
+    return this.request(myCommentsSpec, this.buildArgs(options))
   }
 
   /** 组装上游参数：`max_id` 优先，其次 `page`，都不给则首屏（不带参数）。 */

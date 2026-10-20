@@ -1,7 +1,12 @@
 import type { MyCommentsResponse } from '../services/endpoints/commentHistory'
 import type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 import type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
+import type { FeedGroupsResponse, MblogGroupsResponse } from '../services/endpoints/groups'
 import type { LikeListResponse } from '../services/endpoints/like'
+import type { LikersResponse } from '../services/endpoints/likers'
+import type { ImageWallResponse, WaterfallResponse } from '../services/endpoints/media'
+import type { MentionsViewResponse } from '../services/endpoints/mentions'
+import type { MessageAttitudesResponse, MessageCommentsResponse } from '../services/endpoints/notifications'
 import type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 import type { BandUnifiedResponse } from '../services/endpoints/side'
 import type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse, StatusShowResponse } from '../services/endpoints/tweet'
@@ -22,6 +27,14 @@ export interface IResource {
   FAVORITES_TAGS: FavoritesTagsResponse
   LIKES_LIST: LikeListResponse
   COMMENTS_MINE: MyCommentsResponse
+  PROFILE_IMAGE_WALL: ImageWallResponse
+  PROFILE_WATERFALL: WaterfallResponse
+  TWEET_LIKERS: LikersResponse
+  FEED_GROUPS: FeedGroupsResponse
+  MBLOG_GROUPS: MblogGroupsResponse
+  MENTIONS_STATUSES: MentionsViewResponse
+  MESSAGE_COMMENTS: MessageCommentsResponse
+  MESSAGE_ATTITUDES: MessageAttitudesResponse
   SEARCH_USERS: SearchUsersResponse
   SEARCH_TWEETS: SearchTweetsResponse
   FRIENDSHIPS_FRIENDS: FriendshipsResponse

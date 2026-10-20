@@ -1,4 +1,8 @@
 export { createFakeAxios, NoopRateLimitService } from './fakeAxios'
 export type { FakeAxiosHandler } from './fakeAxios'
 export { FakeClock } from './fakeClock'
+export { createFakeMediaHttpClient } from './fakeMediaHttp'
+export type { FakeMediaHttp, FakeMediaResponse } from './fakeMediaHttp'
+export { createFakeMediaStore } from './fakeMediaStore'
+export type { FakeMediaStore } from './fakeMediaStore'
 export { TelemetryCollector } from './telemetryCollector'

@@ -23,7 +23,9 @@ describe('iTweet v1 contract freeze', () => {
   it('freezes top-level field names at the type level', () => {
     expectTypeOf<keyof ITweet>().toEqualTypeOf<
       | 'id' | 'mblogId' | 'createdAt' | 'text' | 'textHtml' | 'regionName' | 'source'
-      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo' | 'comments'
+      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo'
+      | 'topics' | 'linkCards' | 'readCount' | 'editCount' | 'title' | 'permanentVideoUrl' | 'isOriginal' | 'sourceUrl'
+      | 'comments'
     >()
   })
 
@@ -38,17 +40,25 @@ describe('iTweet v1 contract freeze', () => {
 
     expect(Object.keys(tweet).sort()).toEqual([
       'createdAt',
+      'editCount',
       'geo',
       'id',
+      'isOriginal',
+      'linkCards',
       'mblogId',
       'media',
       'pageInfo',
+      'permanentVideoUrl',
+      'readCount',
       'regionName',
       'retweetedStatus',
       'source',
+      'sourceUrl',
       'stats',
       'text',
       'textHtml',
+      'title',
+      'topics',
       'user',
       'visible',
     ])
