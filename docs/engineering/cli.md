@@ -1,6 +1,6 @@
 # Weibo CLI（`weibo-cli`）
 
-基于 [citty](https://github.com/unjs/citty) 构建的命令行工具，类型安全、零依赖。
+`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令输出 JSON，流式命令输出 NDJSON，方便直接交给脚本、`jq` 或 Agent 处理。
 
 ## 安装
 
@@ -19,7 +19,7 @@ npx tsx src/cli.ts --help
 
 ## 配置 Cookie
 
-**只从 `.env` 文件读取**（默认 `<pwd>/.env`，可用 `--env-file <path>` 指定）：
+CLI 只从 `.env` 文件读取 Cookie，不读取 shell 环境变量。默认读取当前目录的 `.env`，可以用 `--env-file <path>` 指定其他文件：
 
 ```bash
 # .env（项目根目录）
@@ -34,11 +34,11 @@ WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 # WEIBO_COOKIE="./cookies.header.txt"
 ```
 
-相对路径按当前工作目录（pwd）解析。Netscape 格式按 7 列 TSV 解析（支持 `#HttpOnly_` 前缀与 `#` 注释），只保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie，过期条目会被跳过；同名 Cookie 以文件中靠后的为准。文件路径不存在、读取失败或没有可用 Cookie 时，CLI 打印 `CONFIG_INVALID` 错误并以 1 退出。
+相对路径按当前工作目录解析。Netscape 格式按 7 列 TSV 解析，支持 `#HttpOnly_` 前缀和 `#` 注释；只保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 域名的 Cookie，过期条目会被跳过，同名 Cookie 以文件中靠后的为准。路径不存在、读取失败或没有可用 Cookie 时，CLI 会输出 `CONFIG_INVALID` 错误并以非零状态退出。
 
-刻意**不读取 `WEIBO_COOKIE` 环境变量**：本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie（`process.loadEnvFile()` 不覆盖已存在的环境变量）。每个子命令都支持 `--cookie`/`-c` 显式覆盖（优先于 `.env`），取值规则与 `.env` 相同。
+之所以不读取 `WEIBO_COOKIE` 环境变量，是因为本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie。每个子命令都支持 `--cookie` / `-c` 临时覆盖，优先级高于 `.env`，取值规则与 `.env` 相同。
 
-所有命令默认输出 **JSON 格式**（`JSON.stringify(data, null, 2)`），可用于管道处理：
+普通命令输出格式化后的 JSON，可以接管道处理：
 
 ```bash
 weibo-cli user info 1111681197 | jq '.name, .stats'
@@ -82,10 +82,10 @@ weibo-cli user mblog-groups
 # 获取微博详情（归一化为 Tweet 模型）
 weibo-cli tweet detail <mblogId>
 
-# 补拉原始响应 + 归一化模型（下游自行保存 raw；--longtext 额外补拉全文）
+# 补拉原始响应 + 归一化模型（raw 由调用方自行保存；--longtext 额外补拉全文）
 weibo-cli tweet enrich <mblogId> [--longtext] [--no-longtext]
 
-# 获取微博评论（首屏约 20 条；count 被上游忽略；flow=1 时 SDK 自动把 mblogId 解析为数字 mid）
+# 获取微博评论（首屏约 20 条；count 目前被微博忽略；flow=1 时 SDK 自动把 mblogId 解析为数字 mid）
 # --max-id 为上一页响应顶层的 max_id（原始响应格式，含图片评论 url_struct 等字段）
 weibo-cli tweet comments <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
 
@@ -104,7 +104,7 @@ weibo-cli tweet home-stream [--max-id <id>] [--since-id <id>] [--max-pages <n>] 
 # 获取长微博全文
 weibo-cli tweet longtext <mblogId>
 
-# 获取微博转发列表（分页用 --page；实测 next_cursor 参数无效）
+# 获取微博转发列表（分页用 --page；next_cursor 参数目前无效）
 weibo-cli tweet reposts <mblogId> [--page <n>]
 
 # 流式遍历转发（page 游标 + 自动去重；NDJSON progress/item/done）
@@ -119,7 +119,7 @@ weibo-cli tweet likers <mid> [--page <n>]
 weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
-> **流式范围控制**：所有 `*-stream` 命令都支持 `--max-items <n>`（跨页去重后的产出上限，达到后不再请求下一页）。时间倒序的流额外支持 `--since <date>` / `--until <date>`（`YYYY-MM-DD` / `YYYYMMDD` / unix 秒；更早即停止翻页，更晚跳过）。`--since-id` 仍是微博 id / 媒体游标，不是日期。起始 `--page` / `--max-id` 用于断点续传与增量拉取。
+所有 `*-stream` 命令都支持 `--max-items <n>`，用于限制跨页去重后的产出条数；达到上限后不再请求下一页。时间倒序的流还支持 `--since <date>` / `--until <date>`，日期可以写 `YYYY-MM-DD`、`YYYYMMDD` 或 unix 秒：遇到更早的条目停止翻页，更晚的条目直接跳过。`--since-id` 是微博 id 或媒体游标，不是日期。起始页码和游标仍用 `--page` / `--max-id`，适合断点续传和增量拉取。
 
 > `likers` 使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 仍返回正确
 > `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，按空页停止。
@@ -201,9 +201,9 @@ weibo-cli media albums <uid>
 weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>] [--max-items <n>]
 ```
 
-> `images` 的上游游标是 `sinceid`（首屏不传 / `0`，下一页传上一页 `sinceId`）；`videos` 的游标是 `cursor`
-> （首屏 `0`，下一页传上一页 `cursor`；**不要传 `-1`，上游会 400**）。两者都输出 `IUserMediaAsset`：
-> `id` / `type` / `url` / `coverUrl?` / `videoUrl?` / `duration?` / `createdAt?` / `sourceMblogId?` / `permanentPageUrl?`。
+`images` 的游标是 `sinceid`：首屏不传或传 `0`，下一页传上一页的 `sinceId`。`videos` 的游标是 `cursor`：首屏传 `0`，下一页传上一页的 `cursor`；不要传 `-1`，微博会返回 400。
+
+两者都输出 `IUserMediaAsset`：`id`、`type`、`url`、`coverUrl?`、`videoUrl?`、`duration?`、`createdAt?`、`sourceMblogId?`、`permanentPageUrl?`。
 
 ### 消息通知（`notification`）
 
@@ -219,7 +219,7 @@ weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-page
 
 > 两个消息端点都使用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 到底。
 > 评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博）；点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。
-> 被点赞/被评论微博已删除时，对应条目会被跳过（上游不返回 `status`）。
+> 被点赞或被评论的微博已删除时，对应条目会被跳过，因为微博不再返回 `status`。
 
 ### 媒体下载（`media download`）
 
@@ -235,6 +235,7 @@ weibo-cli media download <mblogId> \
 - URL 过期（403/404/410）默认重新拉取微博换新 URL；`--no-refresh` 关闭。
 - NDJSON：`progress` / `item` / `item-error`（stderr）/ `done`；任一失败退出码 1，Ctrl+C 退出码 130。
 - 失败清单：`<out>/<mblogId>-media-errors.json`。
+
 ### 超话（`topic`）
 
 ```bash
@@ -306,7 +307,7 @@ weibo-cli schema diff before.json after.json
 > 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
 > `item` / `done` 事件也携带 `count/total/remaining`。
 
-> raw 落盘不在 CLI 默认输出中：SDK 使用方通过 `config.hooks.onRaw` / `streamArchive({ onRaw })` 接收原始项自行保存（P1-9，见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)）。
+CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。
 
 ## 输出形态速查
 
@@ -349,7 +350,7 @@ weibo-cli schema diff before.json after.json
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
-| `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 为 ITweet 存档契约版本；`checkpoint` 可能含 `sliceEnd/slicePage/sliceWindow` 日期切片游标） |
+| `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 
 ## 架构
 

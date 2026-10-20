@@ -1,6 +1,6 @@
 # 错误排障手册
 
-本手册覆盖 `weibo-sdk` 所有已知错误类型及其诊断流程。每种错误均包含：含义、触发条件、诊断步骤、示例日志。
+这份手册列出 SDK 会抛出的错误码、常见原因和排查方式。遇到错误时先看 `error.code`，再看 `error.context`，不要把错误文案当作判断依据。
 
 ---
 
@@ -8,30 +8,24 @@
 
 | code | 类 | level | 可重试 | 含义 |
 |------|----|-------|--------|------|
-| `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | Cookie 为空 / Cookie 文件不可用 |
-| `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | ❌ | Cookie 过期/无效 |
-| `API_NOT_OK` | `WeiboAPINotOkError` | business | ❌ | API 返回 ok ≠ 1 |
-| `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod schema 校验失败 / 响应非 JSON（登录页/风控页/接口移除） |
-| `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 请求超时 |
-| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 网络错误（含 4xx/5xx） |
-| `RATE_LIMITED` | `RateLimitError` | transport | ✅ | 上游限流/风控（HTTP 432 / 429） |
-| `MEDIA_DOWNLOAD_FAILED` | `MediaDownloadError` | transport | ✅ | 媒体 CDN 5xx/429/408/超时/连接/空闲超时/截断/0 字节 |
-| `MEDIA_BAD_RESPONSE` | `MediaInvalidResponseError` | protocol | ❌ | HTML/JSON、类型族不符、超上限、非法重定向 |
-| `MEDIA_STORAGE_FAILED` | `MediaStorageError` | storage | ❌ | mkdir/write/rename/unlink 失败 |
+| `CONFIG_INVALID` | `InvalidConfigError` | business | 否 | Cookie 为空或 Cookie 文件不可用 |
+| `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | 否 | Cookie 过期或无效 |
+| `API_NOT_OK` | `WeiboAPINotOkError` | business | 否 | 微博接口返回 `ok !== 1` |
+| `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | 否 | Zod 校验失败，或响应不是 JSON（登录页、风控页、接口下线） |
+| `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | 是 | 请求超时 |
+| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | 是 | 网络错误（含 4xx / 5xx） |
+| `RATE_LIMITED` | `RateLimitError` | transport | 是 | 微博限流或风控（HTTP 432 / 429） |
+| `MEDIA_DOWNLOAD_FAILED` | `MediaDownloadError` | transport | 是 | 媒体 CDN 5xx、429、408、超时、连接失败、空闲超时、响应截断或 0 字节 |
+| `MEDIA_BAD_RESPONSE` | `MediaInvalidResponseError` | protocol | 否 | 返回 HTML / JSON、类型不匹配、超过大小上限或非法重定向 |
+| `MEDIA_STORAGE_FAILED` | `MediaStorageError` | storage | 否 | mkdir、write、rename 或 unlink 失败 |
 
 ---
 
-### 媒体下载错误（`MEDIA_*`）
-
-- `MEDIA_DOWNLOAD_FAILED`：CDN 传输层失败；检查 `context.status` / `reason`，可重试。403/404/410 会先尝试刷新微博 URL。
-- `MEDIA_BAD_RESPONSE`：响应不是媒体文件（常见 `text/html` 登录/风控页）、类型族不符或超过 `maxBytes`；用 `context.contentType` / `snippet` 判断。
-- `MEDIA_STORAGE_FAILED`：本地落盘失败（`ENOSPC` / `EACCES` / `EPERM`）；换输出目录或释放空间，下载器会停止后续调度。
-- 失败清单：`<out>/<mblogId>-media-errors.json`；详细规则见 [media-download.md](./media-download.md)。
 ## 1. CONFIG_INVALID
 
-**含义**：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 文件无法解析。
+含义：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 文件无法解析。
 
-**触发**：
+触发场景：
 ```typescript
 // 以下抛出 InvalidConfigError:
 // new WeiboSDK({ cookie: '' })
@@ -39,7 +33,7 @@
 // new WeiboSDK({ cookie: './other-site.cookies.txt' }) // 文件里没有微博域名 Cookie
 ```
 
-**诊断**：
+诊断步骤：
 - 检查 `.env` 文件中的 `WEIBO_COOKIE` 是否已设置
 - 确认 Cookie 字符串非空、包含 `SUB=` 字段
 - 如果值是文件路径：确认路径存在且可读（相对路径按 pwd 解析）；Netscape 文件需为 7 列 TSV，并包含 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie（其他站点会被忽略）。`error.context.path` 会给出实际读取的文件路径
@@ -48,13 +42,13 @@
 
 ## 2. AUTH_SESSION_EXPIRED
 
-**含义**：Cookie 已过期或无效。SDK 在调用 `myDetails()` 时检测到 `ok ≠ 1`。
+含义：Cookie 已过期或无效。SDK 在调用 `myDetails()` 时检测到 `ok ≠ 1`。
 
-**触发**：
+触发场景：
 - `new WeiboSDK({ cookie })` 后首次请求（lazy 模式）或构造时（eager 模式）
 - 手动调用 `sdk.selfCheck()`
 
-**诊断**：
+诊断步骤：
 1. 检查 hooks.onError 事件：
    ```
    event_name: 'request_error'
@@ -66,7 +60,7 @@
 3. 重新获取有效的 Cookie 并替换 `.env` 中的值
 4. CLI 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 可指定），不读取 `WEIBO_COOKIE` 环境变量；`whoami` 报错时会打印实际读取路径，先确认路径正确
 
-**hook 示例**：
+Hook 示例：
 ```typescript
 void new WeiboSDK({
   cookie: '...',
@@ -83,14 +77,14 @@ void new WeiboSDK({
 
 ## 3. API_NOT_OK
 
-**含义**：微博 API 返回了 `ok ≠ 1`（通常是 `0`），表示请求参数错误或资源不可访问。
+含义：微博 API 返回了 `ok ≠ 1`（通常是 `0`），表示请求参数错误或资源不可访问。
 
-**触发**：
+触发场景：
 - 对不存在的用户 ID 调用 `users.info()` / `users.details()`
 - 对不存在的微博 ID 调用 `tweets.show()`
 - 不满足 endpoint 特定条件（如需要特殊 Cookie 权限）
 
-**诊断**：
+诊断步骤：
 1. 查看 hooks.onError 中的 `ok` 和 `message` 字段：
    ```
    event_name: 'request_error'
@@ -101,7 +95,7 @@ void new WeiboSDK({
    ```
 2. 确认传入的 uid/mblogId 是否存在
 
-**与 AUTH_SESSION_EXPIRED 的区分**：
+与 `AUTH_SESSION_EXPIRED` 的区分：
 - `AUTH_SESSION_EXPIRED` 仅在 `myDetails()`（无参数自检）时触发
 - `API_NOT_OK` 在其他所有 ok ≠ 1 的场景触发
 
@@ -109,15 +103,15 @@ void new WeiboSDK({
 
 ## 4. API_BAD_RESPONSE
 
-**含义**：微博 API 返回了数据，但结构不符合 Zod schema 定义；或响应根本不是 JSON（HTML 登录页/风控页）。
+含义：微博 API 返回了数据，但结构不符合 Zod schema 定义；或响应根本不是 JSON（HTML 登录页/风控页）。
 
-**触发**：
+触发场景：
 - 微博 API 字段变更（新增/删除/类型变更）
 - `retweeted_status` 嵌套结构异常（如 user 为 null、ok 缺失）
-- 响应为 HTML 而非 JSON：**端点失效/风控**（如 m.weibo.cn 搜索接口 2026-08 起返回登录页 HTML，微博已移除公开 JSON 搜索 API）——此时 `context.raw` 为截断的 HTML（前 200 字符），`zodIssues` 为空
+- 响应是 HTML 而不是 JSON，通常说明端点失效或触发了风控。例如 m.weibo.cn 的搜索接口从 2026-08 起返回登录页 HTML，微博已经移除了公开 JSON 搜索 API。此时 `context.raw` 是截断的 HTML（前 200 字符），`zodIssues` 为空
 
-**诊断**：
-1. 先看 `context.raw`：若为 `<!doctype html>`/`<title>登录</title>` 等 HTML 片段，说明端点返回了登录页/挑战页——通常是 **Cookie 失效、接口被风控、或上游移除该接口**，按对应排查路径处理（见 §5 会话失效 / backlog 已知问题）。
+诊断步骤：
+1. 先看 `context.raw`。如果出现 `<!doctype html>`、`<title>登录</title>` 之类的 HTML 片段，说明端点返回了登录页或挑战页。常见原因是 Cookie 失效、接口被风控，或者微博移除了这个接口，按对应路径继续排查。
 2. 若 `context.raw` 为 JSON，查看 `error.context.zodIssues`（Zod 校验失败详情），例如：
    ```json
    [
@@ -133,61 +127,61 @@ void new WeiboSDK({
 3. `path` 字段指向出错的字段路径
 4. 用真实数据运行 E2E 快照测试 (`pnpm test:e2e`) 来捕获完整的响应结构
 
-**修复流程**：
+修复流程：
 1. 保存失败响应的原始 JSON 到 `tests/fixtures/raw/`
 2. 更新对应 endpoint 的 Zod schema（`src/services/endpoints/<domain>.ts`）
-3. 运行 `pnpm test:e2e --update` 更新快照
+3. 运行 `pnpm test:e2e -u` 更新快照
 4. 运行 `pnpm test` 确认所有离线测试通过
 
 ---
 
 ## 5. NET_TIMEOUT
 
-**含义**：HTTP 请求超时（默认 30 秒）。
+含义：HTTP 请求超时（默认 30 秒）。
 
-**触发**：
+触发场景：
 - 微博服务器响应慢
 - 网络连接不稳定
 - 代理配置问题
 
-**诊断**：
+诊断步骤：
 1. 检查 telemetry 事件中的 `duration_ms`
 2. 尝试增加 `config.timeout`：`new WeiboSDK({ cookie, timeout: 60000 })`
 3. 确认代理设置正确
 
-**重试**：此错误 `retryable: true`，可实现指数退避重试。
+重试：此错误 `retryable: true`，可实现指数退避重试。
 
 ---
 
 ## 6. NET_REQUEST_FAILED
 
-**含义**：HTTP 请求失败（非超时类网络错误）。
+含义：HTTP 请求失败（非超时类网络错误）。
 
-**触发**：
+触发场景：
 - 微博服务器返回 404（端点 URL 错误）
 - 微博服务器返回 5xx（服务器内部错误）
 - DNS 解析失败
 - 代理不可达
 
-**诊断**：
+诊断步骤：
 1. 检查 `error.context.status`（HTTP 状态码）
 2. 检查 `error.context.data`（响应体）
 3. Telemetry 事件中查看 `url` 和 `method`
 
-**重试**：`retryable: true`，SDK 默认对 **5xx** 与**无响应**的连接类失败做指数退避重试（`config.retry`）；其余 4xx（404/403…）不重试。
+重试：`retryable: true`。SDK 默认对 5xx 和无响应的连接类失败做指数退避重试，配置见 `config.retry`；其余 4xx（404、403 等）不重试。
 
 ---
 
 ## 7. RATE_LIMITED
 
-**含义**：微博对当前 Cookie/IP 触发风控或限流——HTTP **432**（微博风控页）或 **429**（Too Many Requests）。
+含义：微博对当前 Cookie 或 IP 触发风控或限流，通常是 HTTP 432（微博风控页）或 429（Too Many Requests）。
 
-**触发**：
+触发场景：
 - 短时间大量归档/翻页请求（`streamArchive`、`streamFavorites`、连续详情请求）
 - 同一 Cookie 在网页端与 SDK 同时高频访问
 - 出口 IP 被判定为异常（共享代理、机房 IP）
 
-**诊断**：
+诊断步骤：
 1. 查看 `error.context`：
    ```json
    { "status": 432, "retryAfterMs": 30000, "attempt": 3, "message": "..." }
@@ -198,19 +192,19 @@ void new WeiboSDK({
 2. 查看 telemetry：`request_retry` 记录每次退避（`attempt` / `delay_ms` / `reason` / `status`），`request_error`（`error_code: 'RATE_LIMITED'`）记录终态失败
 3. 检查 `rate_limit_wait` 事件的 `reason`：`rate_limited` 表示令牌桶正在全局暂停（其他并发请求已被拦住）
 
-**处置**：
+处理：
 - 降低并发：`maxConcurrent: 1`、拉长 `delay`（例如 `delay: 3000`）
 - 加大退避：`retry: { retries: 3, baseDelayMs: 2000, maxDelayMs: 30000 }`
 - 换用浏览器同 IP 的 Cookie/网络；长时间 432 说明风控已生效，应暂停归档数小时
 - 432 命中后 SDK 会自动暂停全局令牌桶（`RateLimitService.pause`），避免并发请求同时撞墙
 
-**重试**：`retryable: true`，默认按指数退避 + jitter 自动重试（见 §8）。
+重试：`retryable: true`，默认按指数退避 + jitter 自动重试（见 §8）。
 
 ---
 
 ## 8. 重试策略（config.retry）
 
-`FetcherService` 对**可重试**的结构化错误做指数退避 + jitter，全部可选、向后兼容：
+`FetcherService` 会对可重试的结构化错误做指数退避和 jitter。所有配置都是可选的，默认值保持向后兼容：
 
 ```typescript
 const sdk = new WeiboSDK({
@@ -226,16 +220,25 @@ const sdk = new WeiboSDK({
 
 | 类别 | 触发错误 | 默认重试 |
 |------|----------|----------|
-| `rate_limit` | `RATE_LIMITED`（432/429） | ✅ |
-| `server_error` | `NET_REQUEST_FAILED` 且 `status >= 500` | ✅ |
-| `timeout` | `NET_TIMEOUT` | ✅ |
-| `network_error` | `NET_REQUEST_FAILED` 且无 `status`（DNS/连接重置） | ✅ |
+| `rate_limit` | `RATE_LIMITED`（432/429） | 是 |
+| `server_error` | `NET_REQUEST_FAILED` 且 `status >= 500` | 是 |
+| `timeout` | `NET_TIMEOUT` | 是 |
+| `network_error` | `NET_REQUEST_FAILED` 且无 `status`（DNS/连接重置） | 是 |
 
-**不重试**：其余 4xx（404/403…）、`API_NOT_OK`（`ok != 1`）、`API_BAD_RESPONSE`（schema/非 JSON）、`CONFIG_INVALID`、`AUTH_SESSION_EXPIRED`——即使配置了 `retries` 也不会重发。
+其余 4xx（404、403 等）、`API_NOT_OK`、`API_BAD_RESPONSE`、`CONFIG_INVALID` 和 `AUTH_SESSION_EXPIRED` 不会重试，即使配置了 `retries`。
 
-**延迟算法**：第 n 次重试 ≈ `min(maxDelayMs, baseDelayMs * 2^(n-1))`，再乘 jitter 系数 `0.5 ~ 1.0`；若上游给出 `Retry-After`，直接采用其值（同样受 `maxDelayMs` 截断，不做 jitter）。
+第 n 次重试的延迟约为 `min(maxDelayMs, baseDelayMs * 2^(n-1))`，再乘以 `0.5` 到 `1.0` 之间的 jitter。如果微博返回 `Retry-After`，直接使用它的值，同样受 `maxDelayMs` 截断，不再叠加 jitter。
 
-**可观测性**：每次退避发 `request_retry`（`attempt` / `max_attempts` / `delay_ms` / `reason` / `status` / `error_*`）；终态失败才发 `request_error`（`attempt` = 总尝试次数），hooks `onError` 同样只在终态触发（避免重试期间刷屏）。
+每次退避会发出 `request_retry` 事件，包含 `attempt`、`max_attempts`、`delay_ms`、`reason`、`status` 和错误信息。只有最终失败才发 `request_error`，hooks 的 `onError` 也只在最终失败时触发，避免重试期间重复报错。
+
+---
+
+## 9. 媒体下载错误（`MEDIA_*`）
+
+- `MEDIA_DOWNLOAD_FAILED`：CDN 传输层失败。检查 `context.status` 和 `reason`，这类错误可以重试。遇到 403、404、410 时，下载器会先尝试刷新微博 URL。
+- `MEDIA_BAD_RESPONSE`：响应不是媒体文件，常见于 `text/html` 的登录页或风控页；也可能是类型不匹配或超过 `maxBytes`。可以看 `context.contentType` 和 `snippet`。
+- `MEDIA_STORAGE_FAILED`：本地落盘失败，比如 `ENOSPC`、`EACCES` 或 `EPERM`。换一个输出目录或释放空间；下载器会停止后续调度。
+- 失败清单写在 `<out>/<mblogId>-media-errors.json`。详细规则见 [media-download.md](./media-download.md)。
 
 ---
 

@@ -2,106 +2,113 @@
 
 ## 这是什么
 
-`weibo-sdk` 是一个面向开发者的微博 API 逆向开源 SDK：通过可维护的分层架构，把微博页面/接口返回的"易变 raw JSON"稳定地转换为"契约明确的领域模型"，并提供可组合的服务能力（用户/微博/关注/收藏/搜索/热搜等）。
+`weibo-sdk` 是一个微博公开数据的 TypeScript SDK。它把微博页面和接口返回的原始 JSON 转成稳定的领域模型，提供用户、微博、评论、关注、收藏、媒体、通知和归档等能力。项目同时提供 `weibo-cli`，所有公开能力都能从命令行调用。
 
-项目目标是：**可维护、易理解、开发者体验好**，并且在上游字段/API 频繁变动时，依然能通过契约与测试提供稳定性。
+它的主要使用场景是个人数据归档：把一个账号的公开内容完整保存到本地，支持断点续传、增量同步和离线测试。
 
-## 架构（分层）
+## 代码结构
 
-分层目标见 `docs/engineering/technical-spec.md`，核心思想是：
+项目分为四层：
 
-- **客户端层**：`WeiboSDK`（对外门面，聚合 11 个领域服务 + `ArchiveService`）
-- **服务层**：`UserService` / `TweetService` / `FollowingsService` / `FavoriteService` / `LikeService` / `CommentHistoryService` / `MediaService` / `NotificationService` / `TopicService` / `TrendsService` / `SearchService`（按领域组织 API，均继承 `FetcherService`）
-- **基础设施层**：`FetcherService`（HTTP 核心）、`AuthService`（认证）、`RateLimitService`（节流/并发）等
-- **数据层**：`types/raw/**`（原始 schema）、`types/domain/**` + `models/data/**`（领域契约与归一化）
-- **错误层**：`models/errors/**`，结构化错误（Transport / Protocol / Business）带 `code/level/retryable/context`
+- 门面层：`WeiboSDK` 负责装配配置、鉴权、限流、hooks 和遥测，并把领域服务暴露给调用方。
+- 服务层：`UserService`、`TweetService`、`FollowingsService`、`FavoriteService`、`LikeService`、`CommentHistoryService`、`MediaService`、`NotificationService`、`TopicService`、`TrendsService`、`SearchService` 和 `ArchiveService`。除归档外，这些服务都继承 `FetcherService`。
+- 基础设施层：`FetcherService` 处理 HTTP 请求，`AuthService` 管理 Cookie 和 XSRF，`RateLimitService` 负责令牌桶和限流暂停。
+- 数据层：`types/raw` 定义原始响应的 Zod schema，`types/domain` 和 `models/data` 定义领域模型与归一化函数，`models/errors` 定义结构化错误。
 
-### Endpoint 管理模式
+所有 Service 方法最终都走 `this.request(spec, args)`，由它完成请求、Zod 校验、hooks 和遥测。
 
-API endpoint 定义统一放在 `src/services/endpoints/<domain>.ts`，使用 `defineEndpoint()` 定义：
+## 端点管理
 
-- `argsSchema`：Zod schema（args 类型从 schema 自动推导）
-- `schema`：Zod response schema（开放端点模式，`.passthrough()`）
-- `buildResource`：构建 `IRequestResource`（URL + referer）
-- `okPolicy`：控制 `ok !== 1` 时的错误处理（`none` / `require_ok_1`）
+微博端点统一放在 `src/services/endpoints/<domain>.ts`，用 `defineEndpoint()` 定义：
 
-Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → hooks emission → telemetry 全流程。
+```ts
+export const mySpec = defineEndpoint({
+  resourceType: 'MY_RESOURCE',
+  endpoint: 'ajax/...',
+  argsSchema: MyArgsSchema,
+  buildResource: args => ({ url: '...' }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: MyResponseSchema,
+})
+```
 
-当前已定义 **30+ 个 endpoint spec / resource type**（按 domain 分文件；完整清单见 `src/services/endpoints/`）：
+- `argsSchema` 定义请求参数，参数类型由 `z.infer` 自动推导。
+- `schema` 校验响应，默认使用 `.passthrough()`，只声明代码实际访问的字段。
+- `buildResource` 负责 URL、method 和必要的 header。
+- `okPolicy` 决定 `ok !== 1` 时是否抛错。
 
-| 文件 | EndpointSpec | 资源 |
+目前按 domain 拆成 `user`、`tweet`、`search`、`side`、`follow`、`favorite`、`like`、`comment`、`media`、`notification`、`topics` 等文件。完整的 endpoint 和 resource 列表可以在 `src/services/endpoints/` 和 `src/types/resources.ts` 中查看。
+
+## 服务能力
+
+| 服务 | 门面属性 | 主要方法 |
 |---|---|---|
-| `endpoints/user.ts` | `userInfoSpec` / `userDetailsSpec` / `myDetailsSpec` | `USER_INFO` / `USER_DETAILS` |
-| `endpoints/tweet.ts` | `myMblogSpec` / `statusShowSpec` / `longtextSpec` / `searchProfileSpec` / `buildCommentsSpec` / `friendstimelineSpec` / `repostTimelineSpec` | `TWEET_*` |
-| `endpoints/search.ts` | `searchUsersSpec` / `searchTweetsSpec` | `SEARCH_USERS` / `SEARCH_TWEETS` |
-| `endpoints/side.ts` | `bandUnifiedSpec` | `SIDE_BANDUNIFIED` |
-| `endpoints/follow.ts` | `friendshipsSpec` / `followContentSpec` | `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT` |
-| `endpoints/favorite.ts` | `favoritesSpec` / `favoritesTagsSpec` | `FAVORITES_ALLFAV` / `FAVORITES_TAGS` |
-
-### 服务能力速览
-
-| 服务 | 门面属性 | 核心方法 |
-|---|---|---|
-| `UserService` | `sdk.users` | `info` / `details` / `myDetails` / `getById` |
-| `TweetService` | `sdk.tweets` | `myMblog` / `listByUserId` / `streamByUserId` / `show` / `getByMblogId` / `comments` / `longText` / `searchByDate` / `friendTimeline` / `listFriendTimeline` / `streamFriendTimeline` |
+| `UserService` | `sdk.users` | `info` / `details` / `myDetails` / `getById` / `listMentions` / `streamMentions` / `groups` / `mblogGroups` |
+| `TweetService` | `sdk.tweets` | `listByUserId` / `streamByUserId` / `getByMblogId` / `comments` / `streamComments` / `replies` / `getReposts` / `longText` / `searchByDate` / `listFriendTimeline` / `streamFriendTimeline` / `likers` |
 | `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` / `streamFollowings` / `streamFans` |
 | `FavoriteService` | `sdk.favorites` | `getFavorites` / `listFavorites` / `streamFavorites` / `getTags` |
 | `LikeService` | `sdk.likes` | `listByUserId` / `streamByUserId` |
 | `CommentHistoryService` | `sdk.commentHistory` | `listMine` / `streamMine` |
-| `MediaService` | `sdk.media` | `listImages` / `streamImages` / `listAlbums` / `listAlbumPhotos` / `streamAlbumPhotos` / `listVideos` / `streamVideos` / `downloadTweetMedia` / `downloadByMblogId` |
+| `MediaService` | `sdk.media` | `listImages` / `streamImages` / `listAlbums` / `listAlbumPhotos` / `streamAlbumPhotos` / `listVideos` / `streamVideos` / `downloadByMblogId` |
 | `NotificationService` | `sdk.notifications` | `listComments` / `streamComments` / `listLikes` / `streamLikes` |
 | `TopicService` | `sdk.topics` | `cates` / `list` / `stream` |
 | `TrendsService` | `sdk.trends` | `hotBand` |
-| `SearchService` | `sdk.search` | `searchUsers` / `searchTweets` |
+| `SearchService` | `sdk.search` | `searchUsers` / `searchTweets`（微博公开搜索接口目前不可用） |
 | `ArchiveService` | `sdk.archive` | `streamArchive` / `streamUsersArchive` |
 
-## 可测试性与开发方式（TDD-first）
+## 数据与错误
 
-本项目要求 **默认测试离线可跑**：
+领域模型定义在 `src/types/domain`，例如 `ITweet`、`IUser`、`ITweetComment` 和 `ArchiveItem`。原始响应到领域模型的转换都在 `src/models/data` 中，使用纯函数，便于单独测试。
 
-- 单元测试：纯逻辑/模型/normalize（0 IO）
-- 组件测试：对 HTTP/时间/睡眠等边界做 mock，覆盖 Fetcher/Auth/RateLimit 与 service 行为
-- E2E：需要真实 Cookie + 真实网络的用例必须默认跳过，通过 `WEIBO_E2E=1` 显式开启
+`ITweet` 从 v1 起保持稳定：后续版本只增加可选字段，不重命名、不删除，也不改变已有字段的类型。具体规则见 [contract-itweet-v1.md](../engineering/contract-itweet-v1.md)。
 
-测试工具：`tests/testkit/fakeAxios.ts` 提供 `createFakeAxios(handler)` 可代替真实 axios；各测试可按需定义 `FakeClock` / `TelemetryCollector`。
+错误统一继承 `WeiboSDKError`，带有 `code`、`level`、`retryable` 和 `context`。HTTP 错误、业务错误和协议错误分别由不同子类表示，处理方式见 [error-diagnostics.md](../engineering/error-diagnostics.md)。
 
-**数据驱动开发**：所有 Zod schema / Model 归一化逻辑必须以真实微博 API 返回数据为准（`tests/fixtures/raw/` 存真实脱敏 fixture），禁止凭手写接口猜测 Schema。详见 `AGENTS.md`「数据驱动开发」。
+## 测试
 
-开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/planning/roadmap.md` 与 `docs/archive/todo-archive-mvp.md`。
+默认测试不访问网络：
 
-## 可观测性（Wide Events）
+- 单元测试覆盖纯函数、归一化、分页计算和参数解析。
+- 组件测试通过 fake axios 驱动 Service，覆盖请求参数、分页停止、错误映射和遥测。
+- E2E 测试需要真实 Cookie 和外网，默认跳过，只有 `WEIBO_E2E=1` 时才运行。
 
-遵循 `docs/engineering/skill.md`：核心路径必须能输出"宽事件"（扁平 KV，含 `event_name/timestamp/trace_id` 及关键上下文），覆盖 Happy Path 与 Error Path，并可在测试中断言事件序列与字段完整性。
+```bash
+pnpm test
+pnpm test:e2e
+pnpm run validate:fixtures
+```
 
-已落地的事件类型：
+所有 Zod schema 和归一化逻辑都以 `tests/fixtures/raw/` 里的真实脱敏响应为准。新增或修改 schema 前，先抓一份真实响应存成 fixture。
 
-- `request_start` / `request_success` / `request_error`（HTTP 请求生命周期）
-- `rate_limit_wait`（令牌桶等待）
-- `normalize_done`（领域模型归一化完成）
-- `sdk_init` / `self_check_start` / `self_check_ok` / `self_check_error`（生命周期与自检）
+## 可观测性
 
-## 文档
+请求、限流、重试、归一化和自检都会发出扁平的结构化事件，包含 `event_name`、`timestamp` 和 `trace_id`。可以接入 `config.telemetry.emit()`，也可以使用 `createJsonlTelemetry()` 写入 JSONL 文件。
 
-文档中央索引见 `docs/README.md`。
+事件覆盖成功和失败路径。遥测本身出错不会影响 SDK 的正常请求。
 
 ## 快速开始
-
-作为依赖使用：
 
 ```bash
 pnpm add @chilfish/weibo-sdk
 npx weibo-cli --help
 ```
 
-本仓库开发：
+在仓库内开发：
 
-- 安装：`pnpm install`
-- 测试：`pnpm test`
-- 构建：`pnpm run build`
-- 类型检查：`pnpm run typecheck`
+```bash
+pnpm install
+pnpm test
+pnpm run build
+pnpm run typecheck
+```
 
-> 若需要运行真实微博请求，请在项目根目录 `.env` 中提供 `WEIBO_COOKIE`，并使用专门的 e2e 测试入口（默认不运行）。
+需要访问真实微博时，在项目根目录 `.env` 中配置 `WEIBO_COOKIE`，然后运行 `pnpm test:e2e`。
 
-## 后续规划
+## 相关文档
 
-0.1.0 发布收口与 0.2.0 用户数据丰富度（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 可靠性 / DX）见 [todo-post-0.1.0.md](../archive/todo-post-0.1.0.md)（已完成并归档）；端点开发流程见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。
+- [README](../../README.md)
+- [CLI 参考](../engineering/cli.md)
+- [端点开发指南](../engineering/endpoint-authoring.md)
+- [错误排障手册](../engineering/error-diagnostics.md)
+- [技术规格](../engineering/technical-spec.md)
+- [开发路线图](../planning/roadmap.md)

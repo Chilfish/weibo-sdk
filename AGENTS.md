@@ -155,34 +155,32 @@ WeiboSDK（门面）
 
 ## Agent 使用速查（SDK / CLI）
 
-> 面向下游/Agent 的「怎么用」速查；仓库级开发约束仍以本文件其余章节为准。
-> 技能形态的完整说明见 [`.agents/skills/weibo-sdk/SKILL.md`](.agents/skills/weibo-sdk/SKILL.md)。
+这一节面向调用方和 Agent，只说明怎么用。仓库级开发约束仍以本文件其他章节为准，完整的技能说明见 [`.agents/skills/weibo-sdk/SKILL.md`](.agents/skills/weibo-sdk/SKILL.md)。
 
-**安装与入口**
+### 安装
 
 ```bash
 pnpm add @chilfish/weibo-sdk      # 或 npm install
 ```
 
-- Node：`import { WeiboSDK } from '@chilfish/weibo-sdk'`
-- 浏览器 / userscript：`import { WeiboSDK } from '@chilfish/weibo-sdk/browser'`
+Node 环境使用 `import { WeiboSDK } from '@chilfish/weibo-sdk'`。浏览器或用户脚本使用 `@chilfish/weibo-sdk/browser`。
 
-**认证**
+### 登录
 
 ```bash
 weibo-cli whoami          # 校验 Cookie
-weibo-cli capabilities    # 能力 / 分页 / 状态
+weibo-cli capabilities    # 查看能力、分页类型和状态
 ```
 
-Cookie 只从 `.env` 读取（`WEIBO_COOKIE`）；Node 也接受 Netscape `cookies.txt` 路径或 header 串文本文件。失效时重新从已登录浏览器导出。
+Cookie 只从 `.env` 读取，不读 shell 环境变量。Node 侧也接受 Netscape `cookies.txt` 路径或包含 header 的文本文件。失效时重新从已登录的浏览器导出。
 
-**SDK 常用路径**
+### SDK
 
 ```ts
 const sdk = new WeiboSDK({ cookie })
 
 const page = await sdk.tweets.listByUserId(uid)
-const home = await sdk.tweets.listFriendTimeline() // 首页「最新微博」；翻旧页用 home.maxId
+const home = await sdk.tweets.listFriendTimeline() // 翻旧页用 home.maxId
 for await (const tweet of sdk.tweets.streamFriendTimeline({ maxPages: 3 })) { /* ... */ }
 for await (const comment of sdk.tweets.streamComments(mblogId, { maxPages: 3 })) { /* ... */ }
 
@@ -198,18 +196,18 @@ for await (const item of sdk.archive.streamArchive(uid, {
 }
 ```
 
-`ArchiveItem.source` 为 `timeline | repost | favorite | like | comment | image | video`；媒体项在 `item.asset`，图片项可能没有 `item.tweet` / `item.mblogId`。
+`ArchiveItem.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image` 或 `video`。媒体资产在 `item.asset`，图片项可能没有 `item.tweet` 或 `item.mblogId`。
 
-**CLI 常用命令**
+### CLI
 
 ```bash
 weibo-cli user timeline <uid>
 weibo-cli tweet detail <mblogId>
 weibo-cli tweet comments-stream <mblogId> --max-pages 3
-weibo-cli tweet home                          # 首页「最新微博」第一页
-weibo-cli tweet home --max-id <上一页 maxId>   # 翻旧页
-weibo-cli tweet home --since-id <微博数字 id>  # 只看更新（增量，单页）
-weibo-cli tweet home-stream --max-pages 3     # NDJSON progress/item/done
+weibo-cli tweet home                          # 首页第一页
+weibo-cli tweet home --max-id <上一页 maxId>   # 往旧翻
+weibo-cli tweet home --since-id <微博数字 id>  # 只看更新，单页
+weibo-cli tweet home-stream --max-pages 3     # NDJSON
 weibo-cli follow stream <uid> --max-pages 2
 weibo-cli media images|videos|albums <uid>
 weibo-cli topic cates|stream
@@ -219,46 +217,47 @@ weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 weibo-cli schema diff before.json after.json
 ```
 
-流式命令输出 NDJSON：`{ event: 'progress' | 'item' | 'done', ... }`，可直接管道给 `jq`。
+流式命令输出 NDJSON，每行是一个 `progress`、`item` 或 `done` 事件，可以直接接 `jq`。
 
-> `tweet` / `media download` 的 id 参数接受 mblogId、数字 mid、微博状态 URL
-> （如 `https://m.weibo.cn/status/5356120103455672`）；SDK/CLI 会自动归一化。
+`tweet` 和 `media download` 的 id 参数接受 mblogId、数字 mid 或微博状态 URL，例如 `https://m.weibo.cn/status/5356120103455672`。SDK 和 CLI 会自动归一化。
 
-**分页速查**
+### 分页
 
 | 游标 | 端点 |
 |---|---|
 | `page` | mymblog、likes、favorites、followings/fans、reposts、likers |
 | `max_id` | comments、comment history、mentions、notifications、首页 Feed（`maxId`） |
-| `since_id` | 图片墙 / 相册；首页 Feed 仅做增量过滤（不是翻页游标） |
+| `since_id` | 图片墙 / 相册；首页 Feed 仅做增量过滤，不是翻页游标 |
 | `cursor` | 视频瀑布 |
 
-流式方法在空页、整页重复、游标不前进、达到 `total` 或 `maxPages` 时停止。首页 Feed 的 `total_number` 实测恒为 2000 上限值，不代表剩余条数。
+流式方法在空页、整页重复、游标不前进、达到 `total` 或 `maxPages` 时停止。首页 Feed 的 `total_number` 固定为 2000 左右的上限值，不代表剩余条数。
 
-所有 `stream*` 支持 `maxItems`（跨页去重后的产出上限，达到后不再请求下一页）；时间倒序的流（用户时间线 / 首页 Feed / 转发 / @我 / 历史评论 / 评论与点赞通知）另支持 `since` / `until` 日期边界（`YYYY-MM-DD` / unix 秒）。CLI 对应 `--max-items` / `--since` / `--until`，`--since-id` 仍是 id / 媒体游标而非日期。
+所有 `stream*` 都支持 `maxItems`，按跨页去重后的产出计数，达到上限后不再请求下一页。时间倒序的流（用户时间线、首页 Feed、转发、@ 我、历史评论、评论和点赞通知）还支持 `since` / `until` 日期边界，可以传 `YYYY-MM-DD` 或 unix 秒。CLI 对应 `--max-items` / `--since` / `--until`；`--since-id` 仍然是 id 或媒体游标，不是日期。
 
-**错误码（优先解析 `code`）**
+### 错误码
 
-- `AUTH_SESSION_EXPIRED` — Cookie 缺失/过期；重新登录并导出。
-- `RATE_LIMITED` — HTTP 432/429；让 SDK 退避，不要绕过。
-- `NET_TIMEOUT` / `NET_REQUEST_FAILED` — 传输失败，可重试。
-- `API_NOT_OK` — 上游业务失败。
-- `API_BAD_RESPONSE` — 非 JSON（登录/风控页）或 schema 不匹配。
-- `CONFIG_INVALID` — Cookie / 代理 / 参数非法。
-- `MEDIA_DOWNLOAD_FAILED` / `MEDIA_BAD_RESPONSE` / `MEDIA_STORAGE_FAILED` — 媒体下载。
+优先判断 `code`，不要匹配错误文案。
 
-**能力状态**
+- `AUTH_SESSION_EXPIRED`：Cookie 缺失或过期，重新登录并导出。
+- `RATE_LIMITED`：HTTP 432 / 429，让 SDK 退避，不要绕过。
+- `NET_TIMEOUT` / `NET_REQUEST_FAILED`：传输失败，可以重试。
+- `API_NOT_OK`：微博接口返回业务失败。
+- `API_BAD_RESPONSE`：返回的不是 JSON（登录页、风控页），或 schema 不匹配。
+- `CONFIG_INVALID`：Cookie、代理或参数不合法。
+- `MEDIA_DOWNLOAD_FAILED` / `MEDIA_BAD_RESPONSE` / `MEDIA_STORAGE_FAILED`：媒体下载失败。
 
-- Stable：users / timeline / 首页 Feed / tweet detail / comments / reposts / followings / fans / favorites / likes / comment history / images / videos / notifications / trends / archive。
-- Degraded：tweet likers（网页端 `likeShow` 为空，改用 `m.weibo.cn/api/attitudes/show`，入参必须是数字 mid）。
+### 能力状态
+
+- Stable：users、timeline、首页 Feed、tweet detail、comments、reposts、followings、fans、favorites、likes、comment history、images、videos、notifications、trends、archive。
+- Degraded：tweet likers。网页端的 `likeShow` 返回空数组，SDK 改用 `m.weibo.cn/api/attitudes/show`，入参必须是数字 mid。
 - Unavailable：公开关键词搜索（`searchUsers` / `searchTweets`）。
 
-**边界**
+### 范围与安全
 
-- 只读；不提供发帖、点赞、转发、评论、关注等写操作。
-- 私信、仅粉丝可见、付费内容不在范围内。
-- 尊重微博条款 / 限流 / 隐私；只使用自己的账号 Cookie。
-- 媒体 URL 是短期签名 URL，归档消费方需及时下载。
+- 只读，不提供发帖、点赞、转发、评论、关注等写操作。
+- 私信、仅粉丝可见和付费内容不在范围内。
+- 尊重微博条款、限流和隐私，只使用自己的账号 Cookie。
+- 媒体 URL 是短期签名地址，归档时需要及时下载。
 - 禁止提交真实 Cookie 或未脱敏的个人数据。
 
 ## 自动化执行边界

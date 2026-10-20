@@ -1,8 +1,8 @@
 # CLI 命令食谱
 
-这些命令可以直接复制运行；`playground` 的 `cli:*` 场景会自动把 `.env` 作为 `--env-file` 注入。
+这里收集了日常使用中最常见的命令，可以直接复制运行。`playground` 的 `cli:*` 场景会自动把 `.env` 作为 `--env-file` 注入。
 
-Cookie 只从 `.env` 读取（默认 `<pwd>/.env`，`--env-file` 指定，`--cookie` 覆盖）。所有命令默认输出 JSON；`*-stream` / `archive` / `media download` 输出 NDJSON。
+CLI 只从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。普通命令输出 JSON，`*-stream`、`archive` 和 `media download` 输出 NDJSON。
 
 ```bash
 # 登录态 / 能力
@@ -83,4 +83,4 @@ weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjs
 
 ## 有界运行
 
-示例默认都加 `--max-pages 1`。去掉上限前先确认账号规模与上游限流；`archive` 的 `--max-pages` 是**每阶段**上限。
+示例默认都加了 `--max-pages 1`。去掉上限前，先确认账号规模和微博的限流情况。`archive` 的 `--max-pages` 限制的是每个阶段，不是整个归档任务。
