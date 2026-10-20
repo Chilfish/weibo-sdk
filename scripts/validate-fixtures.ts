@@ -75,6 +75,15 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'hot_trends.json': validate(bandUnifiedSpec),
   'search_users_p2.json': validate(searchUsersSpec),
   'search_users_p3.json': validate(searchUsersSpec),
+  // 未建模端点（2026-10-20 真实抓包：我的评论 / 我赞过的微博，无 EndpointSpec）
+  'my_comments_p1.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 未建模（cursor/max_id 分页待写 schema）' },
+  'my_comments_p2.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 第 2 页未建模（max_id=<next_cursor>）' },
+  'my_comments_end.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 翻到底未建模（comments:[]，next_cursor=0）' },
+  'likes_p1.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 未建模（page 分页待写 schema）' },
+  'likes_p2.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 第 2 页未建模（page=2）' },
+  'likes_end.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 越界页未建模（list:[]）' },
+  'like_list_cursor_p1.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 未建模（cursor/next_cursor 分页待写 schema）' },
+  'like_list_cursor_end.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 结束态未建模（list:[]，next_cursor=-1）' },
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },
   'feed_groups.json': { kind: 'unmodeled', note: 'feed 分组端点未建模' },

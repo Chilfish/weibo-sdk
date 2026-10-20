@@ -63,3 +63,46 @@
 | `mymblog_page_end.json` | 0K | 同上 `page=999` 翻到底 — 空列表 (`list:[]`，`since_id`/`total` 缺省) |
 
 > 分页观察：repostTimeline 的 `next_cursor` 参数无效（两页返回相同），用 `page`；粉丝 API 每页固定返回 2 条（`count` 无效）。
+
+## 新增端点（2026-10-20 真实浏览器抓包：我的评论 / 我赞过的微博）
+
+> 抓包环境：已登录 Chrome（uid `7679065628`），经 `fetch(..., { credentials: 'include' })` 取原始响应，再按上方规则脱敏。
+> 未建模（无 EndpointSpec），已在 `scripts/validate-fixtures.ts` 的 `FIXTURE_RULES` 登记为 `unmodeled`。
+> 脱敏补充：数组元素里的字符串同样按值脱敏（原 `scripts/sanitize-raw.mjs` 只处理对象字段，数组内 URL 会漏网）；`page_info.content1/content2` 是评论正文的镜像副本，与 `text` 一并置为 `<TEXT>`。分页游标（`next_cursor` / `previous_cursor` / `total_number`）按仓库既有惯例保留真实数值，`*_cursor_str` 按「长数字 ID」规则置为 `<ID>`。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `my_comments_p1.json` | 461K | `/ajax/message/myCmt` | 第 1 页（默认 / `cursor=0`），20 条 |
+| `my_comments_p2.json` | 460K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，20 条 |
+| `my_comments_end.json` | 0K | 同上越界（`page=999`） | `comments: []`、`next_cursor: 0`（停止态） |
+| `likes_p1.json` | 112K | `/ajax/statuses/likelist` | page=1，18 条 |
+| `likes_p2.json` | 104K | 同上 page=2 | 18 条，时间更早 |
+| `likes_end.json` | 0K | 同上越界 page=999 | `list: []`（无错误码） |
+| `like_list_cursor_p1.json` | 94K | `/ajax/profile/getLikeList` | `cursor=0`，13 条（个人页「赞」瀑布流） |
+| `like_list_cursor_end.json` | 0K | 同上 `cursor=-1` | `list: []`、`next_cursor: -1`（停止态） |
+
+### D2 我的评论 —— `/ajax/message/myCmt`
+
+- **URL**：`GET https://weibo.com/ajax/message/myCmt`（另有同族 `GET /ajax/message/cmt`、`/ajax/message/attitudes`）
+- **参数**：无（取第 1 页）；翻页 `max_id=<上一页 data.next_cursor>`（前端实际用法）；`page=<n>` 同样生效（1 基，`page=0` 视同 1），`max_id` 与 `page` 等价；`cursor=<id>` **被忽略**（传 `cursor=0` 或 `cursor=1` 均返回第 1 页）。
+- **分页**：游标型，游标来自 `data.next_cursor`（number）/ `data.next_cursor_str`（string）；停止条件 `data.next_cursor === 0`（此时 `comments: []`，`total_number` 仍返回）。
+- **响应**：`{ ok: 1, data: { comments: Array<评论>, hasvisible: boolean, previous_cursor: number, next_cursor: number, previous_cursor_str: string, next_cursor_str: string, total_number: number, interval: number, extend_card: number, messType: 'commentsByMe' } }`
+- 每条评论内嵌完整 `status`（被评论微博）与 `user`，故单页体积偏大（~460K）。
+
+### D1 我赞过的微博 —— `/ajax/statuses/likelist`（page 型）
+
+- **URL**：`GET https://weibo.com/ajax/statuses/likelist?uid=<uid>&page=<n>`
+- **参数**：`uid`（必需，登录用户）、`page`（1 基）、`with_total=true` 被接受但**无效果**（响应里不返回 total）；`feature=3` / `since_id` 亦无效果。
+- **分页**：页码型，`page` 递增；`page=0` 与 `page=1` 返回一致；越界（`page=999`）返回 `{"ok":1,"data":{"list":[]}}`，**状态码仍 200，无 400 / 无错误字段**。
+- **响应**：`{ ok: 1, data: { list: Array<微博> } }`（只有 `list`，**无 total / 无 hasMore / 无 cursor**）。停止条件：`data.list.length === 0`。
+
+### D1 备选 —— `/ajax/profile/getLikeList`（cursor 型，个人页「赞」瀑布流）
+
+- **URL**：`GET https://weibo.com/ajax/profile/getLikeList?uid=<uid>&cursor=<n>`
+- **参数**：`uid`、`cursor`（首次传 `0`）。
+- **分页**：游标型，游标来自 `data.next_cursor`；停止条件 `next_cursor === -1`（注意与 myCmt 的 `0` 不同）。
+- **响应**：`{ data: { list: Array<微博>, next_cursor: number, is_owner: boolean, attitude_privacy: number }, ok: 1 }` —— 注意此端点 **`data` 在 `ok` 之前**，与 `likelist` 的键序相反。
+- 实测 `cursor=0` 一次即返回 `next_cursor: -1`（仅 13 条），即对当前账号只有一个分页批次。
+
+> 探针结论：任务书候选的 `GET /ajax/statuses/likes?uid=&page=` **已下线**——返回 200 + `text/html` 的「404错误」页（同理 `/ajax/statuses/likesMe`、`/ajax/statuses/likeList`、`/ajax/message/like`、`/ajax/attitudes/myattitudes`、`/ajax/statuses/like` 全部 404 HTML）。真实路径由线上 bundle（`h5.sinaimg.cn/m/weibo-pro-next/assets/index-*.js`）中的调用点确认。
+
