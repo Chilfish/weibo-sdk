@@ -425,7 +425,7 @@ Guest 模式复用同一套服务方法，按端点声明的 `auth` 决定能不
 - **访客可读，能力完整**：用户资料、单条微博详情、长文、评论（`max_id` 分页可用完整翻页）、转发列表（`page`）、点赞者、图片墙 / 视频瀑布 / 相册、超话、热搜、Feed 分组（`feed/allGroups`，`auth: 'none'`）。媒体下载本身不带 Cookie。
 - **访客只能读第一页**：用户时间线（m 站容器 `107603<uid>`）、点赞（`230869<uid>`）、关注（`231051_-_followers_-_<uid>`）、粉丝（`231051_-_follows_-_<uid>`）。注意上游容器命名与直觉相反：`followers` 容器返回「关注」，`follows` 容器返回「粉丝」。服务层在这一路径上：
   - `tweets.listByUserId` / `likes.listByUserId` 返回 m 站第一页，`partial: true`、`hasMore: false`，**不带 `page`**（`total` 取 `cardlistInfo.total`，有就带上）；
-  - `followings.getFollowings` / `getFans` 返回首页用户，`next_cursor: 0`；
+  - `followings.getFollowings` / `getFans` 返回首页用户，`next_cursor: 0`；用户对象按 Cookie 路径 `friendships.users[]` 的字段形状归一化（补齐 `id` / `idstr` / `name`，`followers_count` / `friends_count` / `statuses_count` 转数字，保留 `followers_count_str` 等缩写原文，不透出 `user_token`）；
   - 对应的 `stream*` 只产出这一页就结束；
   - `page > 1` 一律抛 `CONFIG_INVALID`（`context.field = 'page'`、`guestPagination: 'first_page'`），因为匿名第二页会被重定向到登录页。
 - **只接受 Cookie**：`mymblog` 用户时间线原始端点、首页关注时间线、个人主页日期检索（`searchProfile`）、点赞与关注 / 粉丝的网页端点（`likelist` / `friendships`，guest 下改走 m 站第一页）、`followContent`、收藏与收藏标签、通知、@ 我、历史评论、微博分组（`mblog/querygroup`）、归档。guest 模式调用这些能力会在发出请求**之前**失败，返回 `AUTH_SESSION_EXPIRED` 且 `context.requiredAuth = 'cookie'`。

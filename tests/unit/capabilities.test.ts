@@ -81,6 +81,16 @@ describe('capabilities', () => {
     expect(timeline?.guestNote).toContain('partial: true')
   })
 
+  it('marks cookie capabilities that expose a guest first page', () => {
+    for (const id of ['users.timeline', 'likes.list', 'followings.following', 'followings.fans']) {
+      const capability = WEIBO_CAPABILITIES.find(item => item.id === id)
+      expect(capability, id).toBeDefined()
+      expect(capability?.auth, id).toBe('cookie')
+      expect(capability?.guestPagination, id).toBe('first_page')
+      expect(capability?.guestNote, id).toBeTruthy()
+    }
+  })
+
   it('keeps archive cookie-only', () => {
     const archive = listCapabilities({ service: 'archive' })
     expect(archive.length).toBe(2)

@@ -126,6 +126,23 @@ describe('guest first-page reads (real fixtures)', () => {
     expect(result.next_cursor).toBe(0)
   })
 
+  it('normalizes mobile following users to the friendships field shape', async () => {
+    const service = serviceFor(FollowingsService, () => fixture('mobile_followings_p1.json'))
+
+    const result = await service.getFollowings('2365795232')
+    const user = result.users[0] as Record<string, unknown>
+
+    expect(user.id).toBe(5662034879)
+    expect(user.idstr).toBe('5662034879')
+    expect(user.screen_name).toBe('河图阿洛')
+    expect(user.name).toBe('河图阿洛')
+    expect(user.followers_count).toBe(27000)
+    expect(user.friends_count).toBe(26)
+    expect(user.statuses_count).toBe(5366)
+    expect(user.followers_count_str).toBe('2.7万')
+    expect(user.user_token).toBeUndefined()
+  })
+
   it('reads fans from the follows container', async () => {
     const raw = fixture('mobile_fans_p1.json')
     const service = serviceFor(FollowingsService, (config) => {

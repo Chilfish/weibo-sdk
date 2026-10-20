@@ -64,9 +64,58 @@ function assertFirstPage(page: number | undefined, source: string): void {
   }
 }
 
+/** 解析 m 站的数字 / 缩写计数（`27089`、`"2.7万"`、`"1.2亿"`）；无法解析时返回 undefined。 */
+function parseMobileCount(value: unknown): number | undefined {
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : undefined
+  if (typeof value !== 'string')
+    return undefined
+
+  const match = /^(\d+(?:\.\d+)?)\s*(万|亿)?$/.exec(value.trim())
+  if (!match)
+    return undefined
+  const base = Number(match[1])
+  if (!Number.isFinite(base))
+    return undefined
+  if (match[2] === '万')
+    return Math.round(base * 10_000)
+  if (match[2] === '亿')
+    return Math.round(base * 100_000_000)
+  return base
+}
+
+/** 补齐 `id` / `idstr`：m 站通常只有数字 `id`，Cookie 路径两者都有。 */
+function normalizeMobileId(user: Record<string, unknown>): { id?: string | number, idstr?: string } {
+  const rawIdstr = typeof user.idstr === 'string' && user.idstr.trim() !== '' ? user.idstr.trim() : undefined
+  if (typeof user.id === 'number' && Number.isFinite(user.id))
+    return { id: user.id, idstr: rawIdstr ?? String(user.id) }
+  if (rawIdstr !== undefined)
+    return { id: /^\d+$/.test(rawIdstr) ? Number(rawIdstr) : rawIdstr, idstr: rawIdstr }
+  return {}
+}
+
+/** 把 m 站用户对象归一化成 Cookie 路径 `friendships.users[]` 的字段形状。 */
+function normalizeMobileUser(user: Record<string, unknown>): FollowingUser {
+  const ids = normalizeMobileId(user)
+  const name = typeof user.name === 'string' && user.name !== '' ? user.name : user.screen_name
+  const followers = parseMobileCount(user.followers_count)
+  const friends = parseMobileCount(user.friends_count ?? user.follow_count)
+  const statuses = parseMobileCount(user.statuses_count)
+  const { user_token: _userToken, ...rest } = user
+
+  return {
+    ...rest,
+    ...ids,
+    ...(typeof name === 'string' ? { name } : {}),
+    ...(followers === undefined ? {} : { followers_count: followers }),
+    ...(friends === undefined ? {} : { friends_count: friends }),
+    ...(statuses === undefined ? {} : { statuses_count: statuses }),
+  } as FollowingUser
+}
+
 /** 把 m 站 container 第一页的 `card.user` 适配成 `friendships` 响应形状。 */
 function mobileUsersToFriendships(raw: MobileContainerResponse): FriendshipsResponse {
-  const users = extractMobileUsers(raw)
+  const users = extractMobileUsers(raw).map(normalizeMobileUser)
   const total = raw.data.cardlistInfo?.total
   return {
     ok: 1,
