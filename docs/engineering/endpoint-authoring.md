@@ -105,10 +105,25 @@ export const mySpec: EndpointSpec<'MY_RESOURCE', typeof MyArgsSchema> = defineEn
     headers: { referer: `https://weibo.com/u/${uid}` },
   }),
   okPolicy: { mode: 'require_ok_1' },
+  // 鉴权要求：默认 'cookie'；只有用访客 token 验证过可读才写 'guest'；完全不需要凭证才写 'none'
+  auth: 'cookie',
   schema: MyResponseSchema,
 })
 ```
 
+`auth` 的取值与判定：
+
+- `cookie`（默认）：必须登录 Cookie。guest 模式下调用会在发请求前失败（`AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'`）。不写这个字段就等于 `cookie`，所以不要为了「先跑通」而省略判断。
+- `guest`：访客 token 可读，Cookie 模式下仍优先用 Cookie。加之前必须用访客身份（`--guest` 或 `new WeiboSDK({ auth: 'guest' })`）真实抓一次响应，并入库为 `mobile_*` / 常规 fixture。
+- `none`：不需要任何凭证（如 `feed/allGroups`、媒体 CDN 下载）。这类端点不会注入 Cookie，也不会触发访客 token 发放。
+
+检查点：
+
+- [ ] 默认保持 `cookie`，只有验证过的端点才标 `guest`
+- [ ] **不要**把账号级数据标成 `guest`：收藏、通知、@ 我、历史评论、我的关注只返回登录账号自身的数据，访客拿到的是别人的或空的
+- [ ] **不要**把「假成功」端点标成 `guest`：返回 `ok: 1` + 空列表 / `{}` 但其实是登录门控的端点，标了会让调用方以为「没有数据」
+- [ ] 标 `guest` 时同步确认 guest 下的分页能力，并在 `capabilities.ts` 的 `guestPagination` / `guestNote` 里写清楚（`none` / `first_page` / `full`）
+- [ ] 只能读第一页的端点（匿名第二页会 302 到登录页）在 Service 层显式拒绝 `page > 1`，抛 `CONFIG_INVALID` 并带 `guestPagination: 'first_page'`
 - 在 `src/types/resources.ts` 增加 resource type。
 - `buildResource` 只负责 URL / method / 必要 header；公共 header 由 `FetcherService` 注入。
 - 跨 host 端点（如 `m.weibo.cn`）必须让 `host` 从 URL 推导，不能硬编码。
@@ -206,6 +221,8 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] `stopic/list` 的 `count` 是总页数（每页 30 条），不是条目总数；`sort_id=0` 加 `keyword` 才是搜索
 - [ ] 视频播放量取 `media_info.online_users_number`，但只在 `online_users` 明确为「N次观看」时映射；直播在线人数不是播放数
 - [ ] 置顶标记是微博级 `isTop: 1/true`（非置顶项通常缺省），不要从 `mblogtype` 推断
+- [ ] guest 端点容易「假成功」：匿名请求可能返回 `200 + ok: 1 + 空数组`，也可能直接返回 `{}`。SDK 把 guest 端点的 `{}` 当作静默登录门控并抛 `AUTH_SESSION_EXPIRED`，不要为了让它通过而放宽 schema
+- [ ] m 站微博没有 `mblogid`，只有数字 `mid` / `id`；用 `midToMblogId` 换算（如 `5039815108333719 → OgHLUyXYP`），不要自己拼 base62
 - [ ] 音频 / 播客在 `page_info.object_type === 'podcast_audio'`，直链是 `media_info.stream_url`（不是视频的 `mp4_*`）
 - [ ] `atUsers` 没有结构化字段，只能从 `text` HTML 的用户主页锚点（`/n/` 或 `/u/`）解析；`text_raw` 里的 `//@name:` 是转发链，不是 @ 用户
 
@@ -215,6 +232,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 
 - [ ] 端点定义在 `endpoints/<domain>.ts`，Service 无内联 schema
 - [ ] args / response schema 由真实 fixture 验证
+- [ ] `auth` 明确：默认 `cookie`；标 `guest` 的端点有访客真实样本与 `capabilities` 的 `guestPagination` 说明
 - [ ] 分页语义有注释与测试；有重复页保护
 - [ ] 错误映射符合 [error-diagnostics.md](./error-diagnostics.md)
 - [ ] 公开方法有 TSDoc；CLI 有对应命令

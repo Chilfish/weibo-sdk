@@ -2,13 +2,22 @@
 
 这里收集了日常使用中最常见的命令，可以直接复制运行。`playground` 的 `cli:*` 场景会自动把 `.env` 作为 `--env-file` 注入。
 
-CLI 只从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。普通命令输出 JSON，`*-stream`、`archive` 和 `media download` 输出 NDJSON。
+CLI 默认从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。普通命令输出 JSON，`*-stream`、`archive` 和 `media download` 输出 NDJSON。
+
+没有 Cookie 时可以用 `--guest` 走访客身份，它不会读 `.env`。访客只能读公开数据：用户时间线、点赞、关注、粉丝只有第一页（`--page 2` 报 `CONFIG_INVALID`），收藏、通知、@ 我、历史评论、首页关注时间线和归档都不可用。
 
 ```bash
 # 登录态 / 能力
 weibo-cli whoami
 weibo-cli capabilities --status stable
 weibo-cli capabilities --status degraded
+
+# 访客模式（不读 .env，不需要 Cookie）
+weibo-cli whoami --guest
+weibo-cli tweet detail <id> --guest
+weibo-cli tweet comments <id> --guest
+weibo-cli trends --guest
+weibo-cli user timeline <uid> --guest   # 只有第一页
 
 # 用户
 weibo-cli user info 1111681197

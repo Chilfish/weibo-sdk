@@ -6,14 +6,34 @@
 
 ### 新增
 
+- 访客模式：`IWeiboConfig.cookie` 变为可选，新增 `auth: 'auto' | 'cookie' | 'guest'`（默认 `auto`）和 `guest` 配置（`token` / `issuer` / `autoRefresh`）。没有 Cookie 时 SDK 自动使用访客身份，可以读取用户资料、单条微博、长文、评论、转发、点赞者、图片墙、视频、相册、超话和热搜。
+- 访客模式下，用户时间线、点赞、关注、粉丝改走 m 站容器，只返回第一页：时间线和点赞带 `partial: true`、`hasMore: false`，关注和粉丝的 `next_cursor` 为 `0`；请求第 2 页会报 `CONFIG_INVALID`。m 站微博没有 `mblogid`，SDK 会用数字 `mid` 换算。
+- CLI 的每个命令都支持 `--guest`，它不会读取 `.env`。`whoami --guest` 输出 `{ auth, login, tokenIssuedAt, token }`，只包含 token 的发放时间、范围和来源，不打印 token 明文。
+- `capabilities()` 和 `weibo-cli capabilities` 增加 `auth`、`guestPagination` 和 `guestNote`，可以直接查询某个能力在访客身份下是否可用、能否翻页。
+- `sdk.getSession()` 的返回值增加 `authMode` 和 `guestTokenIssuedAt`；新增 `sdk.authMode` 与 `sdk.getGuestTokenStatus()`。访客 token 由 `visitor.passport.weibo.cn` 发放，按实例缓存并支持并发合并。
+- 遥测新增 `guest_token_issue` / `guest_token_error` 事件；请求事件带 `auth_mode` 与 `guest_refresh_count`，鉴权失败事件带 `auth_failure_reason`。
 - `sdk.getSession()` 返回 `{ uid, details, checkedAt }`。它复用启动自检已经发出的 `profile/detail`，按实例 single-flight 缓存，不额外请求；`refresh: true` 才会重新探测。`checkSession()` 共享同一缓存。
 - `capabilities()` 新增 `accountScoped` 标记，标出收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身的能力。
+- 新增 `sdk.tweets.context()` 与 `weibo-cli tweet context`：Agent 视角的单条微博上下文（`weibo.tweet-context/v1`）。它把当前作者正文、转发的原微博、转发链、媒体归属、临时 URL、互动快照和未知项显式分开；`--download-media <dir>` 会回填本地文件路径，便于读取图片。默认不调用任何 LLM，OCR / 视觉描述 / 视频转写由调用方回填。
 
 ### 修复
 
 - `archive` 的 `includeFavorites` / `includeCommentHistory` 现在校验目标 uid 是否为登录账号。收藏（`all_fav` 忽略 uid）和历史评论（`myCmt` 无 uid）只能读取登录账号自身，跨账号归档会抛 `CONFIG_INVALID`，不再把登录账号的数据静默写进他人归档。
 - CLI 批量归档（`--uid-file`）默认不再包含收藏；需要时显式传 `--favorites`（仅当 uid 是登录账号）。
 - `media download` 的 `totals` 新增 `planned`：dry-run 下未执行项不再丢失，`downloaded + skipped + failed + planned === total`。
+
+### 变更
+
+- `cookie` 不再必填。只有显式 `auth: 'cookie'` 又没有 Cookie 时，构造才会抛 `CONFIG_INVALID`。
+- 鉴权模式只由构造时的配置决定：`auto` 在有 Cookie 时使用 Cookie，Cookie 失效后仍然报 `AUTH_SESSION_EXPIRED`，不会静默切换成访客。
+- 访客身份下的能力边界显式化：只接受 Cookie 的能力（收藏、通知、@ 我、历史评论、首页关注时间线、日期搜索、微博分组）在发出请求前就返回 `AUTH_SESSION_EXPIRED`，并在 `context.requiredAuth` 标注 `'cookie'`；归档需要完整时间线，访客模式直接报 `CONFIG_INVALID`。
+- `tests/fixtures/raw/mobile_*.json` 增加 11 份 m 站第一页真实样本；`scripts/sanitize-raw.mjs` 新增 `--keep-ids`，保留 `mid` / `idstr` / `uid` 等关联键，便于验证 `mblogid` 换算。
+
+### 备注
+
+- 访客能否读到数据取决于微博的匿名策略，第一页之外的翻页目前都被重定向到登录页。
+- 公开关键词搜索（`searchUsers` / `searchTweets`）仍是 `unavailable`，访客搜索一并暂缓。
+- 媒体下载本来就不带 Cookie，访客身份下同样可用。
 
 ### 文档
 

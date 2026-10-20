@@ -19,7 +19,7 @@ npx tsx src/cli.ts --help
 
 ## 配置 Cookie
 
-CLI 只从 `.env` 文件读取 Cookie，不读取 shell 环境变量。默认读取当前目录的 `.env`，可以用 `--env-file <path>` 指定其他文件：
+CLI 默认从 `.env` 文件读取 Cookie，不读取 shell 环境变量。默认读取当前目录的 `.env`，可以用 `--env-file <path>` 指定其他文件：
 
 ```bash
 # .env（项目根目录）
@@ -34,7 +34,7 @@ WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 # WEIBO_COOKIE="./cookies.header.txt"
 ```
 
-相对路径按当前工作目录解析。Netscape 格式按 7 列 TSV 解析，支持 `#HttpOnly_` 前缀和 `#` 注释；只保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 域名的 Cookie，过期条目会被跳过，同名 Cookie 以文件中靠后的为准。路径不存在、读取失败或没有可用 Cookie 时，CLI 会输出 `CONFIG_INVALID` 错误并以非零状态退出。
+相对路径按当前工作目录解析。Netscape 格式按 7 列 TSV 解析，支持 `#HttpOnly_` 前缀和 `#` 注释；只保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 域名的 Cookie，过期条目会被跳过，同名 Cookie 以文件中靠后的为准。路径不存在、读取失败或文件里没有可用 Cookie 时，CLI 会输出 `CONFIG_INVALID` 错误并以非零状态退出。完全没有 Cookie（`.env` 里没有 `WEIBO_COOKIE`、也没传 `--cookie`）不算错误，会走访客身份。
 
 之所以不读取 `WEIBO_COOKIE` 环境变量，是因为本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie。每个子命令都支持 `--cookie` / `-c` 临时覆盖，优先级高于 `.env`，取值规则与 `.env` 相同。
 
@@ -45,6 +45,50 @@ weibo-cli user info 1111681197 | jq '.name, .stats'
 weibo-cli tweet detail QqsYymYOS | jq '.media[0]'
 weibo-cli search users 新闻 | jq '.data.cards[0].card_group[:3]'
 ```
+
+## 访客模式（`--guest`）
+
+没有 Cookie 也能读公开数据。每个命令都支持 `--guest`，它和 `--cookie` / `--env-file` 属于同一组共享参数：
+
+```bash
+weibo-cli whoami --guest
+weibo-cli tweet detail QqsYymYOS --guest
+weibo-cli tweet comments QqsYymYOS --guest
+weibo-cli trends --guest
+weibo-cli user timeline 1111681197 --guest
+```
+
+- `--guest` 完全不读 `.env`，也不看 `--cookie`（访客身份会忽略 Cookie）。
+- 不传 `--guest` 又没有可用 Cookie 时，同样会走访客身份，这是默认的 `auth: 'auto'` 行为。区别在于：Cookie 是「路径不存在 / 解析失败」这类非法输入时仍然报 `CONFIG_INVALID`，不会静默降级。
+- `whoami --guest` 不请求登录态，只输出访客 token 的元信息，并以状态码 0 退出：
+
+  ```json
+  {
+    "auth": "guest",
+    "login": false,
+    "tokenIssuedAt": 1760937600000,
+    "token": { "issuedAt": 1760937600000, "scope": "all", "source": "mobile" }
+  }
+  ```
+
+  `source` 为 `mobile` / `desktop` / `preset`，`scope` 为 `all`（m 站与主站通用）或 `pc`。token 明文不会出现在任何输出里。
+
+访客能读的范围：
+
+| 能力 | 访客可用性 |
+|---|---|
+| `user info`、`tweet detail` / `enrich` / `longtext`、`media download` | 可用 |
+| `tweet comments` / `comments-stream` | 可用，可翻页 |
+| `tweet reposts` / `reposts-stream`、`tweet likers` / `likers-stream` | 可用 |
+| `media images` / `videos` / `albums` / `album` | 可用 |
+| `topic`、`trends`、`user groups` | 可用 |
+| `user timeline`、`like list`、`follow list` / `follow fans` | **只有第一页**：时间线 / 点赞输出带 `partial: true`，关注 / 粉丝用 `next_cursor: 0` 表示到底；`--page 2` 会报 `CONFIG_INVALID`；对应的 `-stream` 命令也只产出这一页 |
+| `tweet home`、`tweet search-profile`、`user mentions`、`user mblog-groups`、`follow my`、`favorite`、`comment`、`notification` | 不可用，报 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'` |
+| `archive` | 不可用，报 `CONFIG_INVALID`（匿名只有首屏数据，无法保证归档完整） |
+
+`search users` / `search tweets` 与 Cookie 模式一样仍是 `unavailable`，访客不能搜索。
+
+访客 token 由 `visitor.passport.weibo.cn` 发放，按进程缓存；被上游拒绝时 SDK 会自动刷新一次再重试。遇到 432 / 429 只会退避重试，不会刷新 token。
 
 ## 命令参考
 
@@ -81,6 +125,14 @@ weibo-cli user mblog-groups
 ```bash
 # 获取微博详情（归一化为 Tweet 模型）
 weibo-cli tweet detail <mblogId>
+
+# Agent 视角的微博上下文：谁说的 / 时间 / 正文 / 媒体归属与下载 / 转发关系 / 评论抽样 / 未知项
+# 默认输出 Markdown；--format json 输出结构化数据（weibo.tweet-context/v1）
+weibo-cli tweet context <mblogId> [--format markdown|json] [--comments <n>] [--comment-flow hot|time] \
+  [--no-author] [--no-longtext] [--no-quoted] [--no-chain] [--max-media <n>] [--max-chars <n>] \
+  [--download-media <dir>] [--overwrite]
+weibo-cli tweet context RnxWieuYE --download-media ./weibo-media   # 下载后可直接读取本地图片
+weibo-cli tweet context RnANTz33M --comments 5 --format json       # 转发链 + 原微博 + 热评
 
 # 补拉原始响应 + 归一化模型（raw 由调用方自行保存；--longtext 额外补拉全文）
 weibo-cli tweet enrich <mblogId> [--longtext] [--no-longtext]
@@ -125,6 +177,19 @@ weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>] [--max-items 
 > `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，按空页停止。
 
 `--starttime` / `--endtime` 既可以是 unix 秒，也可以是 `YYYY-MM-DD` / `YYYYMMDD`：前者原样透传，后者在请求前换算（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）。非法日期以非零退出码报错，不会静默返回未过滤结果。
+
+#### `tweet context`：给 Agent 理解用的上下文
+
+`tweet context` 不是另一种详情格式，而是把「理解一条微博」需要的事实显式分开：
+
+- `post.text` 只包含**当前作者本人**的发言。转发微博不会把 `//@` 链拍平塞进正文。
+- `mentions` 只保留当前作者正文里的 @，转发链上的作者不算提及。
+- `quoted` 是转发的原微博；原微博的媒体在 `quoted.media[]`，`owner.relation = 'quoted'`。
+- `media[]` 按原顺序给出 `index`、类型、尺寸、`aspectRatio`、临时 URL、归属和确定性提示；`--download-media <dir>` 会回填 `download.path`，Agent 可以直接读取本地文件。
+- `unknowns` / `hints` 明确写出「图片未描述」「视频未转写」「正文可能截断」「评论是抽样」等，不用假默认值。
+- 默认不调用任何 LLM；OCR / 视觉描述 / 视频转写由调用方回填。
+
+请求预算（默认）：1 次 `statuses/show`；`--no-author` 可省 1 次 `profile/info`；长文 +1 次；`--comments n` 至少 +1 页；`--download-media` 会为每个媒体所属微博额外请求一次以刷新临时 URL。`--max-chars` 默认 4000，`0` 表示不限；`--max-media` 超出部分会写入 `unknowns`。
 
 ### 关注/粉丝（`follow`）
 
@@ -269,6 +334,8 @@ weibo-cli trends [--type hot|topic|entertainment]
 
 # 验证 Cookie 有效性（getSession 复用自检 → uid → getById）
 weibo-cli whoami
+# 访客身份：不校验登录态，只输出 token 元信息（source / scope / issuedAt）
+weibo-cli whoami --guest
 
 # 镜像单个账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）
 # 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
@@ -287,6 +354,7 @@ weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 
 # 能力清单（离线；可按服务 / 状态过滤）
 weibo-cli capabilities [--service <name>] [--status stable|degraded|unavailable|planned]
+weibo-cli capabilities --status stable | jq '.[] | {id, auth, guestPagination}'
 
 # 对比两份 schemaDigest / 结构快照
 weibo-cli schema diff before.json after.json
@@ -311,6 +379,11 @@ weibo-cli schema diff before.json after.json
 > 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
 > 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
 > `item` / `done` 事件也携带 `count/total/remaining`。
+>
+> `capabilities` 的每条记录都带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）
+> 和 `guestNote`，可以直接判断某个能力在访客身份下能不能用、能不能翻页。
+> `archive` 不支持访客身份：`--guest`（或不带 Cookie）会在产出任何 item 之前报 `CONFIG_INVALID`。
+> 访客只有首屏数据，归档无法保证完整；需要归档请提供 Cookie。
 
 CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。
 
@@ -319,7 +392,7 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 | 子命令 | 底层 Service 方法 | 输出 |
 |---|---|---|
 | `user info` | `users.getById()` | `User` 领域模型 |
-| `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`） |
+| `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`）；guest 模式为 m 站第一页（`partial: true`、`hasMore: false`、无 `page`） |
 | `user mentions` | `users.listMentions()` | `UserMentionsPageResult`（`cursor`/`hasMore`/`total?`/`tweets[]`） |
 | `user mentions-stream` | `users.streamMentions()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', count }` |
 | `user groups` | `users.groups()` | `UserGroup[]`（`id`/`title`/`category?`/`count?`/`type?`/`apiPath?`） |
@@ -354,7 +427,7 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
-| `whoami` | `getSession()` + `users.getById()` | `User` 领域模型 |
+| `whoami` | `getSession()` + `users.getById()` | `User` 领域模型；`--guest` 时输出 `{ auth: 'guest', login: false, tokenIssuedAt, token: { issuedAt, scope, source } }` |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 
 ## 架构
@@ -362,7 +435,7 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 ```
 src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archive；子命令注册
 src/cli/
-  shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file）
+  shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file / --guest）
   commands/
     user.ts             # user info / timeline / mentions / groups
     tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
@@ -381,4 +454,4 @@ src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一
 - 每个子命令独立定义，支持嵌套（`user`/`tweet`/`follow`/`favorite`/`search` 为分组，`trends`/`whoami`/`archive` 为顶层命令）
 - 自动生成 `--help` 文档
 - 零运行时依赖
-- 错误输出到 stderr 并以非零退出码退出（如 `whoami` 在 Cookie 缺失/无效时 `process.exit(1)`）
+- 错误输出到 stderr 并以非零退出码退出（如 `whoami` 在 Cookie 无效或访客 token 发放失败时 `process.exit(1)`；没有 Cookie 时默认走访客身份，正常退出）

@@ -49,13 +49,13 @@
 
 | # | 任务 | 状态 | 优先级 | 说明 | 来源 |
 |---|---|---|---|---|---|
-| G1 | 鉴权基础设施（`GuestTokenService` / `AuthProvider` / `auth` 配置） | 🚧 进行中 | P0 | 移动端 `genvisitor → incarnate`；JSONP + Set-Cookie 双解析；缓存 + single-flight；失败分类与一次刷新 | research §5 |
-| G2 | `EndpointSpec.auth` + Fetcher 按端点选凭据 | 🚧 进行中 | P0 | 默认 `cookie`；`none` / `guest` 显式声明；302 / `ok:-100` / 403 / `{}` / HTML / 432 统一分类 | research §5.5–5.6 |
-| G3 | 自检 / `getSession` guest 分支 + 归档守卫 | 🚧 进行中 | P0 | guest 不调用 `myDetails`；`sessionUid=undefined`；timeline / favorites / commentHistory 明确拒绝 | research §5.7 / §5.11 |
-| G4 | m 站第一页端点（timeline / likes / followings / fans / video / album） | 🚧 进行中 | P1 | 独立 mobile spec；Service 按 `authMode` 分支；显式标注 `first_page`；媒体 / 相册继续走可翻页的 PC 端点 | research §3.4 / §5.10 |
+| G1 | 鉴权基础设施（`GuestTokenService` / `AuthProvider` / `auth` 配置） | ✅ 已完成 | P0 | 移动端 `genvisitor → incarnate`；JSONP + Set-Cookie 双解析；缓存 + single-flight；失败分类与一次刷新 | research §5 |
+| G2 | `EndpointSpec.auth` + Fetcher 按端点选凭据 | ✅ 已完成 | P0 | 默认 `cookie`；`none` / `guest` 显式声明；302 / `ok:-100` / 403 / `{}` / HTML / 432 统一分类 | research §5.5–5.6 |
+| G3 | 自检 / `getSession` guest 分支 + 归档守卫 | ✅ 已完成 | P0 | guest 不调用 `myDetails`；`sessionUid=undefined`；归档在 guest 下抛 `CONFIG_INVALID` | research §5.7 / §5.11 |
+| G4 | m 站第一页端点（timeline / likes / followings / fans / video / album） | ✅ 已完成 | P1 | 独立 mobile spec；Service 按 `authMode` 分支；显式标注 `first_page`；媒体 / 相册继续走可翻页的 PC 端点 | research §3.4 / §5.10 |
 | G5 | 搜索能力重估 | ⏸️ 待产品确认 | P1 | guest 下 type=1/3 可用但不稳定；是否把 `search.*` 从 `unavailable` 改 `degraded` | research §9.4 |
-| G6 | CLI `--guest` + capabilities 输出 | 🚧 进行中 | P1 | 不读 `.env` Cookie；`whoami --guest` 输出访客身份；能力表带 `guestPagination` | research §5.8–5.9 |
-| G7 | guest fixtures + E2E smoke | 🚧 进行中 | P2 | 默认离线；`WEIBO_GUEST_E2E=1` 独立门控；432 记 skip | research §7 |
+| G6 | CLI `--guest` + capabilities 输出 | ✅ 已完成 | P1 | 不读 `.env` Cookie；`whoami --guest` 输出访客身份；能力表带 `guestPagination` | research §5.8–5.9 |
+| G7 | guest fixtures + E2E smoke | ✅ 已完成 | P2 | 默认离线；`WEIBO_GUEST_E2E=1` 独立门控；432 记 skip | research §7 |
 
 ---
 
@@ -83,6 +83,7 @@
 | 评论回复树 / 二级评论分页 | ✅ 已完成 | `tweets.replies` / `streamReplies`（D13，2026-10-20） |
 | Agent 可发现性（`.agents/skills/weibo-sdk/SKILL.md` / `AGENTS.md`） | ✅ 已完成 | `.agents/skills/weibo-sdk/SKILL.md` + `AGENTS.md` 使用速查；`capabilities()` / CLI JSON 错误信封（2026-10-20；不提供 `llms.txt`） |
 | 0.2 用户数据面（D1–D13） | ✅ 已完成 | 点赞 / 历史评论 / 收藏流 / 媒体 / 点赞者 / @我 / 通知 / 分组 / 超话 / 关键词 / 二级评论；见 [todo-post-0.1.0.md](../archive/todo-post-0.1.0.md) |
+| 访客模式（G1–G4 / G6 / G7） | ✅ 已完成 | [todo-guest-mode.md](./todo-guest-mode.md)：显式 `auth` 模式、访客 token、端点鉴权声明、m 站第一页、CLI `--guest`、真实 fixtures 与 E2E smoke（2026-10-20） |
 | 归档扩展（媒体 / 增量 / 批量 / 仅原创 / 状态文件） | ✅ 已完成 | `streamArchive` / `streamUsersArchive` / `archiveState`（2026-10-20） |
 
 > 各阶段交付细节见 [development-log/](../development-log/README.md)；完成后移入 [archive/](../archive/README.md)（存档不主动读取）。

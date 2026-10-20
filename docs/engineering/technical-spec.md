@@ -1,6 +1,6 @@
 # 微博 SDK 技术规格书
 
-**版本**: 2.2.0
+**版本**: 2.3.0
 **状态**: 与实现对齐（docs-as-truth）
 **最后更新**: 2026-10-20
 **规范级别**: 类 RFC 2119
@@ -47,20 +47,24 @@
 
 ```
 request(spec, args)
+ ├─ resolveProvider(spec.auth ?? 'cookie')  ← guest 模式 + cookie-only 端点=直接 AUTH_SESSION_EXPIRED（不发请求）
  ├─ preflight（除非 skipPreflight）——selfCheck（lazy/eager），同时填充 session 上下文（uid / 详情）
- ├─ emit request_start（telemetry + hooks）
+ ├─ emit request_start（telemetry + hooks，带 auth_mode / guest_refresh_count）
  ├─ rateLimitService.acquire()  ← 令牌桶，等待时 emit rate_limit_wait（含 432 后的全局暂停）
- ├─ 注入请求头：referer / host / user-agent / Auth(cookie+xsrf)
- ├─ axios 请求
+ ├─ 注入请求头：referer / host / user-agent / Auth（cookie+xsrf 或 guest token）
+ ├─ axios 请求（guest 模式关闭自动重定向，自行识别 302 登录页 / visitor 入口）
  │   └─ 失败 → mapError：429/432 → RATE_LIMITED；ECONNABORTED/ETIMEDOUT → NET_TIMEOUT；其余 → NET_REQUEST_FAILED
  ├─ 重试循环（config.retry，默认 2 次）：可重试错误 → 指数退避 + jitter（Retry-After 优先）→ emit request_retry → 重新 acquire
  │   └─ 432/429 命中即 `rateLimitService.pause(delay)`，暂停全局令牌桶
+ ├─ guest 静默门控：guest 端点返回 `{}` → AUTH_SESSION_EXPIRED（context.authFailureReason = 'empty_object'）
  ├─ okPolicy 校验（require_ok_1）（不重试）
  │   └─ ok !== 1 → API_NOT_OK（或 myDetails 的 AUTH_SESSION_EXPIRED）
  ├─ Zod safeParse（不重试）
  │   └─ 失败 → API_BAD_RESPONSE（context.zodIssues）
  └─ emit request_success + hooks.onFetched
 ```
+
+`request()` 外面还包了一层 guest 刷新循环：本次逻辑请求已捕获可归因于鉴权的失败（`redirect_to_login` / `visitor_entry` / `ok_minus_100` / `forbidden` / `empty_object` / `html`），且 `auth: 'guest'`、端点不是 `auth: 'none'`、`config.guest.autoRefresh !== false` 时，刷新一次访客 token 后重跑整个请求。**每个逻辑请求最多刷新一次**（`guest_refresh_count` 取 0/1），刷新失败保留旧 token 并抛出原始错误；432/429 不参与刷新判定。
 
 ---
 
@@ -179,28 +183,40 @@ class WeiboSDK {
   public readonly search: SearchService
   public readonly archive: ArchiveService
 
-  constructor(config: IWeiboConfig)          // cookie 为空抛 InvalidConfigError
+  constructor(config: IWeiboConfig)          // auth: 'cookie' 且无 Cookie 时抛 InvalidConfigError
+  get authMode(): 'cookie' | 'guest'         // 构造时确定，不随 Cookie 失效改变
   async selfCheck(): Promise<void>           // 配置 + 会话自检
   async getSession(options?: { refresh?: boolean }): Promise<WeiboSessionContext>
+  async getGuestTokenStatus(): Promise<GuestTokenStatus | undefined>
   async checkSession(options?: { refresh?: boolean }): Promise<boolean>
 }
 ```
 
+`getGuestTokenStatus()` 返回 `{ issuedAt, scope, source }`，**不含 token 明文**；guest 模式下若尚未发放会触发一次发放（single-flight）。
+
 会话上下文（`getSession`）：
 
-- 与 lazy / eager 自检**共享同一次** `ajax/profile/detail`，不会为取 uid 额外请求；
+- `authMode` 为 `'cookie'` / `'guest'`，由构造时的模式决定；
+- Cookie 模式：与 lazy / eager 自检**共享同一次** `ajax/profile/detail`，不会为取 uid 额外请求；`details` 为该响应；
+- Guest 模式：不请求 `profile/detail`，只确保访客 token 可用，`uid` / `details` 缺省，`guestTokenIssuedAt` 为 token 发放时间（unix 毫秒）；
 - 实例级 single-flight 缓存，并发调用共享 Promise；失败不缓存；
-- `uid` 从 `data.verified_url` 的 `uid=` 解析，缺失时为 `undefined`；
+- `uid` 从 `data.verified_url` 的 `uid=` 解析（仅 Cookie 模式），缺失时为 `undefined`；
 - `selfCheck: { mode: 'none' }` 时仍可用（首次调用主动探测一次）；
 - `refresh: true` 才会重新探测。CLI 每个进程只会产生至多一次自检；长时间运行的消费方复用一个 SDK 实例即可，不要在高频循环里刷新。
 
-`capabilities()` 的条目带 `accountScoped` 标记：收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身；归档的 `includeFavorites` / `includeCommentHistory` 也按此规则守卫。
+`capabilities()` 的条目带 `accountScoped` 标记：收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身；归档的 `includeFavorites` / `includeCommentHistory` 也按此规则守卫。每条还带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）与 `guestNote`，是判断访客身份可用范围的第一手依据。
 
 ### 3.2 配置: IWeiboConfig
 
 ```typescript
 interface IWeiboConfig {
-  cookie: string                              // REQUIRED：header 串或 Cookie 文件路径（仅 Node）
+  cookie?: string                             // 可选：header 串或 Cookie 文件路径（仅 Node）；auth: 'cookie' 时必填
+  auth?: 'auto' | 'cookie' | 'guest'          // 默认 'auto'
+  guest?: {                                   // 访客身份配置，guest 模式 / 无 Cookie 时生效
+    token?: string                            // 预置访客 Cookie（需含 SUB=）；提供后不触发放接口
+    issuer?: 'mobile' | 'desktop' | 'auto'    // 默认 'mobile'
+    autoRefresh?: boolean                     // 默认 true；每个请求最多刷新一次
+  }
   xsrfToken?: string                          // 可选，X-XSRF-TOKEN
   proxyUrl?: string                           // 可选，axios proxy
   timeout?: number                            // 默认 30000ms
@@ -222,6 +238,30 @@ interface IWeiboConfig {
 > **重试语义**（`src/services/internal/RetryPolicy.ts`）：只对可重试的结构化错误生效——`RATE_LIMITED`（432/429）、`NET_REQUEST_FAILED`（仅 5xx 或无 `status` 的连接类失败）、`NET_TIMEOUT`。其余 4xx、`API_NOT_OK`、`API_BAD_RESPONSE`、`CONFIG_INVALID`、`AUTH_SESSION_EXPIRED` 一律不重试。延迟 = `min(maxDelayMs, baseDelayMs * 2^(n-1))` × jitter(0.5~1.0)；上游 `Retry-After`（秒或 HTTP date）优先，且同样受 `maxDelayMs` 截断。每次退避发 `request_retry` 事件，终态失败才发 `request_error` 与 hooks `onError`。
 
 > **Cookie 输入解析**（`src/utils/cookieInput.ts`）：`cookie` 支持 Cookie header 串、Netscape Cookie 文件路径（7 列 TSV，支持 `#HttpOnly_`，仅保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名并跳过过期条目）、内容为 header 串的文本文件路径（可带 `Cookie:` 前缀、可多行）。`WeiboSDK` 构造时解析一次，`AuthService` 兜底；浏览器环境无 `node:fs`，路径退化为普通字符串。路径不存在 / 读取失败 / 文件内无可用 Cookie 时抛 `InvalidConfigError`（`CONFIG_INVALID`）。
+
+#### 3.2.1 鉴权模式（`auth`）
+
+鉴权模式在构造时解析一次（`src/services/internal/AuthProvider.ts` 的 `resolveAuthMode`），之后不再变化：
+
+| 配置 | 有效模式 | 说明 |
+|---|---|---|
+| `cookie` + `auth` 缺省 / `'auto'` | `cookie` | 有 Cookie 就用 Cookie |
+| 无 `cookie` + `auth` 缺省 / `'auto'` | `guest` | 自动使用访客身份 |
+| 无 `cookie` + `auth: 'guest'` | `guest` | 同上 |
+| `cookie` + `auth: 'guest'` | `guest` | 显式访客身份，Cookie 被忽略 |
+| 无 `cookie` + `auth: 'cookie'` | — | 构造时抛 `CONFIG_INVALID`（`context.field = 'cookie'`） |
+
+- `auth: 'auto'` **不会在 Cookie 失效后降级到 guest**。访客能读到的数据范围比登录态小，静默降级会让调用方在不知情的情况下拿到不完整的数据；Cookie 失效照常抛 `AUTH_SESSION_EXPIRED`，由调用方决定是否改用 guest。
+- guest 模式要求运行环境有全局 `fetch`（Node 18+），没有时抛 `AUTH_SESSION_EXPIRED`（`context.reason = 'fetch_unavailable'`）。
+
+#### 3.2.2 访客 token 生命周期（`GuestTokenService`）
+
+- 来源：移动端 `visitor.passport.weibo.cn` 的 `genvisitor` → `visitor?a=incarnate` 拿到 `SUB` / `SUBP`，再拼成 `Cookie` 头（附 `WEIBOCN_FROM=1110003030`）。`issuer: 'desktop'` 改走 `passport.weibo.com/visitor/genvisitor2`（scope 仅 `pc`），`issuer: 'auto'` 先移动端后桌面端。
+- 解析：响应体是 JSONP（`window.cb && cb({...})`），优先从 `Set-Cookie` 读 `SUB` / `SUBP`，缺失时退回 JSONP 的 `data.sub` / `data.subp`；两者都没有则抛 `AUTH_SESSION_EXPIRED`（`context.reason = 'guest_token_issue'`，带 `step`）。
+- 缓存：token 按 SDK 实例缓存，并发请求共享同一次发放（single-flight）；刷新同样共享同一个 Promise。
+- 刷新：**每个逻辑请求最多刷新一次**。可归因于鉴权的失败（302 到登录页 / visitor 入口、`ok: -100`、403 登录文案、guest 端点的静默 `{}`、HTML 登录页）触发刷新后重试一次；432/429 属于限流，直接抛 `RATE_LIMITED`，不刷新。刷新失败保留旧 token 并抛出原始错误。
+- 配置：`guest.token` 预置时完全不触发放接口（但必须含 `SUB=`，否则 `CONFIG_INVALID`）；`guest.autoRefresh: false` 关闭自动刷新。
+- 不写磁盘，也不进日志：telemetry 只记录 `source` / `scope` / `issuedAt` / `duration_ms` 等元信息，**永远不记录 token 明文**。
 
 ### 3.3 服务接口
 
@@ -264,7 +304,7 @@ interface IWeiboConfig {
 | `streamLikers` | `(mid, { page?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<TweetLiker>` | page 翻页 + 跨页用户 id 去重；空页 / 整页重复 / 达到 total 停止 |
 
 > `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
-> `TweetPageResult = { page?: number, maxId?: string, sinceId?: string, hasMore: boolean, total?: number, tweets: Tweet[] }`。
+> `TweetPageResult = { page?: number, maxId?: string, sinceId?: string, hasMore: boolean, total?: number, partial?: boolean, tweets: Tweet[] }`（`partial: true` 表示 guest 模式下的 m 站第一页，见 §3.3.2）。
 > 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码；2026-08 曾弃用 `since_id`，2026-10-20 复测 `since_id` 与 `page` 均可用且等价，归一化仍以 `page` 为主）；
 > `friendstimeline`（`listFriendTimeline`/`streamFriendTimeline`）用 `maxId` 翻旧页（响应 `max_id`；`0` = 到底），`since_id` 只做增量过滤；`total_number` 实测恒为 2000 上限值，不能当作剩余条数。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
 
@@ -287,7 +327,7 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `listByUserId` | `(uid, { page? }?) => Promise<LikePageResult>` | 单页归一化 + 页内 `mblogid` 去重；`hasMore` = 本页去重后非空 |
+| `listByUserId` | `(uid, { page? }?) => Promise<LikePageResult>` | 单页归一化 + 页内 `mblogid` 去重；`hasMore` = 本页去重后非空；guest 模式返回 m 站第一页（`partial: true`、`hasMore: false`、`page: 1`） |
 | `streamByUserId` | `(uid, { page?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重；空页 / 整页重复 / `maxPages` 停止 |
 
 > 端点 `GET /ajax/statuses/likelist?uid=&page=`：真实响应只有 `data.list`，**无 total / cursor / hasMore**；`page=0` 与 `page=1` 等价，越界页返回 200 + 空数组。旧的 `/ajax/statuses/likes` 已下线（200 + HTML 404 页）。
@@ -378,6 +418,26 @@ for await (const tweet of sdk.tweets.streamFriendTimeline({
 })) {}
 ```
 
+#### 3.3.2 访客模式（guest）的读取范围
+
+Guest 模式复用同一套服务方法，按端点声明的 `auth` 决定能不能发请求。范围分三类：
+
+- **访客可读，能力完整**：用户资料、单条微博详情、长文、评论（`max_id` 分页可用完整翻页）、转发列表（`page`）、点赞者、图片墙 / 视频瀑布 / 相册、超话、热搜、Feed 分组（`feed/allGroups`，`auth: 'none'`）。媒体下载本身不带 Cookie。
+- **访客只能读第一页**：用户时间线（m 站容器 `107603<uid>`）、点赞（`230869<uid>`）、关注（`231051_-_followers_-_<uid>`）、粉丝（`231051_-_follows_-_<uid>`）。注意上游容器命名与直觉相反：`followers` 容器返回「关注」，`follows` 容器返回「粉丝」。服务层在这一路径上：
+  - `tweets.listByUserId` / `likes.listByUserId` 返回 m 站第一页，`partial: true`、`hasMore: false`，**不带 `page`**（`total` 取 `cardlistInfo.total`，有就带上）；
+  - `followings.getFollowings` / `getFans` 返回首页用户，`next_cursor: 0`；
+  - 对应的 `stream*` 只产出这一页就结束；
+  - `page > 1` 一律抛 `CONFIG_INVALID`（`context.field = 'page'`、`guestPagination: 'first_page'`），因为匿名第二页会被重定向到登录页。
+- **只接受 Cookie**：`mymblog` 用户时间线原始端点、首页关注时间线、个人主页日期检索（`searchProfile`）、点赞与关注 / 粉丝的网页端点（`likelist` / `friendships`，guest 下改走 m 站第一页）、`followContent`、收藏与收藏标签、通知、@ 我、历史评论、微博分组（`mblog/querygroup`）、归档。guest 模式调用这些能力会在发出请求**之前**失败，返回 `AUTH_SESSION_EXPIRED` 且 `context.requiredAuth = 'cookie'`。
+
+补充约定：
+
+- m 站微博对象没有 `mblogid`，SDK 用数字 `mid` 换算（`midToMblogId`，例如 `5039815108333719 → OgHLUyXYP`）；换算不出合法 id 的条目（广告位、占位卡、id 漂移）直接跳过。
+- m 站容器内容为空时返回 `{ ok: 0, msg: '这里还没有内容', data: { cards: [] } }`（同类文案还有 `暂无数据` / `还没有人赞过`）。这是真实空结果，`mobileContainerSpec.okPolicy.isEmptyResult` 会放行并返回空页，不报 `API_NOT_OK`；`ok: -100` 或登录文案不受影响，仍走鉴权失败。
+- m 站微博没有 `text_raw`，只有 `raw_text`（纯文本）和 HTML `text`。`normalizeTweet` 的正文优先级为 `text_raw → raw_text → 解码后的 text`，否则访客时间线/点赞会出现 `text: ''`。
+- 归档（`archive.streamArchive` / `streamUsersArchive`）在 guest 模式下直接抛 `CONFIG_INVALID`，理由是匿名列表只有第一页，无法保证归档完整；单点能力（详情、评论、媒体）仍可使用。
+- 公开关键词搜索（`search.searchUsers` / `searchTweets`）保持 `unavailable`，访客搜索暂缓，等产品结论。
+
 ### 3.4 EndpointSpec
 
 端点定义范式（`src/services/internal/EndpointSpec.ts` + `src/services/endpoints/**`）：
@@ -388,7 +448,8 @@ interface EndpointSpec<TResource, TArgsSchema> {
   endpoint: string                 // 描述性端点名
   argsSchema?: TArgsSchema         // Zod args schema（args 类型自动推导）
   buildResource: (args) => IRequestResource   // 构建 URL + method
-  okPolicy?: EndpointOkPolicy      // 'none' | 'require_ok_1'
+  okPolicy?: EndpointOkPolicy      // 'none' | 'require_ok_1'（可带 isEmptyResult / notOkError）
+  auth?: EndpointAuth              // 'cookie'（默认）| 'guest' | 'none'
   schema: ZodType<IResource[TResource]>        // response schema
 }
 ```
@@ -397,9 +458,19 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - 用 `defineEndpoint(spec)` 包装以获得完整类型推导
 - 反模式：禁止在 Service 文件中内联 Zod schema / EndpointSpec
 
+`auth` 的语义（`EndpointAuth`）：
+
+| 取值 | 含义 | guest 模式下的行为 |
+|---|---|---|
+| `cookie` | 默认值，必须登录 Cookie | 请求发出前抛 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'` |
+| `guest` | 访客 token 可用；Cookie 模式下仍优先用 Cookie | 注入访客 Cookie，鉴权失败按 §3.2.2 刷新一次 |
+| `none` | 不需要任何凭证 | 不注入 Cookie，也不会为它发放 token |
+
+默认值是 `cookie`，这样新增端点不会被意外放到 guest 通道里。只有实际用访客 token 验证过可读的端点才标 `guest`；账号级数据（收藏、通知、@ 我、历史评论、我的关注）和「返回 `{}` / 空列表但看起来成功」的端点不要标 `guest`。
+
 ### 3.5 资源类型
 
-`IResource` 映射 26 个资源类型：`USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` / `TWEET_LONGTEXT` / `TWEET_SEARCHPROFILE` / `TWEET_COMMENTS` / `TWEET_FRIENDTIMELINE` / `TWEET_REPOST_TIMELINE` / `SIDE_BANDUNIFIED` / `FAVORITES_ALLFAV` / `FAVORITES_TAGS` / `LIKES_LIST` / `COMMENTS_MINE` / `PROFILE_IMAGE_WALL` / `PROFILE_WATERFALL` / `TWEET_LIKERS` / `FEED_GROUPS` / `MBLOG_GROUPS` / `MENTIONS_STATUSES` / `MESSAGE_COMMENTS` / `MESSAGE_ATTITUDES` / `SEARCH_USERS` / `SEARCH_TWEETS` / `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT`。
+`IResource` 映射 30 个资源类型：`USER_INFO` / `USER_DETAILS` / `TWEET_MYMBLOG` / `TWEET_SHOW` / `TWEET_LONGTEXT` / `TWEET_SEARCHPROFILE` / `TWEET_COMMENTS` / `TWEET_FRIENDTIMELINE` / `TWEET_REPOST_TIMELINE` / `SIDE_BANDUNIFIED` / `FAVORITES_ALLFAV` / `FAVORITES_TAGS` / `LIKES_LIST` / `COMMENTS_MINE` / `PROFILE_IMAGE_WALL` / `PROFILE_WATERFALL` / `PROFILE_ALBUM_DETAIL` / `TWEET_LIKERS` / `FEED_GROUPS` / `MBLOG_GROUPS` / `MENTIONS_STATUSES` / `MESSAGE_COMMENTS` / `MESSAGE_ATTITUDES` / `SEARCH_USERS` / `SEARCH_TWEETS` / `MOBILE_CONTAINER` / `FRIENDSHIPS_FRIENDS` / `PROFILE_FOLLOWCONTENT` / `STOPIC_CATES` / `STOPIC_LIST`。`MOBILE_CONTAINER` 是 guest 第一页读取（用户时间线 / 点赞 / 关注 / 粉丝）共用的 m 站容器响应。
 
 端点实现清单见 `docs/planning/roadmap.md`。
 
@@ -415,6 +486,9 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - `normalize_done`
 - `archive_progress`（P1-3）：`uid / phase / processed / total? / remaining? / source? / page?`
 - `archive_item_error`（P1-4）：`uid / phase / stage / source? / mblogId? / parentMblogId? / page? / action / error_*`
+- `guest_token_issue` / `guest_token_error`（由 `GuestTokenService` 发出）：`source / scope / duration_ms / refreshed`，失败时带 `issuer / error_*`，**不含 token 明文**
+
+所有请求级事件（`request_start` / `request_success` / `request_error` / `request_retry`）都带 `auth_mode`（`cookie` / `guest`）与 `guest_refresh_count`（0/1）；`request_error` 还带 `auth_failure_reason`，取值为 `redirect_to_login` / `visitor_entry` / `ok_minus_100` / `forbidden` / `empty_object` / `html` 之一，可直接用于判断「是鉴权问题还是接口问题」。
 
 `telemetry.emit()` 的任何异常 MUST NOT 影响 SDK 正常功能（外层 try/catch）。
 
@@ -459,8 +533,8 @@ WeiboSDKError (abstract: code / level / retryable / context)
 
 | code | 类 | level | 可重试 | 触发条件 |
 |------|----|-------|--------|----------|
-| `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | 构造时 cookie 为空 |
-| `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | ❌ | `myDetails()`（自检）返回 ok≠1 |
+| `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | 构造时 Cookie 为空（显式 `auth: 'cookie'`）、Cookie 文件不可用、guest 预置 token 缺 `SUB=`、guest 下请求第 2 页、guest 下调用归档 |
+| `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | ❌ | `myDetails()`（自检）返回 ok≠1；guest 下 cookie-only 端点（`context.requiredAuth = 'cookie'`）、访客 token 发放失败、guest 端点返回静默 `{}` |
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | ❌ | 其他端点 ok≠1 |
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod 校验失败（`context.zodIssues`） |
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 超时（`ECONNABORTED`/`ETIMEDOUT`） |
@@ -471,6 +545,15 @@ WeiboSDKError (abstract: code / level / retryable / context)
 | `MEDIA_STORAGE_FAILED` | `MediaStorageError` | storage | ❌ | mkdir/write/rename/unlink 失败 |
 
 错误映射链：axios error → `mapError` → TransportError（429/432 优先映射为 `RATE_LIMITED`）；`ok≠1` → BusinessError；Zod fail → ProtocolError。可重试错误由 `FetcherService` 的重试循环消费（见 §5）。错误分类详情与诊断流程见 `docs/engineering/error-diagnostics.md`。
+
+Guest 模式额外写入的 `context` 字段（便于区分「该换 Cookie」还是「访客读不到」）：
+
+- `auth_mode: 'guest'`：所有 guest 路径的鉴权错误都会带；
+- `requiredAuth: 'cookie'`：cookie-only 端点在 guest 模式下被拒（`field` 可能同时给出 `endpoint`）；
+- `authFailureReason`：`redirect_to_login` / `visitor_entry` / `ok_minus_100` / `forbidden` / `empty_object` / `html`，决定是否触发刷新；
+- `reason: 'guest_token_issue'`（带 `step` / `status`）或 `reason: 'fetch_unavailable'`：访客 token 发放失败；
+- `guestPagination: 'first_page'`：guest 下请求了第 2 页（`field: 'page'`）；
+- `field: 'archive'`：guest 下调用了归档。
 
 ---
 
@@ -524,18 +607,19 @@ WeiboSDKError (abstract: code / level / retryable / context)
 src/
   index.ts                  # 公共导出（VERSION + types + WeiboSDK + telemetryJsonl）
   WeiboSDK.ts               # 门面，11 个 Service（含 ArchiveService）
+  capabilities.ts           # 能力清单（auth / guestPagination / guestNote / accountScoped）
   utils/telemetryJsonl.ts   # P2-3 JSONL telemetry 消费端
   utils/cookieInput.ts      # Cookie header / Netscape / header 文件解析
   cli.ts                    # CLI 入口（citty）
   cli/commands/*.ts         # user / tweet / follow / favorite / like / comment / media / notification / search
   types/
-    config.ts hooks.ts telemetry.ts resources.ts index.ts
+    config.ts hooks.ts telemetry.ts resources.ts index.ts session.ts
     domain/{IUser,ITweet,IUserMediaAsset,IGroup,ILiker,INotification}.ts
     raw/{user,tweet,side,search}/**   # 原始响应类型（z.infer 替代中）
   services/
     public/{User,Tweet,Followings,Favorite,Like,CommentHistory,Media,Notification,Topic,Trends,Search}Service.ts
-    internal/{FetcherService,AuthService,RateLimitService,RetryPolicy,EndpointSpec}.ts
-    endpoints/{user,tweet,search,side,follow,favorite,like,commentHistory,media,likers,mentions,notifications,groups,topic}.ts
+    internal/{FetcherService,AuthService,AuthProvider,GuestTokenService,RateLimitService,RetryPolicy,EndpointSpec}.ts
+    endpoints/{user,tweet,search,side,follow,favorite,like,commentHistory,media,likers,mentions,notifications,groups,topic,mobile}.ts
   models/
     data/{User,Tweet,Media,Group,Notification}.ts    # 领域模型归一化（纯函数）
     errors/*.ts             # 结构化错误

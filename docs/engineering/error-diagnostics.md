@@ -23,18 +23,20 @@
 
 ## 1. CONFIG_INVALID
 
-含义：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 文件无法解析。
+含义：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 无法解析；也可能是访客模式下的参数越界。
 
 触发场景：
 ```typescript
 // 以下抛出 InvalidConfigError:
-// new WeiboSDK({ cookie: '' })
+// new WeiboSDK({ auth: 'cookie' })                     // 显式要求 Cookie 但没提供
 // new WeiboSDK({ cookie: './missing-cookies.txt' })   // 路径不存在
 // new WeiboSDK({ cookie: './other-site.cookies.txt' }) // 文件里没有微博域名 Cookie
+// new WeiboSDK({ auth: 'guest', guest: { token: 'SUBP=x' } }) // 预置 token 缺 SUB=
 ```
+访客模式下请求第 2 页（`page > 1`）或调用归档，同样报 `CONFIG_INVALID`，`context` 里会带 `guestPagination: 'first_page'` 或 `field: 'archive'`。
 
 诊断步骤：
-- 检查 `.env` 文件中的 `WEIBO_COOKIE` 是否已设置
+- 检查 `.env` 文件中的 `WEIBO_COOKIE` 是否已设置；如果本来就不打算用 Cookie，改用访客身份（`auth: 'auto'` / `auth: 'guest'` / CLI `--guest`），不要显式写 `auth: 'cookie'`
 - 确认 Cookie 字符串非空、包含 `SUB=` 字段
 - 如果值是文件路径：确认路径存在且可读（相对路径按 pwd 解析）；Netscape 文件需为 7 列 TSV，并包含 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie（其他站点会被忽略）。`error.context.path` 会给出实际读取的文件路径
 
@@ -59,6 +61,8 @@
 2. 确认 Cookie 中的 `SUB=` 值是否仍然有效（在浏览器中打开 weibo.com 验证）
 3. 重新获取有效的 Cookie 并替换 `.env` 中的值
 4. CLI 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 可指定），不读取 `WEIBO_COOKIE` 环境变量；`whoami` 报错时会打印实际读取路径，先确认路径正确
+
+访客模式下的三种变体（cookie-only 端点被拒、访客 token 发放失败、guest 端点返回静默 `{}`）见 §10。
 
 Hook 示例：
 ```typescript
@@ -242,6 +246,51 @@ const sdk = new WeiboSDK({
 
 ---
 
+## 10. 访客模式（guest）排障
+
+没有 Cookie 时 SDK 会使用访客身份（`auth: 'auto'` 的默认行为），CLI 对应 `--guest`。访客身份能读的范围比登录态小，因此这里的错误大多不是「坏了」，而是「访客读不到」。
+
+### `AUTH_SESSION_EXPIRED` 且 `context.requiredAuth === 'cookie'`
+
+含义：这个端点只接受登录 Cookie，SDK 在**发出请求之前**就拒绝了。
+
+- 典型能力：收藏与收藏标签、评论通知、点赞通知、@ 我、历史评论、我的关注、首页关注时间线、个人主页日期搜索、微博分组。
+- 处理：重试没有意义。要么提供 Cookie（`.env` 的 `WEIBO_COOKIE` / `--cookie` / `config.cookie`），要么改用访客可读的替代能力（例如用 `tweet detail` + `tweet comments` 代替时间线归档）。
+- 排查时先看 `weibo-cli capabilities --service <name> | jq '.[] | {id, auth, guestPagination}'`，`auth: 'cookie'` 的条目就是这一类。
+
+### 访客 token 发放失败
+
+`AUTH_SESSION_EXPIRED`，`context.reason = 'guest_token_issue'`（带 `step`：`genvisitor` / `incarnate` / `genvisitor2`，可能还有 `status` 和截断的 `body`）。
+
+- 常见原因：`visitor.passport.weibo.cn` 临时不可用、被风控、出口网络拿不到响应。
+- 处理：稍后重试；如果环境有全局 `fetch` 限制（Node < 18 或受限沙箱），会以 `reason: 'fetch_unavailable'` 报错，需要升级运行时。
+- 也可以复用外部已发放的访客 Cookie：`new WeiboSDK({ auth: 'guest', guest: { token: 'SUB=...; SUBP=...' } })`。token 必须含 `SUB=`，否则报 `CONFIG_INVALID`。
+- 诊断输出不要打印 token 明文：用 `sdk.getGuestTokenStatus()` 或 `weibo-cli whoami --guest`，只看 `issuedAt` / `scope` / `source`。
+
+### 432 / 429 时不会刷新 token
+
+访客模式下 432 / 429 仍然映射为 `RATE_LIMITED`，SDK 会按 `config.retry` 退避并暂停令牌桶，但**不会**刷新访客 token：限流不是身份问题，换 token 只会再撞一次墙。事件里的 `guest_refresh_count` 保持 `0` 是预期行为。
+
+处理方式与 Cookie 模式相同：降低并发（`maxConcurrent: 1`）、拉长 `delay`，或者停一段时间。
+
+### guest 端点返回静默 `{}`
+
+部分端点被匿名请求时会返回 `200` + 空对象 `{}`，看起来像「没有数据」，实际是登录门控。SDK 对 guest 端点单独判定：`{}` 抛 `AUTH_SESSION_EXPIRED`，`context.authFailureReason = 'empty_object'`，然后自动刷新一次 token 重试；仍然失败才把错误抛给调用方。
+
+如果持续失败，说明该端点已经收紧为「必须登录」，把它从 `auth: 'guest'` 改回 `cookie`，并在 `capabilities.ts` 更新 `guestNote`。
+
+### 只有第一页，或者 `CONFIG_INVALID`
+
+访客只能读 m 站容器第一页（用户时间线、点赞、关注、粉丝），匿名第 2 页会被重定向到登录页。表现是：
+
+- 返回结果带 `partial: true`、`hasMore: false`，没有 `page`；关注 / 粉丝的 `next_cursor` 为 `0`；
+- 显式请求 `page: 2` 抛 `CONFIG_INVALID`（`context.field = 'page'`、`guestPagination: 'first_page'`）；
+- `archive` 在访客模式下直接抛 `CONFIG_INVALID`（`field: 'archive'`），因为归档需要完整时间线。
+
+需要完整数据时提供 Cookie；访客身份适合详情、评论、媒体这类单点读取。
+
+---
+
 ## 使用 hooks 集中诊断
 
 ```typescript
@@ -278,9 +327,12 @@ if (errors.length > 0) {
 请求失败
 ├─ error.code === 'CONFIG_INVALID'
 │  ├─ Cookie 是文件路径 → 检查路径存在、可读、含微博域名 Cookie
-│  └─ 否则检查 Cookie 是否非空
+│  ├─ context.field === 'page' / 'archive' 且带 guest 标记 → 访客只能读第一页、不能归档，换 Cookie
+│  └─ 否则检查 Cookie 是否非空（显式 auth: 'cookie' 时必填）
 ├─ error.code === 'AUTH_SESSION_EXPIRED'
-│  └─ 更换 Cookie（浏览器重新获取）
+│  ├─ context.requiredAuth === 'cookie' → 该能力只读登录账号，访客不可用，换 Cookie
+│  ├─ context.reason === 'guest_token_issue' → 访客 token 发放失败，稍后重试或预置 guest.token
+│  └─ 否则更换 Cookie（浏览器重新获取）
 ├─ error.code === 'API_NOT_OK'
 │  ├─ ok === 0 && message 含 'not found'
 │  │  └─ 检查 uid/mblogId 是否存在

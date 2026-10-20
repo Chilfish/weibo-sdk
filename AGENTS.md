@@ -87,6 +87,7 @@ WeiboSDK（门面）
 - **每个功能都必须有对应测试用例**。
 - 默认 `pnpm test` 必须离线稳定：unit（纯函数/0 IO）、component（mock HTTP/clock/sleep）、E2E（`WEIBO_E2E=1` 显式开启）。
 - **E2E 门控**：`tests/e2e/**` 用例仅在 `WEIBO_E2E === '1'` **且** `.env` 中存在 `WEIBO_COOKIE` 时运行（`describe.skip` 默认跳过）；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**（避免默认 `pnpm test` 误跑）。真实 Cookie 仅存于 `.env`（`tests/e2e/setup-env.ts` 只读取该文件，不继承环境变量）。
+- **访客 E2E**：`tests/e2e/guest.e2e.test.ts` 不需要 Cookie，由 `WEIBO_GUEST_E2E=1` 单独开启（从 shell 读取，不写入 `.env`）；命中 432 / 429 时记 skip，不当作失败。
 - 新增测试前先写失败用例（Red → Green → Refactor）。
 - 详见 `docs/渐进式开发计划.md` 测试策略章节。
 
@@ -147,7 +148,7 @@ WeiboSDK（门面）
 ### 约束
 
 1. 新增公开 Service 方法时，必须在 CLI 中添加对应子命令。
-2. Cookie 只从 `.env` 文件读取（默认 `<pwd>/.env`，可用 `--env-file` 指定）；**不读取环境变量**（可能早已过期）；`--cookie`/`-c` 为显式覆盖。取值可以是 Cookie header 串，也可以是 Cookie 文件路径（Netscape / header 串内容），统一由 `src/utils/cookieInput.ts` 解析。
+2. Cookie 只从 `.env` 文件读取（默认 `<pwd>/.env`，可用 `--env-file` 指定）；**不读取环境变量**（可能早已过期）；`--cookie`/`-c` 为显式覆盖。取值可以是 Cookie header 串，也可以是 Cookie 文件路径（Netscape / header 串内容），统一由 `src/utils/cookieInput.ts` 解析。没有 Cookie 时默认使用访客身份；`--guest` 显式指定访客且不读 `.env`。
 3. 所有命令输出必须为 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理。
 4. 错误必须输出到 stderr 并以非零退出码退出。
 
@@ -169,20 +170,47 @@ Node 环境使用 `import { WeiboSDK } from '@chilfish/weibo-sdk'`。浏览器�
 
 ```bash
 weibo-cli whoami          # 校验 Cookie
-weibo-cli capabilities    # 查看能力、分页类型和状态
+weibo-cli whoami --guest  # 访客身份：只看 token 元信息，无需 Cookie
+weibo-cli capabilities    # 查看能力、登录要求（auth）、分页类型和状态
 ```
 
 Cookie 只从 `.env` 读取，不读 shell 环境变量。Node 侧也接受 Netscape `cookies.txt` 路径或包含 header 的文本文件。失效时重新从已登录的浏览器导出。
+
+没有 Cookie 时 SDK 会自动使用访客身份（`auth: 'auto'`），`--guest` 可以显式指定且完全不读 `.env`。访客 token 由 SDK 自动发放和缓存，不用手工处理。
+
+### 鉴权模式（`IWeiboConfig.auth`）
+
+| 配置 | 结果 |
+|---|---|
+| `cookie` + `auth` 缺省或 `auto` | Cookie |
+| 无 `cookie` + `auth` 缺省或 `auto` | 访客 |
+| 无 `cookie` + `auth: 'guest'` | 访客 |
+| 有 `cookie` + `auth: 'guest'` | 访客（Cookie 被忽略） |
+| 无 `cookie` + `auth: 'cookie'` | 构造时抛 `CONFIG_INVALID` |
+
+`auto` 不会在 Cookie 过期后降级成访客：数据范围不同，静默降级会让调用方拿到不完整的结果。需要访客就显式传 `auth: 'guest'` 或 `--guest`。
 
 ### SDK
 
 ```ts
 const sdk = new WeiboSDK({ cookie })
+const guest = new WeiboSDK({ auth: 'guest' })   // 或直接 new WeiboSDK({})：没有 Cookie 就是访客
 
 const page = await sdk.tweets.listByUserId(uid)
 const home = await sdk.tweets.listFriendTimeline() // 翻旧页用 home.maxId
 for await (const tweet of sdk.tweets.streamFriendTimeline({ maxPages: 3 })) { /* ... */ }
 for await (const comment of sdk.tweets.streamComments(mblogId, { maxPages: 3 })) { /* ... */ }
+
+// Agent 视角：谁说的 / 时间 / 正文 / 媒体归属 / 转发关系 / 未知项
+const context = await sdk.tweets.context(mblogId, { comments: 5 })
+context.post.text            // 只含当前作者本人发言，转发不会拍平 //@ 链
+context.media                // 有序媒体 + owner / 临时 URL / hints
+context.quoted?.media        // 转发的原微博媒体（归属为 quoted）
+context.unknowns             // 图片未描述、视频未转写、评论为抽样等
+
+const session = await sdk.getSession()
+session.authMode                                 // 'cookie' | 'guest'
+await sdk.getGuestTokenStatus()                  // { issuedAt, scope, source }，不含 token 明文
 
 for await (const item of sdk.archive.streamArchive(uid, {
   includeLikes: true,
@@ -203,6 +231,9 @@ for await (const item of sdk.archive.streamArchive(uid, {
 ```bash
 weibo-cli user timeline <uid>
 weibo-cli tweet detail <mblogId>
+weibo-cli tweet context <mblogId>                 # Markdown 上下文卡片（Agent 理解用）
+weibo-cli tweet context <mblogId> -f json --comments 5
+weibo-cli tweet context <mblogId> --download-media ./weibo-media  # 回填本地图片路径
 weibo-cli tweet comments-stream <mblogId> --max-pages 3
 weibo-cli tweet home                          # 首页第一页
 weibo-cli tweet home --max-id <上一页 maxId>   # 往旧翻
@@ -215,9 +246,18 @@ weibo-cli notification comments-stream|likes-stream
 weibo-cli archive <uid> --likes --comment-history --images --videos
 weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 weibo-cli schema diff before.json after.json
+
+# 访客身份：任何命令都可以加 --guest，不读 .env
+weibo-cli whoami --guest
+weibo-cli tweet detail <mblogId> --guest
+weibo-cli tweet comments <mblogId> --guest
+weibo-cli trends --guest
+weibo-cli user timeline <uid> --guest          # 只有第一页
 ```
 
 流式命令输出 NDJSON，每行是一个 `progress`、`item` 或 `done` 事件，可以直接接 `jq`。
+
+访客范围：用户资料、单条微博、长文、评论、转发、点赞者、图片墙 / 视频 / 相册、超话、热搜可用；用户时间线、点赞、关注、粉丝只有第一页（`partial: true`，关注 / 粉丝 `next_cursor: 0`，`--page 2` 报 `CONFIG_INVALID`）；首页关注时间线、日期搜索、收藏、通知、@ 我、历史评论、微博分组、归档只接受 Cookie，guest 下报 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）——归档则是 `CONFIG_INVALID`。
 
 `archive` 续跑是 at-least-once：重复边界 1 条，图片墙 / 视频瀑布会重放整页，消费端按 `mblogId` / `asset.id` 去重。`--favorites` / `--comment-history` 只对登录账号有效，归档他人会报 `CONFIG_INVALID`；批量模式默认不含收藏。
 
@@ -240,7 +280,7 @@ weibo-cli schema diff before.json after.json
 
 优先判断 `code`，不要匹配错误文案。
 
-- `AUTH_SESSION_EXPIRED`：Cookie 缺失或过期，重新登录并导出。
+- `AUTH_SESSION_EXPIRED`：Cookie 缺失或过期，重新登录并导出。访客模式下如果 `context.requiredAuth === 'cookie'`，说明这个能力只能读登录账号，换 Cookie 而不是重试。
 - `RATE_LIMITED`：HTTP 432 / 429，让 SDK 退避，不要绕过。
 - `NET_TIMEOUT` / `NET_REQUEST_FAILED`：传输失败，可以重试。
 - `API_NOT_OK`：微博接口返回业务失败。
@@ -252,7 +292,8 @@ weibo-cli schema diff before.json after.json
 
 - Stable：users、timeline、首页 Feed、tweet detail、comments、reposts、followings、fans、favorites、likes、comment history、images、videos、notifications、trends、archive。
 - Degraded：tweet likers。网页端的 `likeShow` 返回空数组，SDK 改用 `m.weibo.cn/api/attitudes/show`，入参必须是数字 mid。
-- Unavailable：公开关键词搜索（`searchUsers` / `searchTweets`）。
+- Unavailable：公开关键词搜索（`searchUsers` / `searchTweets`），访客搜索同样暂缓。
+- 每条能力带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）与 `guestNote`，是判断访客可用性的第一手依据。
 
 ### 范围与安全
 

@@ -28,9 +28,9 @@ npm install @chilfish/weibo-sdk
 
 浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口会把 axios 和 zod 一起打包，不需要额外的模块解析。
 
-## 准备 Cookie
+## 登录 Cookie（可选）
 
-SDK 需要一份已登录微博的 Cookie。可以直接传字符串，也可以传文件路径：
+要读自己的关注时间线、收藏、通知，或者归档整个账号，需要一份已登录微博的 Cookie。可以直接传字符串，也可以传文件路径：
 
 ```ts
 import { WeiboSDK } from '@chilfish/weibo-sdk'
@@ -52,6 +52,36 @@ WEIBO_COOKIE="SUB=...; SUBP=...; XSRF-TOKEN=..."
 ```
 
 `--cookie` / `-c` 可以临时覆盖。开始之前建议先运行 `weibo-cli whoami` 确认登录状态。
+
+## 没有 Cookie？访客模式
+
+不提供 Cookie 也能读公开数据，SDK 会自动使用访客身份：
+
+```ts
+import { WeiboSDK } from '@chilfish/weibo-sdk'
+
+const sdk = new WeiboSDK({})                 // 等价于 auth: 'auto'，没有 Cookie 就走访客
+const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
+const comments = await sdk.tweets.comments('QqsYymYOS')
+
+// 也可以显式指定
+new WeiboSDK({ auth: 'guest' })
+new WeiboSDK({ auth: 'guest', guest: { issuer: 'mobile', autoRefresh: true } })
+```
+
+CLI 的每个命令都支持 `--guest`，它不会读取 `.env`：
+
+```bash
+weibo-cli whoami --guest
+weibo-cli tweet detail QqsYymYOS --guest
+weibo-cli tweet comments QqsYymYOS --guest
+weibo-cli trends --guest
+weibo-cli user timeline 1111681197 --guest   # 只有第一页，结果带 partial: true
+```
+
+访客能读用户资料、单条微博、长文、评论、转发、点赞者、图片墙、视频、相册、超话和热搜。用户时间线、点赞、关注和粉丝只能拿到第一页；收藏、通知、@ 我、历史评论、首页关注时间线、日期搜索和归档仍然需要 Cookie，访客模式调用它们会返回 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）或 `CONFIG_INVALID`。
+
+`auth: 'auto'` 只在构造时判断：没有 Cookie 就用访客，Cookie 过期不会静默切换成访客，会照常报错。访客 token 会自动刷新一次，遇到限流（432 / 429）只退避重试。
 
 ## 快速开始
 
@@ -96,11 +126,12 @@ for await (const comment of sdk.tweets.streamComments('QqsYymYOS', {
 
 ```ts
 const session = await sdk.getSession()
-session.uid        // 登录账号 uid（从 profile/detail 的 verified_url 解析）
-session.details    // profile/detail 原始响应
+session.authMode   // 'cookie' 或 'guest'
+session.uid        // 登录账号 uid（从 profile/detail 的 verified_url 解析；访客为 undefined）
+session.details    // profile/detail 原始响应（访客缺省）
 ```
 
-`getSession()` 复用启动自检已经发出的请求，按实例缓存，不会额外探测；需要重新确认登录态时传 `{ refresh: true }`。
+`getSession()` 复用启动自检已经发出的请求，按实例缓存，不会额外探测；需要重新确认登录态时传 `{ refresh: true }`。访客模式下它只确认访客 token 可用，并返回 `guestTokenIssuedAt`。
 
 ### 归档账号
 
@@ -122,6 +153,8 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 ```
 
 `ArchiveItem.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image` 或 `video`。图片项可能没有 `tweet`，只有 `asset`。
+
+归档需要登录 Cookie：访客身份调用 `streamArchive` 会抛 `CONFIG_INVALID`，因为匿名列表只有第一页，无法保证完整。
 
 续跑是 **at-least-once**：`checkpoint` 记录最后一条已完整处理的项，中断后重跑可能重复边界 1 条；图片墙和视频瀑布的游标按整页写回，续跑会重放整页。请按 `mblogId`（媒体按 `asset.id`）幂等去重。
 
@@ -225,7 +258,7 @@ await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 
 ## 诊断
 
-`capabilities()` 可以查看当前支持的能力、登录要求和分页方式：
+`capabilities()` 可以查看当前支持的能力、登录要求和分页方式。每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination` 和 `guestNote`，能直接看出访客身份下能不能用、能不能翻页：
 
 ```ts
 const caps = sdk.capabilities({ service: 'tweets' })
@@ -238,12 +271,12 @@ weibo-cli schema diff before-digest.json after-digest.json
 
 错误对象带有 `code`、`level`、`retryable`、`context`，部分错误还有 `hint` 和 `next`。建议先判断 `code`，不要匹配错误文案：
 
-- `AUTH_SESSION_EXPIRED`：Cookie 无效或过期
+- `AUTH_SESSION_EXPIRED`：Cookie 无效或过期；访客模式下表示该能力需要登录（`context.requiredAuth === 'cookie'`）
 - `RATE_LIMITED`：HTTP 432 / 429，SDK 会自动退避
 - `NET_TIMEOUT` / `NET_REQUEST_FAILED`：网络问题，可重试
 - `API_NOT_OK`：微博接口返回 `ok !== 1`
 - `API_BAD_RESPONSE`：返回的不是 JSON，或字段结构与预期不符
-- `CONFIG_INVALID`：Cookie、代理或参数配置有误
+- `CONFIG_INVALID`：Cookie、代理或参数配置有误（例如 `auth: 'cookie'` 却没有 Cookie、访客请求第 2 页、访客调用归档）
 
 完整的错误码和处理方式见 [错误排障手册](./docs/engineering/error-diagnostics.md)。
 
@@ -284,6 +317,12 @@ pnpm test
 pnpm test:e2e
 ```
 
+访客链路的冒烟用例不需要 Cookie，用独立开关开启：
+
+```bash
+WEIBO_GUEST_E2E=1 pnpm test:e2e
+```
+
 `playground/` 里有可直接运行的 SDK 和 CLI 示例：
 
 ```bash
@@ -310,7 +349,7 @@ pnpm play cli:home
 
 媒体 URL 是微博的短期签名地址，通常约一小时后失效。归档时需要及时下载，或者只保存 URL 和元数据。
 
-请只使用自己的账号 Cookie，并遵守微博的服务条款、限流规则和隐私政策。
+请只使用自己的账号 Cookie（或访客身份读取公开数据），并遵守微博的服务条款、限流规则和隐私政策。
 
 ## 许可证
 

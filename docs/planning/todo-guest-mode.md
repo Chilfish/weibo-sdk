@@ -80,3 +80,31 @@
 - m 站 container 匿名只有第一页；第 2 页 / `since_id` 会 302 登录页，不承诺完整归档。
 - 上游可能漂移：guest 可用性以 fixture + E2E 监控；错误 context 带 `auth_mode` 与端点。
 - 「假成功」端点（收藏 / 通知 / @我 / 历史评论 / 微博分组）继续要求 Cookie，不因 `ok: 1` 放行。
+
+## 完成情况（2026-10-20）
+
+G1–G4 / G6 / G7 已完成；G5 保持待产品确认（`search.*` 仍为 `unavailable`）。
+
+**落地要点**：
+
+- `GuestTokenService`：移动端 token；JSONP body + `Set-Cookie` 双解析；缓存 + single-flight；刷新失败保留旧 token；432 不刷新；telemetry 不记录 token 明文。
+- `EndpointSpec.auth`：默认 `cookie`；`none` / `guest` 显式声明；guest 下 cookie-only 端点直接抛 `AUTH_SESSION_EXPIRED`（`requiredAuth: 'cookie'`）。
+- guest 首屏：`users.timeline` / `likes.listByUserId` 返回 `partial: true`、`hasMore: false`；关注 / 粉丝返回 `next_cursor: 0`；第 2 页抛 `CONFIG_INVALID`。
+- 归档：guest 下 `streamArchive` / `streamUsersArchive` 直接抛 `CONFIG_INVALID`，避免把首屏采样当完整归档。
+- CLI：所有命令支持 `--guest`；`whoami --guest` 输出访客 token 元信息；`archive` 的 `CONFIG_INVALID` 走统一 JSON 错误信封。
+- Fixtures：11 个真实 `mobile_*.json`；`sanitize-raw.mjs --keep-ids` 保留 `mid` / `idstr` / `uid` / 数字 `id`，保证 `midToMblogId` 与去重可验证。
+
+**测试**：
+
+- `pnpm run typecheck` 通过；`pnpm build` 通过。
+- `pnpm test --run` **699 passed / 23 skipped**（含 guest unit / component / E2E skip）。
+- `pnpm run validate:fixtures`：104 fixtures，96 ok / 8 unmodeled / 0 fail。
+- 真机（`bun src/cli.ts … --guest`）：`whoami`、`tweet detail`、`tweet comments`、`trends`、`user timeline` 均成功；`archive --guest` 返回结构化 `CONFIG_INVALID`。
+
+**提交**：
+
+- `chore(fixtures): add real guest mobile samples`
+- `feat: add guest mode`
+- `test(guest): cover token issuance, auth retry, and mobile reads`
+- `docs: plan guest mode implementation`
+

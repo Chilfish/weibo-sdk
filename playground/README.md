@@ -29,6 +29,22 @@ pnpm play cli:home
 
 SDK 场景在仓库内通过 `tsconfig.json` 的 `paths` 把 `@chilfish/weibo-sdk` 指向 `src/index.ts`，所以不需要先构建。CLI 场景运行 `dist/cli.mjs`，需要先执行 `pnpm build`，也可以用 `WEIBO_CLI_BIN` 指向已安装的 `weibo-cli`。
 
+## 访客模式（不需要 Cookie）
+
+只想看一眼公开数据时，连 `.env` 都不用准备。CLI 的每个命令都支持 `--guest`，直接在仓库根目录用 `pnpm tsx` 跑源码：
+
+```bash
+pnpm tsx src/cli.ts whoami --guest
+pnpm tsx src/cli.ts tweet detail <id> --guest
+pnpm tsx src/cli.ts tweet comments <id> --guest
+pnpm tsx src/cli.ts trends --guest
+pnpm tsx src/cli.ts user timeline <uid> --guest   # 只有第一页，结果带 partial: true
+```
+
+不传 `--guest` 又没有可用 Cookie 时，也会自动使用访客身份。访客读不到收藏、通知、@ 我、历史评论、首页关注时间线和归档；这些能力会返回 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）或 `CONFIG_INVALID`。
+
+`playground/` 里的 SDK / CLI 场景都按登录态编写，会读取 `.env`，因此需要先准备 Cookie。
+
 ## Cookie 规则
 
 和 CLI 一致：只读 `.env` 文件，不读 shell 环境变量，避免旧 Cookie 静默覆盖新值。
@@ -120,10 +136,10 @@ pnpm play download-media QqsYymYOS --include pic,video --write
 
 | 症状 | 处理 |
 |---|---|
-| `未找到 WEIBO_COOKIE` | 复制 `.env.example`，或用 `--cookie` 显式传入 |
-| `AUTH_SESSION_EXPIRED` | Cookie 过期，重新登录浏览器并导出 |
+| `未找到 WEIBO_COOKIE` | 复制 `.env.example`，或用 `--cookie` 显式传入；只想读公开数据时用 `--guest` |
+| `AUTH_SESSION_EXPIRED` | Cookie 过期，重新登录浏览器并导出；`context.requiredAuth === 'cookie'` 表示访客读不到这个能力 |
 | `RATE_LIMITED` | HTTP 432 / 429，降低并发或拉长间隔，让 SDK 退避 |
 | `API_BAD_RESPONSE` | 微博返回登录页、风控页或 schema 漂移，先运行 `pnpm play diagnose --probe` |
-| `CONFIG_INVALID` | Cookie 路径、格式或日期参数有问题 |
+| `CONFIG_INVALID` | Cookie 路径、格式或日期参数有问题；`auth: 'cookie'` 却没有 Cookie、访客请求第 2 页、访客调用归档也会报这个错 |
 | 公开搜索不可用 | `sdk.search.*` 的微博接口已失效，个人主页搜索用 `tweets.searchByDate` |
 | CLI 找不到 | 先运行 `pnpm build`，或设置 `WEIBO_CLI_BIN=/path/to/weibo-cli` |
