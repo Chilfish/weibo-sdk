@@ -320,3 +320,50 @@
 - 多图评论可能返回多个 `url_struct` 项，后面的项可能重复前面的 `pic_infos`；归一化按 `pic_id` 去重。
 - `normalizeComment` 取 `largest → original → woriginal → mw2000 → large → bmiddle → thumbnail` 的首个可用 URL 填入 `pics[].imageUrl`（临时签名 URL）。
 
+## 新增抓包（2026-10-20：Guest mode / mobile —— 匿名态 m 站样本）
+
+> **抓包日期**：2026-10-20。**环境**：未登录（guest / 匿名）浏览器访问 `m.weibo.cn`，页面内 `fetch(..., { credentials: 'omit' })` 取原始响应；不做登录态复放。
+> **仅第 1 页**：匿名态请求第 2 页会被登录门控（`page>=2` / 游标翻页都落到登录门槛页，无数据），所以本组只有 `*_p1` 单页样本；**没有** ended / 空页样本。
+> **样本 uid**：`2365795232`（timeline / likes / followings / fans / videos / album_tab / photos 均为该用户的公开主页容器）。**样本 mid**：`5351661841154875`（timeline 首条）、`5355788822383452`（likes 首条）、`5091360301123019`（videos 首条）；comments / likers 的响应**不回显**被请求的微博 mid（mid 只在请求参数里，未入库）。
+> **端点还原**：原始请求 URL 未随响应记录，下表端点由 `data.scheme` + `data.cardlistInfo.containerid` 还原；containerid 为公开索引键，保留真实值（样本 uid `2365795232`）。
+
+| 文件 | 大小 | 端点 | 分页字段 | 说明 |
+|------|------|------|----------|------|
+| `mobile_timeline_p1.json` | 50K | `GET m.weibo.cn/api/container/getIndex?type=uid&value=<uid>&containerid=107603<uid>` | `page` | 微博 tab，10 张 `card_type: 9` 卡片（10 条微博，`cards[].mblog`）；`total=13718`、`autoLoadMoreIndex=10` |
+| `mobile_likes_p1.json` | 41K | `GET …/getIndex?containerid=230869<uid>`（「他的互动」父容器，「赞」子容器 `230869<uid>_-_mix`） | `page` | 10 张卡片（1 张 `card_type: 11` 月份分组头 + 9 张 `card_type: 9`），共 10 条微博；`total=1000`（上限值） |
+| `mobile_followings_p1.json` | 27K | `GET …/getIndex?containerid=231051_-_followers_-_<uid>` | `page` | 1 张 `card_type: 11`「他的全部关注」，内含 20 个 `card_type: 10` 用户（`cards[].card_group[].user`）；`total=2385` |
+| `mobile_fans_p1.json` | 4.4K | `GET …/getIndex?containerid=231051_-_follows_-_<uid>` | `since_id` | 2 张卡片：`card_type: 42` 说明卡（「这些大V用户关注了他」）+「他的全部粉丝」3 个 `card_type: 10` 用户；`cardlistInfo.since_id=32`（数字游标） |
+| `mobile_videos_p1.json` | 48K | `GET …/getIndex?containerid=231567<uid>` | `since_id` | 17 张 `card_type: 89` 视频卡（`cards[].mblog`）；`total=28`、`since_id` 为长数字游标；视频 URL 在 `mblog.page_info.media_info` |
+| `mobile_album_tab.json` | 10K | `GET …/getIndex?containerid=107803<uid>` | 无（`page: null`） | 相册 tab：2 张卡片 ——「全部图片(534)」= 3 个 `card_type: 47` 图片卡（9 张图）、「相册专辑(2)」= 2 个 `card_type: 8` 专辑卡（`cards[].card_group[].pics`） |
+| `mobile_photos_p1.json` | 11K | `GET …/getIndex?containerid=107803<uid>_-_photoall` | `since_id` | 4 张 `card_type: 47` 图片卡（共 10 张图）；`total=534`、`since_id` 长数字游标 |
+| `mobile_search_users_p1.json` | 35K | `GET …/getIndex?containerid=100103type%3D3%26q%3D<kw>%26t%3D&page_type=searchall` | `page` | 2 张卡片：`card_type: 4` 筛选入口 + `card_type: 11` 内含 20 位用户；`total=500`、`page_size=5` |
+| `mobile_search_tweets_p1.json` | 46K | `GET …/getIndex?containerid=100103type%3D1%26q%3D<kw>%26t%3D&page_type=searchall` | `page` | 9 张卡片（2 张 `card_type: 9` + 7 张 `card_type: 11` 组合卡），共 8 条微博；另有 1 个用户条目（`card_type: 10`）与 1 张相关超话卡（`card_type: 17`）；`total=914`、`page_size=5` |
+| `mobile_comments_p1.json` | 1.3K | `GET m.weibo.cn/api/comments/show?id=<mid>` | `page`（`data.max` 回显当前页） | 评论 3 条；`data.data[]` + `total_number=3` |
+| `mobile_likers_p1.json` | 18K | `GET m.weibo.cn/api/attitudes/show?id=<mid>&page=<n>` | `page`（`data.max` 回显当前页） | 点赞者 50 条；`data.total_number=162` |
+
+### 注册情况（`scripts/validate-fixtures.ts`）
+
+- `mobile_likers_p1.json` → `likersSpec`（**mapped**，与既有 `likers_p1/p2/end.json` 同一 m 站端点，响应同构）。
+- 其余 10 个 → **unmodeled**：m 站容器样本由组件解析测试覆盖；`mobile_comments_p1.json` 为 m 站 `api/comments/show`（`data.data[] + total_number + max`），与网页端 `buildCommentsSpec` 的响应不同，未建模。
+- 备注：`mobile_search_users_p1.json` / `mobile_search_tweets_p1.json` 与已建模的 `searchUsersSpec` / `searchTweetsSpec`（同为 `containerid=100103type=3|1` 的 m 站容器）结构同构，后续可直接升级为 mapped。
+
+### Guest 态已知限制
+
+- **第 2 页登录门控**：匿名态 `page>=2`（或带第 1 页游标）返回登录门槛，无数据；因此**无法**用本组样本验证「翻到底」的停止态（对比登录态样本均有 `*_end.json`）。
+- **`cardlistInfo.page` 不是当前页码**：m 站把「下一页」写进 `page`（本组的 timeline / likes / followings / search 样本回显 `2`），不要用 `page` 判断当前页；`page` 只在相册 tab 为 `null`（该容器不分页）。
+- **`cardlistInfo.total` 不能做终止条件**：`likes.total=1000` 是上限值，`timeline.total=13718` / `followings.total=2385` 是作者维度总数，`videos.total=28` / `photos.total=534` 才是当前集合规模。
+- **containerid 命名反直觉**：`231051_-_followers_-_<uid>` = 他的**关注**，`231051_-_follows_-_<uid>` = 他的**粉丝**（与网页端 `relate=fans|followers` 语义相反）。
+- **粉丝容器每页条数很窄**：`mobile_fans_p1.json` 单页只有 3 位用户（`card_group` 里 1 张 `card_type: 42` 说明卡 + 3 个 `card_type: 10` 用户），与网页端「每页固定 2 条」的窄页现象同源。
+- **无 `since_id` 的容器**：timeline / likes / followings / search 只给 `page`；photos / videos / fans 只给 `since_id`（长数字）；二者不通用。
+- **评论区两种响应**：guest 态 `api/comments/show` 只有 `{ok, msg, data:{data[], total_number, max}}`，无 `max_id` 游标（不能直接复用 `buildComments` 的 `max_id` 翻页逻辑）。
+- **`user` 可能为 null**：微博 / 用户字段与登录态同构（`cards[].mblog.user`、`cards[].card_group[].user`），但匿名态下被转发的原微博作者可能不可见 —— `mobile_timeline_p1.json` 的 `cards[6].mblog.retweeted_status.user` 为 `null`，解析需容忍。
+
+### 脱敏说明（本组追加规则）
+
+本组使用 `node scripts/sanitize-raw.mjs <input> <output> --keep-ids`：
+
+- **保留 ID**：`mid` / `idstr` / `uid` / 数字 `id` 原样保留。移动端微博**没有 `mblogid`**，`mid` 是唯一关联键，且 `midToMblogId(mid)` 需要真实数字；关注 / 粉丝列表也依赖 `idstr` / `id` 去重（postmortem 006「脱敏保留关联」）。这些是公开账号 / 微博标识，不是个人凭据。
+- **仍脱敏**：URL → `<URL>`、日期 → `<DATE>`、长文本（>40）→ `<TEXT>`；会话 / 访客 token（`_T_WM`、`ssig=`、`Expires=`、`KID=`、`user_token`、`search_ssid` / `search_vsid` / `search_request_id`）→ `<TEXT>`。
+- **保留结构**：`ok`、`msg`、`card_type` / `card_type_name`、`cardlistInfo` 的 `page` / `since_id` / `total` / `page_size`、条目 JSON 键树与字段类型、`mblogid` / `bid`、`screen_name`、≤40 字符短文本。
+- **刻意保留（与既有 fixture 一致）**：`rid`（纯 trace id）、`object_id`（`<type>:<id>`）、`safe_tags`（位掩码数值，非 ID）、≤40 字符的 `sinaweibo://detail/?mblogid=<bid>` 内链 scheme（公开 mblogid，与 `mblog.user` 关联一致）。
+

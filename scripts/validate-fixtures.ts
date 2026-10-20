@@ -19,6 +19,7 @@ import { likeListSpec } from '../src/services/endpoints/like'
 import { likersSpec } from '../src/services/endpoints/likers'
 import { albumDetailSpec, imageWallSpec, waterfallSpec } from '../src/services/endpoints/media'
 import { mentionsSpec } from '../src/services/endpoints/mentions'
+import { mobileContainerSpec } from '../src/services/endpoints/mobile'
 import { messageAttitudesSpec, messageCommentsSpec } from '../src/services/endpoints/notifications'
 import { searchUsersSpec } from '../src/services/endpoints/search'
 import { bandUnifiedSpec } from '../src/services/endpoints/side'
@@ -150,6 +151,20 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'stopic_list_p1.json': validate(stopicListSpec),
   'stopic_list_p2.json': validate(stopicListSpec),
   'stopic_list_search.json': validate(stopicListSpec),
+  // 2026-10-20 guest（未登录 / 匿名）态 m 站抓包：mobile_*.json
+  // 均只有第 1 页（匿名态 page>=2 被登录门控）。容器样本（data.cards[] + cardlistInfo）由组件解析测试覆盖，
+  // 故登记为 unmodeled；仅 mobile_likers_p1 的响应与已建模的 likersSpec 同构（m 站 attitudes/show），直接 mapped。
+  'mobile_likers_p1.json': validate(likersSpec),
+  'mobile_timeline_p1.json': validate(mobileContainerSpec),
+  'mobile_likes_p1.json': validate(mobileContainerSpec),
+  'mobile_followings_p1.json': validate(mobileContainerSpec),
+  'mobile_fans_p1.json': validate(mobileContainerSpec),
+  'mobile_videos_p1.json': validate(mobileContainerSpec),
+  'mobile_album_tab.json': validate(mobileContainerSpec),
+  'mobile_photos_p1.json': validate(mobileContainerSpec),
+  'mobile_search_users_p1.json': validate(mobileContainerSpec),
+  'mobile_search_tweets_p1.json': validate(mobileContainerSpec),
+  'mobile_comments_p1.json': { kind: 'unmodeled', note: 'm 站 api/comments/show 未建模（data.data[] + total_number + max，与网页端 buildComments 响应不同）：guest mobile container; covered by component parsing tests' },
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },
   'side_cards.json': { kind: 'unmodeled', note: 'side cards 端点未建模' },
