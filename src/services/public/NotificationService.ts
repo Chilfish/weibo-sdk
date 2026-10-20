@@ -1,7 +1,9 @@
 import type { MessageArgs } from '../endpoints/notifications'
 import type { IWeiboConfig } from '~/types/config'
 import type { CommentNotification, LikeNotification } from '~/types/domain/INotification'
+import type { StreamRangeOptions } from '~/utils/streamRange'
 import { normalizeCommentNotification, normalizeLikeNotification } from '~/models/data/Notification'
+import { createStreamRange } from '~/utils/streamRange'
 import { messageAttitudesSpec, messageCommentsSpec } from '../endpoints/notifications'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -59,7 +61,7 @@ export interface NotificationStreamProgress {
 }
 
 /** 消息流选项。 */
-export interface NotificationStreamOptions extends NotificationListOptions {
+export interface NotificationStreamOptions extends NotificationListOptions, StreamRangeOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；回调抛错不会中断流 */
@@ -189,6 +191,7 @@ export class NotificationService extends FetcherService {
       options,
       fetchPage: requestOptions => this.fetchCommentsPage(requestOptions),
       itemId: item => item.comment.id,
+      getTime: item => item.comment.createdAt,
       emit: (count, startAt) => this.emitNormalize('CommentNotification', count, startAt),
     })
   }
@@ -229,6 +232,7 @@ export class NotificationService extends FetcherService {
       options,
       fetchPage: requestOptions => this.fetchLikesPage(requestOptions),
       itemId: item => item.id,
+      getTime: item => item.createdAt,
       emit: (count, startAt) => this.emitNormalize('LikeNotification', count, startAt),
     })
   }
@@ -243,10 +247,12 @@ export class NotificationService extends FetcherService {
     options: NotificationStreamOptions
     fetchPage: (options: NotificationListOptions) => Promise<RawPage<T>>
     itemId: (item: T) => string
+    getTime: (item: T) => string | undefined
     emit: (count: number, startAt: number) => Promise<void>
   }): AsyncIterableIterator<T> {
-    const { source, options, fetchPage, itemId, emit } = params
+    const { source, options, fetchPage, itemId, getTime, emit } = params
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<T>(options, getTime)
     const seen = new Set<string>()
     let cursor: number | undefined = normalizeMaxId(options.maxId)
     let pageNo = normalizePage(options.page) ?? 1
@@ -281,6 +287,11 @@ export class NotificationService extends FetcherService {
         break // 整页重复：上游忽略了游标
 
       for (const item of fresh) {
+        const decision = range.decide(item)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield item
       }
@@ -306,6 +317,8 @@ export class NotificationService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (page.cursor === 0)
         break
       if (cursor !== undefined && page.cursor === cursor)

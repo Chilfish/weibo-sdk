@@ -1,6 +1,7 @@
 import type { IWeiboConfig } from '~/types/config'
 import type { SuperTopic, SuperTopicCategory } from '~/types/domain/ISuperTopic'
 import type { PaginationProgress } from '~/utils/pagination'
+import type { StreamLimitOptions } from '~/utils/streamRange'
 import { normalizeSuperTopic, normalizeSuperTopicCategory } from '~/models/data/SuperTopic'
 import { normalizeMaxPages, paginate } from '~/utils/pagination'
 import { stopicCatesSpec, stopicListSpec } from '../endpoints/topic'
@@ -29,7 +30,7 @@ export interface SuperTopicListOptions {
 }
 
 /** `stream` 的选项。 */
-export interface SuperTopicStreamOptions extends Omit<SuperTopicListOptions, 'page'> {
+export interface SuperTopicStreamOptions extends Omit<SuperTopicListOptions, 'page'>, StreamLimitOptions {
   /** 起始页码（从 1 开始） */
   page?: number
   /** 最多翻页数（默认不限） */
@@ -170,6 +171,7 @@ export class TopicService extends FetcherService {
       {
         initialCursor: normalizePage(options.page),
         maxPages: normalizeMaxPages(options.maxPages),
+        maxItems: options.maxItems,
         getKey: topic => topic.pageId,
         onProgress: options.onProgress,
       },

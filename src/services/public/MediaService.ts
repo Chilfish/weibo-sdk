@@ -12,11 +12,14 @@ import type {
   MediaDownloadOptions,
   TweetMediaDownloadResult,
 } from '~/types/media'
+import type { StreamLimitOptions } from '~/utils/streamRange'
 import { normalizeAlbum, normalizeImageWallItem, normalizeWaterfallVideo } from '~/models/data/Media'
 import { Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { MediaType } from '~/types/domain/ITweet'
+import { createStreamRange } from '~/utils/streamRange'
+import { normalizeTweetIdInput } from '~/utils/tweetId'
 import { albumDetailSpec, imageWallSpec, waterfallSpec } from '../endpoints/media'
 import { statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
@@ -74,7 +77,7 @@ export interface MediaStreamProgress {
 }
 
 /** `streamImages` 的选项。 */
-export interface ImageWallStreamOptions extends ImageWallListOptions {
+export interface ImageWallStreamOptions extends ImageWallListOptions, StreamLimitOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
@@ -82,7 +85,7 @@ export interface ImageWallStreamOptions extends ImageWallListOptions {
 }
 
 /** `streamVideos` 的选项。 */
-export interface VideoWaterfallStreamOptions extends VideoWaterfallListOptions {
+export interface VideoWaterfallStreamOptions extends VideoWaterfallListOptions, StreamLimitOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
@@ -126,7 +129,7 @@ export interface AlbumPhotoListOptions {
 }
 
 /** `streamAlbumPhotos` 的选项。 */
-export interface AlbumPhotoStreamOptions extends AlbumPhotoListOptions {
+export interface AlbumPhotoStreamOptions extends AlbumPhotoListOptions, StreamLimitOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
@@ -420,6 +423,7 @@ export class MediaService extends FetcherService {
    */
   async* streamAlbumPhotos(containerId: string, options: AlbumPhotoStreamOptions = {}): AsyncIterableIterator<IUserMediaAsset> {
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<IUserMediaAsset>(options)
     const seen = new Set<string>()
     let cursor = normalizeCursor(options.sinceId)
     let pages = 0
@@ -441,6 +445,11 @@ export class MediaService extends FetcherService {
         break
 
       for (const asset of fresh) {
+        const decision = range.decide(asset)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield asset
       }
@@ -458,6 +467,8 @@ export class MediaService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (!result.hasMore || result.sinceId === undefined)
         break
       cursor = result.sinceId
@@ -513,6 +524,7 @@ export class MediaService extends FetcherService {
    */
   async* streamImages(uid: string, options: ImageWallStreamOptions = {}): AsyncIterableIterator<IUserMediaAsset> {
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<IUserMediaAsset>(options)
     const seen = new Set<string>()
     let cursor = normalizeCursor(options.sinceId)
     let pages = 0
@@ -534,6 +546,11 @@ export class MediaService extends FetcherService {
         break
 
       for (const asset of fresh) {
+        const decision = range.decide(asset)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield asset
       }
@@ -552,6 +569,8 @@ export class MediaService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (!result.hasMore || result.sinceId === undefined)
         break
       cursor = result.sinceId
@@ -607,6 +626,7 @@ export class MediaService extends FetcherService {
    */
   async* streamVideos(uid: string, options: VideoWaterfallStreamOptions = {}): AsyncIterableIterator<IUserMediaAsset> {
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<IUserMediaAsset>(options)
     const seen = new Set<string>()
     let cursor = normalizeCursor(options.cursor)
     let pages = 0
@@ -628,6 +648,11 @@ export class MediaService extends FetcherService {
         break
 
       for (const asset of fresh) {
+        const decision = range.decide(asset)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield asset
       }
@@ -646,6 +671,8 @@ export class MediaService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (!result.hasMore || result.cursor === undefined)
         break
       cursor = result.cursor
@@ -757,24 +784,25 @@ export class MediaService extends FetcherService {
   }
 
   /**
-   * 先按 `mblogId` 拉取微博（不补长文），再下载其媒体。
+   * 先按微博 id 拉取微博（不补长文），再下载其媒体。
    *
-   * @param mblogId 字母形式微博 id
+   * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
    * @param options 下载选项
    */
   public async downloadByMblogId(
     mblogId: string,
     options: MediaDownloadOptions,
   ): Promise<TweetMediaDownloadResult> {
-    if (typeof mblogId !== 'string' || mblogId.trim() === '') {
-      throw new InvalidConfigError('Media download requires a non-empty mblogId.', { field: 'mblogId' })
-    }
-    const tweet = await this.getTweetForMedia(mblogId)
+    const id = normalizeTweetIdInput(mblogId)
+    const tweet = await this.getTweetForMedia(id)
     return this.downloadTweetMedia(tweet, options)
   }
 
   private async getTweetForMedia(mblogId: string): Promise<Tweet> {
-    const raw = await this.request(statusShowSpec, { id: mblogId, isGetLongText: false })
+    const raw = await this.request(statusShowSpec, {
+      id: normalizeTweetIdInput(mblogId),
+      isGetLongText: false,
+    })
     return new Tweet(raw)
   }
 

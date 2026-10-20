@@ -1,7 +1,9 @@
 import type { MyCommentsArgs, MyCommentsResponse } from '../endpoints/commentHistory'
 import type { IWeiboConfig } from '~/types/config'
 import type { ITweetComment } from '~/types/domain/ITweet'
+import type { StreamRangeOptions } from '~/utils/streamRange'
 import { normalizeComment } from '~/models/data/Tweet'
+import { createStreamRange } from '~/utils/streamRange'
 import { myCommentsSpec } from '../endpoints/commentHistory'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -60,7 +62,7 @@ export interface CommentHistoryStreamProgress {
 }
 
 /** `streamMine` 的选项。 */
-export interface CommentHistoryStreamOptions extends CommentHistoryListOptions {
+export interface CommentHistoryStreamOptions extends CommentHistoryListOptions, StreamRangeOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；回调抛错不会中断流 */
@@ -219,6 +221,7 @@ export class CommentHistoryService extends FetcherService {
    */
   async* streamMine(options: CommentHistoryStreamOptions = {}): AsyncIterableIterator<ITweetComment> {
     const maxPages = options.maxPages ?? Number.POSITIVE_INFINITY
+    const range = createStreamRange<ITweetComment>(options, comment => comment.createdAt)
     const traceId = this.newTraceId()
     const startAt = Date.now()
 
@@ -256,6 +259,11 @@ export class CommentHistoryService extends FetcherService {
         break // 整页重复：上游忽略了游标，视为到底
 
       for (const comment of fresh) {
+        const decision = range.decide(comment)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield comment
       }
@@ -279,6 +287,8 @@ export class CommentHistoryService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (page.cursor === 0)
         break // 到底
       if (cursor !== undefined && page.cursor === cursor)

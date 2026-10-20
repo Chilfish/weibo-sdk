@@ -1,7 +1,9 @@
 import type { LikeListResponse } from '../endpoints/like'
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
+import type { StreamLimitOptions } from '~/utils/streamRange'
 import { isRawTweet, Tweet } from '~/models/data/Tweet'
+import { createStreamRange } from '~/utils/streamRange'
 import { likeListSpec } from '../endpoints/like'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -39,7 +41,7 @@ export interface LikeStreamProgress {
 }
 
 /** `streamByUserId` 的选项。 */
-export interface LikeStreamOptions extends LikeListOptions {
+export interface LikeStreamOptions extends LikeListOptions, StreamLimitOptions {
   /** 最多翻页数（默认不限；非有限数按不限处理，`<= 0` 视为不翻页） */
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
@@ -163,6 +165,7 @@ export class LikeService extends FetcherService {
    */
   async* streamByUserId(uid: string, options: LikeStreamOptions = {}): AsyncIterableIterator<Tweet> {
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<Tweet>(options)
     let page = normalizePage(options.page)
     let pages = 0
     let processed = 0
@@ -182,8 +185,14 @@ export class LikeService extends FetcherService {
 
       const startAt = Date.now()
       for (const item of fresh) {
+        const tweet = new Tweet(item)
+        const decision = range.decide(tweet)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
-        yield new Tweet(item)
+        yield tweet
       }
       await this.emitTelemetry({
         event_name: 'normalize_done',
@@ -201,6 +210,8 @@ export class LikeService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       page += 1
       pages += 1
     }

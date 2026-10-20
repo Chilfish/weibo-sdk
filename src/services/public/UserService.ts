@@ -3,9 +3,11 @@ import type { UserDetailsResponse, UserInfoResponse } from '../endpoints/user'
 import type { Tweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { MblogGroup, UserGroup } from '~/types/domain/IGroup'
+import type { StreamRangeOptions } from '~/utils/streamRange'
 import { normalizeMblogGroups, normalizeUserGroups } from '~/models/data/Group'
 import { Tweet as TweetModel } from '~/models/data/Tweet'
 import { User } from '~/models/data/User'
+import { createStreamRange } from '~/utils/streamRange'
 import { feedGroupsSpec, mblogGroupsSpec } from '../endpoints/groups'
 import { mentionsSpec } from '../endpoints/mentions'
 import { myDetailsSpec, userDetailsSpec, userInfoSpec } from '../endpoints/user'
@@ -48,7 +50,7 @@ export interface UserMentionsStreamProgress {
 }
 
 /** `streamMentions` 的选项。 */
-export interface UserMentionsStreamOptions extends UserMentionsListOptions {
+export interface UserMentionsStreamOptions extends UserMentionsListOptions, StreamRangeOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；回调抛错不会中断流 */
@@ -234,6 +236,7 @@ export class UserService extends FetcherService {
    */
   async* streamMentions(options: UserMentionsStreamOptions = {}): AsyncIterableIterator<Tweet> {
     const maxPages = normalizeMaxPages(options.maxPages)
+    const range = createStreamRange<Tweet>(options, tweet => tweet.createdAt)
     const seen = new Set<string>()
     let cursor: number | undefined = normalizeMaxId(options.maxId)
     let pageNo = normalizePage(options.page) ?? 1
@@ -265,6 +268,11 @@ export class UserService extends FetcherService {
         break // 整页重复：上游忽略了游标
 
       for (const tweet of fresh) {
+        const decision = range.decide(tweet)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
         yield tweet
       }
@@ -297,6 +305,8 @@ export class UserService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (page.cursor === 0)
         break
       if (cursor !== undefined && page.cursor === cursor)

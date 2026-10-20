@@ -1,5 +1,6 @@
 import type { FollowContentResponse, FriendshipsResponse } from '../endpoints/follow'
 import type { IWeiboConfig } from '~/types/config'
+import type { StreamLimitOptions } from '~/utils/streamRange'
 import { normalizeMaxPages, paginate } from '../../utils/pagination'
 import { followContentSpec, friendshipsSpec } from '../endpoints/follow'
 import { FetcherService } from '../internal/FetcherService'
@@ -24,7 +25,7 @@ export interface FollowingsStreamProgress {
 }
 
 /** 关注关系流选项。 */
-export interface FollowingsStreamOptions {
+export interface FollowingsStreamOptions extends StreamLimitOptions {
   /** 起始页码（缺省 = 第一页） */
   page?: number
   /** 最多翻页数（默认不限） */
@@ -189,6 +190,7 @@ export class FollowingsService extends FetcherService {
       {
         initialCursor,
         maxPages,
+        maxItems: options.maxItems,
         getKey: userKey,
         onProgress: progress => options.onProgress?.({
           uid,

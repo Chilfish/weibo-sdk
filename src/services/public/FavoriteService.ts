@@ -1,7 +1,9 @@
 import type { FavoritesResponse, FavoritesTagsResponse } from '../endpoints/favorite'
 import type { IWeiboConfig } from '~/types/config'
+import type { StreamLimitOptions } from '~/utils/streamRange'
 import { matchesFavoriteTag } from '~/models/data/Favorite'
 import { Tweet } from '~/models/data/Tweet'
+import { createStreamRange } from '~/utils/streamRange'
 import { favoritesSpec, favoritesTagsSpec } from '../endpoints/favorite'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -57,7 +59,7 @@ export interface FavoriteStreamProgress {
 }
 
 /** `streamFavorites` 的选项。 */
-export interface FavoriteStreamOptions extends FavoriteListOptions {
+export interface FavoriteStreamOptions extends FavoriteListOptions, StreamLimitOptions {
   /** 最多翻页数（默认不限） */
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
@@ -186,6 +188,7 @@ export class FavoriteService extends FetcherService {
    */
   async* streamFavorites(uid: string, options: FavoriteStreamOptions = {}): AsyncIterableIterator<Tweet> {
     const maxPages = options.maxPages ?? Number.POSITIVE_INFINITY
+    const range = createStreamRange<Tweet>(options)
     const tag = options.tag
     let page = normalizePage(options.page) ?? 1
     let pages = 0
@@ -209,8 +212,14 @@ export class FavoriteService extends FetcherService {
         : fresh.filter(item => matchesFavoriteTag(item, tag))
 
       for (const item of matched) {
+        const tweet = new Tweet(item)
+        const decision = range.decide(tweet)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
         processed += 1
-        yield new Tweet(item)
+        yield tweet
       }
 
       try {
@@ -228,6 +237,8 @@ export class FavoriteService extends FetcherService {
         // 进度回调异常不影响流
       }
 
+      if (range.stopped)
+        break
       if (!rawPage.hasMore)
         break
       page += 1
