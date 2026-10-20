@@ -31,13 +31,15 @@ export const tweetEnrich = defineCommand({
 export const tweetComments = defineCommand({
   meta: { name: 'comments', description: '获取微博评论' },
   args: {
-    id: { type: 'positional', description: '微博 mblogId', required: true },
-    count: { type: 'string', description: '每页条数（上游忽略，固定 20）' },
-    flow: { type: 'string', description: '排序：0=热度 1=时间（时间序需数字 mid，SDK 自动解析）' },
+    'id': { type: 'positional', description: '微博 mblogId', required: true },
+    'max-id': { type: 'string', description: '分页游标（上一页响应顶层的 max_id；可选）' },
+    'count': { type: 'string', description: '每页条数（上游忽略，固定 20）' },
+    'flow': { type: 'string', description: '排序：0=热度 1=时间（时间序需数字 mid，SDK 自动解析）' },
     ...cookieArg,
   },
   async run({ args }) {
     const raw = await createSDK(args).tweets.comments(args.id, {
+      max_id: parsePositiveInt(args['max-id']),
       count: args.count ? Number(args.count) : undefined,
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
