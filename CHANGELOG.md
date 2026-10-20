@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.3.0 (2026-10-21)
+
 ### 新增
 
 - 访客模式：`IWeiboConfig.cookie` 变为可选，新增 `auth: 'auto' | 'cookie' | 'guest'`（默认 `auto`）和 `guest` 配置（`token` / `issuer` / `autoRefresh`）。没有 Cookie 时 SDK 自动使用访客身份，可以读取用户资料、单条微博、长文、评论、转发、点赞者、图片墙、视频、相册、超话和热搜。

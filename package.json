@@ -1,7 +1,7 @@
 {
   "name": "@chilfish/weibo-sdk",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "packageManager": "pnpm@12.5.1",
   "description": "A maintainable, offline-testable Weibo reverse-engineering SDK in TypeScript.",
   "author": "Chilfish",
