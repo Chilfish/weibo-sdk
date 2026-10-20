@@ -38,6 +38,8 @@ const FavoriteItemSchema: z.ZodType<any> = z.object({
   reposts_count: z.number().optional(),
   pic_ids: z.array(z.string()).optional(),
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
+  // 收藏项自带的标签；现有 fixture 均为空数组，元素结构未抓包，只约束为数组
+  tags: z.array(z.unknown()).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
   retweeted_status: z.lazy((): z.ZodType<any> => FavoriteItemSchema).nullable().optional(),
@@ -45,12 +47,16 @@ const FavoriteItemSchema: z.ZodType<any> = z.object({
 
 const FavoritesResponseSchema = z.object({
   ok: z.number(),
+  // 真实响应（2026-10-20 线上复核）：顶层 count / total_page 用于翻页判定；
+  // 部分 fixture 不含这两个字段，保持 optional。
+  count: z.number().optional(),
+  total_page: z.number().optional(),
   // 真实 API：data 为对象，微博列表在 data.status（见 fixtures/raw/favorites_p1.json）
   data: z.object({
     status: z.array(FavoriteItemSchema),
     total_number: z.number().optional(),
   }).passthrough(),
-})
+}).passthrough()
 
 export type FavoritesResponse = z.infer<typeof FavoritesResponseSchema>
 

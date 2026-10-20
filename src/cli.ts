@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, runMain } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
-import { favoriteList, favoriteTags } from './cli/commands/favorite'
+import { favoriteList, favoriteStream, favoriteTags } from './cli/commands/favorite'
 import { followFans, followList, followMy } from './cli/commands/follow'
 import { searchTweets, searchUsers } from './cli/commands/search'
 import { tweetComments, tweetDetail, tweetEnrich, tweetLongtext, tweetReposts, tweetSearchProfile, tweetTimeline } from './cli/commands/tweet'
@@ -190,7 +190,7 @@ const main = defineCommand({
     }),
     favorite: defineCommand({
       meta: { name: 'favorite', description: '收藏夹' },
-      subCommands: { list: favoriteList, tags: favoriteTags },
+      subCommands: { list: favoriteList, stream: favoriteStream, tags: favoriteTags },
     }),
     search: defineCommand({
       meta: { name: 'search', description: '搜索' },
