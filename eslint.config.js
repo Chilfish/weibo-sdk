@@ -7,7 +7,8 @@ export default antfu(
     pnpm: true,
   },
   {
-    ignores: ['tests/fixtures/raw/*.json', '**/*.md'],
+    // schemas/** 是 `pnpm schema:archive` 的生成产物，不参与 lint / 自动修复
+    ignores: ['tests/fixtures/raw/*.json', 'schemas/**/*.json', '**/*.md'],
   },
   {
     rules: {

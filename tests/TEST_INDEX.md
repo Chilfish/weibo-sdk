@@ -28,6 +28,7 @@
 | `unit/models/Tweet.commentPics.test.ts` | `normalizeComment` 图片评论 | 真实 `comments.json` / `comments_pic_multi.json` / `my_comments_p1.json`、`url_struct[].pic_infos` 提取、多图重复 `url_struct` 去重、尺寸优先 `woriginal`、`reply_comment` / 楼中楼递归、无图时省略 `pics` |
 | `unit/models/TweetContext.test.ts` | `buildTweetContext` / `renderTweetContextMarkdown` | 时间格式归一化、原创图文、长图/纯图提示、广告/付费/长文截断标记、`maxChars`/`maxMedia`、转发链只取当前作者正文、mentions 不含链上作者、原微博媒体归属、`--no-quoted`/`--no-chain` 语义、媒体下载回填、评论抽样声明、Markdown 章节、重复链接卡片只渲染一次 |
 | `unit/contract/itweet-v1.test.ts` | ITweet v1 契约冻结 | `TWEET_CONTRACT_VERSION = 1`、顶层键集类型/运行时锁定（含 2026-10-20 新增 optional 字段）、`ITweetComment` 键集与 `pics` 形状 |
+| `unit/contract/archive-schema.test.ts` | 归档 JSON Schema v1 | `$id` 与 `$schema` 指向同一 raw URL、最小归档通过 Ajv 校验、缺 `$schema` 被拒、未知字段前向兼容、真实 `verified_type` 取值通过 |
 
 ### Unit — 服务基础设施
 

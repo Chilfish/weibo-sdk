@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 新增
+
+- 归档 JSON 增加 `$schema`，指向 `schemas/weibo-user-archive/v1.json`（JSON Schema draft-07）。schema 由 `src/types/archive/IArchiveFile.ts` 生成，可用 `pnpm schema:archive` 重建，`pnpm schema:check` 检查漂移。
+
+### 修复
+
+- `VerificationType` 按真实 `verified_type` 修正：新增 `Unverified = -1`、`Personal = 0`，并补齐政府 / 校园 / 网站 / 应用 / 机构 / 达人等取值；原 `Personal = 1`、`Celebrity = 7` 的映射有误。注意 `Personal` 的数值从 `1` 改为 `0`，`Celebrity` 改名为 `Organization`，依赖旧枚举的代码需要同步。
+
 ## 0.3.0 (2026-10-21)
 
 ### 新增

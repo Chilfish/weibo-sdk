@@ -1,0 +1,1211 @@
+{
+  "$id": "https://raw.githubusercontent.com/Chilfish/weibo-sdk/main/schemas/weibo-user-archive/v1.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ArchiveIssue": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "commentId": {
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "level": {
+          "type": "string"
+        },
+        "mblogId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "stage": {
+          "$ref": "#/definitions/ArchiveIssueStage"
+        }
+      },
+      "required": [
+        "stage",
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "ArchiveIssueStage": {
+      "enum": [
+        "timeline",
+        "detail",
+        "longtext",
+        "quoted-longtext",
+        "comments",
+        "replies",
+        "reposts"
+      ],
+      "type": "string"
+    },
+    "ArchivedTweet": {
+      "properties": {
+        "comments": {
+          "description": "一级评论；楼中楼在 comment.replies",
+          "items": {
+            "$ref": "#/definitions/ITweetComment"
+          },
+          "markdownDescription": "一级评论；楼中楼在 comment.replies",
+          "type": "array"
+        },
+        "longText": {
+          "description": "长微博全文（仅上游 isLongText=true 时补拉）",
+          "markdownDescription": "长微博全文（仅上游 isLongText=true 时补拉）",
+          "type": "string"
+        },
+        "mblogId": {
+          "type": "string"
+        },
+        "quotedLongText": {
+          "description": "转发原微博的长文全文（仅原微博 isLongText=true 时补拉）",
+          "markdownDescription": "转发原微博的长文全文（仅原微博 isLongText=true 时补拉）",
+          "type": "string"
+        },
+        "reposts": {
+          "description": "--reposts 时拉取的转发列表",
+          "items": {
+            "$ref": "#/definitions/ITweet"
+          },
+          "markdownDescription": "--reposts 时拉取的转发列表",
+          "type": "array"
+        },
+        "source": {
+          "const": "timeline",
+          "type": "string"
+        },
+        "tweet": {
+          "$ref": "#/definitions/ITweet",
+          "description": "statuses/show 归一化结果；详情拉取失败时退回时间线里的简版",
+          "markdownDescription": "statuses/show 归一化结果；详情拉取失败时退回时间线里的简版"
+        }
+      },
+      "required": [
+        "mblogId",
+        "source",
+        "tweet",
+        "comments"
+      ],
+      "type": "object"
+    },
+    "Gender": {
+      "description": "用户性别枚举",
+      "enum": [
+        "m",
+        "f",
+        "n"
+      ],
+      "markdownDescription": "用户性别枚举",
+      "type": "string"
+    },
+    "ITweet": {
+      "description": "归一化微博（下游 UI 展示与磁盘存档的终局契约，见  {@link  TWEET_CONTRACT_VERSION } ）。\n\n由 `new Tweet(raw)` 归一化而来：上游 raw 字段不直接暴露，缺失值有明确默认； v1 内只允许新增 optional 字段，读取方需忽略未知键。",
+      "markdownDescription": "归一化微博（下游 UI 展示与磁盘存档的终局契约，见  {@link  TWEET_CONTRACT_VERSION } ）。\n\n由 `new Tweet(raw)` 归一化而来：上游 raw 字段不直接暴露，缺失值有明确默认；\nv1 内只允许新增 optional 字段，读取方需忽略未知键。",
+      "properties": {
+        "atUsers": {
+          "items": {
+            "$ref": "#/definitions/TweetAtUser"
+          },
+          "type": "array"
+        },
+        "audio": {
+          "description": "音频 / 播客（上游 `page_info.object_type === 'podcast_audio'`；无音频时缺省）",
+          "items": {
+            "$ref": "#/definitions/TweetAudio"
+          },
+          "markdownDescription": "音频 / 播客（上游 `page_info.object_type === 'podcast_audio'`；无音频时缺省）",
+          "type": "array"
+        },
+        "comments": {
+          "description": "评论（P1-6，可选）。\n\n普通 `normalizeTweet` 不填充；仅归档流 `includeComments: true` 时由 SDK 拉取并挂载。 v1 新增 optional 字段，老读取方忽略即可。",
+          "items": {
+            "$ref": "#/definitions/ITweetComment"
+          },
+          "markdownDescription": "评论（P1-6，可选）。\n\n普通 `normalizeTweet` 不填充；仅归档流 `includeComments: true` 时由 SDK 拉取并挂载。\nv1 新增 optional 字段，老读取方忽略即可。",
+          "type": "array"
+        },
+        "createdAt": {
+          "description": "发布时间（上游 `created_at` 原样字符串，含时区）",
+          "markdownDescription": "发布时间（上游 `created_at` 原样字符串，含时区）",
+          "type": "string"
+        },
+        "editCount": {
+          "description": "编辑次数（上游 `edit_count`；未编辑或未下发时缺省）",
+          "markdownDescription": "编辑次数（上游 `edit_count`；未编辑或未下发时缺省）",
+          "type": "number"
+        },
+        "geo": {
+          "$ref": "#/definitions/TweetGeo",
+          "description": "定位信息（发布时选点；未选点缺省）",
+          "markdownDescription": "定位信息（发布时选点；未选点缺省）"
+        },
+        "id": {
+          "description": "数字串微博 id（`idstr`）",
+          "markdownDescription": "数字串微博 id（`idstr`）",
+          "type": "string"
+        },
+        "isOriginal": {
+          "description": "是否原创（无 `retweeted_status`；转发为 `false`）",
+          "markdownDescription": "是否原创（无 `retweeted_status`；转发为 `false`）",
+          "type": "boolean"
+        },
+        "isTop": {
+          "description": "是否置顶（上游 `isTop === 1`；非置顶时缺省）",
+          "markdownDescription": "是否置顶（上游 `isTop === 1`；非置顶时缺省）",
+          "type": "boolean"
+        },
+        "linkCards": {
+          "description": "链接 / 超话卡片（上游 `url_struct[]`；无卡片缺省）",
+          "items": {
+            "$ref": "#/definitions/TweetLinkCard"
+          },
+          "markdownDescription": "链接 / 超话卡片（上游 `url_struct[]`；无卡片缺省）",
+          "type": "array"
+        },
+        "mblogId": {
+          "description": "字母形式的 id (如 QqsYymYOS)",
+          "markdownDescription": "字母形式的 id (如 QqsYymYOS)",
+          "type": "string"
+        },
+        "media": {
+          "description": "媒体列表（图片/视频/LivePhoto/GIF；无媒体时为空数组）",
+          "items": {
+            "$ref": "#/definitions/TweetMedia"
+          },
+          "markdownDescription": "媒体列表（图片/视频/LivePhoto/GIF；无媒体时为空数组）",
+          "type": "array"
+        },
+        "pageInfo": {
+          "$ref": "#/definitions/TweetPageCard",
+          "description": "网页卡片 / 视频卡片信息（链接预览等；无卡片时缺省）",
+          "markdownDescription": "网页卡片 / 视频卡片信息（链接预览等；无卡片时缺省）"
+        },
+        "permanentVideoUrl": {
+          "description": "视频永久播放页（上游 `media_info.h5_url`；无视频缺省）",
+          "markdownDescription": "视频永久播放页（上游 `media_info.h5_url`；无视频缺省）",
+          "type": "string"
+        },
+        "playCount": {
+          "description": "视频播放数（上游 `page_info.media_info.online_users_number`）。\n\n仅在 `online_users` 明确为「N次观看」时填写；直播的在线人数不是播放数，不映射。",
+          "markdownDescription": "视频播放数（上游 `page_info.media_info.online_users_number`）。\n\n仅在 `online_users` 明确为「N次观看」时填写；直播的在线人数不是播放数，不映射。",
+          "type": "number"
+        },
+        "readCount": {
+          "description": "阅读数（上游 `reads_count`；仅部分端点 / 自己可见时下发）",
+          "markdownDescription": "阅读数（上游 `reads_count`；仅部分端点 / 自己可见时下发）",
+          "type": "number"
+        },
+        "regionName": {
+          "description": "发布地（地区名，如「北京」；未提供时缺省）",
+          "markdownDescription": "发布地（地区名，如「北京」；未提供时缺省）",
+          "type": "string"
+        },
+        "repostChain": {
+          "description": "转发链分层（仅转发微博；正文 `//@` 由近到远，`index` 0 = 当前微博）。\n\n转发时附带的图片（reppic）不在 `pic_ids` / `pic_infos`，只在 `url_struct[]`； 多层转发链会把各层配图全部聚合到顶层 `url_struct[]`。本字段用 `short_url` 把图片挂回所属层，避免丢失「哪张图属于哪一层」的对应关系。",
+          "items": {
+            "$ref": "#/definitions/TweetRepostEntry"
+          },
+          "markdownDescription": "转发链分层（仅转发微博；正文 `//@` 由近到远，`index` 0 = 当前微博）。\n\n转发时附带的图片（reppic）不在 `pic_ids` / `pic_infos`，只在 `url_struct[]`；\n多层转发链会把各层配图全部聚合到顶层 `url_struct[]`。本字段用 `short_url`\n把图片挂回所属层，避免丢失「哪张图属于哪一层」的对应关系。",
+          "type": "array"
+        },
+        "retweetedStatus": {
+          "$ref": "#/definitions/ITweet",
+          "description": "被转发的原微博（同构递归；非转发微博缺省）",
+          "markdownDescription": "被转发的原微博（同构递归；非转发微博缺省）"
+        },
+        "source": {
+          "description": "来源（如「微博网页版」）",
+          "markdownDescription": "来源（如「微博网页版」）",
+          "type": "string"
+        },
+        "sourceUrl": {
+          "description": "微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`）",
+          "markdownDescription": "微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`）",
+          "type": "string"
+        },
+        "stats": {
+          "description": "互动计数快照（随抓取时间变化，不代表实时值）",
+          "markdownDescription": "互动计数快照（随抓取时间变化，不代表实时值）",
+          "properties": {
+            "comments": {
+              "description": "评论数",
+              "markdownDescription": "评论数",
+              "type": "number"
+            },
+            "likes": {
+              "description": "点赞数",
+              "markdownDescription": "点赞数",
+              "type": "number"
+            },
+            "reposts": {
+              "description": "转发数",
+              "markdownDescription": "转发数",
+              "type": "number"
+            }
+          },
+          "required": [
+            "likes",
+            "comments",
+            "reposts"
+          ],
+          "type": "object"
+        },
+        "text": {
+          "description": "纯文本正文（长文按上游返回值截断，完整正文需 `enrich({ includeLongText: true })`）",
+          "markdownDescription": "纯文本正文（长文按上游返回值截断，完整正文需 `enrich({ includeLongText: true })`）",
+          "type": "string"
+        },
+        "textHtml": {
+          "description": "HTML 片段正文（用于富文本渲染；只读展示，勿直接 innerHTML 未净化内容）",
+          "markdownDescription": "HTML 片段正文（用于富文本渲染；只读展示，勿直接 innerHTML 未净化内容）",
+          "type": "string"
+        },
+        "title": {
+          "description": "顶栏标题（上游 `title.text`，如「公开」「仅自己可见」；无则缺省）",
+          "markdownDescription": "顶栏标题（上游 `title.text`，如「公开」「仅自己可见」；无则缺省）",
+          "type": "string"
+        },
+        "topics": {
+          "description": "话题列表（上游 `topic_struct[].topic_title`；无话题缺省）",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "话题列表（上游 `topic_struct[].topic_title`；无话题缺省）",
+          "type": "array"
+        },
+        "user": {
+          "$ref": "#/definitions/TweetUser",
+          "description": "作者信息（简版，不含完整 `IUser` 字段）",
+          "markdownDescription": "作者信息（简版，不含完整 `IUser` 字段）"
+        },
+        "visible": {
+          "$ref": "#/definitions/TweetVisible",
+          "description": "可见范围（对应上游 `visible.type`）",
+          "markdownDescription": "可见范围（对应上游 `visible.type`）"
+        }
+      },
+      "required": [
+        "id",
+        "mblogId",
+        "createdAt",
+        "text",
+        "textHtml",
+        "source",
+        "user",
+        "stats",
+        "visible",
+        "media"
+      ],
+      "type": "object"
+    },
+    "ITweetComment": {
+      "description": "评论（P1-6）。`replies` 为楼中楼，递归同构；缺省表示没有回复。\n\nD2（我的评论历史）在 v1 契约内**只新增 optional 字段**（下同），老读取方忽略即可： `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`。",
+      "markdownDescription": "评论（P1-6）。`replies` 为楼中楼，递归同构；缺省表示没有回复。\n\nD2（我的评论历史）在 v1 契约内**只新增 optional 字段**（下同），老读取方忽略即可：\n`rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`。",
+      "properties": {
+        "createdAt": {
+          "description": "评论时间（上游 `created_at` 原样字符串）",
+          "markdownDescription": "评论时间（上游 `created_at` 原样字符串）",
+          "type": "string"
+        },
+        "floorNumber": {
+          "description": "楼层号（上游 `floor_number`；可为 0，上游未下发时缺省）",
+          "markdownDescription": "楼层号（上游 `floor_number`；可为 0，上游未下发时缺省）",
+          "type": "number"
+        },
+        "id": {
+          "description": "评论 id（`idstr` 或 `id` 的字符串形式）",
+          "markdownDescription": "评论 id（`idstr` 或 `id` 的字符串形式）",
+          "type": "string"
+        },
+        "liked": {
+          "description": "当前登录用户是否点赞过该评论（上游 `liked`；上游未下发时缺省，不伪造 false）",
+          "markdownDescription": "当前登录用户是否点赞过该评论（上游 `liked`；上游未下发时缺省，不伪造 false）",
+          "type": "boolean"
+        },
+        "likes": {
+          "description": "点赞数",
+          "markdownDescription": "点赞数",
+          "type": "number"
+        },
+        "parentMblogId": {
+          "description": "被评论微博的字母 id（上游内嵌 `status.mblogid`），用于回跳原微博",
+          "markdownDescription": "被评论微博的字母 id（上游内嵌 `status.mblogid`），用于回跳原微博",
+          "type": "string"
+        },
+        "pics": {
+          "description": "图片评论的配图（上游 `url_struct[].pic_infos`；无图时缺省）",
+          "items": {
+            "$ref": "#/definitions/TweetCommentPic"
+          },
+          "markdownDescription": "图片评论的配图（上游 `url_struct[].pic_infos`；无图时缺省）",
+          "type": "array"
+        },
+        "replies": {
+          "description": "楼中楼回复（递归同构；无回复时缺省）",
+          "items": {
+            "$ref": "#/definitions/ITweetComment"
+          },
+          "markdownDescription": "楼中楼回复（递归同构；无回复时缺省）",
+          "type": "array"
+        },
+        "replyTo": {
+          "$ref": "#/definitions/ITweetComment",
+          "description": "被回复的评论（上游 `reply_comment`，递归归一化；无则缺省）。\n\n与 `replies`（上游 `comments` 楼中楼列表）是两个独立字段：前者是「我回复了谁」， 后者是「谁回复了这条」。",
+          "markdownDescription": "被回复的评论（上游 `reply_comment`，递归归一化；无则缺省）。\n\n与 `replies`（上游 `comments` 楼中楼列表）是两个独立字段：前者是「我回复了谁」，\n后者是「谁回复了这条」。"
+        },
+        "rootId": {
+          "description": "根评论 id（上游 `rootidstr` 优先，退回 `rootid`；上游未下发或缺省为 0 时本字段缺省）。\n\n楼中楼回复归属的一级评论 id，用于把平铺的评论树还原成楼层。",
+          "markdownDescription": "根评论 id（上游 `rootidstr` 优先，退回 `rootid`；上游未下发或缺省为 0 时本字段缺省）。\n\n楼中楼回复归属的一级评论 id，用于把平铺的评论树还原成楼层。",
+          "type": "string"
+        },
+        "source": {
+          "description": "来源（如「微博网页版」）",
+          "markdownDescription": "来源（如「微博网页版」）",
+          "type": "string"
+        },
+        "text": {
+          "description": "纯文本内容",
+          "markdownDescription": "纯文本内容",
+          "type": "string"
+        },
+        "textHtml": {
+          "description": "HTML 片段内容（可能含表情 `img`，展示前需净化）",
+          "markdownDescription": "HTML 片段内容（可能含表情 `img`，展示前需净化）",
+          "type": "string"
+        },
+        "totalReplies": {
+          "description": "楼中楼回复总数（上游 `total_number`；上游未下发时缺省）",
+          "markdownDescription": "楼中楼回复总数（上游 `total_number`；上游未下发时缺省）",
+          "type": "number"
+        },
+        "user": {
+          "$ref": "#/definitions/TweetUser",
+          "description": "评论作者（简版用户信息）",
+          "markdownDescription": "评论作者（简版用户信息）"
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "text",
+        "textHtml",
+        "source",
+        "likes",
+        "user"
+      ],
+      "type": "object"
+    },
+    "IUser": {
+      "description": "核心用户领域模型\n\n由 raw 响应归一化得到的纯数据结构（实现见 `User`）；可选字段缺失表示上游未公开该项， 而不是空值默认。",
+      "markdownDescription": "核心用户领域模型\n\n由 raw 响应归一化得到的纯数据结构（实现见 `User`）；可选字段缺失表示上游未公开该项，\n而不是空值默认。",
+      "properties": {
+        "avatar": {
+          "description": "头像 URL（对应 avatar_hd 或 avatar_large）",
+          "markdownDescription": "头像 URL（对应 avatar_hd 或 avatar_large）",
+          "type": "string"
+        },
+        "birthday": {
+          "description": "生日（未公开时缺省）",
+          "markdownDescription": "生日（未公开时缺省）",
+          "type": "string"
+        },
+        "company": {
+          "description": "公司（详情页 `company` 或 `career.company`）",
+          "markdownDescription": "公司（详情页 `company` 或 `career.company`）",
+          "type": "string"
+        },
+        "cover": {
+          "description": "主页封面图",
+          "markdownDescription": "主页封面图",
+          "type": "string"
+        },
+        "createdAt": {
+          "description": "注册时间（上游 `created_at` 原样字符串）",
+          "markdownDescription": "注册时间（上游 `created_at` 原样字符串）",
+          "type": "string"
+        },
+        "creditLevel": {
+          "description": "阳光信用等级（对应 sunshine_credit.level，缺省为 `'0'`）",
+          "markdownDescription": "阳光信用等级（对应 sunshine_credit.level，缺省为 `'0'`）",
+          "type": "string"
+        },
+        "description": {
+          "description": "个人简介",
+          "markdownDescription": "个人简介",
+          "type": "string"
+        },
+        "externalLinks": {
+          "description": "外部链接（仅保留标题与地址）",
+          "items": {
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "url"
+            ],
+            "type": "object"
+          },
+          "markdownDescription": "外部链接（仅保留标题与地址）",
+          "type": "array"
+        },
+        "gender": {
+          "$ref": "#/definitions/Gender",
+          "description": "性别",
+          "markdownDescription": "性别"
+        },
+        "hometown": {
+          "description": "家乡（详情页 `hometown`；未公开时缺省）",
+          "markdownDescription": "家乡（详情页 `hometown`；未公开时缺省）",
+          "type": "string"
+        },
+        "id": {
+          "description": "数字串用户 id（优先 `idstr`）",
+          "markdownDescription": "数字串用户 id（优先 `idstr`）",
+          "type": "string"
+        },
+        "labelDesc": {
+          "description": "用户标签（详情页 `label_desc[]`；无标签时缺省）",
+          "items": {
+            "$ref": "#/definitions/IUserLabel"
+          },
+          "markdownDescription": "用户标签（详情页 `label_desc[]`；无标签时缺省）",
+          "type": "array"
+        },
+        "location": {
+          "description": "所在地（优先详情页 IP 属地，去掉 `IP属地：` 前缀）",
+          "markdownDescription": "所在地（优先详情页 IP 属地，去掉 `IP属地：` 前缀）",
+          "type": "string"
+        },
+        "mbrank": {
+          "description": "微博会员等级（上游 `mbrank`；0 = 未开通 / 未下发时缺省）",
+          "markdownDescription": "微博会员等级（上游 `mbrank`；0 = 未开通 / 未下发时缺省）",
+          "type": "number"
+        },
+        "name": {
+          "description": "昵称",
+          "markdownDescription": "昵称",
+          "type": "string"
+        },
+        "realName": {
+          "description": "实名（未公开时缺省）",
+          "markdownDescription": "实名（未公开时缺省）",
+          "type": "string"
+        },
+        "school": {
+          "description": "学校（详情页 `education.school`）",
+          "markdownDescription": "学校（详情页 `education.school`）",
+          "type": "string"
+        },
+        "stats": {
+          "description": "互动计数快照",
+          "markdownDescription": "互动计数快照",
+          "properties": {
+            "followers": {
+              "description": "粉丝数",
+              "markdownDescription": "粉丝数",
+              "type": "number"
+            },
+            "friends": {
+              "description": "关注数",
+              "markdownDescription": "关注数",
+              "type": "number"
+            },
+            "statuses": {
+              "description": "微博数",
+              "markdownDescription": "微博数",
+              "type": "number"
+            }
+          },
+          "required": [
+            "followers",
+            "friends",
+            "statuses"
+          ],
+          "type": "object"
+        },
+        "svip": {
+          "description": "微博会员等级（上游 `svip`；0 = 非会员 / 未下发时缺省）",
+          "markdownDescription": "微博会员等级（上游 `svip`；0 = 非会员 / 未下发时缺省）",
+          "type": "number"
+        },
+        "url": {
+          "description": "主页地址（`https://weibo.com` + 上游 `profile_url`）",
+          "markdownDescription": "主页地址（`https://weibo.com` + 上游 `profile_url`）",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/definitions/IUserVerification",
+          "description": "认证与类型信息",
+          "markdownDescription": "认证与类型信息"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "avatar",
+        "url",
+        "gender",
+        "verification",
+        "stats"
+      ],
+      "type": "object"
+    },
+    "IUserLabel": {
+      "description": "用户标签（详情页 `label_desc[]`，如「微博创作者」「超话粉丝大咖」）。",
+      "markdownDescription": "用户标签（详情页 `label_desc[]`，如「微博创作者」「超话粉丝大咖」）。",
+      "properties": {
+        "darkMode": {
+          "description": "深色模式配色",
+          "markdownDescription": "深色模式配色",
+          "properties": {
+            "backgroundColor": {
+              "type": "string"
+            },
+            "wordColor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "wordColor",
+            "backgroundColor"
+          ],
+          "type": "object"
+        },
+        "name": {
+          "description": "标签文案",
+          "markdownDescription": "标签文案",
+          "type": "string"
+        },
+        "normalMode": {
+          "description": "浅色模式配色",
+          "markdownDescription": "浅色模式配色",
+          "properties": {
+            "backgroundColor": {
+              "type": "string"
+            },
+            "wordColor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "wordColor",
+            "backgroundColor"
+          ],
+          "type": "object"
+        },
+        "schemeUrl": {
+          "description": "跳转地址（上游 `scheme_url`；缺省）",
+          "markdownDescription": "跳转地址（上游 `scheme_url`；缺省）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "IUserVerification": {
+      "description": "用户验证信息",
+      "markdownDescription": "用户验证信息",
+      "properties": {
+        "isVerified": {
+          "description": "是否已认证（上游 `verified`）",
+          "markdownDescription": "是否已认证（上游 `verified`）",
+          "type": "boolean"
+        },
+        "reason": {
+          "description": "认证说明文案（如「微博知名互联网博主」）",
+          "markdownDescription": "认证说明文案（如「微博知名互联网博主」）",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/VerificationType",
+          "description": "认证类型（上游 `verified_type`，未认证为 -1）",
+          "markdownDescription": "认证类型（上游 `verified_type`，未认证为 -1）"
+        }
+      },
+      "required": [
+        "isVerified",
+        "type"
+      ],
+      "type": "object"
+    },
+    "MediaType": {
+      "description": "媒体类型（对应上游 `mix_media_info` / 图片 `type` 的归一化结果）。",
+      "enum": [
+        "pic",
+        "video",
+        "livephoto",
+        "gif",
+        "unknown"
+      ],
+      "markdownDescription": "媒体类型（对应上游 `mix_media_info` / 图片 `type` 的归一化结果）。",
+      "type": "string"
+    },
+    "TweetAtUser": {
+      "description": "微博正文中被 @ 的用户（从 `text` HTML 锚点解析）。\n\n上游没有结构化 `at_users` 字段；可稳定拿到的是锚点文本与 `href` 路径， 数字 uid 不保证存在，因此 `id` 为可选。",
+      "markdownDescription": "微博正文中被 @ 的用户（从 `text` HTML 锚点解析）。\n\n上游没有结构化 `at_users` 字段；可稳定拿到的是锚点文本与 `href` 路径，\n数字 uid 不保证存在，因此 `id` 为可选。",
+      "properties": {
+        "name": {
+          "description": "展示名（锚点文本，去掉前导 `@`）",
+          "markdownDescription": "展示名（锚点文本，去掉前导 `@`）",
+          "type": "string"
+        },
+        "url": {
+          "description": "用户主页地址（`https://weibo.com/n/<username>` 或数字 uid 主页）",
+          "markdownDescription": "用户主页地址（`https://weibo.com/n/<username>` 或数字 uid 主页）",
+          "type": "string"
+        },
+        "username": {
+          "description": "主页路径标识（`href=\"/n/<name>\"` / `href=\"/u/<uid>\"` 的路径段）",
+          "markdownDescription": "主页路径标识（`href=\"/n/<name>\"` / `href=\"/u/<uid>\"` 的路径段）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "TweetAudio": {
+      "description": "音频 / 播客（`page_info.object_type === 'podcast_audio'`）。\n\n`url` 与视频直链一样是临时签名 URL；长期存档需及时下载或保存 `pageUrl`。",
+      "markdownDescription": "音频 / 播客（`page_info.object_type === 'podcast_audio'`）。\n\n`url` 与视频直链一样是临时签名 URL；长期存档需及时下载或保存 `pageUrl`。",
+      "properties": {
+        "authorId": {
+          "description": "作者 uid（`media_info.author_info.idstr` / `id`）",
+          "markdownDescription": "作者 uid（`media_info.author_info.idstr` / `id`）",
+          "type": "string"
+        },
+        "authorName": {
+          "description": "作者昵称（`media_info.author_info.screen_name`）",
+          "markdownDescription": "作者昵称（`media_info.author_info.screen_name`）",
+          "type": "string"
+        },
+        "duration": {
+          "description": "时长（秒）",
+          "markdownDescription": "时长（秒）",
+          "type": "number"
+        },
+        "id": {
+          "description": "音频 id（`media_info.media_id` → `page_id` → `object_id`）",
+          "markdownDescription": "音频 id（`media_info.media_id` → `page_id` → `object_id`）",
+          "type": "string"
+        },
+        "pageUrl": {
+          "description": "永久播放页（`media_info.h5_url`）",
+          "markdownDescription": "永久播放页（`media_info.h5_url`）",
+          "type": "string"
+        },
+        "title": {
+          "description": "音频标题（`page_info.page_title`，缺省为空串）",
+          "markdownDescription": "音频标题（`page_info.page_title`，缺省为空串）",
+          "type": "string"
+        },
+        "url": {
+          "description": "音频直链（`media_info.stream_url`，临时 URL）",
+          "markdownDescription": "音频直链（`media_info.stream_url`，临时 URL）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
+    "TweetCommentPic": {
+      "description": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里； `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。",
+      "markdownDescription": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；\n`imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。",
+      "properties": {
+        "height": {
+          "description": "像素高度（缺省 0）",
+          "markdownDescription": "像素高度（缺省 0）",
+          "type": "number"
+        },
+        "id": {
+          "description": "图片 id（`pic_infos` 键 / `pic_id`）",
+          "markdownDescription": "图片 id（`pic_infos` 键 / `pic_id`）",
+          "type": "string"
+        },
+        "imageUrl": {
+          "description": "最大尺寸图片 URL（临时签名 URL）",
+          "markdownDescription": "最大尺寸图片 URL（临时签名 URL）",
+          "type": "string"
+        },
+        "width": {
+          "description": "像素宽度（缺省 0）",
+          "markdownDescription": "像素宽度（缺省 0）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "imageUrl",
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "TweetGeo": {
+      "description": "发微博选的定位",
+      "markdownDescription": "发微博选的定位",
+      "properties": {
+        "address": {
+          "description": "地址名称",
+          "markdownDescription": "地址名称",
+          "type": "string"
+        },
+        "latitude": {
+          "description": "纬度",
+          "markdownDescription": "纬度",
+          "type": "number"
+        },
+        "longitude": {
+          "description": "经度",
+          "markdownDescription": "经度",
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude",
+        "address"
+      ],
+      "type": "object"
+    },
+    "TweetLinkCard": {
+      "description": "链接 / 超话卡片（`url_struct[]` 归一化）。",
+      "markdownDescription": "链接 / 超话卡片（`url_struct[]` 归一化）。",
+      "properties": {
+        "longUrl": {
+          "description": "规范网页地址（`long_url`，如 bilibili 视频页；未下发时缺省）",
+          "markdownDescription": "规范网页地址（`long_url`，如 bilibili 视频页；未下发时缺省）",
+          "type": "string"
+        },
+        "objectType": {
+          "description": "对象类型（`object_type`）",
+          "markdownDescription": "对象类型（`object_type`）",
+          "type": "string"
+        },
+        "oriUrl": {
+          "description": "上游原始跳转（`ori_url`，可能是 `sinaweibo://` scheme；未下发时缺省）",
+          "markdownDescription": "上游原始跳转（`ori_url`，可能是 `sinaweibo://` scheme；未下发时缺省）",
+          "type": "string"
+        },
+        "pageId": {
+          "description": "卡片 page id（`page_id`）",
+          "markdownDescription": "卡片 page id（`page_id`）",
+          "type": "string"
+        },
+        "shortUrl": {
+          "description": "展示用短地址（`short_url`）",
+          "markdownDescription": "展示用短地址（`short_url`）",
+          "type": "string"
+        },
+        "title": {
+          "description": "卡片标题（`url_title`；缺省为空串）",
+          "markdownDescription": "卡片标题（`url_title`；缺省为空串）",
+          "type": "string"
+        },
+        "typePic": {
+          "description": "卡片图标（`url_type_pic`）",
+          "markdownDescription": "卡片图标（`url_type_pic`）",
+          "type": "string"
+        },
+        "url": {
+          "description": "跳转地址（`h5_target_url` → `long_url` → `ori_url` fallback；缺省为空串）",
+          "markdownDescription": "跳转地址（`h5_target_url` → `long_url` → `ori_url` fallback；缺省为空串）",
+          "type": "string"
+        },
+        "urlType": {
+          "description": "卡片类型码（`url_type`，如 39；`0` 也会保留，未下发时缺省）",
+          "markdownDescription": "卡片类型码（`url_type`，如 39；`0` 也会保留，未下发时缺省）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
+    "TweetMedia": {
+      "description": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**： 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。 SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成， 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。",
+      "markdownDescription": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：\n有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。\nSDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，\n过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。",
+      "properties": {
+        "duration": {
+          "description": "视频时长（秒；非视频缺省）",
+          "markdownDescription": "视频时长（秒；非视频缺省）",
+          "type": "number"
+        },
+        "height": {
+          "description": "原始高度（像素）",
+          "markdownDescription": "原始高度（像素）",
+          "type": "number"
+        },
+        "id": {
+          "description": "媒体 id（上游 `pid` / 视频 id）",
+          "markdownDescription": "媒体 id（上游 `pid` / 视频 id）",
+          "type": "string"
+        },
+        "imageUrl": {
+          "description": "图片地址或视频封面地址（临时 URL，见接口注释；可能为空串）",
+          "markdownDescription": "图片地址或视频封面地址（临时 URL，见接口注释；可能为空串）",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/MediaType",
+          "description": "媒体类型",
+          "markdownDescription": "媒体类型"
+        },
+        "videoUrl": {
+          "description": "视频地址（mp4 或 mov；非视频缺省）",
+          "markdownDescription": "视频地址（mp4 或 mov；非视频缺省）",
+          "type": "string"
+        },
+        "width": {
+          "description": "原始宽度（像素）",
+          "markdownDescription": "原始宽度（像素）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "imageUrl",
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "TweetPageCard": {
+      "description": "页面卡片 (如链接预览、视频封面)",
+      "markdownDescription": "页面卡片 (如链接预览、视频封面)",
+      "properties": {
+        "objectId": {
+          "description": "卡片对象 id（上游 `object_id`；未下发时缺省）",
+          "markdownDescription": "卡片对象 id（上游 `object_id`；未下发时缺省）",
+          "type": "string"
+        },
+        "objectType": {
+          "description": "卡片对象类型（上游 `object_type`）",
+          "markdownDescription": "卡片对象类型（上游 `object_type`）",
+          "type": "string"
+        },
+        "pageId": {
+          "description": "卡片 id（上游 `page_id`）",
+          "markdownDescription": "卡片 id（上游 `page_id`）",
+          "type": "string"
+        },
+        "pagePic": {
+          "description": "封面图",
+          "markdownDescription": "封面图",
+          "type": "string"
+        },
+        "pageTitle": {
+          "description": "卡片标题",
+          "markdownDescription": "卡片标题",
+          "type": "string"
+        },
+        "pageUrl": {
+          "description": "卡片跳转链接",
+          "markdownDescription": "卡片跳转链接",
+          "type": "string"
+        },
+        "subtitle": {
+          "description": "卡片副标题 / 统计文案（上游 `content2`，如「812播放 74点赞 0弹幕」；空则缺省）",
+          "markdownDescription": "卡片副标题 / 统计文案（上游 `content2`，如「812播放 74点赞 0弹幕」；空则缺省）",
+          "type": "string"
+        },
+        "type": {
+          "description": "卡片类型码（上游 `type`）",
+          "markdownDescription": "卡片类型码（上游 `type`）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pageId",
+        "pageTitle",
+        "pageUrl",
+        "pagePic",
+        "type",
+        "objectType"
+      ],
+      "type": "object"
+    },
+    "TweetRepostEntry": {
+      "description": "转发链中的一层（`repostChain[]`）。\n\n上游把转发链的各层正文拍平在顶层 `text_raw`（`//@name:正文`），图片则聚合在顶层 `url_struct[]`（`url_type: 39`）。本类型把「层」与「层内配图」重新配对： 用 `url_struct[].short_url` 匹配该层正文里的 `http://t.cn/...` 短链。",
+      "markdownDescription": "转发链中的一层（`repostChain[]`）。\n\n上游把转发链的各层正文拍平在顶层 `text_raw`（`//@name:正文`），图片则聚合在顶层\n`url_struct[]`（`url_type: 39`）。本类型把「层」与「层内配图」重新配对：\n用 `url_struct[].short_url` 匹配该层正文里的 `http://t.cn/...` 短链。",
+      "properties": {
+        "authorName": {
+          "description": "该层作者昵称（0 层取 `user.name`；其余从 `//@name:` 解析；无法解析时缺省）",
+          "markdownDescription": "该层作者昵称（0 层取 `user.name`；其余从 `//@name:` 解析；无法解析时缺省）",
+          "type": "string"
+        },
+        "index": {
+          "description": "层级索引：`0` = 当前微博，`1..n` = `text` 中由近到远的 `//@` 层级",
+          "markdownDescription": "层级索引：`0` = 当前微博，`1..n` = `text` 中由近到远的 `//@` 层级",
+          "type": "number"
+        },
+        "media": {
+          "description": "该层配图（`url_struct[]` 的 reppic 条目；按 `pic_id` 去重；无图时为空数组）",
+          "items": {
+            "$ref": "#/definitions/TweetMedia"
+          },
+          "markdownDescription": "该层配图（`url_struct[]` 的 reppic 条目；按 `pic_id` 去重；无图时为空数组）",
+          "type": "array"
+        },
+        "text": {
+          "description": "该层正文（去掉 `//@` 前缀与图片短链；可能为空串）",
+          "markdownDescription": "该层正文（去掉 `//@` 前缀与图片短链；可能为空串）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "text",
+        "media"
+      ],
+      "type": "object"
+    },
+    "TweetUser": {
+      "description": "用户信息简版",
+      "markdownDescription": "用户信息简版",
+      "properties": {
+        "avatar": {
+          "description": "头像 URL",
+          "markdownDescription": "头像 URL",
+          "type": "string"
+        },
+        "id": {
+          "description": "数字串用户 id（`idstr`）",
+          "markdownDescription": "数字串用户 id（`idstr`）",
+          "type": "string"
+        },
+        "name": {
+          "description": "昵称",
+          "markdownDescription": "昵称",
+          "type": "string"
+        },
+        "verified": {
+          "description": "是否已认证",
+          "markdownDescription": "是否已认证",
+          "type": "boolean"
+        },
+        "verifiedType": {
+          "$ref": "#/definitions/VerificationType",
+          "description": "认证类型（对应上游 `verified_type`，未认证为 -1）",
+          "markdownDescription": "认证类型（对应上游 `verified_type`，未认证为 -1）"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "avatar",
+        "verified",
+        "verifiedType"
+      ],
+      "type": "object"
+    },
+    "TweetVisible": {
+      "description": "隐私可见性",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "markdownDescription": "隐私可见性",
+      "type": "number"
+    },
+    "VerificationType": {
+      "description": "微博认证类型（对应上游 `verified_type`）。\n\n映射以真实响应为准：`-1` 普通用户、`0` 个人认证（黄 V），其余多为蓝 V； `200` / `220` 为达人类，`400` 为已故认证用户。",
+      "enum": [
+        -1,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        200,
+        220,
+        400
+      ],
+      "markdownDescription": "微博认证类型（对应上游 `verified_type`）。\n\n映射以真实响应为准：`-1` 普通用户、`0` 个人认证（黄 V），其余多为蓝 V；\n`200` / `220` 为达人类，`400` 为已故认证用户。",
+      "type": "number"
+    }
+  },
+  "description": "`weibo-user-archive/v1` 归档文件信封。\n\n字段契约与 JSON Schema（`schemas/weibo-user-archive/v1.json`）保持一致： v1 内只允许新增 optional 字段，读取方需忽略未知键。",
+  "markdownDescription": "`weibo-user-archive/v1` 归档文件信封。\n\n字段契约与 JSON Schema（`schemas/weibo-user-archive/v1.json`）保持一致：\nv1 内只允许新增 optional 字段，读取方需忽略未知键。",
+  "properties": {
+    "$schema": {
+      "description": "归档 JSON Schema 地址；供编辑器 / 校验器自动发现",
+      "markdownDescription": "归档 JSON Schema 地址；供编辑器 / 校验器自动发现",
+      "type": "string"
+    },
+    "complete": {
+      "description": "是否完整结束（枚举未中止且没有遗留 issue）",
+      "markdownDescription": "是否完整结束（枚举未中止且没有遗留 issue）",
+      "type": "boolean"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/definitions/ArchiveIssue"
+      },
+      "type": "array"
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "query": {
+      "properties": {
+        "commentOrder": {
+          "enum": [
+            "time",
+            "hot"
+          ],
+          "type": "string"
+        },
+        "includeComments": {
+          "type": "boolean"
+        },
+        "includeReplies": {
+          "type": "boolean"
+        },
+        "includeReposts": {
+          "type": "boolean"
+        },
+        "range": {
+          "properties": {
+            "since": {
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "iso": {
+                  "type": "string"
+                },
+                "unix": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "input",
+                "unix",
+                "iso"
+              ],
+              "type": "object"
+            },
+            "until": {
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "iso": {
+                  "type": "string"
+                },
+                "unix": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "input",
+                "unix",
+                "iso"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "since",
+            "until"
+          ],
+          "type": "object"
+        },
+        "uid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "range",
+        "includeComments",
+        "includeReplies",
+        "includeReposts",
+        "commentOrder"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "description": "归档格式标识",
+      "markdownDescription": "归档格式标识",
+      "type": "string"
+    },
+    "stats": {
+      "properties": {
+        "comments": {
+          "type": "number"
+        },
+        "errors": {
+          "type": "number"
+        },
+        "replies": {
+          "type": "number"
+        },
+        "tweets": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tweets",
+        "comments",
+        "replies",
+        "errors"
+      ],
+      "type": "object"
+    },
+    "tweets": {
+      "items": {
+        "$ref": "#/definitions/ArchivedTweet"
+      },
+      "type": "array"
+    },
+    "user": {
+      "$ref": "#/definitions/IUser"
+    }
+  },
+  "required": [
+    "$schema",
+    "schema",
+    "generatedAt",
+    "complete",
+    "query",
+    "user",
+    "stats",
+    "tweets",
+    "errors"
+  ],
+  "type": "object"
+}

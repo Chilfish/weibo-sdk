@@ -11,17 +11,38 @@ export enum Gender {
 }
 
 /**
- * 微博认证类型（对应上游 `verified_type`；未认证为 `-1`，不在枚举内）。
+ * 微博认证类型（对应上游 `verified_type`）。
+ *
+ * 映射以真实响应为准：`-1` 普通用户、`0` 个人认证（黄 V），其余多为蓝 V；
+ * `200` / `220` 为达人类，`400` 为已故认证用户。
  */
 export enum VerificationType {
-  /** 个人认证 */
-  Personal = 1,
-  /** 企业认证 */
+  /** 未认证 / 普通用户 */
+  Unverified = -1,
+  /** 个人认证（黄 V） */
+  Personal = 0,
+  /** 政府机构 */
+  Government = 1,
+  /** 企业 */
   Enterprise = 2,
-  /** 人民日报等社媒认证 */
+  /** 媒体 */
   Media = 3,
-  /** 明星 */
-  Celebrity = 7,
+  /** 校园 */
+  School = 4,
+  /** 网站 */
+  Website = 5,
+  /** 应用 */
+  App = 6,
+  /** 团体 / 机构 */
+  Organization = 7,
+  /** 待审企业 */
+  PendingEnterprise = 8,
+  /** 微博达人 */
+  Influencer = 200,
+  /** 中高级达人 */
+  SeniorInfluencer = 220,
+  /** 已故认证用户 */
+  Deceased = 400,
 }
 
 /**
