@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import process from 'node:process'
 import { describe, expect, it } from 'vitest'
 import { resolveMediaCliOptions, toDoneEvent, toItemErrorEvent, toItemEvent } from '~/cli/commands/media'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
@@ -6,6 +7,7 @@ import { MediaDownloadError } from '~/models/errors/MediaError'
 import { MediaType } from '~/types/domain/ITweet'
 
 const cwd = 'C:/work'
+const absoluteOut = process.platform === 'win32' ? 'C:/tmp/media' : '/tmp/media'
 
 describe('resolveMediaCliOptions', () => {
   it('resolves defaults and relative output dirs', () => {
@@ -20,7 +22,7 @@ describe('resolveMediaCliOptions', () => {
   it('parses include, numbers and negated refresh', () => {
     const { options } = resolveMediaCliOptions({
       'id': 'M1',
-      'out': 'C:/tmp/media',
+      'out': absoluteOut,
       'include': ' PIC, video ,pic, livephoto ',
       'concurrency': '5',
       'retries': '0',
@@ -33,7 +35,7 @@ describe('resolveMediaCliOptions', () => {
       'refresh': false,
     }, cwd)
 
-    expect(options.dir).toBe('C:/tmp/media')
+    expect(options.dir).toBe(absoluteOut)
     expect(options.include).toEqual([MediaType.PIC, MediaType.VIDEO, MediaType.LIVEPHOTO])
     expect(options.concurrency).toBe(5)
     expect(options.retries).toBe(0)
