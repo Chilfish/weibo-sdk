@@ -41,6 +41,7 @@
 | [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-6）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
 | [research-weibo-ecosystem-2026-10-19.md](planning/research-weibo-ecosystem-2026-10-19.md) | 同类活跃项目调研（API 逆向 / CLI / 归档），含可借鉴设计与差距映射 | 规划 P1/P2 顺序、评估功能边界 |
 | [research-guest-mode-2026-10-20.md](planning/research-guest-mode-2026-10-20.md) | 无登录访客模式（guest mode）调研：token 发放、真实端点矩阵、匿名翻页边界、SDK 接入方案与 P0/P1/P2 行动计划 | 规划 guest mode / 评估匿名读取能力 |
+| [research-agent-view-2026-10-20.md](planning/research-agent-view-2026-10-20.md) | Agent 视角的单条微博上下文（`ITweetContext`）：理解所需维度、真实数据缺口、媒体归属/下载、`tweet context` CLI 设计与非目标 | 设计/修改 Agent 视图、媒体描述或上下文预算 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
 

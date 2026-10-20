@@ -243,11 +243,20 @@ describe('buildTweetContext — 转发与归属', () => {
     expect(context.unknowns.join('\n')).toContain('有 2 个媒体')
   })
 
+  it('keeps the current author words when chain display is disabled', () => {
+    const context = buildTweetContext(makeRepost(), { includeRepostChain: false })
+
+    expect(context.repostChain).toBeUndefined()
+    expect(context.post.text).toBe('这么好的！！')
+    expect(context.post.text).not.toContain('//@')
+  })
+
   it('honours --no-quoted and records the omission', () => {
     const context = buildTweetContext(makeRepost(), { includeQuoted: false })
 
     expect(context.quoted).toBeUndefined()
     expect(context.unknowns).toContain('转发的原微博未展开')
+    expect(context.hints).toContain('no_media_in_context:quoted_post_not_expanded')
   })
 
   it('collects media owners and attaches downloads to the right post', () => {

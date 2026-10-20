@@ -219,7 +219,6 @@ function mediaHints(media: TweetMedia): string[] {
 
 function buildMedia(
   media: TweetMedia[],
-  text: string,
   owner: TweetContextMedia['owner'],
   maxMedia: number | undefined,
   unknowns: string[],
@@ -229,7 +228,6 @@ function buildMedia(
     unknowns.push(`媒体只列出了前 ${limited.length} 个（共 ${media.length} 个）`)
 
   return limited.map((item, index) => {
-    const isVideo = item.type === MediaType.VIDEO
     const out: TweetContextMedia = {
       index: index + 1,
       mediaId: item.id,
@@ -242,7 +240,7 @@ function buildMedia(
       temporary: true,
       hints: mediaHints(item),
     }
-    if (isVideo && item.imageUrl)
+    if (item.videoUrl && item.imageUrl)
       out.coverUrl = item.imageUrl
     if (item.duration !== undefined)
       out.duration = item.duration
@@ -294,7 +292,8 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
   const hints: string[] = []
   const raw = toRecord(options.raw)
 
-  const chain = options.includeRepostChain === false ? undefined : tweet.repostChain
+  // 转发链是「谁说的哪一句」的唯一依据：即使不展示 chain，也不能回退到拍平的 text。
+  const chain = tweet.repostChain
   const ownTextRaw = chain && chain.length > 0 ? (chain[0]?.text ?? '') : tweet.text
   const longTextValue = options.longText && options.longText.length > 0 ? options.longText : undefined
   const longTextApplied = longTextValue !== undefined
@@ -329,7 +328,7 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
     unknowns.push(`作者资料未拉取：${options.authorError}`)
 
   const links = collectLinks(tweet, ownText.text, unknowns)
-  const media = buildMedia(tweet.media, ownText.text, { mblogId: tweet.mblogId, relation }, options.maxMedia, unknowns)
+  const media = buildMedia(tweet.media, { mblogId: tweet.mblogId, relation }, options.maxMedia, unknowns)
 
   const post: TweetContextPost = {
     kind: tweet.retweetedStatus ? 'repost' : chain && chain.length > 0 ? 'repost' : 'original',
@@ -358,7 +357,7 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
   if (post.text.length === 0 && media.length > 0)
     hints.push('no_text:content_is_in_media_only')
 
-  const repostChain: TweetContextRepostEntry[] | undefined = chain && chain.length > 0
+  const repostChain: TweetContextRepostEntry[] | undefined = chain && chain.length > 0 && options.includeRepostChain !== false
     ? chain.map((entry) => {
         const item: TweetContextRepostEntry = {
           index: entry.index,
@@ -404,7 +403,10 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
       unknowns.push('视频没有字幕/转写')
   }
   else if (!quoted) {
-    hints.push('no_media')
+    // 转发但未展开原微博时，媒体可能在原微博里；不能简单说「没有媒体」。
+    hints.push(tweet.retweetedStatus
+      ? 'no_media_in_context:quoted_post_not_expanded'
+      : 'no_media')
   }
 
   const discussion = options.comments && options.comments.length > 0
@@ -513,6 +515,7 @@ function formatBytes(bytes: number | undefined): string {
 
 function renderMediaLines(media: TweetContextMedia[], prefix = ''): string[] {
   const lines: string[] = []
+  const readHints = new Set<string>()
   for (const item of media) {
     const kind = item.type === 'video'
       ? '视频'
@@ -533,7 +536,11 @@ function renderMediaLines(media: TweetContextMedia[], prefix = ''): string[] {
       lines.push(`${prefix}  本地文件：${item.download.path}${size ? `（${size}${type}）` : ''}`)
     }
     else {
-      lines.push(`${prefix}  读取方式：weibo-cli media download ${item.owner.mblogId} -o <dir>`)
+      const ownerKey = `${item.owner.mblogId}:${item.owner.relation}`
+      if (!readHints.has(ownerKey)) {
+        readHints.add(ownerKey)
+        lines.push(`${prefix}  读取方式：weibo-cli media download ${item.owner.mblogId} -o <dir>`)
+      }
     }
     if (item.description)
       lines.push(`${prefix}  描述：${item.description}`)
