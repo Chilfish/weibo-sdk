@@ -29,4 +29,5 @@
 - Prefers publishing under a scoped npm name (`@chilfish/weibo-sdk`) while keeping the CLI binary short and stable (`weibo-cli`) — binary name intentionally decoupled from package name. Confidence: 0.7
 - Judges the product by user-data breadth, not just timeline/favorites: expects continued enrichment of what a real profile exposes (likes, favorites, posted comment history) because "一个用户的微博数据还是比较丰富的". Confidence: 0.7
 - Treats endpoint add/modify developer experience as a first-class requirement to design for ("后续我们增加或修改相关接口时的开发体验之类的也得考虑进来"), not an afterthought. Confidence: 0.7
+- Opens a work session with a state-audit + hands-on dogfooding request ("看看项目目前的状态，并试玩一下，我们接下来该干嘛"): expects the agent to inventory the repo's real state (git/CI/publish/tests) and actually exercise the built product end to end before recommending what to do next. Confidence: 0.55
 - Scopes new capabilities to what the web version actually exposes — if the website has an ajax endpoint for it, it's in scope ("实际上都有在网页版有对应的接口能获取"). Confidence: 0.6
