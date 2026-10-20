@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [24]
+        node-version: [22, 24]
 
     steps:
       - uses: actions/checkout@v4
@@ -29,3 +29,5 @@ jobs:
       - run: pnpm run lint
       - run: pnpm test
       - run: pnpm run validate:fixtures
+      - run: pnpm run build
+      - run: node scripts/browser-smoke.mjs --no-browser
