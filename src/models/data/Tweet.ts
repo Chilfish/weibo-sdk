@@ -220,6 +220,36 @@ function extractMediaFromMixMediaInfo(rawRecord: UnknownRecord): TweetMedia[] {
   return out
 }
 
+/** 从 `pic_infos[<pid>]` 选最大尺寸（`largest` → `original` → `mw2000` → `large` → …）。 */
+function pickPicSize(info: UnknownRecord): UnknownRecord | undefined {
+  for (const key of ['largest', 'original', 'mw2000', 'large', 'woriginal', 'bmiddle', 'thumbnail']) {
+    const size = info[key]
+    if (isRecord(size))
+      return size
+  }
+  return undefined
+}
+
+/** 单张图片（`pic_infos` 内层）→ `TweetMedia`；缺 URL 时返回 `undefined`。 */
+function mediaFromPicInfo(picId: string, info: UnknownRecord): TweetMedia | undefined {
+  const best = pickPicSize(info)
+  const url = best ? getString(best.url) : undefined
+  if (!url)
+    return undefined
+
+  const type = getString(info.type)
+  const videoUrl = getString(info.video)
+  return {
+    id: getString(info.pic_id) ?? picId,
+    type: videoUrl ? MediaType.LIVEPHOTO : type === 'gif' ? MediaType.GIF : MediaType.PIC,
+    // `url_struct` 的 reppic 直链是 http；统一升级为 https（同一资源，避免混合内容）
+    imageUrl: url.replace(/^http:\/\//i, 'https://'),
+    videoUrl,
+    width: getNumber(best?.width) ?? 0,
+    height: getNumber(best?.height) ?? 0,
+  }
+}
+
 function extractMediaFromPicInfos(raw: RawTweet): TweetMedia[] {
   const picInfos = raw.pic_infos
   const picIds = raw.pic_ids
@@ -235,29 +265,9 @@ function extractMediaFromPicInfos(raw: RawTweet): TweetMedia[] {
     if (!isRecord(info))
       continue
 
-    const best = isRecord(info.largest) ? info.largest
-      : isRecord(info.original) ? info.original
-        : isRecord(info.mw2000) ? info.mw2000
-          : isRecord(info.large) ? info.large
-            : isRecord(info.bmiddle) ? info.bmiddle
-              : isRecord(info.thumbnail) ? info.thumbnail
-                : undefined
-    const url = best && typeof best.url === 'string' ? best.url : undefined
-    if (!url)
-      continue
-
-    const type = typeof info.type === 'string' ? info.type : undefined
-    const videoUrl = typeof info.video === 'string' && info.video.length > 0 ? info.video : undefined
-    const isGif = type === 'gif'
-
-    out.push({
-      id: typeof info.pic_id === 'string' ? info.pic_id : String(picId),
-      type: videoUrl ? MediaType.LIVEPHOTO : isGif ? MediaType.GIF : MediaType.PIC,
-      imageUrl: url,
-      videoUrl,
-      width: getNumber(best?.width) ?? 0,
-      height: getNumber(best?.height) ?? 0,
-    })
+    const media = mediaFromPicInfo(picId, info)
+    if (media)
+      out.push(media)
   }
 
   return out
