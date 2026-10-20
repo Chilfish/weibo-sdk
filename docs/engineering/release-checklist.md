@@ -10,7 +10,7 @@
 - **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
 - **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)
 - **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v2 + major）
-- 仅在**验证门禁全绿**后打 tag：`git tag v0.1.0 && git push --tags`
+- 仅在验证门禁全绿后打 tag：`git tag v<version> && git push --tags`
 - 每次发布 version 单调递增，禁止回退
 - `CHANGELOG.md` 的 Unreleased 节在发布前迁移到版本节
 - Breaking change 必须：`BREAKING CHANGE` footer + 迁移指南 + 至少一个主版本存续期（SKILL.md 第八条）
@@ -56,8 +56,8 @@
 2. 更新 `CHANGELOG.md`（Unreleased → 版本节）
 3. 更新 `docs/README.md` 索引（如涉及新增文档）
 4. 跑通验证门禁 + 功能冒烟
-5. 打 Tag：`git tag v0.1.0 && git push --tags`
-6. GitHub Release：`gh release create v0.1.0 --generate-notes`
+5. 打 Tag：`git tag v<version> && git push --tags`
+6. GitHub Release：`gh release create v<version> --generate-notes`
 7. `pnpm publish`（`prepublishOnly` 会自动 `nr build`；`publishConfig.access=public` 已固定 scoped 包权限）
    - **禁止 `npm publish`**：项目依赖使用 pnpm `catalog:`，npm 不会重写，产物会写成 `"catalog:"` 导致消费者安装失败（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
 8. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
