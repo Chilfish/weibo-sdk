@@ -92,6 +92,16 @@ for await (const comment of sdk.tweets.streamComments('QqsYymYOS', {
 
 所有 `stream*` 方法都支持 `maxItems` 和 `maxPages`。用户时间线、首页、转发、@ 我、历史评论和通知这些时间倒序的流还支持 `since` / `until`，可以传 `YYYY-MM-DD` 或 unix 秒。评论热度序、点赞和收藏不提供日期边界，因为条目顺序和操作时间并不一致。
 
+### 当前会话
+
+```ts
+const session = await sdk.getSession()
+session.uid        // 登录账号 uid（从 profile/detail 的 verified_url 解析）
+session.details    // profile/detail 原始响应
+```
+
+`getSession()` 复用启动自检已经发出的请求，按实例缓存，不会额外探测；需要重新确认登录态时传 `{ refresh: true }`。
+
 ### 归档账号
 
 ```ts
@@ -112,6 +122,10 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 ```
 
 `ArchiveItem.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image` 或 `video`。图片项可能没有 `tweet`，只有 `asset`。
+
+续跑是 **at-least-once**：`checkpoint` 记录最后一条已完整处理的项，中断后重跑可能重复边界 1 条；图片墙和视频瀑布的游标按整页写回，续跑会重放整页。请按 `mblogId`（媒体按 `asset.id`）幂等去重。
+
+`includeFavorites` 和 `includeCommentHistory` 是**账号级**数据，只能读取 Cookie 对应的登录账号；归档其他 uid 时会抛 `CONFIG_INVALID`。`includeLikes` 按目标 uid 读取。
 
 归档也支持增量、多账号和状态文件：
 

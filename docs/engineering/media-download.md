@@ -64,6 +64,9 @@
 
 ## 7. 失败清单
 
+> `totals` 恒满足 `downloaded + skipped + failed + planned === total`。`planned` 是仅规划、未执行的条目数：
+> dry-run 下等于待下载项，`failFast` 中止后等于未尝试项。
+
 `<out>/<mblogId>-media-errors.json`：
 
 ```json
@@ -72,7 +75,7 @@
   "mblogId": "QqsYymYOS",
   "generatedAt": "2026-10-20T10:00:00.000Z",
   "dir": "D:/media",
-  "totals": { "total": 9, "downloaded": 7, "skipped": 1, "failed": 1, "bytes": 12345678 },
+  "totals": { "total": 9, "downloaded": 7, "skipped": 1, "failed": 1, "planned": 0, "bytes": 12345678 },
   "failures": [
     {
       "mediaId": "006...",

@@ -267,7 +267,7 @@ weibo-cli search tweets <query> [--page <n>]
 # 热搜榜单（--type 可选：hot/topic/entertainment，默认 hot）
 weibo-cli trends [--type hot|topic|entertainment]
 
-# 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
+# 验证 Cookie 有效性（getSession 复用自检 → uid → getById）
 weibo-cli whoami
 
 # 镜像单个账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）
@@ -282,6 +282,7 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-his
 weibo-cli archive <uid> --state .weibo-archive-state.json [--incremental-since <date|unix>] [--stop-at <mblogId>] [--skip-pinned]
 
 # 批量归档（每行一个 uid，# 开头为注释；单用户失败默认跳过）
+# 批量默认不含收藏（收藏是账号级数据）；归档他人时 --favorites / --comment-history 会报 CONFIG_INVALID
 weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 
 # 能力清单（离线；可按服务 / 状态过滤）
@@ -300,7 +301,11 @@ weibo-cli schema diff before.json after.json
 > `source='like'`（微博本体为 `item.tweet`）与 `source='comment'`（评论在 `item.comment`，`item.tweet` 为被评论微博）。
 > `--images` / `--videos` 把图片墙 / 视频瀑布接入归档：`source='image'`（资产在 `item.asset`，可能没有 `item.tweet`）与
 > `source='video'`（同时有 `item.tweet` 与 `item.asset`）。
+> `--favorites`（`all_fav`）与 `--comment-history`（`myCmt`）是**账号级**数据，只能读取登录账号自身；
+> 目标 uid 与登录账号不一致时会报 `CONFIG_INVALID`。`--likes`（`likelist?uid=`）按目标 uid 读取。
 > 阶段顺序为 timeline → likes → comments → favorites → images → videos。
+> **续跑会重复**：checkpoint 记录最后一条已完整处理项，续跑可能重复边界 1 条（图片墙 / 视频瀑布会重放整页）。
+> 消费 NDJSON 时请按 `mblogId`（媒体按 `asset.id`）幂等去重。
 > `--original-only` 跳过转发微博并关闭内联转发；`incremental` 只作用于 timeline（点赞/收藏/媒体仍完整遍历）。
 > 批量模式（`--uid-file`）为每个 uid 独立 checkpoint / state；单用户失败默认 `skip` 并继续。
 > 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
@@ -349,7 +354,7 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
-| `whoami` | `users.myDetails()` + `users.getById()` | `User` 领域模型 |
+| `whoami` | `getSession()` + `users.getById()` | `User` 领域模型 |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 
 ## 架构

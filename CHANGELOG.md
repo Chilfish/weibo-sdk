@@ -2,6 +2,24 @@
 
 这里记录每个版本的公开变化。版本号遵循 SemVer。0.x 阶段仍可能调整 API，破坏性变更会单独标注并给出迁移说明。
 
+## Unreleased
+
+### 新增
+
+- `sdk.getSession()` 返回 `{ uid, details, checkedAt }`。它复用启动自检已经发出的 `profile/detail`，按实例 single-flight 缓存，不额外请求；`refresh: true` 才会重新探测。`checkSession()` 共享同一缓存。
+- `capabilities()` 新增 `accountScoped` 标记，标出收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身的能力。
+
+### 修复
+
+- `archive` 的 `includeFavorites` / `includeCommentHistory` 现在校验目标 uid 是否为登录账号。收藏（`all_fav` 忽略 uid）和历史评论（`myCmt` 无 uid）只能读取登录账号自身，跨账号归档会抛 `CONFIG_INVALID`，不再把登录账号的数据静默写进他人归档。
+- CLI 批量归档（`--uid-file`）默认不再包含收藏；需要时显式传 `--favorites`（仅当 uid 是登录账号）。
+- `media download` 的 `totals` 新增 `planned`：dry-run 下未执行项不再丢失，`downloaded + skipped + failed + planned === total`。
+
+### 文档
+
+- 明确归档续跑是 at-least-once：checkpoint 记录最后一条已完整处理项，续跑可能重复边界 1 条，图片墙 / 视频瀑布会重放整页；消费端需按 `mblogId` / `asset.id` 去重。
+- 修正 roadmap 中已完成项的过时标记（代理抽象、端点脚手架、抓包助手、capabilities、分页抽象）。
+
 ## 0.2.0 (2026-10-20)
 
 这一版把 SDK 从「读取时间线和微博」扩展到「归档一个账号的公开数据」。点赞、历史评论、收藏、媒体、通知和超话都接入了 SDK 与 CLI，归档流支持断点续传、增量、批量以及媒体阶段。

@@ -47,7 +47,7 @@
 
 ```
 request(spec, args)
- ├─ preflight（除非 skipPreflight）——selfCheck（lazy/eager）
+ ├─ preflight（除非 skipPreflight）——selfCheck（lazy/eager），同时填充 session 上下文（uid / 详情）
  ├─ emit request_start（telemetry + hooks）
  ├─ rateLimitService.acquire()  ← 令牌桶，等待时 emit rate_limit_wait（含 432 后的全局暂停）
  ├─ 注入请求头：referer / host / user-agent / Auth(cookie+xsrf)
@@ -181,9 +181,20 @@ class WeiboSDK {
 
   constructor(config: IWeiboConfig)          // cookie 为空抛 InvalidConfigError
   async selfCheck(): Promise<void>           // 配置 + 会话自检
-  async checkSession(): Promise<boolean>     // 非抛错会话检查
+  async getSession(options?: { refresh?: boolean }): Promise<WeiboSessionContext>
+  async checkSession(options?: { refresh?: boolean }): Promise<boolean>
 }
 ```
+
+会话上下文（`getSession`）：
+
+- 与 lazy / eager 自检**共享同一次** `ajax/profile/detail`，不会为取 uid 额外请求；
+- 实例级 single-flight 缓存，并发调用共享 Promise；失败不缓存；
+- `uid` 从 `data.verified_url` 的 `uid=` 解析，缺失时为 `undefined`；
+- `selfCheck: { mode: 'none' }` 时仍可用（首次调用主动探测一次）；
+- `refresh: true` 才会重新探测。CLI 每个进程只会产生至多一次自检；长时间运行的消费方复用一个 SDK 实例即可，不要在高频循环里刷新。
+
+`capabilities()` 的条目带 `accountScoped` 标记：收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身；归档的 `includeFavorites` / `includeCommentHistory` 也按此规则守卫。
 
 ### 3.2 配置: IWeiboConfig
 
@@ -341,6 +352,11 @@ interface IWeiboConfig {
 - 反向兼容：`timelineSource='mymblog'` 时若 `data.total` 证明已完整则不切片；否则从最旧一条微博之前继续日期切片。单片 `total` 超过 `maxSliceItems` 时对半缩小窗口，避免 `searchProfile` 大范围下 `total` 失真与分页窗口重置；空切片会自动放大窗口跨过长期空档。
 - 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
 - 与请求级重试的分工（P1 可靠性）：`config.retry` 在 `FetcherService` 内先执行（同一次 HTTP 调用的退避重试）；归档级 `maxRetries` / `retryDelayMs` 只处理**编排层**失败（分页/单条），因此两者不会叠加成双倍重试风暴——归档层看到的是已耗尽请求级重试后的终态错误。
+- **续跑语义（at-least-once，重要）**：checkpoint 是「最后一条**已完整处理**的项」，不是输出游标。中断后续跑会重跑当前项 / 当前页：
+  - `timeline` / `likes` / `favorites` / `comments`：通常只重复边界 1 条；
+  - `images` / `videos`：游标在整页产出后才写回 checkpoint，续跑会**重放整页**。
+  下游必须按 `mblogId`（媒体项按 `asset.id`）做幂等去重，不能假设 NDJSON 无重复。这是「不丢数据」优先于「不重复」的取舍。
+- **账号级数据源（2026-10-20）**：`includeFavorites`（`all_fav` 忽略 uid）与 `includeCommentHistory`（`myCmt` 无 uid）只能读取**登录账号自身**的数据。`streamArchive` / `streamUsersArchive` 会在首次迭代前解析登录 uid（`myDetails().data.verified_url`），目标 uid 不匹配时抛 `InvalidConfigError`（`CONFIG_INVALID`，context 含 `uid` / `sessionUid`），不会把登录账号的收藏 / 评论静默写进他人归档。`includeLikes` 走 `likelist?uid=`，实测按 uid 作用域返回，不做该守卫。CLI 批量模式（`--uid-file`）因此默认关闭收藏，需要 `--favorites` 显式开启。
 - 判别标准：≤20 行代码 + 一条 `weibo-cli archive <uid>` 命令镜像单账号。
 
 #### 3.3.1 流式范围控制（`StreamLimitOptions` / `StreamRangeOptions`）

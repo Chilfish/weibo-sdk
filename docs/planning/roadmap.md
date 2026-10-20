@@ -152,8 +152,8 @@
 - [x] 增量归档、多账号批量、仅原创
 - [x] 媒体归档集成（`includeImages` / `includeVideos`）；`ITweet` v1 可选字段第一批（topics / linkCards / readCount / editCount / title / permanentVideoUrl / isOriginal / sourceUrl）
 - [x] 剩余可选字段（`atUsers` / `playCount` / `isTop` / `audio`；`IUser` 扩展）
-- [x] 432 退避、请求级重试；代理抽象进行中
-- [ ] 端点脚手架 / 抓包助手 / `capabilities` / 分页抽象（进行中）
+- [x] 432 退避、请求级重试；代理抽象（静态 URL / `false` / 动态 Provider）
+- [x] 端点脚手架（`pnpm new:endpoint`）/ 抓包助手（`pnpm capture:endpoint`）/ `capabilities` / 公共分页 `paginate()`
 
 ---
 

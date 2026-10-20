@@ -41,6 +41,7 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `unit/utils/tweetId.test.ts` | `parseTweetIdInput` / `normalizeTweetIdInput` | mblogid / 数字 mid / `m.weibo.cn` 与 `weibo.com` 状态 URL、分享文案、query/fragment/尾斜杠、拒绝用户主页/文章页/t.cn、`CONFIG_INVALID` context |
+| `unit/utils/sessionUid.test.ts` | `parseSessionUid` | 真实 `verified_url`（双 `?`）、标准 query、缺失 uid 返回 undefined |
 
 ### Unit — 领域服务
 
@@ -60,12 +61,13 @@
 | `unit/entry/index.test.ts` | SDK 入口无副作用 | 导入 `WeiboSDK` 时无 console.log 等副作用 |
 | `unit/entry/exports.test.ts` | 导出完整性回归 | `package.json#exports` 中声明的子路径均可正确导入 |
 | `unit/sdk/WeiboSDK.test.ts` | `WeiboSDK` 门面类 | 构造器初始化 UserService/TweetService、selfCheck 模式 |
+| `unit/sdk/WeiboSDK.session.test.ts` | `WeiboSDK.getSession` | uid 解析、single-flight 缓存、与 lazy 自检共享一次 `myDetails`、`refresh` 重探、失败不缓存、`checkSession` 复用 |
 
 ### Unit — CLI
 
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
-| `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 默认全开；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
+| `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 单账号默认全开；批量模式默认关闭收藏（账号级数据）；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
 | `unit/cli/parsePositiveInt.test.ts` | `parsePositiveInt` | 正整数字符串解析、小数取整；`0` / 负数 / 非数字 / 空串返回 undefined |
 | `unit/cli/tweetCommentsArgs.test.ts` | `tweet comments` 参数 | `--max-id` 已声明并作为 `max_id` 透传（缺省 undefined） |
 | `unit/cli/streamRangeArgs.test.ts` | 流式范围 CLI 参数 | `--max-items/--since/--until` 解析；时间序命令声明日期边界、非时间序命令只声明条数上限 |
@@ -103,6 +105,7 @@
 | `component/public/NotificationService.test.ts` | `NotificationService`（D10） | 真实 `message_cmt_*` / `message_attitudes_*` fixture、`max_id` 翻页、`next_cursor=0` 停止、缺失 `status` 条目跳过、`normalize_done` |
 | `component/public/TweetStreams.test.ts` | 评论 / 转发 / 楼中楼流式分页 | `max_id` 翻页与跨页去重、`total_number` 不提前停止、空页结束、`flow=1` 只解析一次数字 mid、楼中楼 `max_id=0` 停止 |
 | `component/public/ArchiveService.extensions.test.ts` | `ArchiveService` D1/D2 归档集成 | `includeLikes` / `includeCommentHistory` 编排、source/`item.comment`、`likesPage` / `commentHistoryCursor` checkpoint、续跑、依赖缺失抛错、checkpoint 恒定大小 |
+| `component/public/ArchiveService.scope.test.ts` | 账号级数据源守卫 | 目标 uid ≠ 登录 uid 时 `includeFavorites` / `includeCommentHistory` 抛 `CONFIG_INVALID`；登录 uid 放行；无法解析 session uid 时跳过守卫；批量在产出前失败；session uid 只解析一次 |
 
 ### E2E
 
@@ -217,4 +220,4 @@ curl -s -H "Cookie: $WEIBO_COOKIE" \
 | `unit/services/media/MediaStreamWriter.test.ts` | 流式落盘 | 背压写入、原子 rename、maxBytes、截断/空响应、overwrite、rename 失败、abort 清理 |
 | `unit/services/media/MediaHttpClient.test.ts` | 独立 CDN 客户端 | 无 Cookie、Referer/UA/identity、重定向与 host 白名单、403/429/4xx 映射 |
 | `unit/cli/mediaDownload.test.ts` | `media download` 参数与事件 | include 解析、数字/`--no-refresh`、默认 out、item/item-error/done 键集 |
-| `component/public/MediaServiceDownload.test.ts` | `MediaService` 下载编排 | 图片/视频/LivePhoto、exists 跳过、去重、HTML 失败继续、dryRun、无 fs、403 刷新、storage fatal |
+| `component/public/MediaServiceDownload.test.ts` | `MediaService` 下载编排 | 图片/视频/LivePhoto、exists 跳过、去重、HTML 失败继续、dryRun（`totals.planned`）、无 fs、403 刷新、storage fatal |

@@ -51,7 +51,7 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 
 | id | 文件 | 内容 |
 |---|---|---|
-| `whoami` | [`sdk/whoami.ts`](./sdk/whoami.ts) | `checkSession`、`myDetails`、`getById`、`capabilities` |
+| `whoami` | [`sdk/whoami.ts`](./sdk/whoami.ts) | `getSession`（复用自检）、`getById`、`capabilities` |
 | `user-timeline` | [`sdk/user-timeline.ts`](./sdk/user-timeline.ts) | 用户资料、`listByUserId`、有界 `streamByUserId` |
 | `home-feed` | [`sdk/home-feed.ts`](./sdk/home-feed.ts) | 首页 Feed 的 `max_id` 翻页和 `since_id` 增量 |
 | `tweet-comments` | [`sdk/tweet-comments.ts`](./sdk/tweet-comments.ts) | 详情、评论流、图片评论和楼中楼 |

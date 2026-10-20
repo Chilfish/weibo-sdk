@@ -219,6 +219,8 @@ weibo-cli schema diff before.json after.json
 
 流式命令输出 NDJSON，每行是一个 `progress`、`item` 或 `done` 事件，可以直接接 `jq`。
 
+`archive` 续跑是 at-least-once：重复边界 1 条，图片墙 / 视频瀑布会重放整页，消费端按 `mblogId` / `asset.id` 去重。`--favorites` / `--comment-history` 只对登录账号有效，归档他人会报 `CONFIG_INVALID`；批量模式默认不含收藏。
+
 `tweet` 和 `media download` 的 id 参数接受 mblogId、数字 mid 或微博状态 URL，例如 `https://m.weibo.cn/status/5356120103455672`。SDK 和 CLI 会自动归一化。
 
 ### 分页
