@@ -102,4 +102,59 @@ describe('paginate', () => {
       total: 2,
     }))
   })
+
+  it('honors maxItems across pages without fetching extra pages', async () => {
+    const fetchPage = vi.fn(async (cursor?: number) => ({
+      items: [`A${cursor}`, `B${cursor}`],
+      next: (cursor ?? 0) + 1,
+    }))
+
+    const out: string[] = []
+    for await (const item of paginate(fetchPage, {
+      initialCursor: 1,
+      getKey: item => item,
+      maxItems: 3,
+    })) {
+      out.push(item)
+    }
+
+    expect(out).toEqual(['A1', 'B1', 'A2'])
+    expect(fetchPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips items newer than until and stops at since', async () => {
+    const at = (iso: string) => ({ time: Date.parse(iso) / 1000 })
+    const fetchPage = vi.fn(async (cursor?: number) => {
+      if (cursor === 1)
+        return { items: [at('2026-10-03T00:00:00Z'), at('2026-10-02T00:00:00Z')], next: 2 }
+      return { items: [at('2026-10-01T00:00:00Z'), at('2026-09-30T00:00:00Z')], next: 3 }
+    })
+
+    const out: number[] = []
+    for await (const item of paginate(fetchPage, {
+      initialCursor: 1,
+      maxPages: 5,
+      getKey: item => String(item.time),
+      getTime: item => item.time,
+      until: Date.parse('2026-10-02T00:00:00Z') / 1000,
+      since: Date.parse('2026-10-01T00:00:00Z') / 1000,
+    })) {
+      out.push(item.time)
+    }
+
+    expect(out).toEqual([
+      Date.parse('2026-10-02T00:00:00Z') / 1000,
+      Date.parse('2026-10-01T00:00:00Z') / 1000,
+    ])
+    expect(fetchPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws CONFIG_INVALID when date bounds are used without getTime', async () => {
+    const fetchPage = vi.fn(async () => ({ items: ['A'], next: 2 }))
+    await expect(async () => {
+      for await (const _ of paginate(fetchPage, { since: '2026-10-01' })) {
+        // consume
+      }
+    }).rejects.toMatchObject({ code: 'CONFIG_INVALID' })
+  })
 })
