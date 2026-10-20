@@ -3,14 +3,14 @@
 **项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-20
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
-> 本文档覆盖**里程碑发布**（打 tag + GitHub Release + `pnpm publish`）时的完整清单。
+> 本文档覆盖**里程碑发布**（`pnpm release` 打 tag → CI 发布 npm → 手写 GitHub Release）时的完整清单。
 
 ## 版本纪律
 
 - **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
 - **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)
 - **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v2 + major）
-- 仅在验证门禁全绿后打 tag：`git tag v<version> && git push --tags`
+- 仅在验证门禁全绿后打 tag：统一走 `pnpm release <type>`（脚本会先跑门禁，再 bump + tag + push）
 - 每次发布 version 单调递增，禁止回退
 - `CHANGELOG.md` 的 Unreleased 节在发布前迁移到版本节
 - Breaking change 必须：`BREAKING CHANGE` footer + 迁移指南 + 至少一个主版本存续期（SKILL.md 第八条）
@@ -20,9 +20,9 @@
 - [x] `pnpm run typecheck` 通过（2026-10-20）
 - [x] `pnpm run lint` 通过（2026-10-20）
 - [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20）
-- [x] `pnpm test` 全绿（默认离线；2026-10-20：552 passed / 18 skipped）
-- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-20：84 ok / 7 unmodeled / 0 fail）
-- [ ] simple-git-hooks pre-commit 钩子无跳过
+- [x] `pnpm test` 全绿（默认离线；2026-10-20 / 0.3.0：711 passed / 23 skipped）
+- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-20 / 0.3.0：106 fixtures，98 ok / 8 unmodeled / 0 fail）
+- [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-20，0.3.0 提交均正常触发 lint-staged）
 
 ## 包身份核验
 
@@ -31,7 +31,7 @@
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `citty ^0.2.2` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-20）
-- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.1.1`，2026-10-20）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.3.0`，2026-10-20）
 
 ## 公共导出面核验
 
@@ -43,12 +43,13 @@
 
 > 真实 Cookie **只从项目根目录 `.env` 读取**（`tests/e2e/setup-env.ts` 会覆盖环境变量），勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
 
-- [x] `pnpm test:e2e` 全绿（2026-10-20：18/18；首跑发现 `favorites/all_fav` 快照缺少顶层 `count` / `total_page`，已更新快照后复跑通过）
+- [x] `pnpm test:e2e` 全绿（2026-10-20 / 0.3.0：18 passed / 5 skipped（guest E2E 未开启）；0.2.0 时首跑发现 `favorites/all_fav` 快照缺少顶层 `count` / `total_page`，已更新快照）
 - [x] CLI 关键命令冒烟：`whoami` / `archive` / `tweet detail` / `trends` / `capabilities` / `tweet home-stream`（2026-10-20；含从打包 tarball 安装后执行 `whoami`）
 - [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-20，E2E lifecycle 用例）
 - [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-20：`archive --max-pages 1` 产出 20 条，checkpoint 落盘正常）
-- [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-20：84 ok / 7 unmodeled / 0 fail）
-- [x] 打包产物安装冒烟：`npm i --prefix <tmp> <tarball>` 后 CLI `--version` = `0.2.0`、`whoami` 成功、SDK 入口可导入（2026-10-20）
+- [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-20 / 0.3.0：98 ok / 8 unmodeled / 0 fail）
+- [x] registry 安装冒烟：干净临时目录 `npm i @chilfish/weibo-sdk@0.3.0` 后 CLI `--version` = `0.3.0`，30 个包安装成功（2026-10-20）
+- [x] provenance 签名链：`npm audit signatures` 显示 30 个包通过 registry 签名、3 个包通过 attestations（2026-10-20）
 
 ## 发布步骤
 
