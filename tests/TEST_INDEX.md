@@ -43,6 +43,7 @@
 | `unit/services/FavoriteStream.test.ts` | `listFavorites` / `streamFavorites` | 单页与跨页去重、整页重复停止、`total_page` / `total_number`、空收藏、`maxPages`、标签过滤、进度回调异常 |
 | `unit/services/LikeService.test.ts` | `LikeService` | 真实 fixture safeParse、page 归一化（0/负数/NaN）、单页与跨页去重、空页/整页重复/`maxPages` 停止、进度回调异常、错误路径 |
 | `unit/services/CommentHistory.test.ts` | `CommentHistoryService` + `normalizeComment` | 真实 fixture safeParse、`max_id` 游标翻页、`next_cursor === 0`/空页/游标不前进/整页重复停止、`ITweetComment` 新字段与 `reply_comment` 递归归一化 |
+| `unit/services/Comments.test.ts` | `buildComments` schema + 请求契约 | 真实 `comments` / `comments_no_type_*` / `comments_firewall` / `comments_hot_empty` fixture、`type=feed` 参数拒绝、20/18/2 分页与 `max_id=0`、防火墙部分可见、空页但 `max_id` 非 0 |
 | `unit/models/Favorite.test.ts` | `matchesFavoriteTag` | 标签 id / 名称 / 原始字符串匹配，缺失与畸形 tags 返回 false |
 
 ### Unit — 入口/导出
@@ -87,6 +88,7 @@
 | `component/public/Likers.test.ts` | `TweetService.likers` / `streamLikers`（D8） | 真实 `likers_p1/p2/end` fixture、m 站 URL/referer、数字 mid 参数、越界 `data: null`、跨页去重、`page=0` 归一化、`normalize_done` |
 | `component/public/UserSocial.test.ts` | `UserService` mentions / groups（D9/D11） | 真实 `mentions_*` fixture、`max_id` 翻页与 `next_cursor=0` 停止、`feed_groups` 分类拍平、`mblog_groups` join_groups、`normalize_done` |
 | `component/public/NotificationService.test.ts` | `NotificationService`（D10） | 真实 `message_cmt_*` / `message_attitudes_*` fixture、`max_id` 翻页、`next_cursor=0` 停止、缺失 `status` 条目跳过、`normalize_done` |
+| `component/public/TweetStreams.test.ts` | 评论 / 转发 / 楼中楼流式分页 | `max_id` 翻页与跨页去重、`total_number` 不提前停止、空页结束、`flow=1` 只解析一次数字 mid、楼中楼 `max_id=0` 停止 |
 | `component/public/ArchiveService.extensions.test.ts` | `ArchiveService` D1/D2 归档集成 | `includeLikes` / `includeCommentHistory` 编排、source/`item.comment`、`likesPage` / `commentHistoryCursor` checkpoint、续跑、依赖缺失抛错、checkpoint 恒定大小 |
 
 ### E2E
@@ -124,6 +126,9 @@ E2E 测试只从 `.env` 中读取 `WEIBO_COOKIE`（`tests/e2e/setup-env.ts` 会�
 | `profile_detail.json` | 用户详情 |
 | `profile_detail_v2.json` | 用户详情变种 |
 | `comments.json` | 评论列表（20 条） |
+| `comments_no_type_p1/p2/end.json` | `buildComments` 去掉 `type=feed` 后的真实三页（20 / 18 / 2，最后一页 `max_id=0`） |
+| `comments_firewall.json` | 博主开启防火墙的部分可见样本（`data` < `total_number`，`trendsText` 提示） |
+| `comments_hot_empty.json` | hot 排序空页停止态（`data: []`、`max_id` 仍非 0） |
 | `feed_home.json` | 首页 Feed（25 条） |
 | `feed_groups.json` | Feed 分组 |
 | `search_users_p2.json` | 搜索用户（第 2 页） |

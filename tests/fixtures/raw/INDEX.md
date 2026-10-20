@@ -191,3 +191,113 @@
 - `feed/allGroups`：`groups[]` 是分类（默认分组 / 我的分组 / 订阅分组 / 我的频道），每个分类下 `group[]` 才是分组（`gid` / `title` / `count` / `type` / `apipath`）。
 - `mblog/querygroup`：`data.join_groups[]`，元素为 `{ page_objectid, name, system_name, id }`；不带 `gid` 即返回当前账号加入的分组。
 
+## 新增端点（2026-10-20 首页「最新微博」feed：`/ajax/feed/friendstimeline`）
+
+> 抓包环境：OpenCLI browser bridge + 已登录 Chrome（uid `7679065628`），在 `weibo.com` 页面内用 `fetch(..., { credentials: 'include' })` 复放接口。
+> 已建模：4 个 fixture 均映射到 `friendstimelineSpec`（mapped）。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `feed_latest_p1.json` | 177K | `/ajax/feed/friendstimeline?list_id=&refresh=4&since_id=0&count=25&fid=` | 第 1 页（25 条）；响应 `max_id` = 下一页游标 |
+| `feed_latest_p2.json` | 131K | 同上 `max_id=<p1 响应 max_id>` | 第 2 页（25 条，含游标本身，需去重） |
+| `feed_latest_incremental.json` | 12K | 同上 `since_id=<已知微博 id>` | 增量：只返回更新的 3 条 |
+| `feed_latest_end.json` | 0K | 同上 `max_id=4000000000000000`（越界） | `statuses: []`、`max_id: 0`、`since_id: 0`（停止态） |
+
+### 首页「最新微博」 —— `/ajax/feed/friendstimeline`（`max_id` 游标）
+
+- **URL**：`GET https://weibo.com/ajax/feed/friendstimeline?list_id=<gid>&refresh=4&since_id=0&count=25&fid=<gid>`
+- **参数**：
+  - `list_id` / `fid`：关注分组 id（浏览器两者都带且通常相同）。缺省任一参数都返回默认首页时间线；「最新微博」对应 `gid = 11000 + uid`（如 `110007679065628`）。
+  - `refresh`：首屏浏览器传 `4`；实测 `0` / `4` 结果一致。
+  - `since_id`：**增量过滤**，只返回比该微博 id 更新的条目；不是翻页游标，与 `max_id` 同传时不会返回两者之间的数据。
+  - `max_id`：**翻旧页游标**，传上一页响应里的 `max_id`；下一页首条等于游标本身（含边界，需按 `mblogid` 去重）。
+  - `count`：被上游忽略（传 5 / 10 / 50 / 100 均固定返回 25 条）。
+- **分页**：`max_id` 型，停止条件「`statuses` 为空」；空页响应为 `{ ok: 1, statuses: [], total_number: 2000, since_id: 0, max_id: 0 }`。
+- **响应**：`{ ok: 1, statuses: Array<微博>, total_number: 2000, since_id, max_id, since_id_str, max_id_str }`。
+  - `total_number` 实测恒为 `2000`（上限值），**不能**用来判断是否还有下一页。
+  - `statuses[]` 与 `mymblog` 同构（复用 `MyMBlogItemSchema`）；实测本接口 `mblogtype` 均为 `0`、无 `isAd`。
+
+## 新增抓包（2026-10-20：关键词搜索 / 二级评论 / 置顶 / 音频 / 相册 / 超话 / 用户字段）
+
+> 抓包环境：OpenCLI browser bridge 复用已登录 Chrome；原始响应经 `scripts/sanitize-raw.mjs` 脱敏后入库。
+> 已建模：`searchProfile_q` → `searchProfileSpec`；`comment_replies_*` → `buildCommentsSpec`；
+> `mymblog_pinned` → `myMblogSpec`；`at_status` / `audio_status` → `statusShowSpec`；
+> `image_wall_with_albums` → `imageWallSpec`；`album_detail_*` → `albumDetailSpec`；
+> `stopic_cates` / `stopic_list_*` → `stopicCatesSpec` / `stopicListSpec`；
+> `profile_detail_hometown` → `userDetailsSpec`。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `searchProfile_q.json` | 17K | `/ajax/statuses/searchProfile?uid=&q=&starttime=&endtime=&page=` | 关键词 4 条；`q` 与日期窗口可组合 |
+| `comment_replies_p1.json` | 111K | `/ajax/statuses/buildComments?is_reply=1&fetch_level=1&id=<根评论>&max_id=` | 二级评论第 1 页，20 条；`total_number=137` |
+| `comment_replies_p2.json` | 200K | 同上 `max_id=<p1 max_id>` | 第 2 页，20 条；`max_id` 继续前进 |
+| `comment_replies_end.json` | 39K | 同上（另一根评论，`total_number=4`） | 一页到底：4 条、`max_id=0` |
+| `mymblog_pinned.json` | 187K | `/ajax/statuses/mymblog?uid=&page=1` | 置顶项 `isTop: 1`（2 条）；非置顶项无该字段 |
+| `at_status.json` | 7K | `/ajax/statuses/show?id=` | `text` HTML 含 `<a href=/n/...>` 的 @ 用户（用于 `ITweet.atUsers`） |
+| `audio_status.json` | 7K | `/ajax/statuses/show?id=` | `page_info.object_type=podcast_audio`；`media_info.stream_url` / `duration` / `author_info` |
+| `image_wall_with_albums.json` | 4.7K | `/ajax/profile/getImageWall?uid=&sinceid=0&has_album=true` | `data.album_list`（原创 / 头像）+ 图片墙；pc containerid |
+| `album_detail_p1.json` | 4.4K | `/ajax/profile/getAlbumDetail?containerid=&since_id=0` | 相册第 1 页，24 条；`since_id` 为下一页游标 |
+| `album_detail_p2.json` | 2.8K | 同上 `since_id=<p1 since_id>` | 第 2 页，15 条；`since_id: 0` 到底 |
+| `album_list.json` | 0.2K | `/ajax/profile/albumlist?uid=` | mobile containerid（3 个相册）；与 `getAlbumDetail` 不兼容，unmodeled |
+| `stopic_cates.json` | 0.6K | `/ajax/stopic/cates` | 19 个分类；`id` 作为 `sort_id` |
+| `stopic_list_p1.json` | 14.6K | `/ajax/stopic/list?sort_id=123333&keyword=&page=1` | 30 条；`count=10`（总页数） |
+| `stopic_list_p2.json` | 9.9K | 同上 `page=2` | 20 条；`count=10` |
+| `stopic_list_search.json` | 9.3K | `/ajax/stopic/list?sort_id=0&keyword=游戏&page=1` | 关键词搜索 21 条；`count=2` |
+| `profile_detail_hometown.json` | 1.8K | `/ajax/profile/detail?uid=` | 真实 `hometown: "家乡：广东 深圳"`（已去前缀归一化） |
+
+### D12 个人主页关键词搜索 —— `/ajax/statuses/searchProfile`
+
+- `q` 与 `starttime` / `endtime` **可组合**；`q` 为空 / 不传 = 不过滤，`data.total` 会按关键词收窄（实测 1000 → 33 / 4）。
+- 其余参数与分页语义见上方既有 `searchProfile` 章节；日期字符串仍会被上游静默忽略，SDK 在边界换算为 unix 秒。
+
+### D13 二级评论 —— `/ajax/statuses/buildComments`（`is_reply=1` + `fetch_level=1`）
+
+- **请求**：`id=<一级评论 id>`、`is_reply=1`、`fetch_level=1`、`max_id=<上一页 data.max_id>`；
+  `is_reply` 在该路径下可省略（`fetch_level=1` 即可），但保留以对齐网页端。
+- **响应**：与顶层评论同构；每条带 `rootid/rootidstr`（指向根评论）、`reply_comment`（被回复评论）。
+  `total_number` 是该根评论的回复总数，`max_id=0` 到底。
+- 传 `fetch_level=0` 返回空列表；传顶层微博 id 也返回空列表（必须传根评论 id）。
+
+### D4 相册 —— `getImageWall?has_album=true` + `getAlbumDetail`
+
+- **列表**：`GET /ajax/profile/getImageWall?uid=<uid>&sinceid=0&has_album=true` → `data.album_list[]`
+  （`containerid` / `pic` / `pic_title`），同时仍返回 `data.list` 图片墙。
+- **详情**：`GET /ajax/profile/getAlbumDetail?containerid=<pc_containerid>&since_id=0`
+  → `{ data: { list, since_id, type } }`；`since_id` 为下一页游标，`0` 到底。
+- **雷区**：`/ajax/profile/albumlist` 返回的 `mobile_profile_album` containerid 在本账号实测为空列表；
+  必须使用相册 tab（`has_album=true`）下发的 `pc_profile_album` containerid。
+
+### D7 超话 —— `/ajax/stopic/cates` + `/ajax/stopic/list`
+
+- **分类**：`GET /ajax/stopic/cates` → `{ ok, code, data: [{ id, name }] }`（19 个）。
+- **列表 / 搜索**：`GET /ajax/stopic/list?sort_id=<cates.id>&keyword=&page=<n>`（分类浏览）；
+  `sort_id=0&keyword=<kw>&page=<n>`（搜索）。响应 `{ ok, code, count, since_id, data }`；
+  **`count` 是总页数**（30 条/页），不是条目总数；失败时返回 `{ errno, errmsg, errcode }`。
+
+## 新增抓包（2026-10-20：评论区参数 / 分页 / 防火墙）
+
+> 抓包环境：OpenCLI browser bridge + 已登录 Chrome；另用同一 Cookie 做参数对照探针。
+> 真实浏览器请求（`weibo.com/ajax/statuses/buildComments`）：
+> `is_reload=1&id=<数字 mid>&is_show_bulletin=2&is_mix=0&count=10&uid=<uid>&fetch_level=0&locale=zh-CN`
+> 注意：**没有 `type=feed`**。
+> 已建模：5 个 fixture 均映射到 `buildCommentsSpec`。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `comments_no_type_p1.json` | 62K | `buildComments`（不带 `type`） | 首屏 20 条；`total_number=56`、`max_id` 非 0 |
+| `comments_no_type_p2.json` | 31K | 同上 `max_id=<p1 max_id>` | 第 2 页 18 条 |
+| `comments_no_type_end.json` | 3K | 同上 `max_id=<p2 max_id>` | 第 3 页 2 条、`max_id=0` 到底 |
+| `comments_firewall.json` | 31K | 同上 | 博主开启防火墙：12 条 < `total_number=19`，`trendsText` 提示部分不展示 |
+| `comments_hot_empty.json` | 0.1K | 同上 `max_id=<hot p3>` | 空页但 `max_id` 仍非 0（hot 排序的停止态） |
+
+### 评论区 —— `/ajax/statuses/buildComments`（2026-10-20 复测）
+
+- **`type=feed` 是静默降级开关**：带上它首屏只返回 3 条（`comments_feed.json`），且 `ok` / `total_number` / `max_id` 看起来正常；浏览器真实请求不带该参数，首屏返回 20 条。SDK 已移除该参数。
+- **游标**：必须使用响应顶层的 `max_id`。传「最后一条评论的 id」在顶层评论会返回 0 条；`max_id=0` 或空页即到底。
+- **空页**：hot 排序可能先返回空页（`data: []`、`max_id` 仍非 0，见 `comments_hot_empty.json`），后续再请求该 `max_id` 才变成 0。停止条件必须包含空页。
+- **`count` 被忽略**：浏览器传 10、探针传 20，均返回 20 条。
+- **`flow=1` 必须用数字 mid**：传字母 mblogid 返回 HTTP 400；数字 mid 正常按时间排序。SDK 在 `flow=1` 且入参非数字时自动解析。
+- **`total_number` 不是顶层评论数**：实测一条微博 `total_number=115`、顶层评论仅 51 条（其余为楼中楼）；不能作为结束条件。
+- **防火墙**：`trendsText` 为「博主已开启防火墙，部分内容暂不展示」时，`data` 会少于 `total_number` 且 `max_id=0`，属于上游限制。
+- **楼中楼**：`id=<一级评论 id>&is_reply=1&fetch_level=1`；`rootid` 可选；回复线程的 `max_id` 同样取响应顶层值，`0` 到底。
+

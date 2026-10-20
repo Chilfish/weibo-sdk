@@ -17,11 +17,12 @@ import { followContentSpec, friendshipsSpec } from '../src/services/endpoints/fo
 import { feedGroupsSpec, mblogGroupsSpec } from '../src/services/endpoints/groups'
 import { likeListSpec } from '../src/services/endpoints/like'
 import { likersSpec } from '../src/services/endpoints/likers'
-import { imageWallSpec, waterfallSpec } from '../src/services/endpoints/media'
+import { albumDetailSpec, imageWallSpec, waterfallSpec } from '../src/services/endpoints/media'
 import { mentionsSpec } from '../src/services/endpoints/mentions'
 import { messageAttitudesSpec, messageCommentsSpec } from '../src/services/endpoints/notifications'
 import { searchUsersSpec } from '../src/services/endpoints/search'
 import { bandUnifiedSpec } from '../src/services/endpoints/side'
+import { stopicCatesSpec, stopicListSpec } from '../src/services/endpoints/topic'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../src/services/endpoints/tweet'
 import { userDetailsSpec, userInfoSpec } from '../src/services/endpoints/user'
 
@@ -51,6 +52,11 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'timeline_u1740358225.json': validate(myMblogSpec),
   'timeline_u2365795232.json': validate(myMblogSpec),
   'feed_home.json': validate(friendstimelineSpec),
+  // 2026-10-20 首页「最新微博」friendstimeline 实测：max_id 翻旧页 / since_id 增量 / 空页
+  'feed_latest_p1.json': validate(friendstimelineSpec),
+  'feed_latest_p2.json': validate(friendstimelineSpec),
+  'feed_latest_incremental.json': validate(friendstimelineSpec),
+  'feed_latest_end.json': validate(friendstimelineSpec),
   'tweet_QqsYymYOS.json': validate(statusShowSpec),
   'tweet_OgHLUyXYP.json': validate(statusShowSpec),
   'tweet_P6yhlzD3j.json': validate(statusShowSpec),
@@ -58,6 +64,12 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'tweet_QFekiwGId.json': validate(statusShowSpec),
   'comments.json': validate(buildCommentsSpec),
   'comments_feed.json': validate(buildCommentsSpec),
+  // 2026-10-20 真实抓包：buildComments 去 type=feed 后的翻页 / 防火墙 / 空页样本
+  'comments_no_type_p1.json': validate(buildCommentsSpec),
+  'comments_no_type_p2.json': validate(buildCommentsSpec),
+  'comments_no_type_end.json': validate(buildCommentsSpec),
+  'comments_firewall.json': validate(buildCommentsSpec),
+  'comments_hot_empty.json': validate(buildCommentsSpec),
   'repost_timeline.json': validate(repostTimelineSpec),
   'repost_timeline_p2.json': validate(repostTimelineSpec),
   'searchProfile_p1.json': validate(searchProfileSpec),
@@ -84,6 +96,7 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'profile_info_u2365795232.json': validate(userInfoSpec),
   'profile_detail.json': validate(userDetailsSpec),
   'profile_detail_v2.json': validate(userDetailsSpec),
+  'profile_detail_hometown.json': validate(userDetailsSpec),
   // side / search
   'hot_trends.json': validate(bandUnifiedSpec),
   'search_users_p2.json': validate(searchUsersSpec),
@@ -113,6 +126,23 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'message_attitudes_end.json': validate(messageAttitudesSpec),
   'mblog_groups.json': validate(mblogGroupsSpec),
   'feed_groups.json': validate(feedGroupsSpec),
+  // 2026-10-20 追加抓包：关键词搜索 / 二级评论 / 置顶 / 相册 / 音频 / 超话 / @
+  'searchProfile_q.json': validate(searchProfileSpec),
+  'comment_replies_p1.json': validate(buildCommentsSpec),
+  'comment_replies_p2.json': validate(buildCommentsSpec),
+  'comment_replies_end.json': validate(buildCommentsSpec),
+  'mymblog_pinned.json': validate(myMblogSpec),
+  'image_wall_with_albums.json': validate(imageWallSpec),
+  'at_status.json': validate(statusShowSpec),
+  'audio_status.json': validate(statusShowSpec),
+  // 2026-10-20 追加：相册 / 超话（album_list 为 mobile containerid 形态，详情接口可能返回空）
+  'album_list.json': { kind: 'unmodeled', note: '/ajax/profile/albumlist（mobile containerid 与 getAlbumDetail 不兼容；实现走 getImageWall?has_album=true）' },
+  'album_detail_p1.json': validate(albumDetailSpec),
+  'album_detail_p2.json': validate(albumDetailSpec),
+  'stopic_cates.json': validate(stopicCatesSpec),
+  'stopic_list_p1.json': validate(stopicListSpec),
+  'stopic_list_p2.json': validate(stopicListSpec),
+  'stopic_list_search.json': validate(stopicListSpec),
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },
   'side_cards.json': { kind: 'unmodeled', note: 'side cards 端点未建模' },
