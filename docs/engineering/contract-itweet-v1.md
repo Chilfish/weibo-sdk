@@ -49,6 +49,7 @@
 | `stats` | `{ likes, comments, reposts }`（均 `number`） | 计数快照（缺省 0） |
 | `visible` | `TweetVisible`（enum 0-4） | 可见性；未知值回退 `PUBLIC(0)` |
 | `retweetedStatus?` | `ITweet` | 转发内容，**递归同构**；非转发缺省 |
+| `repostChain?` | `TweetRepostEntry[]` | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博）；每层聚合该层 reppic 配图，见下；非转发缺省 |
 | `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType }` |
 | `media` | `TweetMedia[]` | 见下；**恒为数组**（无媒体 = 空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
@@ -97,6 +98,23 @@
 | `pageId?` | `string` | 卡片 page id（`page_id`） |
 | `objectType?` | `string` | 对象类型（`object_type`） |
 | `typePic?` | `string` | 卡片图标（`url_type_pic`） |
+
+### TweetRepostEntry（转发链层）
+
+> 来源：转发时附带的图片（reppic）不在 `pic_ids` / `pic_infos`，只在 `url_struct[]`（`url_type: 39`）；
+> 多层转发链会把各层配图全部聚合到顶层 `url_struct[]` 且重复下发。`repostChain` 按正文
+> `//@` 由近到远分层，并用 `short_url` 把图片挂回所属层，避免「只剩一堆无归属图片」。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `index` | `number` | 层级索引：`0` = 当前微博，`1..n` = `text` 中由近到远的 `//@` 层级 |
+| `authorName?` | `string` | 该层作者昵称（0 层取 `user.name`；其余从 `//@name:` 解析；无法解析缺省） |
+| `text` | `string` | 该层正文（去掉 `//@` 前缀与图片短链；可能为空串） |
+| `media` | `TweetMedia[]` | 该层配图（`url_struct[]` 的 reppic 条目；按 `pic_id` 去重；无图为空数组） |
+
+- 链末端的原微博仍是 `retweetedStatus`，不复制进 `repostChain`。
+- 无法在正文中定位的图片（正文截断 / 脱敏）追加到末尾补充层（`text: ''`），保证不丢数据。
+- 中间层的 uid / mblogId 上游未下发，不臆造。
 
 ### TweetAtUser（@ 用户）
 

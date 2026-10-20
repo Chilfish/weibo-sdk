@@ -108,6 +108,7 @@ request(spec, args)
 | `stats` | `{ likes, comments, reposts }` | REQUIRED | 互动数 |
 | `visible` | `TweetVisible` | REQUIRED | 可见性（0-4） |
 | `retweetedStatus` | `ITweet` | OPTIONAL | 被转发原微博（递归） |
+| `repostChain` | `TweetRepostEntry[]` | OPTIONAL | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博），每层聚合该层 reppic 配图 |
 | `pageInfo` | `TweetPageCard` | OPTIONAL | 链接/视频卡片 |
 | `media` | `TweetMedia[]` | REQUIRED | 媒体列表（图片/视频/LivePhoto/GIF） |
 | `geo` | `TweetGeo` | OPTIONAL | 发博定位 |
