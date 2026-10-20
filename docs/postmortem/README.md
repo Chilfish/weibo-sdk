@@ -17,6 +17,7 @@
 | [007](007-cli-framework-and-implementation.md) | CLI 框架选型 | 技术选型 | citty 零依赖匹配项目风格；CLI Interface Mandate |
 | [008](008-marathon-session-lessons.md) | 马拉松会话元教训 | 多 Agent 协作 | 并行 Agent 需互不重叠 + 对齐最新范式；脱敏破坏关联 |
 | [009](009-cookie-env-shadowing.md) | Cookie 环境变量遮蔽 `.env` | 工具反馈 / 流程缺失 | 配置来源必须单一显式；`process.loadEnvFile()` 不覆盖已有变量 |
+| [010](010-npm-publish-catalog-protocol.md) | npm publish 打包 `catalog:` 依赖 | 工具反馈 / 流程缺失 | 发布只能用 `pnpm publish`；门禁必须检查产物而非源码 |
 
 ## 高频雷区（写码前自查）
 
@@ -47,6 +48,7 @@
 - **结构快照只锁结构**：`stripVolatileKeys` 必须把值归一化为类型占位符（`<STR>/<NUM>/<BOOL>`），不要用 key 白名单；否则动态字段会持续误报（2026-10-19）。
 - **脱敏保留关联**：短字符串（≤40 字符，如 `pic_ids`）必须保留，否则破坏 `pic_ids` ↔ `pic_infos` 键匹配。
 - **配置来源单一显式**（2026-10-19 复发）：Cookie 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 指定），不回退到环境变量；`process.loadEnvFile()` 不覆盖已存在的环境变量，旧值会静默遮蔽新值。
+- **发布只用项目包管理器**（2026-10-20）：项目使用 pnpm catalog，`npm publish` 会把 `"catalog:"` 原样打进产物，消费者安装报 `EUNSUPPORTEDPROTOCOL`。发布必须 `pnpm publish`；发布后解包 tarball 检查 `dependencies` 与 `bin`，不要只看 `npm view`。
 
 ### 4. 流程（非代码）
 

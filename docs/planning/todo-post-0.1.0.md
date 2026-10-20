@@ -21,7 +21,7 @@
 - [x] 离线测试：189 passed / 18 skipped（2026-10-20 复跑）
 - [x] 真实 E2E：18/18（2026-10-20 复跑，维护者环境）
 - [x] 发布门禁：typecheck / lint / build / validate:fixtures 全绿
-- [ ] npm 发布、Git tag、GitHub Release
+- [x] npm 发布、Git tag、GitHub Release（0.1.1，2026-10-20）
 
 ---
 
@@ -43,10 +43,10 @@
 ### R0-2 正式发布
 
 - [x] `CHANGELOG.md` Unreleased 迁移到 `0.1.0`（2026-10-20）
-- [ ] 打 tag：`git tag v0.1.0 && git push --tags`
-- [ ] GitHub Release：`gh release create v0.1.0 --generate-notes`
-- [ ] `pnpm publish`
-- [ ] 发布后核验：`npm view @chilfish/weibo-sdk version`、`npm i -g @chilfish/weibo-sdk && weibo-cli --version`
+- [x] 打 tag：`git tag v0.1.0 && git push --tags`（2026-10-20；0.1.1 另打 `v0.1.1`）
+- [x] GitHub Release：`gh release create v0.1.0 --generate-notes`（2026-10-20）
+- [x] `pnpm publish`（2026-10-20：0.1.0 误用 npm 发布后 unpublish，改以 0.1.1 重发；见 [postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）
+- [x] 发布后核验：`npm view @chilfish/weibo-sdk dist-tags` → `latest: 0.1.1`；解包 tarball 依赖无 `catalog:`；临时目录安装后 `dist/cli.mjs --version` = `0.1.1`（2026-10-20）
 - [ ] 归档 `todo-contract-freeze.md`，更新 [docs/README.md](../README.md) 索引
 
 ### R0-3 CI / 发布门禁补强

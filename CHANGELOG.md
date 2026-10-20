@@ -2,6 +2,13 @@
 
 本项目遵循语义化版本（SemVer）的约束思路，但在 `0.x` 阶段可能仍会发生 API 调整。任何破坏性变更必须在本文件中明确标注，并给出迁移说明。
 
+## 0.1.1 (2026-10-20)
+
+### Fixed
+
+- **npm 产物可安装性**：0.1.0 由 `npm publish` 发布，未重写 pnpm `catalog:` 依赖，消费者安装报 `EUNSUPPORTEDPROTOCOL`。0.1.0 已 unpublish，0.1.1 改用 `pnpm publish` 重新发布（依赖重写为 `axios ^1.20.0` / `citty ^0.2.2` / `zod ^4.5.4`）。
+- `prepublishOnly` 增加发布工具守卫：使用 `npm publish` 会直接失败并提示改用 `pnpm publish`（见 [postmortem 010](./docs/postmortem/010-npm-publish-catalog-protocol.md)）。
+
 ## 0.1.0 (2026-10-20)
 
 ### Docs

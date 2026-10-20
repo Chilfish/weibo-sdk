@@ -30,6 +30,7 @@
 - [ ] `package.json#bin` = `{ "weibo-cli": "./dist/cli.mjs" }`
 - [ ] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [ ] `npm pack --dry-run` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`
+- [ ] 打包产物 `dependencies` 已由 pnpm 重写（无 `catalog:` / `workspace:`）
 - [ ] `@chilfish/weibo-sdk` 在 npm registry 上可发布（未被他人占用）
 
 ## 公共导出面核验
@@ -57,7 +58,8 @@
 5. 打 Tag：`git tag v0.1.0 && git push --tags`
 6. GitHub Release：`gh release create v0.1.0 --generate-notes`
 7. `pnpm publish`（`prepublishOnly` 会自动 `nr build`；`publishConfig.access=public` 已固定 scoped 包权限）
-8. 发布后核验：`npm view @chilfish/weibo-sdk version`、`npm i -g @chilfish/weibo-sdk && weibo-cli --version`
+   - **禁止 `npm publish`**：项目依赖使用 pnpm `catalog:`，npm 不会重写，产物会写成 `"catalog:"` 导致消费者安装失败（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
+8. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
 9. 发布后回填冒烟勾选日期，归档本阶段计划文档
 
 > 真实外网验证由维护者在发布前执行，勾选并记录日期。
