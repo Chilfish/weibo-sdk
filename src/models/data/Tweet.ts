@@ -74,14 +74,24 @@ function extractPageInfo(rawRecord: UnknownRecord): TweetPageCard | undefined {
   if (!isRecord(page))
     return undefined
 
-  return {
+  const card: TweetPageCard = {
     pageId: String(page.page_id ?? ''),
     pageTitle: String(page.page_title ?? ''),
     pageUrl: String(page.page_url ?? ''),
-    pagePic: String(page.page_pic ?? ''),
+    // 封面与媒体图一致：http 统一升级为 https，避免混合内容
+    pagePic: String(page.page_pic ?? '').replace(/^http:\/\//i, 'https://'),
     type: getNumber(page.type) ?? 0,
     objectType: String(page.object_type ?? ''),
   }
+
+  const objectId = getString(page.object_id)
+  if (objectId)
+    card.objectId = objectId
+  const subtitle = getString(page.content2)
+  if (subtitle)
+    card.subtitle = subtitle
+
+  return card
 }
 
 function getCoordinates(raw: RawTweet): [number, number] | undefined {
@@ -376,6 +386,15 @@ function extractLinkCards(rawRecord: UnknownRecord): TweetLinkCard[] | undefined
     const typePic = getString(item.url_type_pic)
     if (typePic)
       card.typePic = typePic
+    const longUrl = getString(item.long_url)
+    if (longUrl)
+      card.longUrl = longUrl
+    const oriUrl = getString(item.ori_url)
+    if (oriUrl)
+      card.oriUrl = oriUrl
+    const urlType = getNumber(item.url_type)
+    if (urlType !== undefined)
+      card.urlType = urlType
     out.push(card)
   }
   return out.length > 0 ? out : undefined

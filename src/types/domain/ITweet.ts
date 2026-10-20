@@ -335,6 +335,12 @@ export interface TweetLinkCard {
   objectType?: string
   /** 卡片图标（`url_type_pic`） */
   typePic?: string
+  /** 规范网页地址（`long_url`，如 bilibili 视频页；未下发时缺省） */
+  longUrl?: string
+  /** 上游原始跳转（`ori_url`，可能是 `sinaweibo://` scheme；未下发时缺省） */
+  oriUrl?: string
+  /** 卡片类型码（`url_type`，如 39；`0` 也会保留，未下发时缺省） */
+  urlType?: number
 }
 
 /**
@@ -353,6 +359,10 @@ export interface TweetPageCard {
   type: number
   /** 卡片对象类型（上游 `object_type`） */
   objectType: string
+  /** 卡片对象 id（上游 `object_id`；未下发时缺省） */
+  objectId?: string
+  /** 卡片副标题 / 统计文案（上游 `content2`，如「812播放 74点赞 0弹幕」；空则缺省） */
+  subtitle?: string
 }
 
 /**

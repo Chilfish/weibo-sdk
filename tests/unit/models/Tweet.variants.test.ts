@@ -688,3 +688,95 @@ describe('repost chain (reppic images in url_struct)', () => {
     expect(normalizeTweet(bareRepost).repostChain).toBeUndefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// 2026-10-20：外链 / 视频卡片元数据
+// pageInfo.objectId / subtitle + linkCards.longUrl / oriUrl / urlType
+// ---------------------------------------------------------------------------
+
+describe('page and link card metadata', () => {
+  it('maps objectId / subtitle and canonical urls from a real webpage card fixture', async () => {
+    const raw = await loadRawJson('tweet_RmyjwrKDs.json')
+    const tweet = normalizeTweet(raw)
+
+    expect(tweet.pageInfo?.objectId).toBe(raw.page_info.object_id)
+    expect(tweet.pageInfo?.subtitle).toBe(raw.page_info.content2)
+    expect(tweet.pageInfo?.subtitle).toContain('播放')
+
+    const card = tweet.linkCards?.[0]
+    const rawCard = raw.url_struct[0]
+    expect(card?.url).toBe(rawCard.h5_target_url)
+    expect(card?.longUrl).toBe(rawCard.long_url)
+    expect(card?.oriUrl).toBe(rawCard.ori_url)
+    expect(card?.urlType).toBe(rawCard.url_type)
+  })
+
+  it('maps objectId but omits subtitle when content2 is empty (real audio card fixture)', async () => {
+    const raw = await loadRawJson('tweet_ReZzZFxVQ.json')
+    const tweet = normalizeTweet(raw)
+
+    expect(tweet.pageInfo?.objectType).toBe('audio')
+    expect(tweet.pageInfo?.objectId).toBe(raw.page_info.object_id)
+    expect(tweet.pageInfo).not.toHaveProperty('subtitle')
+    expect(tweet.linkCards?.[0].urlType).toBe(raw.url_struct[0].url_type)
+  })
+
+  it('upgrades pagePic http to https and omits absent optional card fields', () => {
+    const tweet = normalizeTweet(makeRawTweet({
+      page_info: {
+        page_id: 'pid',
+        page_title: '音乐卡片',
+        page_url: 'https://example.com/page',
+        page_pic: 'http://p3.music.126.net/cover.jpg',
+        type: 0,
+        object_type: 'audio',
+      },
+    }))
+
+    expect(tweet.pageInfo?.pagePic).toBe('https://p3.music.126.net/cover.jpg')
+    expect(tweet.pageInfo).not.toHaveProperty('objectId')
+    expect(tweet.pageInfo).not.toHaveProperty('subtitle')
+  })
+
+  it('keeps the url fallback order h5_target_url → long_url → ori_url', () => {
+    const withH5 = normalizeTweet(makeRawTweet({
+      url_struct: [{ url_title: '卡片', h5_target_url: 'https://h5', long_url: 'https://long', ori_url: 'https://ori' }],
+    }))
+    expect(withH5.linkCards?.[0].url).toBe('https://h5')
+
+    const withLong = normalizeTweet(makeRawTweet({
+      url_struct: [{ url_title: '卡片', long_url: 'https://long', ori_url: 'https://ori' }],
+    }))
+    expect(withLong.linkCards?.[0].url).toBe('https://long')
+
+    const withOri = normalizeTweet(makeRawTweet({
+      url_struct: [{ url_title: '卡片', ori_url: 'https://ori' }],
+    }))
+    expect(withOri.linkCards?.[0].url).toBe('https://ori')
+  })
+
+  it('omits absent link card metadata and keeps urlType 0', () => {
+    const minimal = normalizeTweet(makeRawTweet({
+      url_struct: [{ url_title: '卡片', h5_target_url: 'https://h5' }],
+    }))
+    expect(minimal.linkCards?.[0]).not.toHaveProperty('longUrl')
+    expect(minimal.linkCards?.[0]).not.toHaveProperty('oriUrl')
+    expect(minimal.linkCards?.[0]).not.toHaveProperty('urlType')
+
+    const zero = normalizeTweet(makeRawTweet({
+      url_struct: [{
+        url_title: '卡片',
+        h5_target_url: 'https://h5',
+        long_url: 'https://long',
+        ori_url: 'sinaweibo://browser?url=...',
+        url_type: 0,
+      }],
+    }))
+    expect(zero.linkCards?.[0]).toMatchObject({
+      url: 'https://h5',
+      longUrl: 'https://long',
+      oriUrl: 'sinaweibo://browser?url=...',
+      urlType: 0,
+    })
+  })
+})
