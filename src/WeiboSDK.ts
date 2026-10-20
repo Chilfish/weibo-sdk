@@ -9,6 +9,7 @@ import { SearchService } from './services/public/SearchService'
 import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
+import { resolveCookieInput } from './utils/cookieInput'
 
 let sdkTraceSeq = 0
 function createSdkTraceId(): string {
@@ -60,8 +61,10 @@ export class WeiboSDK {
    * @throws `InvalidConfigError`（code `CONFIG_INVALID`）缺少 `cookie` 时抛出
    */
   constructor(private readonly config: IWeiboConfig) {
-    this.validateConfig(config)
-    this.selfCheckMode = config.selfCheck?.mode ?? 'lazy'
+    // Cookie 支持 header 串或文件路径：在这里解析一次，避免每个 Service 各读一次文件。
+    this.config = { ...config, cookie: resolveCookieInput(config.cookie) }
+    this.validateConfig(this.config)
+    this.selfCheckMode = this.config.selfCheck?.mode ?? 'lazy'
 
     const deps = {
       hooks: config.hooks,

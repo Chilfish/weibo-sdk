@@ -54,6 +54,27 @@ describe('getCookie', () => {
     expect(getCookie({ 'env-file': join(tmpdir(), 'weibo-sdk-no-such-file.env') })).toBe('')
   })
 
+  it('resolves a Netscape cookie file path from .env', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weibo-sdk-cookie-'))
+    dirs.push(dir)
+    const cookieFile = join(dir, 'cookies.txt')
+    writeFileSync(cookieFile, '.weibo.com\tTRUE\t/\tFALSE\t9999999999\tSUB\tabc', 'utf8')
+
+    // 用正斜杠避免 .env 双引号解析反斜杠的歧义（Node fs 在 Windows 同样接受）。
+    const file = createEnvFile(`WEIBO_COOKIE="${cookieFile.replace(/\\/g, '/')}"\n`)
+
+    expect(getCookie({ 'env-file': file })).toBe('SUB=abc')
+  })
+
+  it('resolves an explicit --cookie file path', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weibo-sdk-cookie-'))
+    dirs.push(dir)
+    const cookieFile = join(dir, 'cookies.txt')
+    writeFileSync(cookieFile, 'SUB=abc; SUBP=def', 'utf8')
+
+    expect(getCookie({ cookie: cookieFile })).toBe('SUB=abc; SUBP=def')
+  })
+
   it('defaults to <pwd>/.env', () => {
     expect(getEnvFilePath({})).toBe(join(process.cwd(), '.env'))
   })

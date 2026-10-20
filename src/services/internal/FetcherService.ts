@@ -138,13 +138,11 @@ export class FetcherService {
 
   private setupInterceptors(): void {
     this.client.interceptors.request.use((config) => {
-      // 在这里注入 Cookie 和 XSRF Token
-      if (this.config.cookie) {
-        config.headers.Cookie = this.config.cookie
-      }
-      if (this.config.xsrfToken) {
-        config.headers['X-XSRF-TOKEN'] = this.config.xsrfToken
-      }
+      // Cookie 以 AuthService 解析后的结果为准（`config.cookie` 可能是文件路径）。
+      const headers = this.authService.getAuthHeaders()
+      config.headers.Cookie = headers.Cookie
+      if (headers['X-XSRF-TOKEN'])
+        config.headers['X-XSRF-TOKEN'] = headers['X-XSRF-TOKEN']
       return config
     })
   }

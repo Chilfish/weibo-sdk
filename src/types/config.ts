@@ -8,7 +8,15 @@ import type { WeiboSDKTelemetry } from './telemetry'
  * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、懒自检）。
  */
 export interface IWeiboConfig {
-  /** 微博登录 Cookie（必填）；失效会在自检或 `ok !== 1` 时以结构化错误暴露 */
+  /**
+   * 微博登录 Cookie（必填）。支持三种输入：
+   * - Cookie header 串（`SUB=xxx; SUBP=xxx`）
+   * - Netscape Cookie 文件路径（浏览器扩展 / curl `cookies.txt`），仅 Node 环境生效
+   * - 内容为 header 串的文本文件路径（可带 `Cookie:` 前缀），仅 Node 环境生效
+   *
+   * 文件中的非微博域名 Cookie 会被忽略；路径不存在或文件内没有可用 Cookie 时抛
+   * `InvalidConfigError`。失效会在自检或 `ok !== 1` 时以结构化错误暴露。
+   */
   cookie: string
   /** XSRF Token；部分 POST 端点需要，缺省时仅发送 Cookie */
   xsrfToken?: string

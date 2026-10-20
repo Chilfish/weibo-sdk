@@ -1,5 +1,6 @@
 import type { IWeiboConfig } from '../types/config'
 import { join, resolve } from 'node:path'
+import { resolveCookieInput } from '../utils/cookieInput'
 import { readEnvValue } from '../utils/envFile'
 import { WeiboSDK } from '../WeiboSDK'
 
@@ -12,12 +13,21 @@ export function getEnvFilePath(args: Record<string, unknown>): string {
 /**
  * Cookie 只从 .env 文件读取（默认 `<pwd>/.env`），不回退到 `process.env`。
  * `--cookie` 作为显式覆盖优先级最高。
+ *
+ * 取值可以是 Cookie header 串，也可以是 Cookie 文件路径（Netscape 或 header 串内容），
+ * 由 `resolveCookieInput` 统一解析；解析失败时打印结构化错误并以 1 退出。
  */
 export function getCookie(args: Record<string, unknown>): string {
   const explicit = args.cookie as string | undefined
-  if (explicit)
-    return explicit
-  return readEnvValue(getEnvFilePath(args), 'WEIBO_COOKIE') ?? ''
+  const raw = explicit || readEnvValue(getEnvFilePath(args), 'WEIBO_COOKIE') || ''
+
+  try {
+    return resolveCookieInput(raw)
+  }
+  catch (error) {
+    console.error(`❌ ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(1)
+  }
 }
 
 /**
@@ -46,7 +56,7 @@ export function createSDK(args: Record<string, unknown>): WeiboSDK {
 export const cookieArg = {
   'cookie': {
     type: 'string',
-    description: '微博 Cookie（显式覆盖，默认从 --env-file 指定的 .env 读取）',
+    description: '微博 Cookie 或 Cookie 文件路径（Netscape cookies.txt / header 串；显式覆盖，默认从 --env-file 指定的 .env 读取）',
     alias: 'c',
   },
   'env-file': {

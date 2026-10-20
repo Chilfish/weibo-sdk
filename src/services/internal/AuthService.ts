@@ -1,12 +1,13 @@
 import type { IWeiboConfig } from '../../types/config'
+import { resolveCookieInput } from '../../utils/cookieInput'
 
 export class AuthService {
   private cookie: string
   private xsrfToken: string
 
   constructor(config: IWeiboConfig) {
-    this.cookie = config.cookie
-    this.xsrfToken = config.xsrfToken || this.extractXsrfToken(config.cookie)
+    this.cookie = resolveCookieInput(config.cookie)
+    this.xsrfToken = config.xsrfToken || this.extractXsrfToken(this.cookie)
   }
 
   private extractXsrfToken(cookie: string): string {
