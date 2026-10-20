@@ -7,6 +7,18 @@ import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { myMblogSpec } from '~/services/endpoints/tweet'
 import { TweetService } from '~/services/public/TweetService'
 
+function mkTweet(mblogid: string) {
+  return {
+    id: 1,
+    idstr: mblogid,
+    mblogid,
+    created_at: 'Mon Oct 19 12:00:00 +0800 2026',
+    text: '',
+    text_raw: `text-${mblogid}`,
+    user: { id: 2, idstr: '2', screen_name: 'u' },
+  }
+}
+
 describe('tweetService', () => {
   it('calls mymblog endpoint with correct params and triggers onFetched', async () => {
     const response = { ok: 1, data: { since_id: '0', list: [], total: -1 } } as any
@@ -213,12 +225,13 @@ describe('tweetService', () => {
     expect(pulled).toEqual(['A', 'B'])
   })
 
-  it('listFriendTimeline returns empty sinceId when no more pages (since_id=-1)', async () => {
+  it('listFriendTimeline returns no maxId when the page is empty', async () => {
     const response = {
       ok: 1,
       statuses: [],
-      total_number: 0,
-      since_id: -1,
+      total_number: 2000,
+      since_id: 0,
+      max_id: 0,
     } as any
 
     const { client } = createFakeAxios(async () => response)
@@ -228,11 +241,12 @@ describe('tweetService', () => {
     )
 
     const page = await service.listFriendTimeline()
-    expect(page.sinceId).toBe('')
+    expect(page.maxId).toBeUndefined()
+    expect(page.sinceId).toBeUndefined()
     expect(page.hasMore).toBe(false)
   })
 
-  it('listFriendTimeline keeps since_id as string cursor and rounds-trips it', async () => {
+  it('listFriendTimeline uses max_id as the next-page cursor and round-trips it', async () => {
     const response = {
       ok: 1,
       statuses: [
@@ -258,8 +272,9 @@ describe('tweetService', () => {
           },
         },
       ],
-      total_number: 10,
-      since_id: 12345,
+      total_number: 2000,
+      since_id: 999,
+      max_id: 12345,
     } as any
 
     const { client, getLastConfig } = createFakeAxios(async () => response)
@@ -268,13 +283,99 @@ describe('tweetService', () => {
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const page = await service.listFriendTimeline({ since_id: '12345' })
-    expect(page.sinceId).toBe('12345')
+    const page = await service.listFriendTimeline({ max_id: '999' })
+    expect(page.maxId).toBe('12345')
+    expect(page.sinceId).toBeUndefined()
     expect(page.hasMore).toBe(true)
     expect(page.tweets).toHaveLength(1)
 
     const cfg = getLastConfig()
-    expect(cfg?.params).toEqual({ since_id: '12345' })
+    expect(cfg?.params).toEqual({ max_id: '999' })
+  })
+
+  it('streamFriendTimeline paginates by max_id and dedupes the inclusive cursor', async () => {
+    const progress: any[] = []
+    const { client } = createFakeAxios(async (config) => {
+      if (config.params.max_id === undefined) {
+        return {
+          ok: 1,
+          total_number: 2000,
+          statuses: [mkTweet('m3'), mkTweet('m2')],
+          max_id: 2,
+        }
+      }
+      expect(config.params.max_id).toBe('2')
+      return {
+        ok: 1,
+        total_number: 2000,
+        statuses: [mkTweet('m2'), mkTweet('m1')],
+        max_id: 0,
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamFriendTimeline({
+      onProgress: (p) => { progress.push(p) },
+    })) {
+      out.push(tweet.mblogId)
+    }
+
+    expect(out).toEqual(['m3', 'm2', 'm1'])
+    expect(progress).toHaveLength(2)
+    expect(progress[1]).toMatchObject({ page: 2, cursor: '2', processed: 3, pageSize: 2, total: 2000 })
+  })
+
+  it('streamFriendTimeline with sinceId fetches exactly one incremental page', async () => {
+    let calls = 0
+    const { client, getLastConfig } = createFakeAxios(async () => {
+      calls += 1
+      return {
+        ok: 1,
+        total_number: 2000,
+        statuses: [mkTweet('m9'), mkTweet('m8')],
+        max_id: 8,
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamFriendTimeline({ sinceId: '7' }))
+      out.push(tweet.mblogId)
+
+    expect(out).toEqual(['m9', 'm8'])
+    expect(calls).toBe(1)
+    expect(getLastConfig()?.params).toEqual({ since_id: '7' })
+  })
+
+  it('listFriendTimeline stops when max_id does not advance', async () => {
+    let calls = 0
+    const { client } = createFakeAxios(async () => {
+      calls += 1
+      return {
+        ok: 1,
+        total_number: 2000,
+        statuses: [mkTweet('m3')],
+        max_id: 777,
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamFriendTimeline({ maxId: '777' }))
+      out.push(tweet.mblogId)
+
+    expect(out).toEqual(['m3'])
+    expect(calls).toBe(1)
   })
 
   it('getReposts calls repostTimeline with correct params and parses data', async () => {

@@ -267,12 +267,20 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
 
 // ---- Friendstimeline (Home Feed) ----
 
+// 首页「最新微博」关注时间线（2026-10-20 OpenCLI 实测，uid 7679065628）
+// - 首屏：refresh=4&since_id=0，返回按时间倒序的 25 条；
+// - 翻旧页：max_id=<上一页响应 max_id>（含游标本身，需去重），响应 max_id 是下一页游标；
+// - 增量：since_id=<已知最新微博 id> 只返回更新条目（单页，最多 25 条）；
+// - count 被上游忽略（传 5/10/50/100 均固定返回 25）；
+// - list_id / fid 都可用（浏览器同时带；缺省同样返回默认首页时间线）；
+// - 到底：statuses: []、max_id/since_id 均为 0。
 const FriendstimelineArgsSchema = z.object({
-  list_id: z.string().optional(),
-  fid: z.string().optional(), // 浏览器带 fid（= list_id），可选
+  list_id: z.union([z.string(), z.number()]).optional(),
+  fid: z.union([z.string(), z.number()]).optional(), // 浏览器带 fid（= list_id），可选
   refresh: z.number().optional(),
-  since_id: z.union([z.string(), z.number()]).optional(),
-  count: z.number().optional(),
+  since_id: z.union([z.string(), z.number()]).optional(), // 增量过滤（不是翻页游标）
+  max_id: z.union([z.string(), z.number()]).optional(), // 翻旧页游标
+  count: z.number().optional(), // 实测被忽略，固定 25
 }).strict()
 
 export type FriendstimelineArgs = z.infer<typeof FriendstimelineArgsSchema>
@@ -280,9 +288,9 @@ export type FriendstimelineArgs = z.infer<typeof FriendstimelineArgsSchema>
 const FriendstimelineResponseSchema = z.object({
   ok: z.number(),
   statuses: z.array(MyMBlogItemSchema),
-  total_number: z.number().optional(),
-  since_id: z.number().optional(),
-  max_id: z.number().optional(),
+  total_number: z.number().optional(), // 实测 2000（上限值），不能当作剩余条数
+  since_id: z.union([z.string(), z.number()]).optional(),
+  max_id: z.union([z.string(), z.number()]).optional(),
   since_id_str: z.string().optional(),
   max_id_str: z.string().optional(),
 }).passthrough()

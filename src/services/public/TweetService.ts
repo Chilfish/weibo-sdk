@@ -52,6 +52,105 @@ export interface TweetLikersStreamOptions extends TweetLikersOptions {
   onProgress?: (progress: TweetLikersStreamProgress) => void | Promise<void>
 }
 
+/** 单条微博评论流进度（每页触发一次）。 */
+export interface TweetCommentsStreamProgress {
+  /** 微博 mblogId */
+  mblogId: string
+  /** 当前页码（从 1 开始） */
+  page: number
+  /** 已产出的评论数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条数 */
+  pageSize: number
+  /** 上游 `total_number`（含楼中楼 / 可能含不可见评论，不能作为结束条件） */
+  total?: number
+}
+
+/** `streamComments` 的选项。 */
+export interface TweetCommentsStreamOptions {
+  /** 起始游标（上一页的 `max_id`；首屏省略） */
+  maxId?: number
+  /** 每页条数 */
+  count?: number
+  /** 排序方式（0=热度 / 1=时间） */
+  flow?: 0 | 1
+  /** 以哪个用户视角读取 */
+  uid?: string
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；回调抛错不会中断流 */
+  onProgress?: (progress: TweetCommentsStreamProgress) => void | Promise<void>
+}
+
+/** 单条微博转发流进度（每页触发一次）。 */
+export interface TweetRepostsStreamProgress {
+  /** 微博 mblogId */
+  mblogId: string
+  /** 当前页码（从 1 开始） */
+  page: number
+  /** 已产出的转发数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条数 */
+  pageSize: number
+  /** 上游 `total_number`（可用时） */
+  total?: number
+}
+
+/** `streamReposts` 的选项。 */
+export interface TweetRepostsStreamOptions {
+  /** 起始页码（从 1 开始） */
+  page?: number
+  /** 每页条数 */
+  count?: number
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；回调抛错不会中断流 */
+  onProgress?: (progress: TweetRepostsStreamProgress) => void | Promise<void>
+}
+
+/** 首页关注时间线流进度（每页触发一次）。 */
+export interface TweetFriendTimelineStreamProgress {
+  /** 当前页码（从 1 开始） */
+  page: number
+  /** 本页请求使用的 `max_id` 游标（首屏为起始游标） */
+  cursor?: string
+  /** 已产出的微博数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条数 */
+  pageSize: number
+  /** 上游 `total_number`（实测为 2000 上限值，不能当作剩余条数） */
+  total?: number
+}
+
+/** `streamFriendTimeline` 的选项。 */
+export interface TweetFriendTimelineStreamOptions {
+  /** 起始 `max_id` 游标（缺省 = 第一页） */
+  maxId?: string | number
+  /** 只取比该微博 id 更新的条目（增量；只请求一页） */
+  sinceId?: string | number
+  /** 关注分组 id（可选；缺省 = 默认首页时间线） */
+  listId?: string | number
+  /** 分组过滤参数（浏览器与 `list_id` 同时发送；可选） */
+  fid?: string | number
+  /** 刷新标记（仅首屏透传） */
+  refresh?: number
+  /** 每页条数（上游实测忽略，固定 25） */
+  count?: number
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；回调抛错不会中断流 */
+  onProgress?: (progress: TweetFriendTimelineStreamProgress) => void | Promise<void>
+}
+
+/** 首页 Feed 游标归一化：正数 / 非空非 0 字符串；其余（0 / -1 / 空串）视为没有下一页。 */
+function normalizeFeedCursor(value: unknown): string | undefined {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0)
+    return String(value)
+  if (typeof value === 'string' && value !== '' && value !== '0' && value !== '-1')
+    return value
+  return undefined
+}
+
 /** 页码归一化：只接受 >= 1 的有限数；其余按第一页处理（上游 `page=0` 与 1 等价）。 */
 function normalizeLikerPage(page?: number): number {
   if (page === undefined || !Number.isFinite(page))
@@ -72,15 +171,19 @@ function normalizeLikerMaxPages(maxPages?: number): number {
  *
  * 两种游标互斥，按端点的分页机制填充：
  * - `page`：page 游标端点（mymblog），值为**下一页**页码
- * - `sinceId`：since_id 游标端点（friendstimeline），空串表示没有下一页
+ * - `maxId`：max_id 游标端点（friendstimeline），值为**下一页**游标（翻旧页）
  */
 export interface TweetPageResult {
   /** 下一页页码（page 游标端点，如 mymblog；无 page 游标时省略） */
   page?: number
-  /** 下一页游标（since_id 游标端点，如 friendstimeline；空串 = 无更多） */
+  /** 下一页游标（max_id 游标端点，如 friendstimeline；缺省 = 无更多） */
+  maxId?: string
+  /** @deprecated 历史 since_id 游标字段，friendstimeline 已改用 `maxId`；保留以兼容旧调用方 */
   sinceId?: string
   /** 是否可能还有下一页（`false` 时调用方可以停止翻页） */
   hasMore: boolean
+  /** 上游 `total_number`（可用时；friendstimeline 实测恒为 2000 上限值，不代表剩余条数） */
+  total?: number
   /** 本页归一化后的微博（已过滤广告等无效项） */
   tweets: Tweet[]
 }
@@ -500,22 +603,32 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取首页 Feed（双向关注好友时间线，raw 响应）
+   * 获取首页「最新微博」关注时间线（raw 响应）
    *
-   * `GET https://weibo.com/ajax/feed/friendstimeline?since_id=0&count=25`
+   * `GET https://weibo.com/ajax/feed/friendstimeline`
    *
-   * 默认不发送 `list_id`（2026-10-20 实测缺省返回默认首页 Feed）；需要指定关注分组时显式传入。
+   * 分页语义（2026-10-20 OpenCLI 实测）：
+   * - 首屏不传 `max_id`，或用 `since_id=0` + `refresh=4`（浏览器首屏写法）；
+   * - 翻旧页传 `max_id=<上一页响应 max_id>`，响应 `max_id` 是下一页游标；
+   * - `since_id` 只做增量过滤（返回比该微博 id 更新的条目），**不是**翻页游标；
+   * - `count` 被上游忽略（固定 25）；`total_number` 为 2000 上限值。
+   *
+   * 缺省不发送 `list_id` / `fid`，返回默认首页时间线；指定关注分组时显式传入。
    *
    * @param options Feed 选项（全部可选）
-   * @param options.list_id 关注分组 id（可选；缺省 = 上游默认首页）
-   * @param options.since_id 分页游标（首屏省略）
-   * @param options.count 每页条数
-   * @param options.refresh 刷新标记（透传上游）
-   * @returns 校验后的 friendstimeline 响应（`statuses` + `since_id` + `total_number`）
+   * @param options.list_id 关注分组 id（如「最新微博」= `11000` + 当前 uid）
+   * @param options.fid 分组过滤参数（浏览器与 `list_id` 同时发送）
+   * @param options.max_id 翻旧页游标（上一页 `max_id`；首屏省略）
+   * @param options.since_id 增量过滤（只返回更新的微博；单页）
+   * @param options.count 每页条数（上游实测忽略）
+   * @param options.refresh 刷新标记（透传上游；实测不影响结果）
+   * @returns 校验后的 friendstimeline 响应（`statuses` + `max_id` + `total_number`）
    * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `listFriendTimeline`
    */
   public async friendTimeline(options?: {
-    list_id?: string
+    list_id?: string | number
+    fid?: string | number
+    max_id?: string | number
     since_id?: string | number
     count?: number
     refresh?: number
@@ -523,6 +636,10 @@ export class TweetService extends FetcherService {
     const args: FriendstimelineArgs = {}
     if (options?.list_id !== undefined)
       args.list_id = options.list_id
+    if (options?.fid !== undefined)
+      args.fid = options.fid
+    if (options?.max_id !== undefined)
+      args.max_id = options.max_id
     if (options?.since_id !== undefined)
       args.since_id = options.since_id
     if (options?.count !== undefined)
@@ -533,24 +650,41 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取并归一化首页 Feed
+   * 获取并归一化首页「最新微博」关注时间线（单页）
    *
-   * `sinceId` 返回上游的下一页游标（`''` 表示没有下一页），`hasMore` 依据
-   * `since_id > 0` 且本页条数小于 `total_number` 判断。
+   * 翻旧页用 `max_id`（响应 `maxId` 即下一页游标，缺省表示到底）；`since_id` 只做增量过滤。
+   * `hasMore` 依据「本页非空 + 游标存在且前进」判断；不使用 `total_number`
+   * （实测恒为 2000 上限值，不代表剩余条数）。
    *
    * @param options Feed 选项
-   * @param options.since_id 上一页返回的游标（首屏省略）
-   * @param options.count 每页条数
-   * @returns 归一化后的本页微博 + 下一页游标（`sinceId`）
+   * @param options.max_id 翻旧页游标（上一页 `maxId`；首屏省略）
+   * @param options.since_id 增量过滤（只返回比该微博 id 更新的条目）
+   * @param options.list_id 关注分组 id（可选）
+   * @param options.fid 分组过滤参数（可选）
+   * @param options.count 每页条数（上游实测忽略）
+   * @param options.refresh 刷新标记（透传上游）
+   * @returns 归一化后的本页微博 + 下一页游标（`maxId`）
    */
-  public async listFriendTimeline(options?: { since_id?: string | number, count?: number }): Promise<TweetPageResult> {
+  public async listFriendTimeline(options?: {
+    max_id?: string | number
+    since_id?: string | number
+    list_id?: string | number
+    fid?: string | number
+    count?: number
+    refresh?: number
+  }): Promise<TweetPageResult> {
     const traceId = `${Date.now()}-friendTimeline-${++normalizeSeq}`
     const raw = await this.friendTimeline(options)
-    const nextSinceId = raw.since_id ?? 0
     const filtered = this.filterTweets(raw.statuses || [])
-    const hasMore = typeof raw.since_id === 'number' && raw.since_id > 0
-      && (raw.total_number ?? 0) > 0
-      && filtered.length < (raw.total_number ?? 0)
+    const lastId = raw.statuses?.[raw.statuses.length - 1]?.id
+    // 明确下发 max_id=0 / '' 表示到底，不能再用最后一条 status id 兜底（否则会多翻一页并重复）。
+    const hasCursorField = raw.max_id !== undefined || raw.max_id_str !== undefined
+    const nextMaxId = hasCursorField
+      ? normalizeFeedCursor(raw.max_id) ?? normalizeFeedCursor(raw.max_id_str)
+      : normalizeFeedCursor(lastId)
+    const hasMore = filtered.length > 0
+      && nextMaxId !== undefined
+      && (options?.max_id === undefined || String(options.max_id) !== nextMaxId)
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({
@@ -561,11 +695,66 @@ export class TweetService extends FetcherService {
       count: tweets.length,
       duration_ms: Date.now() - startAt,
     })
-    return {
-      sinceId: nextSinceId > 0 ? String(nextSinceId) : '',
-      hasMore,
-      tweets,
+    const result: TweetPageResult = { hasMore, tweets }
+    if (nextMaxId !== undefined)
+      result.maxId = nextMaxId
+    if (raw.total_number !== undefined)
+      result.total = raw.total_number
+    return result
+  }
+
+  /**
+   * 流式遍历首页「最新微博」关注时间线（`max_id` 游标 + 跨页 `mblogId` 去重）。
+   *
+   * - 默认从最新一条开始向旧翻页（`max_id` = 上一页 `maxId`）；
+   * - 传 `sinceId` 时只请求一页，返回比该微博 id 更新的条目（增量）；
+   * - 停止条件：空页、整页重复、游标不前进、`maxPages`。
+   *
+   * @example
+   * for await (const tweet of sdk.tweets.streamFriendTimeline({ maxPages: 3 })) {
+   *   console.log(tweet.mblogId, tweet.text)
+   * }
+   */
+  async* streamFriendTimeline(options: TweetFriendTimelineStreamOptions = {}): AsyncIterableIterator<Tweet> {
+    if (options.sinceId !== undefined) {
+      const page = await this.listFriendTimeline({
+        since_id: options.sinceId,
+        list_id: options.listId,
+        fid: options.fid,
+        count: options.count,
+        refresh: options.refresh,
+      })
+      for (const tweet of page.tweets)
+        yield tweet
+      return
     }
+
+    yield* paginate<Tweet, string>(async (cursor, page) => {
+      const result = await this.listFriendTimeline({
+        max_id: cursor,
+        list_id: options.listId,
+        fid: options.fid,
+        count: options.count,
+        refresh: page === 1 ? options.refresh : undefined,
+      })
+      return {
+        items: result.tweets,
+        next: result.maxId,
+        hasMore: result.hasMore,
+        total: result.total,
+      }
+    }, {
+      initialCursor: options.maxId === undefined ? undefined : String(options.maxId),
+      maxPages: options.maxPages,
+      getKey: tweet => tweet.mblogId,
+      onProgress: options.onProgress === undefined ? undefined : progress => options.onProgress!({
+        page: progress.page,
+        cursor: progress.cursor,
+        processed: progress.processed,
+        pageSize: progress.pageSize,
+        total: progress.total,
+      }),
+    })
   }
 
   /**
