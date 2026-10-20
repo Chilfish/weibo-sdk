@@ -2,11 +2,13 @@
 
 exports[`snapshot: /ajax/favorites/all_fav > favorites structure snapshot 1`] = `
 {
+  "count": "<NUM>",
   "data": {
     "status": [],
     "total_number": "<NUM>",
   },
   "ok": "<NUM>",
+  "total_page": "<NUM>",
 }
 `;
 
