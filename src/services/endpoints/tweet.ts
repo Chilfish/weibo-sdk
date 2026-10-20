@@ -188,10 +188,14 @@ const BuildCommentsArgsSchema = z.object({
   is_reload: z.number().optional(), // 实测固定 1
   is_show_bulletin: z.number().optional(),
   is_mix: z.number().optional(),
-  type: z.string().optional(), // 实测固定 'feed'
+  // 注意：不要传 type=feed。2026-10-20 实测带该参数时上游只返回首屏 3 条，
+  // 且 total_number / max_id 看起来正常（静默降级）；浏览器真实请求不带 type。
   count: z.number().optional(),
   uid: z.string().optional(),
   fetch_level: z.number().optional(),
+  // 二级评论（D13）：is_reply=1 + fetch_level=1，且 id=<一级评论 id>（不是 mblogid）
+  is_reply: z.number().optional(),
+  rootid: z.union([z.string(), z.number()]).optional(),
   flow: z.number().optional(),
   max_id: z.number().optional(),
 }).strict()
@@ -235,8 +239,13 @@ const BuildCommentsResponseSchema = z.object({
     isDefault: z.number().optional(),
   }).passthrough()).optional(),
   data: z.array(CommentItemSchema),
+  // 顶层评论的 total_number 包含楼中楼 / 可能包含不可见评论，不能当作「还剩多少条顶层评论」。
   total_number: z.number().optional(),
+  // 翻到底：max_id=0。注意 hot 排序可能先返回空页（max_id 仍非 0），需按空页停止。
   max_id: z.number().optional(),
+  // 部分可见提示：如「博主已开启防火墙，部分内容暂不展示」（此时 data 会少于 total_number）。
+  trendsText: z.string().optional(),
+  tip_msg: z.string().optional(),
 }).passthrough()
 
 export type BuildCommentsResponse = z.infer<typeof BuildCommentsResponseSchema>

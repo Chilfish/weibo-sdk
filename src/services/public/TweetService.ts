@@ -2,7 +2,9 @@ import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, Fri
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import { isRawTweet, normalizeLiker, Tweet } from '~/models/data/Tweet'
+import type { ITweetComment } from '~/types/domain/ITweet'
+import { isRawTweet, normalizeComment, normalizeLiker, Tweet } from '~/models/data/Tweet'
+import { normalizeMaxPages } from '~/utils/pagination'
 import { resolveTimeInput } from '~/utils/timeInput'
 import { likersSpec } from '../endpoints/likers'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
@@ -307,33 +309,60 @@ export class TweetService extends FetcherService {
   }
 
   /**
+   * 评论接口的 id 归一化：`flow=1`（按时间）要求数字 mid，字母 mblogId 会被上游 400。
+   * 默认热度序（flow=0）两种形态都可用，所以只在需要时多请求一次 `statuses/show`。
+   * 二级评论路径的 `id` 本身就是数字评论 id，不做解析。
+   */
+  private async resolveCommentsId(
+    id: string,
+    options?: { flow?: 0 | 1, is_reply?: number },
+  ): Promise<string> {
+    if (options?.flow !== 1 || options.is_reply === 1 || /^\d+$/.test(id))
+      return id
+    const raw = await this.request(statusShowSpec, { id, isGetLongText: false })
+    return raw.idstr ?? String(raw.id)
+  }
+
+  /**
    * 获取微博评论列表 `GET /ajax/statuses/buildComments`
    *
-   * 该端点对参数敏感：内部固定补齐 `is_reload=1` / `is_show_bulletin=2` / `is_mix=0`
-   * / `type='feed'` / `fetch_level=0`，否则服务端返回 400「参数错误」。
+   * 2026-10-20 真实浏览器抓包确认的参数事实：
+   * - 固定补齐 `is_reload=1` / `is_show_bulletin=2` / `is_mix=0` / `fetch_level=0`；
+   * - **不要传 `type=feed`**：带上它首屏只返回 3 条（`total_number` / `max_id` 仍正常，
+   *   属于静默降级）；浏览器真实请求不带该参数，首屏返回 20 条；
+   * - `count` 被上游忽略（传 10 / 20 均返回 20 条）；
+   * - `flow=1`（按时间）要求 `id` 为**数字 mid**，传字母 mblogId 会 HTTP 400；
+   *   本方法会在 `flow=1` 且入参非数字时自动用 `statuses/show` 解析 mid；
+   * - 翻页必须使用响应顶层的 `max_id`；不要把「最后一条评论的 id」当游标；
+   * - 顶层评论的 `total_number` 包含楼中楼（以及可能不可见的评论），不能用它判断剩余条数。
    *
-   * @param mblogId 字母形式微博 id
+   * @param mblogId 微博 mblogid；读取二级评论时直接传一级评论 id（见 `replies`）
    * @param options 评论分页/过滤选项（全部可选）
-   * @param options.max_id 上一页返回的分页游标（首屏省略）
-   * @param options.count 每页条数
-   * @param options.flow 排序方式（0 / 1，缺省由上游决定）
+   * @param options.max_id 上一页返回的分页游标（首屏省略；来自响应顶层 `max_id`）
+   * @param options.count 每页条数（上游忽略）
+   * @param options.flow 排序方式（0=热度 / 1=时间；时间序必须使用数字 mid，方法内自动解析）
    * @param options.uid 以哪个用户视角读取（影响「我的赞」等字段）
-   * @returns 校验后的评论响应；翻页游标为响应里的 `max_id`，用法见 `ArchiveService` 评论翻页实现
+   * @param options.is_reply 是否读取二级评论（1 = 是；此时 `mblogId` 必须是一级评论 id）
+   * @param options.rootid 可选透传；二级评论不需要（真实请求用 `id=<一级评论 id>`）
+   * @param options.fetch_level 拉取层级（0 = 一级评论，1 = 二级评论）
+   * @returns 校验后的评论响应；`max_id === 0` 或空页即到底
    */
   public async comments(mblogId: string, options?: {
     max_id?: number
     count?: number
     flow?: 0 | 1
     uid?: string
+    is_reply?: number
+    rootid?: string | number
+    fetch_level?: number
   }): Promise<BuildCommentsResponse> {
-    // 实测：buildComments 必须带这组参数，否则服务端返回 400「参数错误」
+    const id = await this.resolveCommentsId(mblogId, options)
     const args: BuildCommentsArgs = {
-      id: mblogId,
+      id,
       is_reload: 1,
       is_show_bulletin: 2,
       is_mix: 0,
-      type: 'feed',
-      fetch_level: 0,
+      fetch_level: options?.fetch_level ?? 0,
     }
     if (options?.max_id)
       args.max_id = options.max_id
@@ -343,7 +372,40 @@ export class TweetService extends FetcherService {
       args.flow = options.flow
     if (options?.uid)
       args.uid = options.uid
+    if (options?.is_reply !== undefined)
+      args.is_reply = options.is_reply
+    if (options?.rootid !== undefined)
+      args.rootid = options.rootid
     return await this.request(buildCommentsSpec, args)
+  }
+
+  /**
+   * 获取一条一级评论下的二级评论（D13，`is_reply=1` + `rootid`）。
+   *
+   * **真实请求的 `id` 必须是一级评论 id，不是微博 mblogid**（2026-10-20 实测：
+   * 传字母 mblogid 会返回 HTTP 400「parameter (id)'s value invalid」）。因此本方法
+   * 用 `rootCommentId` 作为 `id`；`mblogId` 仅用于调用方上下文 / 进度标识。
+   * 分页仍用响应里的 `max_id`（`max_id === 0` 即到底）。
+   *
+   * @param _mblogId 微博 mblogId（仅调用上下文，不进入请求）
+   * @param rootCommentId 一级评论 id（`ITweetComment.id` / `idstr`）
+   * @param options 分页 / 排序选项
+   * @param options.max_id 上一页返回的分页游标（首屏省略）
+   * @param options.count 每页条数
+   * @param options.flow 排序方式（0 / 1）
+   * @param options.uid 以哪个用户视角读取
+   */
+  public async replies(_mblogId: string, rootCommentId: string, options?: {
+    max_id?: number
+    count?: number
+    flow?: 0 | 1
+    uid?: string
+  }): Promise<BuildCommentsResponse> {
+    return await this.comments(rootCommentId, {
+      ...options,
+      is_reply: 1,
+      fetch_level: 1,
+    })
   }
 
   /**
@@ -621,6 +683,183 @@ export class TweetService extends FetcherService {
       if (!result.hasMore)
         break
       page = result.page
+    }
+  }
+
+  /**
+   * 流式遍历一条微博的评论（`max_id` 游标 + 按评论 id 去重）。
+   *
+   * 只产出顶层评论；楼中楼仍在 `comment.replies` 中。停止条件（任一命中）：
+   * 空页、整页重复、`max_id` 缺失 / 为 0 / 不前进、`maxPages`。
+   *
+   * 注意：上游 `total_number` 包含楼中楼（以及可能不可见的评论），不能作为停止条件；
+   * hot 排序可能先返回空页（此时 `max_id` 仍非 0），按空页停止即可。
+   *
+   * @example
+   * for await (const comment of sdk.tweets.streamComments('QqsYymYOS', { maxPages: 3 })) {
+   *   console.log(comment.id, comment.text)
+   * }
+   */
+  async* streamComments(mblogId: string, options: TweetCommentsStreamOptions = {}): AsyncIterableIterator<ITweetComment> {
+    // flow=1 需要数字 mid；只解析一次，避免每页都多请求一次 statuses/show。
+    const id = await this.resolveCommentsId(mblogId, options)
+    yield* this.streamCommentPages(
+      mblogId,
+      options,
+      cursor => this.comments(id, {
+        max_id: cursor,
+        count: options.count,
+        flow: options.flow,
+        uid: options.uid,
+      }),
+    )
+  }
+
+  /**
+   * 流式遍历一条一级评论下的二级评论（D13，`is_reply=1` + `fetch_level=1`，请求 `id=<一级评论 id>`）。
+   *
+   * 与 `streamComments` 共享分页 / 去重 / 停止语义；固定 `fetch_level: 1`。
+   *
+   * @example
+   * for await (const reply of sdk.tweets.streamReplies('QqsYymYOS', 'rootCommentId')) {
+   *   console.log(reply.id, reply.text)
+   * }
+   */
+  async* streamReplies(
+    mblogId: string,
+    rootCommentId: string,
+    options: TweetCommentsStreamOptions = {},
+  ): AsyncIterableIterator<ITweetComment> {
+    yield* this.streamCommentPages(
+      mblogId,
+      options,
+      cursor => this.replies(mblogId, rootCommentId, {
+        max_id: cursor,
+        count: options.count,
+        flow: options.flow,
+        uid: options.uid,
+      }),
+    )
+  }
+
+  private async* streamCommentPages(
+    mblogId: string,
+    options: TweetCommentsStreamOptions,
+    fetchPage: (cursor?: number) => Promise<BuildCommentsResponse>,
+  ): AsyncIterableIterator<ITweetComment> {
+    const maxPages = normalizeMaxPages(options.maxPages)
+    const seen = new Set<string>()
+    let cursor = options.maxId
+    let page = 1
+    let pages = 0
+    let processed = 0
+
+    while (pages < maxPages) {
+      const raw = await fetchPage(cursor)
+      pages += 1
+
+      const items = raw.data ?? []
+      if (items.length === 0)
+        break
+
+      const fresh: ITweetComment[] = []
+      for (const item of items) {
+        const comment = normalizeComment(item)
+        if (comment.id) {
+          if (seen.has(comment.id))
+            continue
+          seen.add(comment.id)
+        }
+        fresh.push(comment)
+      }
+      if (fresh.length === 0)
+        break
+
+      for (const comment of fresh) {
+        processed += 1
+        yield comment
+      }
+
+      try {
+        await options.onProgress?.({
+          mblogId,
+          page,
+          processed,
+          pageSize: items.length,
+          total: raw.total_number,
+        })
+      }
+      catch {
+        // 进度回调异常不影响流
+      }
+
+      // 不能用 total_number 判断结束：顶层评论的 total 包含楼中楼 / 不可见评论。
+      const next = typeof raw.max_id === 'number' && raw.max_id > 0 ? raw.max_id : undefined
+      if (next === undefined || next === cursor)
+        break
+      cursor = next
+      page += 1
+    }
+  }
+
+  /**
+   * 流式遍历一条微博的转发（page 游标 + 按转发微博 mblogId 去重）。
+   *
+   * 停止条件（任一命中）：空页、整页重复、达到 `total_number`、`maxPages`。
+   *
+   * @example
+   * for await (const repost of sdk.tweets.streamReposts('QqsYymYOS', { maxPages: 2 })) {
+   *   console.log(repost.mblogId, repost.user.name)
+   * }
+   */
+  async* streamReposts(mblogId: string, options: TweetRepostsStreamOptions = {}): AsyncIterableIterator<Tweet> {
+    const maxPages = normalizeMaxPages(options.maxPages)
+    const seen = new Set<string>()
+    let page = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
+    let pages = 0
+    let processed = 0
+
+    while (pages < maxPages) {
+      const raw = await this.getReposts(mblogId, { page, count: options.count })
+      pages += 1
+
+      const items = raw.data ?? []
+      if (items.length === 0)
+        break
+
+      const fresh: RawTweet[] = []
+      for (const item of items) {
+        if (item.mblogid) {
+          if (seen.has(item.mblogid))
+            continue
+          seen.add(item.mblogid)
+        }
+        fresh.push(item)
+      }
+      if (fresh.length === 0)
+        break
+
+      for (const item of fresh) {
+        processed += 1
+        yield new Tweet(item)
+      }
+
+      try {
+        await options.onProgress?.({
+          mblogId,
+          page,
+          processed,
+          pageSize: items.length,
+          total: raw.total_number,
+        })
+      }
+      catch {
+        // 进度回调异常不影响流
+      }
+
+      if (raw.total_number !== undefined && raw.total_number > 0 && processed >= raw.total_number)
+        break
+      page += 1
     }
   }
 }

@@ -562,7 +562,7 @@ describe('tweetService', () => {
     }))
   })
 
-  it('comments sends required params (is_reload/type/... )', async () => {
+  it('comments sends real-browser params and never sends type=feed', async () => {
     const response = { ok: 1, data: [], total_number: 0 } as any
 
     const { client, getLastConfig } = createFakeAxios(async () => response)
@@ -579,10 +579,85 @@ describe('tweetService', () => {
       is_reload: 1,
       is_show_bulletin: 2,
       is_mix: 0,
-      type: 'feed',
       fetch_level: 0,
       count: 20,
     })
+    // 2026-10-20 抓包：带 type=feed 时上游只回 3 条（静默降级），必须不发送。
+    expect(cfg?.params).not.toHaveProperty('type')
+  })
+
+  it('comments parses all items from the real 20-item fixture (no type=feed regression)', async () => {
+    const fixture = JSON.parse(readFileSync('tests/fixtures/raw/comments_no_type_p1.json', 'utf8'))
+    const { client } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const res = await service.comments('5356101843289999')
+    expect(res.data).toHaveLength(20)
+    expect(res.total_number).toBe(56)
+    expect(res.max_id).toBe(5356111457943584)
+    expect(res.trendsText).toBe('已加载全部评论')
+  })
+
+  it('comments exposes partial-visibility markers from firewall fixture', async () => {
+    const fixture = JSON.parse(readFileSync('tests/fixtures/raw/comments_firewall.json', 'utf8'))
+    const { client } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const res = await service.comments('5356103541982971')
+    expect(res.data.length).toBeLessThan(res.total_number!)
+    expect(res.max_id).toBe(0)
+    expect(res.trendsText).toContain('防火墙')
+  })
+
+  it('comments resolves mblogId to numeric mid when flow=1', async () => {
+    const calls: any[] = []
+    const { client } = createFakeAxios(async (cfg) => {
+      calls.push(cfg)
+      if (cfg.url === 'https://weibo.com/ajax/statuses/show') {
+        return {
+          ok: 1,
+          id: 9001,
+          idstr: '9001',
+          mblogid: 'MB001',
+          user: { id: 2, idstr: '2', screen_name: 'u' },
+        }
+      }
+      return { ok: 1, data: [], total_number: 0 }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await service.comments('MB001', { flow: 1 })
+    expect(calls.map(c => c.url)).toEqual([
+      'https://weibo.com/ajax/statuses/show',
+      'https://weibo.com/ajax/statuses/buildComments',
+    ])
+    expect(calls[1].params).toMatchObject({ id: '9001', flow: 1 })
+  })
+
+  it('comments keeps numeric id for flow=1 without an extra show request', async () => {
+    const calls: any[] = []
+    const { client } = createFakeAxios(async (cfg) => {
+      calls.push(cfg)
+      return { ok: 1, data: [], total_number: 0 }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    await service.comments('5356101843289999', { flow: 1 })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].url).toBe('https://weibo.com/ajax/statuses/buildComments')
+    expect(calls[0].params).toMatchObject({ id: '5356101843289999', flow: 1 })
   })
 
   it('validates real mymblog fixtures against schema (offline contract regression)', () => {
