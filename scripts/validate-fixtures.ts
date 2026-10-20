@@ -139,6 +139,9 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'audio_status.json': validate(statusShowSpec),
   // 2026-10-20 真实转发链（8 层、5 层带图 + 末端原微博 1 图）：repostChain / url_struct reppic
   'tweet_RmITUtJpd.json': validate(statusShowSpec),
+  // 2026-10-20 真实外链卡片：B 站网页卡 / 网易云音乐音频卡（pageInfo + linkCards 元数据）
+  'tweet_RmyjwrKDs.json': validate(statusShowSpec),
+  'tweet_ReZzZFxVQ.json': validate(statusShowSpec),
   // 2026-10-20 追加：相册 / 超话（album_list 为 mobile containerid 形态，详情接口可能返回空）
   'album_list.json': { kind: 'unmodeled', note: '/ajax/profile/albumlist（mobile containerid 与 getAlbumDetail 不兼容；实现走 getImageWall?has_album=true）' },
   'album_detail_p1.json': validate(albumDetailSpec),

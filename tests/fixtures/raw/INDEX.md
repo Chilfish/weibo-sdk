@@ -245,6 +245,8 @@
 | `stopic_list_search.json` | 9.3K | `/ajax/stopic/list?sort_id=0&keyword=游戏&page=1` | 关键词搜索 21 条；`count=2` |
 | `profile_detail_hometown.json` | 1.8K | `/ajax/profile/detail?uid=` | 真实 `hometown: "家乡：广东 深圳"`（已去前缀归一化） |
 | `tweet_RmITUtJpd.json` | 47K | `/ajax/statuses/show?id=` | 8 层转发链（`text_raw` 已脱敏为 `<TEXT>`）：`url_struct` 有 10 个 reppic 条目（5 个 `pic_id` 各重复一次），末端原微博 1 图；用于 `repostChain` 去重与计数 |
+| `tweet_RmyjwrKDs.json` | 3.0K | `/ajax/statuses/show?id=` | B 站视频网页卡：`page_info.content2` = `812播放  74点赞  0弹幕`、`object_id`；`url_struct` 含 `long_url` / `ori_url` / `url_type: 39`（用于 `pageInfo` / `linkCards` 元数据） |
+| `tweet_ReZzZFxVQ.json` | 3.0K | `/ajax/statuses/show?id=` | 网易云音乐音频卡：`page_info.object_type=audio`、`content2` 为空、`page_pic` 原始为 http（脱敏为 `<URL>`）；`url_struct` 含 `long_url` / `ori_url` / `url_type: 39` |
 
 ### D12 个人主页关键词搜索 —— `/ajax/statuses/searchProfile`
 
