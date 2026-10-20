@@ -47,7 +47,7 @@
     "lint": "eslint . --fix",
     "play": "tsx playground/run.ts",
     "prepublishOnly": "node scripts/verify-publish-tool.mjs && nr build",
-    "release": "bumpp && pnpm publish",
+    "release": "node scripts/release.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "start": "tsx src/index.ts",
     "test": "vitest",
