@@ -1,3 +1,4 @@
+import type { WeiboRetryKind } from './config'
 import type { IResourceType } from './resources'
 import type { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 
@@ -56,6 +57,8 @@ export type TelemetryEvent
     duration_ms?: number
     ok?: number
     message?: string
+    /** 该错误是第几次尝试产生（1 = 首次请求；重试耗尽时 = 总尝试次数） */
+    attempt?: number
     error_name: string
     error_message?: string
     error_code?: string
@@ -63,12 +66,37 @@ export type TelemetryEvent
     error_retryable?: boolean
   })
   | (TelemetryEventBase & {
-    /** 令牌桶等待发生（并发/间隔限流命中） */
+    /** 请求失败但按重试策略进行退避重试（终态失败发 `request_error`，不重复发本事件） */
+    event_name: 'request_retry'
+    method?: 'GET' | 'POST'
+    url?: string
+    endpoint?: string
+    resource_type?: IResourceType
+    /** 已失败的尝试序号（1 = 首次请求失败，随后进行第 2 次尝试） */
+    attempt: number
+    /** 总尝试次数上限（`retries + 1`） */
+    max_attempts: number
+    /** 本次退避等待毫秒数（`Retry-After` 优先，否则指数退避 + jitter） */
+    delay_ms: number
+    /** 可重试失败类别 */
+    reason: WeiboRetryKind
+    /** 上游 HTTP 状态码（若适用） */
+    status?: number
+    error_name: string
+    error_message?: string
+    error_code?: string
+    error_level?: WeiboSDKError['level']
+    error_retryable?: boolean
+  })
+  | (TelemetryEventBase & {
+    /** 令牌桶等待发生（并发/间隔限流命中，或 432 后的全局暂停） */
     event_name: 'rate_limit_wait'
     wait_ms: number
     refill_rate_ms: number
     max_tokens: number
     tokens: number
+    /** 等待原因：`token_refill` 补充令牌 / `rate_limited` 432 风控后的全局暂停 */
+    reason?: 'token_refill' | 'rate_limited'
   })
   | (TelemetryEventBase & {
     /** raw → 领域模型归一化完成（用于观测归一化耗时/条数） */

@@ -1,7 +1,7 @@
 import type { IRequestResource } from '~/services/internal/FetcherService'
 import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
-import { ConnectionTimeoutError, NetworkRequestError } from '~/models/errors/TransportError'
+import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '~/models/errors/TransportError'
 import { FetcherService } from '~/services/internal/FetcherService'
 
 class NoopRateLimitService {
@@ -103,7 +103,8 @@ describe('fetcherService', () => {
     })
 
     const fetcher = new TestFetcherService(
-      { cookie: 'SUB=abc' },
+      // 关闭重试：断言首次失败的错误映射（重试行为见 FetcherRetry.test.ts）
+      { cookie: 'SUB=abc', retry: { retries: 0 } },
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
 
@@ -122,12 +123,39 @@ describe('fetcherService', () => {
     })
 
     const fetcher = new TestFetcherService(
-      { cookie: 'SUB=abc' },
+      { cookie: 'SUB=abc', retry: { retries: 0 } },
       { client, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/test' }))
       .rejects
       .toBeInstanceOf(NetworkRequestError)
+  })
+
+  it('maps HTTP 432 / 429 to RateLimitError with status and attempt context', async () => {
+    for (const status of [432, 429]) {
+      const { client } = createFakeAxios(async () => {
+        const err = new Error('rate limited') as any
+        err.isAxiosError = true
+        err.response = { status, data: { ok: 0, message: 'frequent request' }, headers: {} }
+        throw err
+      })
+
+      const fetcher = new TestFetcherService(
+        { cookie: 'SUB=abc', retry: { retries: 0 } },
+        { client, rateLimitService: new NoopRateLimitService() as any },
+      )
+
+      const error = await fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/test' })
+        .catch((err: unknown) => err)
+
+      expect(error).toBeInstanceOf(RateLimitError)
+      expect(error).toMatchObject({
+        code: 'RATE_LIMITED',
+        level: 'transport',
+        retryable: true,
+        context: { status, attempt: 1, message: 'frequent request' },
+      })
+    }
   })
 })

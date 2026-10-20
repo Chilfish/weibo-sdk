@@ -29,7 +29,8 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `unit/services/AuthService.test.ts` | `AuthService` | Cookie 中提取 XSRF-TOKEN、无 Token 时的回退行为 |
-| `unit/services/RateLimitService.test.ts` | `RateLimitService` | 令牌桶算法、限流效果、FakeClock 注入、并发获取令牌 |
+| `unit/services/RateLimitService.test.ts` | `RateLimitService` | 令牌桶算法、限流效果、FakeClock 注入、并发获取令牌、432 后全局暂停（`pause` / `isPaused` / `getPausedRemainingMs`、`rate_limit_wait.reason`） |
+| `unit/services/RetryPolicy.test.ts` | `RetryPolicy` | 默认/异常配置归一化、重试次数上限、失败类别分类（432/429/5xx/超时/无响应）、`Retry-After`（秒与 HTTP date）、指数退避 + jitter |
 
 ### Unit — 领域服务
 
@@ -64,7 +65,8 @@
 
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
-| `component/internal/FetcherService.test.ts` | HTTP 核心 | Cookie/Token 注入、GET/POST params 处理、preflight 调用、网络错误映射（ConnectionTimeoutError / NetworkRequestError） |
+| `component/internal/FetcherService.test.ts` | HTTP 核心 | Cookie/Token 注入、GET/POST params 处理、preflight 调用、网络错误映射（ConnectionTimeoutError / NetworkRequestError / 432·429 → RateLimitError） |
+| `component/internal/FetcherRetry.test.ts` | 重试与限流协作 | 432 → 退避 → 成功、重试上限与 `attempt` 上下文、`Retry-After`（秒/HTTP date）、5xx/超时重试、不可重试错误不重试、`retries: 0` / `retryOn: []`、432 后令牌桶全局暂停 |
 | `component/internal/Telemetry.test.ts` | Wide Events | `request()` 全路径事件序列（start/success/error）、rate_limit_wait + normalize_done 事件、parse error 路径 |
 
 ### Component — 领域服务

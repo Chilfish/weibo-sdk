@@ -2,6 +2,7 @@ import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { ZodTypeAny } from 'zod'
 import type { IWeiboConfig } from '../../types/config'
 import type { EndpointArgsFromSchema, EndpointSpec } from './EndpointSpec'
+import type { IRateLimitClock } from './RateLimitService'
 import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks, WeiboSDKRawMeta } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
@@ -10,9 +11,16 @@ import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { getMessage, getOk, isRecord } from '~/utils/response'
-import { ConnectionTimeoutError, NetworkRequestError } from '../../models/errors/TransportError'
+import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '../../models/errors/TransportError'
 import { AuthService } from './AuthService'
-import { RateLimitService } from './RateLimitService'
+import { defaultClock, RateLimitService } from './RateLimitService'
+import {
+  classifyRetryableError,
+  computeBackoffDelay,
+  parseRetryAfter,
+  readRetryAfterMs,
+  resolveRetryPolicy,
+} from './RetryPolicy'
 
 export interface IRequestResource {
   method: 'GET' | 'POST'
@@ -34,6 +42,34 @@ function getArgsKeys(args?: Record<string, unknown>): string | undefined {
     return undefined
   keys.sort()
   return keys.join(',')
+}
+
+/** 微博风控状态码（HTTP 432）。 */
+const RATE_LIMIT_STATUS = 432
+
+/**
+ * 从 axios 响应头里取一个头值（大小写不敏感）。
+ *
+ * axios 的 `headers` 可能是普通对象或 `AxiosHeaders` 实例，这里只做结构化读取。
+ */
+function getHeaderValue(headers: unknown, name: string): unknown {
+  if (!headers || typeof headers !== 'object')
+    return undefined
+  const record = headers as Record<string, unknown>
+  const lower = name.toLowerCase()
+  for (const key of Object.keys(record)) {
+    if (key.toLowerCase() === lower)
+      return record[key]
+  }
+  return undefined
+}
+
+/** 取结构化错误 context 中的 HTTP 状态码（进 telemetry）。 */
+function getErrorStatus(error: unknown): number | undefined {
+  if (!(error instanceof WeiboSDKError))
+    return undefined
+  const status = error.context?.status
+  return typeof status === 'number' ? status : undefined
 }
 
 /**
@@ -104,6 +140,8 @@ export class FetcherService {
   private hooks?: WeiboSDKHooks
   private telemetry?: WeiboSDKTelemetry
   private preflight?: () => Promise<void>
+  /** 重试退避 / `Retry-After` HTTP date 解析用的时钟（可注入 FakeClock，保证离线测试确定性） */
+  private clock: IRateLimitClock
 
   /**
    * @deprecated 请使用 `config.telemetry`（Wide Events）替代。
@@ -119,6 +157,8 @@ export class FetcherService {
       hooks?: WeiboSDKHooks
       telemetry?: WeiboSDKTelemetry
       preflight?: () => Promise<void>
+      /** 重试退避时钟（默认 `Date.now` / `setTimeout`）；测试注入 FakeClock */
+      clock?: IRateLimitClock
     },
   ) {
     this.client = deps?.client ?? createAxiosClient(config)
@@ -132,6 +172,7 @@ export class FetcherService {
     this.hooks = deps?.hooks ?? config.hooks
     this.telemetry = deps?.telemetry ?? config.telemetry
     this.preflight = deps?.preflight
+    this.clock = deps?.clock ?? defaultClock
 
     this.setupInterceptors()
   }
@@ -205,6 +246,89 @@ export class FetcherService {
       args_keys: getArgsKeys(args),
     })
 
+    const policy = resolveRetryPolicy(this.config.retry)
+    const maxAttempts = policy.retries + 1
+
+    // 重试循环：用 for 而不是递归（见 postmortem「递归等待 = 深层 Promise 链」）
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.sendAttempt<T>(resource, args, traceId)
+      }
+      catch (rawError) {
+        const error = this.mapError(rawError, attempt)
+        const kind = classifyRetryableError(error)
+        const delayMs = computeBackoffDelay({
+          attempt,
+          policy,
+          retryAfterMs: readRetryAfterMs(error),
+        })
+
+        // 432 / 429：即使本次已不重试，也要暂停全局令牌桶，避免其他请求继续撞墙
+        if (kind === 'rate_limit')
+          this.pauseRateLimit(delayMs, traceId)
+
+        const canRetry = kind !== undefined
+          && policy.retryOn.includes(kind)
+          && attempt < maxAttempts
+
+        if (canRetry) {
+          await this.emitTelemetry({
+            event_name: 'request_retry',
+            timestamp: Date.now(),
+            trace_id: traceId,
+            method: resource.method,
+            url: resource.url,
+            endpoint: options?.endpoint,
+            resource_type: options?.resourceType,
+            attempt,
+            max_attempts: maxAttempts,
+            delay_ms: delayMs,
+            reason: kind,
+            status: getErrorStatus(error),
+            ...toTelemetryErrorFields(error),
+          })
+
+          await this.clock.sleep(delayMs)
+          continue
+        }
+
+        await this.emitError(error, {
+          phase: 'request',
+          request: resource,
+          args,
+          trace_id: traceId,
+          timestamp: Date.now(),
+        })
+
+        await this.emitTelemetry({
+          event_name: 'request_error',
+          timestamp: Date.now(),
+          trace_id: traceId,
+          phase: 'request',
+          method: resource.method,
+          url: resource.url,
+          endpoint: options?.endpoint,
+          resource_type: options?.resourceType,
+          duration_ms: Date.now() - startAt,
+          attempt,
+          ...toTelemetryErrorFields(error),
+        })
+
+        throw error
+      }
+    }
+  }
+
+  /**
+   * 单次尝试：取令牌 → 注入请求头 → 发请求。
+   *
+   * 每次重试都会重新 `acquire()`，因此 432 后的全局暂停对重试同样生效。
+   */
+  private async sendAttempt<T>(
+    resource: IRequestResource,
+    args: Record<string, unknown> | undefined,
+    traceId: string,
+  ): Promise<T> {
     await this.rateLimitService.acquire({ trace_id: traceId })
     // host 头从请求 URL 推导，避免跨 host 端点（如 m.weibo.cn）被强加 weibo.com 而 404
     resource.headers = {
@@ -223,34 +347,21 @@ export class FetcherService {
       data: resource.method === 'POST' ? args : undefined,
     }
 
+    const response = await this.client.request<T>(config)
+    return response.data
+  }
+
+  /**
+   * 暂停全局令牌桶（432 / 429 风控协作）。
+   *
+   * 注入的 `RateLimitService` 可能不支持暂停（如测试替身），异常不得影响业务。
+   */
+  private pauseRateLimit(ms: number, traceId: string): void {
     try {
-      const response = await this.client.request<T>(config)
-      return response.data
+      this.rateLimitService.pause(ms, { trace_id: traceId, reason: 'rate_limit' })
     }
-    catch (error) {
-      const mapped = this.mapError(error)
-      await this.emitError(mapped, {
-        phase: 'request',
-        request: resource,
-        args,
-        trace_id: traceId,
-        timestamp: Date.now(),
-      })
-
-      await this.emitTelemetry({
-        event_name: 'request_error',
-        timestamp: Date.now(),
-        trace_id: traceId,
-        phase: 'request',
-        method: resource.method,
-        url: resource.url,
-        endpoint: options?.endpoint,
-        resource_type: options?.resourceType,
-        duration_ms: Date.now() - startAt,
-        ...toTelemetryErrorFields(mapped),
-      })
-
-      throw mapped
+    catch {
+      // ignore：限流实现可选支持暂停
     }
   }
 
@@ -429,15 +540,40 @@ export class FetcherService {
     }
   }
 
-  private mapError(error: unknown | Error): unknown {
+  private mapError(error: unknown | Error, attempt = 1): unknown {
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError
+      const status = axiosError.response?.status
+      const retryAfterMs = parseRetryAfter(
+        getHeaderValue(axiosError.response?.headers, 'retry-after'),
+        this.clock.now(),
+      )
+
+      // 432（微博风控）/ 429（Too Many Requests）→ 结构化限流错误，可退避重试
+      if (status === RATE_LIMIT_STATUS || status === 429) {
+        const message = getMessage(axiosError.response?.data)
+        return new RateLimitError(
+          `Weibo API rate limited the request (HTTP ${status}).`,
+          {
+            status,
+            attempt,
+            ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+            ...(message === undefined ? {} : { message }),
+          },
+        )
+      }
+
       if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
-        return new ConnectionTimeoutError(axiosError.message, { code: axiosError.code })
+        return new ConnectionTimeoutError(axiosError.message, {
+          code: axiosError.code,
+          ...(attempt > 1 ? { attempt } : {}),
+        })
       }
       return new NetworkRequestError(axiosError.message, {
-        status: axiosError.response?.status,
+        status,
         data: axiosError.response?.data,
+        ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+        ...(attempt > 1 ? { attempt } : {}),
       })
     }
     return error

@@ -1,19 +1,10 @@
 import type { IUserInfoResponse } from '~/types/raw/user/Info'
-import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
-import { createFakeAxios, FakeClock } from 'tests/testkit'
+import { createFakeAxios, FakeClock, TelemetryCollector } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
 import { RateLimitService } from '~/services/internal/RateLimitService'
-
-class TelemetryCollector implements WeiboSDKTelemetry {
-  public events: TelemetryEvent[] = []
-
-  async emit(event: TelemetryEvent): Promise<void> {
-    this.events.push(event)
-  }
-}
 
 class TestFetcherService extends FetcherService {
   public async call(uid: string): Promise<IUserInfoResponse> {

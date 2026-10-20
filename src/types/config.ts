@@ -3,9 +3,45 @@ import type { WeiboSDKHooks, WeiboSDKSelfCheckMode } from './hooks'
 import type { WeiboSDKTelemetry } from './telemetry'
 
 /**
+ * 可重试失败类别（`config.retry.retryOn` 的取值）。
+ *
+ * - `rate_limit`：HTTP 432（微博风控）/ 429，见 `RateLimitError`
+ * - `server_error`：HTTP 5xx，见 `NetworkRequestError`
+ * - `timeout`：请求超时，见 `ConnectionTimeoutError`
+ * - `network_error`：无 HTTP 响应的传输层失败（DNS / 连接重置 / 代理不可达）
+ */
+export type WeiboRetryKind = 'rate_limit' | 'server_error' | 'timeout' | 'network_error'
+
+/**
+ * 请求级重试策略（指数退避 + jitter）。
+ *
+ * 只对 `retryable` 的结构化错误生效：4xx（除 429/432）、`ok != 1`、schema 校验失败一律不重试。
+ */
+export interface IWeiboRetryConfig {
+  /**
+   * 最大重试次数（不含首次请求；`0` 表示不重试）。默认 `2`，上限 `10`。
+   */
+  retries?: number
+  /**
+   * 首次重试的基础延迟毫秒数（指数退避起点）。默认 `500`。
+   *
+   * 第 n 次重试延迟 ≈ `baseDelayMs * 2^(n-1)`，再叠加 jitter（50%~100%），并由 `maxDelayMs` 截断。
+   */
+  baseDelayMs?: number
+  /** 单次重试延迟上限毫秒数（默认 `8000`），同时用于截断 `Retry-After`。 */
+  maxDelayMs?: number
+  /**
+   * 允许重试的失败类别（默认全部：`['rate_limit', 'server_error', 'timeout', 'network_error']`）。
+   *
+   * 传 `[]` 等价于 `retries: 0`；不在此列表的类别即使 `retryable` 也不重试。
+   */
+  retryOn?: WeiboRetryKind[]
+}
+
+/**
  * `new WeiboSDK(...)` 的构造配置。
  *
- * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、懒自检）。
+ * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、重试 2 次、懒自检）。
  */
 export interface IWeiboConfig {
   /**
@@ -30,6 +66,14 @@ export interface IWeiboConfig {
   maxConcurrent?: number
   /** 请求间隔毫秒数，或按重试次数返回间隔的函数（默认 1000） */
   delay?: number | ((retryCount: number) => number)
+
+  /**
+   * 请求级重试策略（默认 `retries: 2`，指数退避 + jitter）。
+   *
+   * 仅对 `RateLimitError`（432/429）/ 5xx / 超时 / 无响应网络错误生效；
+   * 432 命中后会同时暂停全局令牌桶，避免并发请求继续撞墙。
+   */
+  retry?: IWeiboRetryConfig
 
   /**
    * SDK 级别 hooks（全局 onFetched/onError/生命周期事件）

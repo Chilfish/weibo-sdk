@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError, WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
-import { ConnectionTimeoutError } from '~/models/errors/TransportError'
+import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '~/models/errors/TransportError'
 
 describe('weiboSDKError', () => {
   it('transport errors have correct properties', () => {
@@ -11,6 +11,17 @@ describe('weiboSDKError', () => {
     expect(error.code).toBe('NET_TIMEOUT')
     expect(error.level).toBe('transport')
     expect(error.retryable).toBe(true)
+  })
+
+  it('rate limit errors are retryable transport errors with structured context', () => {
+    const error = new RateLimitError('limited', { status: 432, retryAfterMs: 2000, attempt: 2 })
+
+    expect(error).not.toBeInstanceOf(ConnectionTimeoutError)
+    expect(error).not.toBeInstanceOf(NetworkRequestError)
+    expect(error.code).toBe('RATE_LIMITED')
+    expect(error.level).toBe('transport')
+    expect(error.retryable).toBe(true)
+    expect(error.context).toEqual({ status: 432, retryAfterMs: 2000, attempt: 2 })
   })
 
   it('protocol errors have correct properties', () => {
