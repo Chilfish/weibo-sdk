@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamRangeArg, streamRangeFromArgs } from '../shared'
 
 export const notificationComments = defineCommand({
   meta: { name: 'comments', description: '获取评论通知（别人评论我 / 回复我）' },
@@ -24,6 +24,7 @@ export const notificationCommentsStream = defineCommand({
     'max-id': { type: 'string', description: '起始游标（可选；缺省从第一页开始）' },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -32,6 +33,7 @@ export const notificationCommentsStream = defineCommand({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -65,6 +67,7 @@ export const notificationLikesStream = defineCommand({
     'max-id': { type: 'string', description: '起始游标（可选；缺省从第一页开始）' },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -73,6 +76,7 @@ export const notificationLikesStream = defineCommand({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },

@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamLimitArg, streamRangeArg, streamRangeFromArgs } from '../shared'
 
 export const tweetDetail = defineCommand({
   meta: { name: 'detail', description: '获取微博详情' },
@@ -55,6 +55,7 @@ export const tweetCommentsStream = defineCommand({
     'count': { type: 'string', description: '每页条数（上游忽略，固定 20）' },
     'flow': { type: 'string', description: '排序：0=热度 1=时间（时间序需数字 mid，SDK 自动解析）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -64,6 +65,7 @@ export const tweetCommentsStream = defineCommand({
       count: parsePositiveInt(args.count),
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: streamRangeFromArgs(args).maxItems,
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -82,6 +84,7 @@ export const tweetRepostsStream = defineCommand({
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'count': { type: 'string', description: '每页条数' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -90,6 +93,7 @@ export const tweetRepostsStream = defineCommand({
       page: parsePositiveInt(args.page),
       count: parsePositiveInt(args.count),
       maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -130,6 +134,7 @@ export const tweetRepliesStream = defineCommand({
     'count': { type: 'string', description: '每页条数' },
     'flow': { type: 'string', description: '排序：0=热度 1=时间' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -139,6 +144,7 @@ export const tweetRepliesStream = defineCommand({
       count: parsePositiveInt(args.count),
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: streamRangeFromArgs(args).maxItems,
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -182,6 +188,7 @@ export const tweetHomeStream = defineCommand({
     'list-id': { type: 'string', description: '关注分组 id（可选）' },
     'fid': { type: 'string', description: '分组过滤参数（可选）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -192,6 +199,7 @@ export const tweetHomeStream = defineCommand({
       listId: args['list-id'],
       fid: args.fid,
       maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -248,6 +256,7 @@ export const tweetLikersStream = defineCommand({
     'id': { type: 'positional', description: '微博数字 mid（不是字母 mblogid）', required: true },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -255,6 +264,7 @@ export const tweetLikersStream = defineCommand({
     for await (const liker of createSDK(args).tweets.streamLikers(args.id, {
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: streamRangeFromArgs(args).maxItems,
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },

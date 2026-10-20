@@ -61,6 +61,7 @@ import {
   userMentions,
   userMentionsStream,
   userTimeline,
+  userTimelineStream,
 } from './cli/commands/user'
 import {
   cookieArg,
@@ -70,6 +71,8 @@ import {
   getEnvFilePath,
   resolveArchiveIncludeFlags,
 } from './cli/shared'
+import { WeiboSessionExpiredError } from './models/errors/BusinessError'
+import { InvalidConfigError } from './models/errors/ConfigError'
 import {
   incrementalOptionsFromState,
   parseArchiveState,
@@ -99,36 +102,31 @@ const whoami = defineCommand({
   async run({ args }) {
     const cookie = getCookie(args)
     if (!cookie) {
-      console.error(
-        `❌ 未在 ${getEnvFilePath(args)} 中找到 WEIBO_COOKIE，或通过 --cookie 参数传入`,
+      throw new InvalidConfigError(
+        `未在 ${getEnvFilePath(args)} 中找到 WEIBO_COOKIE，或通过 --cookie 参数传入`,
+        { field: 'cookie', envFile: getEnvFilePath(args) },
       )
-      process.exit(1)
     }
     const sdk = createSDK(args)
-    try {
-      const details = await sdk.users.myDetails()
-      if (details.ok !== 1) {
-        console.error('❌ Cookie 无效或已过期')
-        process.exit(1)
-      }
-
-      // Extract UID from verified_url: "https://verified.weibo.com/verify?fr=myverified?uid=7679065628"
-      const verifiedUrl = (details.data as any)?.verified_url as
-        string | undefined
-      const uidMatch = verifiedUrl?.match(/uid=(\d+)/)
-      const uid = uidMatch ? uidMatch[1] : null
-
-      if (uid) {
-        const user = await sdk.users.getById(uid)
-        console.log(JSON.stringify(user, null, 2))
-      }
-      else {
-        console.log(JSON.stringify(details, null, 2))
-      }
+    const details = await sdk.users.myDetails()
+    if (details.ok !== 1) {
+      throw new WeiboSessionExpiredError('Cookie 无效或已过期', {
+        endpoint: 'ajax/profile/info',
+      })
     }
-    catch (e: any) {
-      console.error(`❌ 请求失败: ${e.message}`)
-      process.exit(1)
+
+    // Extract UID from verified_url: "https://verified.weibo.com/verify?fr=myverified?uid=7679065628"
+    const verifiedUrl = (details.data as any)?.verified_url as
+      string | undefined
+    const uidMatch = verifiedUrl?.match(/uid=(\d+)/)
+    const uid = uidMatch ? uidMatch[1] : null
+
+    if (uid) {
+      const user = await sdk.users.getById(uid)
+      console.log(JSON.stringify(user, null, 2))
+    }
+    else {
+      console.log(JSON.stringify(details, null, 2))
     }
   },
 })
@@ -532,6 +530,7 @@ const main = defineCommand({
       subCommands: {
         'info': userInfo,
         'timeline': userTimeline,
+        'timeline-stream': userTimelineStream,
         'mentions': userMentions,
         'mentions-stream': userMentionsStream,
         'groups': userGroups,

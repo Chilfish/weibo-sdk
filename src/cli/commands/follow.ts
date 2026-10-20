@@ -1,11 +1,12 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamLimitArg } from '../shared'
 
-function streamOptions(args: Record<string, unknown>): { page?: number, maxPages?: number } {
+function streamOptions(args: Record<string, unknown>): { page?: number, maxPages?: number, maxItems?: number } {
   return {
     page: parsePositiveInt(args.page),
     maxPages: parsePositiveInt(args['max-pages']),
+    maxItems: parsePositiveInt(args['max-items']),
   }
 }
 
@@ -19,6 +20,7 @@ export const followStream = defineCommand({
     'id': { type: 'positional', description: '用户 UID', required: true },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -40,6 +42,7 @@ export const followFansStream = defineCommand({
     'id': { type: 'positional', description: '用户 UID', required: true },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -60,6 +63,7 @@ export const followMyStream = defineCommand({
   args: {
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {

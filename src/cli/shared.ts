@@ -4,6 +4,7 @@ import { WeiboSDKError } from '../models/errors/WeiboSDKError'
 import { resolveCookieInput } from '../utils/cookieInput'
 import { readEnvValue } from '../utils/envFile'
 import { WeiboSDK } from '../WeiboSDK'
+import { parsePositiveInt } from './parseArgs'
 
 /**
  * 把任意错误转换成 CLI 的 JSON 错误信封（stderr）。
@@ -93,3 +94,37 @@ export const cookieArg = {
     description: '环境文件路径（默认 <pwd>/.env）',
   },
 } as const
+
+/** 流式命令共用的条数上限。 */
+export const streamLimitArg = {
+  'max-items': {
+    type: 'string',
+    description: '最多产出条数（可选，默认不限；按跨页去重后的条目计数）',
+  },
+} as const
+
+/** 时间倒序的流额外支持日期边界（`--since-id` 仍是游标，不是日期）。 */
+export const streamRangeArg = {
+  ...streamLimitArg,
+  since: {
+    type: 'string',
+    description: '时间下界：YYYY-MM-DD / YYYYMMDD 或 unix 秒（可选，含当天；更早的条目停止翻页）',
+  },
+  until: {
+    type: 'string',
+    description: '时间上界：YYYY-MM-DD / YYYYMMDD 或 unix 秒（可选，含当天；更晚的条目跳过）',
+  },
+} as const
+
+/** 从 CLI 参数解析出流式范围（未传的字段保持 undefined）。 */
+export function streamRangeFromArgs(args: Record<string, unknown>): {
+  maxItems?: number
+  since?: string
+  until?: string
+} {
+  return {
+    maxItems: parsePositiveInt(args['max-items']),
+    since: typeof args.since === 'string' && args.since.trim() !== '' ? args.since : undefined,
+    until: typeof args.until === 'string' && args.until.trim() !== '' ? args.until : undefined,
+  }
+}

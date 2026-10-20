@@ -5,7 +5,7 @@ import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { MediaType } from '~/types/domain/ITweet'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamLimitArg } from '../shared'
 
 /** 解析 `--include`：逗号分隔、大小写不敏感、去重；未知值直接报错。 */
 function parseInclude(value: unknown): MediaType[] | undefined {
@@ -161,6 +161,7 @@ export const mediaImages = defineCommand({
     'uid': { type: 'positional', description: '用户 UID', required: true },
     'since-id': { type: 'string', description: '起始游标（缺省第一页；下一页传上一页 sinceId）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -168,6 +169,7 @@ export const mediaImages = defineCommand({
     for await (const asset of createSDK(args).media.streamImages(args.uid, {
       sinceId: args['since-id'],
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: parsePositiveInt(args['max-items']),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -185,6 +187,7 @@ export const mediaVideos = defineCommand({
     'uid': { type: 'positional', description: '用户 UID', required: true },
     'cursor': { type: 'string', description: '起始游标（缺省第一页；下一页传上一页 cursor）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -192,6 +195,7 @@ export const mediaVideos = defineCommand({
     for await (const asset of createSDK(args).media.streamVideos(args.uid, {
       cursor: args.cursor,
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: parsePositiveInt(args['max-items']),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
@@ -221,6 +225,7 @@ export const mediaAlbum = defineCommand({
     'container-id': { type: 'positional', description: '相册 containerId（来自 media albums）', required: true },
     'since-id': { type: 'string', description: '起始游标（缺省第一页；下一页传上一页 sinceId）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -228,6 +233,7 @@ export const mediaAlbum = defineCommand({
     for await (const asset of createSDK(args).media.streamAlbumPhotos(args['container-id'], {
       sinceId: args['since-id'],
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: parsePositiveInt(args['max-items']),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },

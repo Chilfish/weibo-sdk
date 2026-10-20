@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamLimitArg, streamRangeFromArgs } from '../shared'
 
 export const likeList = defineCommand({
   meta: { name: 'list', description: '获取我赞过的微博（按页遍历）' },
@@ -23,6 +23,7 @@ export const likeStream = defineCommand({
     'id': { type: 'positional', description: '用户 UID', required: true },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -30,6 +31,7 @@ export const likeStream = defineCommand({
     for await (const tweet of createSDK(args).likes.streamByUserId(args.id, {
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: streamRangeFromArgs(args).maxItems,
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },

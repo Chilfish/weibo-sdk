@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamRangeArg, streamRangeFromArgs } from '../shared'
 
 export const userInfo = defineCommand({
   meta: { name: 'info', description: '获取用户信息' },
@@ -31,6 +31,31 @@ export const userTimeline = defineCommand({
   },
 })
 
+export const userTimelineStream = defineCommand({
+  meta: { name: 'timeline-stream', description: '流式遍历用户微博时间线（page 游标 + 跨页去重）' },
+  args: {
+    'id': { type: 'positional', description: '用户 UID', required: true },
+    'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
+    'count': { type: 'string', description: '每页条数（可选，缺省由上游决定）' },
+    'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
+    ...cookieArg,
+  },
+  async run({ args }) {
+    let count = 0
+    for await (const tweet of createSDK(args).tweets.streamByUserId(args.id, {
+      page: parsePositiveInt(args.page),
+      count: parsePositiveInt(args.count),
+      maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
+    })) {
+      count += 1
+      console.log(JSON.stringify({ event: 'item', count, tweet }))
+    }
+    console.log(JSON.stringify({ event: 'done', uid: args.id, count }))
+  },
+})
+
 export const userMentions = defineCommand({
   meta: { name: 'mentions', description: '获取 @我的微博（按页）' },
   args: {
@@ -53,6 +78,7 @@ export const userMentionsStream = defineCommand({
     'max-id': { type: 'string', description: '起始游标（可选；缺省从第一页开始）' },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamRangeArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -61,6 +87,7 @@ export const userMentionsStream = defineCommand({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      ...streamRangeFromArgs(args),
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },

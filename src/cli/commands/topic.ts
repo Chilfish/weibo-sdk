@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { parsePositiveInt } from '../parseArgs'
-import { cookieArg, createSDK } from '../shared'
+import { cookieArg, createSDK, streamLimitArg, streamRangeFromArgs } from '../shared'
 
 export const topicCates = defineCommand({
   meta: { name: 'cates', description: '获取超话分类（sort_id 来源）' },
@@ -36,6 +36,7 @@ export const topicStream = defineCommand({
     'keyword': { type: 'string', description: '关键词（非空时按关键词搜索）' },
     'page': { type: 'string', description: '起始页码（可选，从 1 开始）' },
     'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...streamLimitArg,
     ...cookieArg,
   },
   async run({ args }) {
@@ -45,6 +46,7 @@ export const topicStream = defineCommand({
       keyword: args.keyword,
       page: parsePositiveInt(args.page),
       maxPages: parsePositiveInt(args['max-pages']),
+      maxItems: streamRangeFromArgs(args).maxItems,
       onProgress: (progress) => {
         console.log(JSON.stringify({ event: 'progress', ...progress }))
       },
