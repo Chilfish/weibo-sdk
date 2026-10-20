@@ -31,6 +31,14 @@
 | `unit/services/AuthService.test.ts` | `AuthService` | Cookie 中提取 XSRF-TOKEN、无 Token 时的回退行为 |
 | `unit/services/RateLimitService.test.ts` | `RateLimitService` | 令牌桶算法、限流效果、FakeClock 注入、并发获取令牌 |
 
+### Unit — 领域服务
+
+| 文件 | 覆盖内容 | 关键测试点 |
+|---|---|---|
+| `unit/services/Favorites.test.ts` | `FavoriteService.getFavorites` | URL/params、`with_total=true`、可选 page、`page=0` / NaN 不透传、转发嵌套 |
+| `unit/services/FavoriteStream.test.ts` | `listFavorites` / `streamFavorites` | 单页与跨页去重、整页重复停止、`total_page` / `total_number`、空收藏、`maxPages`、标签过滤、进度回调异常 |
+| `unit/models/Favorite.test.ts` | `matchesFavoriteTag` | 标签 id / 名称 / 原始字符串匹配，缺失与畸形 tags 返回 false |
+
 ### Unit — 入口/导出
 
 | 文件 | 覆盖内容 | 关键测试点 |
@@ -44,6 +52,7 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 默认全开；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
+| `unit/cli/parsePositiveInt.test.ts` | `parsePositiveInt` | 正整数字符串解析、小数取整；`0` / 负数 / 非数字 / 空串返回 undefined |
 
 ### Unit — 错误
 
@@ -65,6 +74,7 @@
 | `component/public/UserService.test.ts` | `UserService` | info/details/myDetails 端点调用与 params、getById 归一化+正常化事件、session expired 错误、schema 校验失败 |
 | `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败、`enrich` raw+归一化（含可选 longtext）、请求级 `onRaw` 在校验/ok 检查前触发 |
 | `component/public/ArchiveService.test.ts` | `ArchiveService` | timeline（内联 reposts）→ favorites 编排、恒定大小 checkpoint + `lastTimelineMblogId` 续传、整页重复即停止、无 timeline 重放、schemaDigest、归档级 `onRaw` 逐项交付且信封不含 raw、onRaw 抛错向上传播 |
+| `component/public/FavoriteService.test.ts` | `FavoriteService` | `getTags` 响应解析与 referer、`getFavorites` 透传 uid/page |
 
 ### E2E
 
