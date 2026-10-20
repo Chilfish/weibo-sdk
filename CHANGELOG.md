@@ -1,6 +1,20 @@
 # Changelog
 
-本项目遵循语义化版本（SemVer）的约束思路，但在 `0.x` 阶段可能仍会发生 API 调整。任何破坏性变更必须在本文件中明确标注，并给出迁移说明。
+本项目遵循语义化版本（SemVer）的约束思路，但在 `0.x` 阶段仍可能发生 API 调整。任何破坏性变更必须在本文件中明确标注，并给出迁移说明。
+
+## Unreleased
+
+### Added
+
+- **收藏流式分页**（D3）：新增 `sdk.favorites.listFavorites(uid, { page?, tag? })` 与 `streamFavorites(uid, { page?, tag?, maxPages?, onProgress? })`，自动翻页、跨页去重、整页重复保护，并归一化为 `Tweet`；`FavoritePageResult` 带 `hasMore` / `total` / `totalPages`。
+- **收藏标签过滤**：按收藏项自带的 `tags` 做客户端精确匹配（id 或名称）。线上实测 `all_fav` 会忽略 `tag_id` / `tag` 参数。
+- 新增 CLI `weibo-cli favorite stream <uid> [--page] [--tag] [--max-pages]`，输出 `progress` / `item` / `done` NDJSON。
+- `favorites/all_fav` schema 补充顶层 `count` / `total_page` 与收藏项 `tags` 字段（均为 optional）。
+- **Cookie 文件输入**：`IWeiboConfig.cookie`、CLI `--cookie` 与 `.env` 的 `WEIBO_COOKIE` 现在也接受完整文件路径，自动识别 Netscape `cookies.txt`（7 列 TSV，支持 `#HttpOnly_`）与 header 串内容（可带 `Cookie:` 前缀、可多行）。仅保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名 Cookie 并跳过过期条目；路径不存在 / 无可用 Cookie 抛 `InvalidConfigError`（`CONFIG_INVALID`）。浏览器运行时不支持文件路径（无 `node:fs`），按普通字符串处理。
+
+### Fixed
+
+- `weibo-cli favorite list --page 0`（及其他非法页码）不再把 `0` 透传给上游导致 HTTP 400；`page < 1` / 非有限数按第一页处理。
 
 ## 0.1.1 (2026-10-20)
 

@@ -135,7 +135,7 @@ class WeiboSDK {
 
 ```typescript
 interface IWeiboConfig {
-  cookie: string                              // REQUIRED
+  cookie: string                              // REQUIRED：header 串或 Cookie 文件路径（仅 Node）
   xsrfToken?: string                          // 可选，X-XSRF-TOKEN
   proxyUrl?: string                           // 可选，axios proxy
   timeout?: number                            // 默认 30000ms
@@ -147,6 +147,8 @@ interface IWeiboConfig {
   selfCheck?: { mode?: 'none' | 'lazy' | 'eager' }    // 默认 lazy
 }
 ```
+
+> **Cookie 输入解析**（`src/utils/cookieInput.ts`）：`cookie` 支持 Cookie header 串、Netscape Cookie 文件路径（7 列 TSV，支持 `#HttpOnly_`，仅保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名并跳过过期条目）、内容为 header 串的文本文件路径（可带 `Cookie:` 前缀、可多行）。`WeiboSDK` 构造时解析一次，`AuthService` 兜底；浏览器环境无 `node:fs`，路径退化为普通字符串。路径不存在 / 读取失败 / 文件内无可用 Cookie 时抛 `InvalidConfigError`（`CONFIG_INVALID`）。
 
 ### 3.3 服务接口
 
@@ -184,7 +186,19 @@ interface IWeiboConfig {
 > `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。
 
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
-**FavoriteService**（`sdk.favorites`）：`getFavorites(uid, page?)` / `getTags()`（返回 `FavoritesTagsResponse`）
+**FavoriteService**（`sdk.favorites`）：
+
+| 方法 | 签名 | 说明 |
+|---|---|---|
+| `getFavorites` | `(uid, page?) => Promise<FavoritesResponse>` | raw 收藏响应（`data.status` / `data.total_number`；`page < 1` 按未指定处理） |
+| `listFavorites` | `(uid, { page?, tag? }?) => Promise<FavoritePageResult>` | 单页归一化 + 页内去重 + 客户端标签过滤 |
+| `streamFavorites` | `(uid, { page?, tag?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重 + 标签过滤 |
+| `getTags` | `() => Promise<FavoritesTagsResponse>` | 收藏夹标签清单 |
+
+> `FavoritePageResult = { page: number, hasMore: boolean, total?: number, totalPages?: number, tweets: Tweet[] }`。
+> `hasMore` 优先用顶层 `total_page`，缺失时退回 `total_number` 估算；流式路径另有「整页重复即停止」保护。
+> `tag` 为**客户端过滤**：上游 `all_fav` 忽略 `tag_id` / `tag` 参数；匹配收藏项自带 `tags` 的 id / 名称。
+> `page=0` 实测上游 HTTP 400，SDK 统一按第一页处理。
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
 **SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
 
@@ -335,6 +349,7 @@ src/
   index.ts                  # 公共导出（VERSION + types + WeiboSDK + telemetryJsonl）
   WeiboSDK.ts               # 门面，7 个 Service（含 ArchiveService）
   utils/telemetryJsonl.ts   # P2-3 JSONL telemetry 消费端
+  utils/cookieInput.ts      # Cookie header / Netscape / header 文件解析
   cli.ts                    # CLI 入口（citty）
   cli/commands/*.ts         # user / tweet / follow / favorite / search
   types/

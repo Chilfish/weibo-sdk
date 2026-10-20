@@ -41,6 +41,23 @@ pnpm run build
 
 浏览器 / userscript 使用 `@chilfish/weibo-sdk/browser` 子路径（Node 入口为 `@chilfish/weibo-sdk`）；构建后可用 `pnpm run smoke:browser` 在真实 Chromium 做冒烟。
 
+### Cookie 来源
+
+`cookie` 既可以是 Cookie header 串，也可以是文件路径（仅 Node 环境）：
+
+```typescript
+// 1. header 串
+new WeiboSDK({ cookie: 'SUB=xxx; SUBP=xxx; XSRF-TOKEN=xxx' })
+
+// 2. Netscape Cookie 文件（浏览器扩展 / curl cookies.txt 导出）
+new WeiboSDK({ cookie: 'C:/Users/me/cookies.txt' })
+
+// 3. 内容为 header 串的文本文件（可带 Cookie: 前缀、可多行）
+new WeiboSDK({ cookie: './cookies.header.txt' })
+```
+
+文件中只保留微博域名（`weibo.com` / `weibo.cn` / `sina.com.cn`）的 Cookie，过期条目会被跳过；路径不存在或文件内没有可用 Cookie 会抛 `InvalidConfigError`（`CONFIG_INVALID`）。浏览器入口没有 `node:fs`，文件路径会退化为普通字符串。
+
 ### 获取用户信息
 
 ```typescript
@@ -59,6 +76,15 @@ console.log(user.id, user.name, user.stats.followers)
 ```typescript
 const page = await sdk.tweets.listByUserId('1111681197')
 console.log(page.page, page.hasMore, page.tweets[0]?.id)
+```
+
+### 流式遍历收藏夹
+
+```typescript
+// 自动翻页 + 跨页去重；tag 为客户端过滤（收藏项自带 tags），可按标签 id 或名称匹配
+for await (const tweet of sdk.favorites.streamFavorites('1111681197', { tag: '技术' })) {
+  console.log(tweet.mblogId, tweet.text)
+}
 ```
 
 ### 获取单条微博详情
@@ -115,7 +141,7 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 
 ### CLI
 
-CLI 的 Cookie **只从 `.env` 读取**（默认 `<pwd>/.env`，可用 `--env-file` 指定），不读取环境变量；`--cookie`/`-c` 为显式覆盖。
+CLI 的 Cookie **只从 `.env` 读取**（默认 `<pwd>/.env`，可用 `--env-file` 指定），不读取环境变量；`--cookie`/`-c` 为显式覆盖。`WEIBO_COOKIE` / `--cookie` 的取值可以是 header 串，也可以是 Cookie 文件路径（Netscape 或 header 串内容）。
 
 ```bash
 # 安装后（全局或 npx）

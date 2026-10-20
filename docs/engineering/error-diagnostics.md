@@ -8,7 +8,7 @@
 
 | code | 类 | level | 可重试 | 含义 |
 |------|----|-------|--------|------|
-| `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | Cookie 为空 |
+| `CONFIG_INVALID` | `InvalidConfigError` | business | ❌ | Cookie 为空 / Cookie 文件不可用 |
 | `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | ❌ | Cookie 过期/无效 |
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | ❌ | API 返回 ok ≠ 1 |
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod schema 校验失败 / 响应非 JSON（登录页/风控页/接口移除） |
@@ -19,17 +19,20 @@
 
 ## 1. CONFIG_INVALID
 
-**含义**：构造 `WeiboSDK` 时未提供 Cookie。
+**含义**：构造 `WeiboSDK` 时未提供 Cookie，或传入的 Cookie 文件无法解析。
 
 **触发**：
 ```typescript
 // 以下抛出 InvalidConfigError:
 // new WeiboSDK({ cookie: '' })
+// new WeiboSDK({ cookie: './missing-cookies.txt' })   // 路径不存在
+// new WeiboSDK({ cookie: './other-site.cookies.txt' }) // 文件里没有微博域名 Cookie
 ```
 
 **诊断**：
 - 检查 `.env` 文件中的 `WEIBO_COOKIE` 是否已设置
 - 确认 Cookie 字符串非空、包含 `SUB=` 字段
+- 如果值是文件路径：确认路径存在且可读（相对路径按 pwd 解析）；Netscape 文件需为 7 列 TSV，并包含 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie（其他站点会被忽略）。`error.context.path` 会给出实际读取的文件路径
 
 ---
 
@@ -200,7 +203,8 @@ if (errors.length > 0) {
 ```
 请求失败
 ├─ error.code === 'CONFIG_INVALID'
-│  └─ 检查 Cookie 是否非空
+│  ├─ Cookie 是文件路径 → 检查路径存在、可读、含微博域名 Cookie
+│  └─ 否则检查 Cookie 是否非空
 ├─ error.code === 'AUTH_SESSION_EXPIRED'
 │  └─ 更换 Cookie（浏览器重新获取）
 ├─ error.code === 'API_NOT_OK'

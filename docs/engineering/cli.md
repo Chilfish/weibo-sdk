@@ -23,10 +23,20 @@ npx tsx src/cli.ts --help
 
 ```bash
 # .env（项目根目录）
+
+# 1. Cookie header 串
 WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
+
+# 2. Netscape Cookie 文件（浏览器扩展 / curl cookies.txt 导出）
+# WEIBO_COOKIE="C:/Users/me/cookies.txt"
+
+# 3. 内容为 header 串的文本文件（可带 Cookie: 前缀、可多行）
+# WEIBO_COOKIE="./cookies.header.txt"
 ```
 
-刻意**不读取 `WEIBO_COOKIE` 环境变量**：本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie（`process.loadEnvFile()` 不覆盖已存在的环境变量）。每个子命令都支持 `--cookie`/`-c` 显式覆盖（优先于 `.env`）。
+相对路径按当前工作目录（pwd）解析。Netscape 格式按 7 列 TSV 解析（支持 `#HttpOnly_` 前缀与 `#` 注释），只保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie，过期条目会被跳过；同名 Cookie 以文件中靠后的为准。文件路径不存在、读取失败或没有可用 Cookie 时，CLI 打印 `CONFIG_INVALID` 错误并以 1 退出。
+
+刻意**不读取 `WEIBO_COOKIE` 环境变量**：本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie（`process.loadEnvFile()` 不覆盖已存在的环境变量）。每个子命令都支持 `--cookie`/`-c` 显式覆盖（优先于 `.env`），取值规则与 `.env` 相同。
 
 所有命令默认输出 **JSON 格式**（`JSON.stringify(data, null, 2)`），可用于管道处理：
 
@@ -90,8 +100,12 @@ weibo-cli follow my [--page <n>]
 ### 收藏夹（`favorite`）
 
 ```bash
-# 获取指定用户收藏夹（按页遍历）
+# 获取指定用户收藏夹（按页遍历；--page 从 1 开始，0/非法值按第一页处理）
 weibo-cli favorite list <uid> [--page <n>]
+
+# 流式遍历收藏夹（自动翻页 + 去重 + 客户端标签过滤）
+# NDJSON：progress / item / done 事件
+weibo-cli favorite stream <uid> [--page <n>] [--tag <标签 id 或名称>] [--max-pages <n>]
 
 # 获取收藏夹标签
 weibo-cli favorite tags
@@ -152,6 +166,7 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 | `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
 | `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |
 | `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
+| `favorite stream` | `favorites.streamFavorites()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
 | `favorite tags` | `favorites.getTags()` | raw `FavoritesTagsResponse` |
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
@@ -169,8 +184,9 @@ src/cli/
     user.ts             # user info / user timeline
     tweet.ts            # tweet detail / comments / home / longtext / reposts / search-profile
     follow.ts           # follow list / follow fans / follow my
-    favorite.ts         # favorite list / favorite tags
+    favorite.ts         # favorite list / favorite stream / favorite tags
     search.ts           # search users / search tweets
+src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一解析
 ```
 
 基于 citty 的 `defineCommand` + `runMain` 模式：
