@@ -2,20 +2,7 @@
 
 本项目遵循语义化版本（SemVer）的约束思路，但在 `0.x` 阶段可能仍会发生 API 调整。任何破坏性变更必须在本文件中明确标注，并给出迁移说明。
 
-## Unreleased
-
-### Changed
-
-- **包名与 CLI 发布身份**：改为 `@chilfish/weibo-sdk`；CLI 二进制改为 `weibo-cli`；新增 `publishConfig.access = public`（scoped 包首发）。
-- README / CLI 文档 / 示例的安装、import、子路径与命令示例同步为 `@chilfish/weibo-sdk` / `weibo-cli`。
-
-### Added
-
-- [docs/planning/todo-post-0.1.0.md](./docs/planning/todo-post-0.1.0.md)：0.1.0 发布收口 + 0.2.0 用户数据丰富度、可靠性、端点 DX 的完整行动清单（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 432 / Agent 等）。
-- [docs/engineering/endpoint-authoring.md](./docs/engineering/endpoint-authoring.md)：端点开发指南（抓包 → schema → spec → service → CLI → 测试 → 文档；分页约定与高频雷区）。
-- 包身份回归测试：断言 `package.json#name` 与 `bin.weibo-cli`。
-
-## 0.1.0 (2026-10-19)
+## 0.1.0 (2026-10-20)
 
 ### Docs
 
@@ -37,7 +24,7 @@
 - **归档进度事件**（P1-3/R3）：`streamArchive({ onProgress })` 每页/每阶段给出 `{ processed, total?, remaining?, phase, source, page }`；telemetry 新增 `archive_progress` Wide Event；CLI 输出 `progress` NDJSON，`item`/`done` 事件带 `count/total/remaining`。
 - **单条失败策略**（P1-4/R4）：`streamArchive({ onItemError, repostErrorPolicy, commentsErrorPolicy, maxRetries, retryDelayMs })`；转发/评论单页失败默认 `skip` 并继续，仅 `retryable` 结构化错误会重试；telemetry 新增 `archive_item_error`。
 - **评论归档**（P1-6/K4）：`streamArchive({ includeComments: true })` 分页拉取评论并挂到 `tweet.comments`（`ITweetComment[]`，含楼中楼 `replies`）；`ITweet` v1 新增 optional `comments` 字段，favorite 项不拉取。CLI 新增 `--comments` / `--comment-pages`。
-- **浏览器构建**（P2-1/K6）：新增 `dist/browser.mjs`（platform browser，自包含 ESM）与 `weibo-sdk/browser` 子路径导出；`proxyUrl` 在浏览器运行时不再注入 axios `proxy`；新增 `pnpm run smoke:browser` 真实 Chromium 冒烟脚本。
+- **浏览器构建**（P2-1/K6）：新增 `dist/browser.mjs`（platform browser，自包含 ESM）与 `@chilfish/weibo-sdk/browser` 子路径导出；`proxyUrl` 在浏览器运行时不再注入 axios `proxy`；新增 `pnpm run smoke:browser` 真实 Chromium 冒烟脚本。
 - **Telemetry JSONL 消费端**（P2-3/E4）：新增 `createJsonlTelemetry` / `formatArchiveProgress` 与 `examples/telemetry-jsonl.mjs`，一行一事件、永不抛错，可直接作为 `config.telemetry` 接入长任务进度 UI。
 - **SDK hooks 系统**：`config.hooks.onLifecycle` / `onFetched` / `onError`，覆盖生命周期、请求完成、错误三大阶段。
 - **会话自检**：`WeiboSDK.selfCheck()` 与 `checkSession()`，支持 `lazy` / `eager` / `none` 三种自检模式。
@@ -48,6 +35,9 @@
 - `UserService` / `TweetService` 的离线组件测试与领域模型归一化测试。
 - `Tweet` 归一化 v1：支持 media（pic_infos + mix_media_info）/ pageInfo / geo / retweetedStatus。
 - Postmortem 机制：`postmortem/NNN-*.md`。
+- [docs/planning/todo-post-0.1.0.md](./docs/planning/todo-post-0.1.0.md)：0.1.0 发布收口 + 0.2.0 用户数据丰富度、可靠性、端点 DX 的完整行动清单（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 432 / Agent 等）。
+- [docs/engineering/endpoint-authoring.md](./docs/engineering/endpoint-authoring.md)：端点开发指南（抓包 → schema → spec → service → CLI → 测试 → 文档；分页约定与高频雷区）。
+- 包身份回归测试：断言 `package.json#name` 与 `bin.weibo-cli`。
 
 ### Changed
 
@@ -66,6 +56,8 @@
 - `RateLimitService` 去递归（`while` 循环替代递归等待），支持 fake clock 注入。
 - 配置校验错误结构化：缺失 cookie 抛 `InvalidConfigError`。
 - `FetcherService.onFetched` / `config.hooks.onFetched` 标记为 deprecated（请使用 `onRaw` 或 `config.telemetry` 替代）。
+- **包名与 CLI 发布身份**：改为 `@chilfish/weibo-sdk`；CLI 二进制改为 `weibo-cli`；新增 `publishConfig.access = public`（scoped 包首发）。
+- README / CLI 文档 / 示例的安装、import、子路径与命令示例同步为 `@chilfish/weibo-sdk` / `weibo-cli`。
 
 ### Removed
 

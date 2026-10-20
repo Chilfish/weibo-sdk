@@ -18,8 +18,8 @@
 - [x] 6 个领域服务 + ArchiveService：`users` / `tweets` / `followings` / `favorites` / `trends` / `search` / `archive`
 - [x] 归档：mymblog + 日期切片 + 转发内联 + 收藏 + 评论挂载 + checkpoint 续传 + 进度事件 + 单条失败策略
 - [x] 契约冻结：`ITweet` v1、`ArchiveItem.schemaVersion`、形状锁定测试
-- [x] 离线测试：189 passed / 18 skipped（2026-10-19）
-- [x] 真实 E2E：18/18（2026-10-19，维护者环境）
+- [x] 离线测试：189 passed / 18 skipped（2026-10-20 复跑）
+- [x] 真实 E2E：18/18（2026-10-20 复跑，维护者环境）
 - [x] 发布门禁：typecheck / lint / build / validate:fixtures 全绿
 - [ ] npm 发布、Git tag、GitHub Release
 
@@ -42,7 +42,7 @@
 
 ### R0-2 正式发布
 
-- [ ] `CHANGELOG.md` Unreleased 迁移到 `0.1.0`
+- [x] `CHANGELOG.md` Unreleased 迁移到 `0.1.0`（2026-10-20）
 - [ ] 打 tag：`git tag v0.1.0 && git push --tags`
 - [ ] GitHub Release：`gh release create v0.1.0 --generate-notes`
 - [ ] `pnpm publish`
@@ -51,9 +51,9 @@
 
 ### R0-3 CI / 发布门禁补强
 
-- [ ] CI 增加 `pnpm run build`（当前 CI 只跑 typecheck/lint/test/validate:fixtures）
-- [ ] CI 增加 `node scripts/browser-smoke.mjs --no-browser`（Node 侧导出/构建检查）
-- [ ] Node 版本矩阵：至少 22 + 24；评估 Windows/macOS 矩阵
+- [x] CI 增加 `pnpm run build`（当前 CI 只跑 typecheck/lint/test/validate:fixtures；2026-10-20）
+- [x] CI 增加 `node scripts/browser-smoke.mjs --no-browser`（Node 侧导出/构建检查；2026-10-20）
+- [x] Node 版本矩阵：至少 22 + 24；评估 Windows/macOS 矩阵（22 + 24 已接入；Windows/macOS 暂不纳入，2026-10-20）
 - [ ] 定时真实 E2E / canary（GitHub Actions schedule + 受控 Cookie secret），在上游漂移时提前告警
 - [ ] 发布工作流：tag 触发 `npm publish --provenance`（可选，但推荐）
 - [ ] CI 覆盖率报告（先可视化，不强制门槛；后续再评估阈值）
