@@ -225,6 +225,13 @@ export interface ArchiveServiceDeps {
     fetchRawImagePage: (uid: string, options?: { sinceId?: string | number }) => Promise<ImageWallResponse>
     fetchRawVideoPage: (uid: string, options?: { cursor?: string | number }) => Promise<WaterfallResponse>
   }
+  /**
+   * 解析当前登录账号 uid（账号级数据源守卫）。
+   *
+   * 收藏（`all_fav` 忽略 uid）与历史评论（`myCmt` 无 uid）只能读取登录账号自身；
+   * 未提供时不校验跨账号（自定义 deps 场景），默认 SDK 会注入。
+   */
+  sessionUid?: () => Promise<string | undefined>
   /** P1-3：归档进度 Wide Event（可选；失败不影响归档）。 */
   telemetry?: WeiboSDKTelemetry
 }
@@ -512,6 +519,8 @@ function isOriginalRaw(raw: { retweeted_status?: unknown }): boolean {
  * ```
  */
 export class ArchiveService {
+  private sessionUidPromise?: Promise<string | undefined>
+
   /**
    * @param deps 注入的子服务（`tweets` / `favorites` / `telemetry`）；ArchiveService 只编排、不直接发请求，
    * 因此可用轻量 mock 做离线测试
@@ -642,6 +651,8 @@ export class ArchiveService {
         field: 'media.fetchRawVideoPage',
       })
     }
+
+    await this.assertAccountLevelSources([uid], { includeFavorites, includeCommentHistory })
 
     const maxRetries = options.maxRetries ?? 1
     const retryDelayMs = options.retryDelayMs ?? 0
@@ -1554,8 +1565,15 @@ export class ArchiveService {
       ...streamOptions
     } = options
     const maxRetries = streamOptions.maxRetries ?? 1
+    const targets = uids.filter(value => typeof value === 'string' && value.trim() !== '')
 
-    for (const uid of uids.filter(value => typeof value === 'string' && value.trim() !== '')) {
+    // 账号级数据源只能读登录账号自身；批量跨账号时在产出任何 item 前失败。
+    await this.assertAccountLevelSources(targets, {
+      includeFavorites: streamOptions.includeFavorites ?? true,
+      includeCommentHistory: streamOptions.includeCommentHistory ?? false,
+    })
+
+    for (const uid of targets) {
       let attempt = 0
 
       while (true) {
@@ -1586,6 +1604,52 @@ export class ArchiveService {
         }
       }
     }
+  }
+
+  /**
+   * 账号级数据源守卫。
+   *
+   * `includeFavorites`（`/ajax/favorites/all_fav` 忽略 uid）与 `includeCommentHistory`
+   * （`/ajax/message/myCmt` 没有 uid）只能读取登录账号自身。跨账号归档时静默拼接会把
+   * 登录账号的数据写进目标账号的归档，因此在首次迭代前直接报错。
+   *
+   * `sessionUid` 未注入或无法解析时不做校验（自定义 deps / 未知会话）。
+   */
+  private async assertAccountLevelSources(
+    uids: string[],
+    flags: { includeFavorites: boolean, includeCommentHistory: boolean },
+  ): Promise<void> {
+    if (!flags.includeFavorites && !flags.includeCommentHistory)
+      return
+    if (uids.length === 0)
+      return
+
+    const sessionUid = await this.resolveSessionUid()
+    if (sessionUid === undefined)
+      return
+
+    const foreignUid = uids.find(uid => uid !== sessionUid)
+    if (foreignUid === undefined)
+      return
+
+    throw new InvalidConfigError(
+      `Archive account-level sources (includeFavorites / includeCommentHistory) read the signed-in account only `
+      + `(uid ${sessionUid}); refusing to archive uid ${foreignUid}. Disable these options or archive the signed-in account.`,
+      {
+        uid: foreignUid,
+        sessionUid,
+        includeFavorites: flags.includeFavorites,
+        includeCommentHistory: flags.includeCommentHistory,
+      },
+    )
+  }
+
+  /** 登录 uid 只解析一次（批量归档时避免每个 uid 都请求 `profile/detail`）。 */
+  private async resolveSessionUid(): Promise<string | undefined> {
+    if (!this.deps.sessionUid)
+      return undefined
+    this.sessionUidPromise ??= this.deps.sessionUid()
+    return await this.sessionUidPromise
   }
 
   /** 构造磁盘条目；checkpoint 使用浅拷贝，避免后续 item 修改已 yield 的快照。 */

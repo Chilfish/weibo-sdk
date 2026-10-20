@@ -232,8 +232,7 @@ const archive = defineCommand({
     },
     'favorites': {
       type: 'boolean',
-      default: true,
-      description: '归档收藏（--no-favorites 跳过）',
+      description: '归档收藏（仅登录账号自身；单账号默认开启，批量需显式 --favorites）',
     },
     'likes': {
       type: 'boolean',
@@ -243,7 +242,7 @@ const archive = defineCommand({
     'comment-history': {
       type: 'boolean',
       default: false,
-      description: '归档当前用户历史评论（includeCommentHistory）',
+      description: '归档当前用户历史评论（仅登录账号自身；includeCommentHistory）',
     },
     'images': {
       type: 'boolean',
@@ -370,7 +369,7 @@ const archive = defineCommand({
 
     let latestProgress: ArchiveProgress | undefined
     const stream = createSDK(args).archive.streamUsersArchive(uids, {
-      ...resolveArchiveIncludeFlags(args),
+      ...resolveArchiveIncludeFlags(args, { batch: !single }),
       includeLikes: !!args.likes,
       includeCommentHistory: !!args['comment-history'],
       includeImages: !!args.images,

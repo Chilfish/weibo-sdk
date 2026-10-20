@@ -29,4 +29,20 @@ describe('resolveArchiveIncludeFlags', () => {
       includeDateSlices: true,
     })
   })
+
+  it('disables favorites by default in batch mode', () => {
+    expect(resolveArchiveIncludeFlags({}, { batch: true })).toEqual({
+      includeReposts: true,
+      includeFavorites: false,
+      includeDateSlices: true,
+    })
+  })
+
+  it('honors an explicit favorites flag in batch mode', () => {
+    expect(resolveArchiveIncludeFlags({ favorites: true }, { batch: true })).toEqual({
+      includeReposts: true,
+      includeFavorites: true,
+      includeDateSlices: true,
+    })
+  })
 })

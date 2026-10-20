@@ -62,16 +62,21 @@ export function getCookie(args: Record<string, unknown>): string {
 
 /**
  * archive 的负向开关（citty：`--no-reposts` 会把 `reposts` 设为 false，而非产出 `no-reposts`）。
- * 未传时默认全部开启。
+ *
+ * 收藏是账号级数据（`all_fav` 忽略 uid），批量归档默认关闭；单账号仍默认开启。
+ * 未传时其余阶段默认全部开启。
  */
-export function resolveArchiveIncludeFlags(args: {
-  'reposts'?: boolean
-  'favorites'?: boolean
-  'date-slices'?: boolean
-}): { includeReposts: boolean, includeFavorites: boolean, includeDateSlices: boolean } {
+export function resolveArchiveIncludeFlags(
+  args: {
+    'reposts'?: boolean
+    'favorites'?: boolean
+    'date-slices'?: boolean
+  },
+  options: { batch?: boolean } = {},
+): { includeReposts: boolean, includeFavorites: boolean, includeDateSlices: boolean } {
   return {
     includeReposts: args.reposts !== false,
-    includeFavorites: args.favorites !== false,
+    includeFavorites: args.favorites ?? !options.batch,
     includeDateSlices: args['date-slices'] !== false,
   }
 }
