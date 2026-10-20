@@ -1,7 +1,55 @@
 import type { FollowContentResponse, FriendshipsResponse } from '../endpoints/follow'
 import type { IWeiboConfig } from '~/types/config'
+import { normalizeMaxPages, paginate } from '../../utils/pagination'
 import { followContentSpec, friendshipsSpec } from '../endpoints/follow'
 import { FetcherService } from '../internal/FetcherService'
+
+/** 关注关系数据源。 */
+export type FollowingsSource = 'following' | 'fans' | 'my'
+
+/** 关注关系流进度（每页触发一次）。 */
+export interface FollowingsStreamProgress {
+  /** 目标用户 UID（`source: 'my'` 时缺省） */
+  uid?: string
+  /** 数据源：关注 / 粉丝 / 我的关注 */
+  source: FollowingsSource
+  /** 当前页码（从 1 开始） */
+  page: number
+  /** 已产出的用户数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条数 */
+  pageSize: number
+  /** 上游总数（可用时） */
+  total?: number
+}
+
+/** 关注关系流选项。 */
+export interface FollowingsStreamOptions {
+  /** 起始页码（缺省 = 第一页） */
+  page?: number
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；异常不会中断流 */
+  onProgress?: (progress: FollowingsStreamProgress) => void | Promise<void>
+}
+
+type FollowingUser = FriendshipsResponse['users'][number]
+
+function userKey(user: FollowingUser): string | undefined {
+  const id = user.idstr ?? (user.id === undefined ? undefined : String(user.id))
+  return id || undefined
+}
+
+function usersFromFriendships(raw: FriendshipsResponse): { users: FollowingUser[], total?: number } {
+  return { users: raw.users ?? [], total: raw.total_number }
+}
+
+function usersFromFollowContent(raw: FollowContentResponse): { users: FollowingUser[], total?: number } {
+  return {
+    users: raw.data.follows.users ?? [],
+    total: raw.data.follows.total_number ?? raw.data.total_number,
+  }
+}
 
 /**
  * 关注关系领域服务。
@@ -59,5 +107,100 @@ export class FollowingsService extends FetcherService {
     if (page !== undefined)
       args.page = page
     return await this.request(followContentSpec, args)
+  }
+
+  /**
+   * 流式遍历用户关注列表（page 游标 + 跨页按用户 id 去重）。
+   *
+   * 停止条件（任一命中）：空页、整页重复、达到 `total_number`、`maxPages`。
+   *
+   * @example
+   * for await (const user of sdk.followings.streamFollowings('1111681197', { maxPages: 2 })) {
+   *   console.log(user.id, user.screen_name)
+   * }
+   */
+  async* streamFollowings(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+    yield* this.streamUsers(
+      'following',
+      uid,
+      cursor => this.getFollowings(uid, cursor),
+      usersFromFriendships,
+      options,
+    )
+  }
+
+  /**
+   * 流式遍历用户粉丝列表（page 游标 + 跨页按用户 id 去重）。
+   *
+   * @example
+   * for await (const fan of sdk.followings.streamFans('1111681197', { maxPages: 2 })) {
+   *   console.log(fan.id, fan.screen_name)
+   * }
+   */
+  async* streamFans(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+    yield* this.streamUsers(
+      'fans',
+      uid,
+      cursor => this.getFans(uid, cursor),
+      usersFromFriendships,
+      options,
+    )
+  }
+
+  /**
+   * 流式遍历当前登录用户的关注列表（`followContent`，page 游标）。
+   *
+   * @example
+   * for await (const user of sdk.followings.streamMyFollowings({ maxPages: 2 })) {
+   *   console.log(user.id, user.screen_name)
+   * }
+   */
+  async* streamMyFollowings(options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+    yield* this.streamUsers(
+      'my',
+      undefined,
+      cursor => this.getMyFollowings(cursor),
+      usersFromFollowContent,
+      options,
+    )
+  }
+
+  private async* streamUsers<TRaw>(
+    source: FollowingsSource,
+    uid: string | undefined,
+    fetch: (page: number) => Promise<TRaw>,
+    extract: (raw: TRaw) => { users: FollowingUser[], total?: number },
+    options: FollowingsStreamOptions,
+  ): AsyncIterableIterator<FollowingUser> {
+    const initialCursor = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
+    const maxPages = normalizeMaxPages(options.maxPages)
+
+    for await (const user of paginate<FollowingUser, number>(
+      async (cursor) => {
+        const page = cursor ?? 1
+        const raw = await fetch(page)
+        const { users, total } = extract(raw)
+        return {
+          items: users,
+          next: page + 1,
+          total,
+        }
+      },
+      {
+        initialCursor,
+        maxPages,
+        getKey: userKey,
+        onProgress: progress => options.onProgress?.({
+          uid,
+          source,
+          page: progress.page,
+          processed: progress.processed,
+          pageSize: progress.pageSize,
+          total: progress.total,
+        }),
+      },
+    )) {
+      yield user
+    }
   }
 }
