@@ -397,11 +397,13 @@ describe('variant 3: long-form text (continue_tag / isLongText)', () => {
     expect(tweet).not.toHaveProperty('longText')
   })
 
-  it('falls back to empty text when text_raw is missing (textHtml still comes from text)', () => {
+  it('falls back to decoded text when text_raw is missing (m 站 raw_text / HTML text)', () => {
     const raw = makeLongTextRaw({ text_raw: undefined }) as any
     const tweet = normalizeTweet(raw)
 
-    expect(tweet.text).toBe('')
+    // m 站 / HTML fallback：标签被去掉，保留可读文案；textHtml 仍保留原始 HTML
+    expect(tweet.text).toContain('写了 2400 字')
+    expect(tweet.text).not.toContain('<a')
     expect(tweet.textHtml).toBe(raw.text)
   })
 

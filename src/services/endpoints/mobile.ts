@@ -98,6 +98,31 @@ const MobileContainerResponseSchema = z.object({
 
 export type MobileContainerResponse = z.infer<typeof MobileContainerResponseSchema>
 
+/**
+ * m 站容器的「真实空结果」文案（2026-10-20 访客实测）。
+ *
+ * 内容为空时上游返回 `{ ok: 0, msg: '这里还没有内容', data: { cards: [] } }`，
+ * 这不是鉴权失败，应按空页处理。只认已知文案，避免把登录门控误判成空结果。
+ */
+const MOBILE_EMPTY_MESSAGES = new Set(['暂无数据', '这里还没有内容', '还没有人赞过'])
+
+/** 判断 `ok !== 1` 的 m 站容器响应是否为真实空结果（空 `cards` + 已知空文案）。 */
+export function isEmptyMobileContainer(raw: unknown): boolean {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
+    return false
+
+  const record = raw as Record<string, unknown>
+  if (record.ok !== 0 || typeof record.msg !== 'string' || !MOBILE_EMPTY_MESSAGES.has(record.msg))
+    return false
+
+  const data = record.data
+  if (data === null || typeof data !== 'object' || Array.isArray(data))
+    return false
+
+  const cards = (data as Record<string, unknown>).cards
+  return Array.isArray(cards) && cards.length === 0
+}
+
 export const MobileContainerArgsSchema = z.object({
   /** 容器 id，如 `1076032365795232`、`231051_-_followers_-_2365795232` */
   containerid: z.string(),
@@ -121,7 +146,10 @@ export const mobileContainerSpec: EndpointSpec<'MOBILE_CONTAINER', typeof Mobile
   }),
   // m 站容器走访客 token；Cookie 模式下仍优先使用 Cookie
   auth: 'guest',
-  okPolicy: { mode: 'require_ok_1' },
+  okPolicy: {
+    mode: 'require_ok_1',
+    isEmptyResult: ({ raw }) => isEmptyMobileContainer(raw),
+  },
   schema: MobileContainerResponseSchema,
 })
 

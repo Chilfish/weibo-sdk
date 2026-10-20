@@ -340,11 +340,13 @@
 | `mobile_search_tweets_p1.json` | 46K | `GET …/getIndex?containerid=100103type%3D1%26q%3D<kw>%26t%3D&page_type=searchall` | `page` | 9 张卡片（2 张 `card_type: 9` + 7 张 `card_type: 11` 组合卡），共 8 条微博；另有 1 个用户条目（`card_type: 10`）与 1 张相关超话卡（`card_type: 17`）；`total=914`、`page_size=5` |
 | `mobile_comments_p1.json` | 1.3K | `GET m.weibo.cn/api/comments/show?id=<mid>` | `page`（`data.max` 回显当前页） | 评论 3 条；`data.data[]` + `total_number=3` |
 | `mobile_likers_p1.json` | 18K | `GET m.weibo.cn/api/attitudes/show?id=<mid>&page=<n>` | `page`（`data.max` 回显当前页） | 点赞者 50 条；`data.total_number=162` |
+| `mobile_empty_container.json` | 75B | `GET m.weibo.cn/api/container/getIndex?containerid=2308691`（样本 uid 无可见点赞） | 无 | `{ ok: 0, msg: "这里还没有内容", data: { cards: [] } }`：真实空结果，SDK 按空页返回，不报 `API_NOT_OK` |
 
 ### 注册情况（`scripts/validate-fixtures.ts`）
 
 - `mobile_likers_p1.json` → `likersSpec`（**mapped**，与既有 `likers_p1/p2/end.json` 同一 m 站端点，响应同构）。
-- 其余 10 个 → **unmodeled**：m 站容器样本由组件解析测试覆盖；`mobile_comments_p1.json` 为 m 站 `api/comments/show`（`data.data[] + total_number + max`），与网页端 `buildCommentsSpec` 的响应不同，未建模。
+- `mobile_*.json` 容器样本（含 `mobile_empty_container.json` 空结果）→ `mobileContainerSpec`（**mapped**，`ok: 0` 的空容器由 `isEmptyResult` 放行）。
+- 其余 → **unmodeled**：m 站容器样本由组件解析测试覆盖；`mobile_comments_p1.json` 为 m 站 `api/comments/show`（`data.data[] + total_number + max`），与网页端 `buildCommentsSpec` 的响应不同，未建模。
 - 备注：`mobile_search_users_p1.json` / `mobile_search_tweets_p1.json` 与已建模的 `searchUsersSpec` / `searchTweetsSpec`（同为 `containerid=100103type=3|1` 的 m 站容器）结构同构，后续可直接升级为 mapped。
 
 ### Guest 态已知限制

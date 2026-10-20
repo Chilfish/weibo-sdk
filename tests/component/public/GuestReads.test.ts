@@ -72,6 +72,7 @@ describe('guest first-page reads (real fixtures)', () => {
     expect(page.total).toBe(13718)
     expect(page.tweets.length).toBeGreaterThan(0)
     expect(page.tweets[0].mblogId).toMatch(/^[0-9A-Z]+$/i)
+    expect(page.tweets[0].text).not.toBe('')
   })
 
   it('rejects anonymous page 2 for a user timeline', async () => {
@@ -94,6 +95,20 @@ describe('guest first-page reads (real fixtures)', () => {
     expect(page.partial).toBe(true)
     expect(page.hasMore).toBe(false)
     expect(page.tweets.length).toBeGreaterThan(0)
+  })
+
+  it('treats an upstream empty container as an empty likes page', async () => {
+    const raw = fixture('mobile_empty_container.json')
+    const service = serviceFor(LikeService, (config) => {
+      expect(String(config.url)).toContain('containerid=2308691')
+      return raw
+    })
+
+    const page = await service.listByUserId('1')
+
+    expect(page.partial).toBe(true)
+    expect(page.hasMore).toBe(false)
+    expect(page.tweets).toEqual([])
   })
 
   it('reads followings from the followers container (upstream naming is reversed)', async () => {

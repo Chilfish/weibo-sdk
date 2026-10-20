@@ -461,8 +461,11 @@ function extractRepostChain(rawRecord: UnknownRecord): TweetRepostEntry[] | unde
   if (!hasRetweet && (rawRecord.repost_type === undefined || rawRecord.repost_type === null))
     return undefined
 
-  // `text_raw` 通常就在；退回 HTML 时先去标签，`//<a>@name</a>:` 才会还原成 `//@name:`
-  const rawText = getString(rawRecord.text_raw) ?? decodeHtmlText(getString(rawRecord.text) ?? '')
+  // `text_raw` 通常就在；m 站只有 `raw_text` / HTML `text`。
+  // 退回 HTML 时先去标签，`//<a>@name</a>:` 才会还原成 `//@name:`
+  const rawText = getString(rawRecord.text_raw)
+    ?? getString(rawRecord.raw_text)
+    ?? decodeHtmlText(getString(rawRecord.text) ?? '')
   const levels = parseRepostText(rawText)
   const user = normalizeUser(rawRecord.user)
 
@@ -561,6 +564,7 @@ function extractPermanentVideoUrl(rawRecord: UnknownRecord): string | undefined 
 
 function decodeHtmlText(value: string): string {
   return value
+    .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -757,7 +761,8 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     id: String(raw.idstr || raw.id),
     mblogId: raw.mblogid,
     createdAt: raw.created_at,
-    text: raw.text_raw || '',
+    // m 站（guest 时间线 / 点赞 / 媒体）没有 `text_raw`，只有 `raw_text` 或 HTML `text`。
+    text: getString(raw.text_raw) ?? getString(rawRecord.raw_text) ?? decodeHtmlText(raw.text || ''),
     textHtml: raw.text || '',
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),

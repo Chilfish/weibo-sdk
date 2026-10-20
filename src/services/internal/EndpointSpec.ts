@@ -16,6 +16,19 @@ export type EndpointOkPolicy
   = | { mode: 'none' }
     | {
       mode: 'require_ok_1'
+      /**
+       * 判定「ok !== 1 其实是空结果」：返回 true 时跳过业务失败，继续走 schema 校验。
+       *
+       * m 站容器在内容为空时返回 `{ ok: 0, msg: '这里还没有内容', data: { cards: [] } }`，
+       * 这属于正常空页，不应报 `API_NOT_OK`。只应对明确的空结果信号返回 true。
+       */
+      isEmptyResult?: (ctx: {
+        endpoint: string
+        args: Record<string, unknown> | undefined
+        ok: number
+        message?: string
+        raw: unknown
+      }) => boolean
       notOkError?: (ctx: {
         endpoint: string
         args: Record<string, unknown> | undefined

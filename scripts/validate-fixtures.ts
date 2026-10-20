@@ -164,6 +164,8 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'mobile_photos_p1.json': validate(mobileContainerSpec),
   'mobile_search_users_p1.json': validate(mobileContainerSpec),
   'mobile_search_tweets_p1.json': validate(mobileContainerSpec),
+  // 空容器：{ ok: 0, msg: '这里还没有内容', data: { cards: [] } }，属正常空页而非鉴权失败
+  'mobile_empty_container.json': validate(mobileContainerSpec),
   'mobile_comments_p1.json': { kind: 'unmodeled', note: 'm 站 api/comments/show 未建模（data.data[] + total_number + max，与网页端 buildComments 响应不同）：guest mobile container; covered by component parsing tests' },
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },

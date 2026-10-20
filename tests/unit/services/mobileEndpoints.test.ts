@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extractMobileMblogs,
   extractMobileUsers,
+  isEmptyMobileContainer,
   mobileContainerSpec,
 } from '~/services/endpoints/mobile'
 import { MOBILE_USER_AGENT } from '~/services/internal/GuestTokenService'
@@ -49,7 +50,39 @@ describe('mobileContainerSpec', () => {
     expect(mobileContainerSpec.auth).toBe('guest')
     expect(mobileContainerSpec.resourceType).toBe('MOBILE_CONTAINER')
     expect(mobileContainerSpec.endpoint).toBe('api/container/getIndex')
-    expect(mobileContainerSpec.okPolicy).toEqual({ mode: 'require_ok_1' })
+    expect(mobileContainerSpec.okPolicy?.mode).toBe('require_ok_1')
+  })
+
+  it('treats a known empty container payload as an empty result, not a failure', () => {
+    expect(isEmptyMobileContainer({
+      ok: 0,
+      msg: '这里还没有内容',
+      data: { cards: [] },
+    })).toBe(true)
+    expect(isEmptyMobileContainer({
+      ok: 0,
+      msg: '暂无数据',
+      data: { cards: [] },
+    })).toBe(true)
+  })
+
+  it('does not treat auth failures or non-empty containers as empty results', () => {
+    expect(isEmptyMobileContainer({
+      ok: -100,
+      msg: '这里还没有内容',
+      data: { cards: [] },
+    })).toBe(false)
+    expect(isEmptyMobileContainer({
+      ok: 0,
+      msg: '请登录后使用',
+      data: { cards: [] },
+    })).toBe(false)
+    expect(isEmptyMobileContainer({
+      ok: 0,
+      msg: '这里还没有内容',
+      data: { cards: [{ card_type: 9 }] },
+    })).toBe(false)
+    expect(isEmptyMobileContainer({ ok: 1, data: { cards: [] } })).toBe(false)
   })
 
   it('builds the m.weibo.cn container URL without page', () => {

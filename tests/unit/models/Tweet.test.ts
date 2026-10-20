@@ -75,6 +75,51 @@ describe('tweet model normalization (mymblog)', () => {
     expect(tweet.visible).toBe(TweetVisible.PUBLIC)
   })
 
+  it('falls back to raw_text for mobile cards without text_raw', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: '//<a href=\'/n/u\'>@u</a>:转发微博',
+      raw_text: '//@u:转发微博',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.text).toBe('//@u:转发微博')
+    expect(tweet.textHtml).toBe('//<a href=\'/n/u\'>@u</a>:转发微博')
+  })
+
+  it('decodes text HTML when neither text_raw nor raw_text is present', () => {
+    const raw: any = {
+      id: 1,
+      idstr: '1',
+      mblogid: 'x',
+      created_at: 'now',
+      text: 'a &amp; b<br />c <a href="/n/u">@u</a>',
+      source: '',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+      retweeted_status: {
+        id: 3,
+        idstr: '3',
+        mblogid: 'y',
+        created_at: 'now',
+        text: '原文 &amp; 配图<br />第二行',
+        source: '',
+        visible: { type: 0, list_id: 0 },
+        user: { id: 4, idstr: '4', screen_name: 'v' },
+      },
+    }
+
+    const tweet = new Tweet(raw)
+    expect(tweet.text).toBe('a & b\nc @u')
+    expect(tweet.retweetedStatus?.text).toBe('原文 & 配图\n第二行')
+  })
+
   it('extracts pageInfo', () => {
     const raw: any = {
       id: 1,

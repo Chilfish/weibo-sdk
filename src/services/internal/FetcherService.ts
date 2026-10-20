@@ -653,7 +653,14 @@ export class FetcherService {
     if (spec.okPolicy?.mode === 'require_ok_1' && isRecord(raw)) {
       const okNumber = ok ?? 0
       const message = getMessage(raw)
-      if (okNumber !== 1) {
+      const isEmptyResult = okNumber !== 1 && (spec.okPolicy.isEmptyResult?.({
+        endpoint: spec.endpoint,
+        args: argsRecord,
+        ok: okNumber,
+        message,
+        raw,
+      }) ?? false)
+      if (okNumber !== 1 && !isEmptyResult) {
         const looksLikeAuthFailure = okNumber === -100 || looksLikeLoginMessage(message)
         const notOkContext = {
           endpoint: spec.endpoint,
