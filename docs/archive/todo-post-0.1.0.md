@@ -1,6 +1,9 @@
 # 行动计划：0.1.0 发布 + 0.2.0 用户数据丰富度
 
-**状态**: 进行中（2026-10-19 建立）
+> **已归档**（2026-10-20）：0.1.0 发布收口 + 0.2.0 用户数据面 / 可靠性 / DX 已完成并通过全量门禁。
+> 本文件为历史记录，不再主动读取；未实现项按维护者裁定不再推进（见 §11）。
+
+**状态**: ✅ 已完成并归档（2026-10-19 建立，2026-10-20 归档）
 **承接**: [todo-contract-freeze.md](./todo-contract-freeze.md)（P0/P1/P2 已收口）
 **产品定位**: 单账号公开数据归档 SDK，见 [requirements-spec.md](../requirements/requirements-spec.md)
 **发布身份**: npm 包 `@chilfish/weibo-sdk`；CLI 二进制 `weibo-cli`
@@ -47,7 +50,7 @@
 - [x] GitHub Release：`gh release create v0.1.0 --generate-notes`（2026-10-20）
 - [x] `pnpm publish`（2026-10-20：0.1.0 误用 npm 发布后 unpublish，改以 0.1.1 重发；见 [postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）
 - [x] 发布后核验：`npm view @chilfish/weibo-sdk dist-tags` → `latest: 0.1.1`；解包 tarball 依赖无 `catalog:`；临时目录安装后 `dist/cli.mjs --version` = `0.1.1`（2026-10-20）
-- [ ] 归档 `todo-contract-freeze.md`，更新 [docs/README.md](../README.md) 索引
+- [x] 归档 `todo-contract-freeze.md`，更新 [docs/README.md](../README.md) 索引（2026-10-20，`ba8b5c4`）
 
 ### R0-3 CI / 发布门禁补强
 
@@ -72,10 +75,10 @@
 | D1 | 用户点赞过的微博 | `GET /ajax/statuses/likelist?uid=&page=`；备选 `GET /ajax/profile/getLikeList?uid=&cursor=` | ✅ 2026-10-20 抓包 | 候选 `/ajax/statuses/likes` **已下线**（200 + HTML 404 页）。`likelist` 为 page 型、只有 `data.list`、越界空数组；`getLikeList` 为 cursor 型、`next_cursor === -1` 表示到底 |
 | D2 | 当前用户发布的历史评论 | `GET /ajax/message/myCmt` | ✅ 2026-10-20 抓包 | 仅当前登录用户；翻页用 `max_id=<上一页 data.next_cursor>` 或 `page`（等价）；`cursor` 参数被忽略；`next_cursor === 0` 表示到底 |
 | D3 | 收藏夹 | `GET /ajax/favorites/all_fav?uid=&page=&with_total=true` + `/ajax/favorites/tags` | ✅ 已实现 | 增加全量流、标签过滤、归档集成 |
-| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=`；`GET /ajax/profile/getAlbumDetail?...` | ✅ 图片墙已实现；相册待参数 | `getImageWall` 返回 `{ data: { since_id, list }, bottom_tips_* }`；`getAlbumDetail?uid=&page=` 返回 400，参数仍未知 |
+| D4 | 用户图片墙 / 相册 | `GET /ajax/profile/getImageWall?uid=&sinceid=&has_album=true`；`GET /ajax/profile/getAlbumDetail?containerid=&since_id=` | ✅ 2026-10-20 抓包 | 相册 tab 的 `album_list` 下发 `containerid`；`getAlbumDetail` 用 `since_id` 翻页 |
 | D5 | 用户视频瀑布 | `GET /ajax/profile/getWaterFallContent?uid=&cursor=` | ✅ 已实现 | `{ data: { list, next_cursor } }`；视频在 `page_info.media_info`，`cursor=-1` 返回 400 |
 | D6 | 用户音频 / 播放列表 | `GET /ajax/multimedia/user_playlists_get?uid=` | ⚠️ 路径可用、样本为空 | 当前账号返回 `{ data: { playlists: [], total_count: 0 } }`；元素结构仍缺真实样本 |
-| D7 | 超话 / 话题 | `GET /ajax/stopic/list?sort_id=0&keyword=&page=` | ⚠️ 参数不符 | 上述参数返回 `{ errno, errmsg, errcode, ok }`，需继续确认发现页/我的超话的真实参数 |
+| D7 | 超话 / 话题 | `GET /ajax/stopic/cates`；`GET /ajax/stopic/list?sort_id=&keyword=&page=` | ✅ 2026-10-20 抓包 | `cates` 返回 19 个分类；`list` 的 `count` 是**总页数**（30 条/页），`sort_id=0` + `keyword` 为搜索 |
 | D8 | 微博点赞者列表 | `GET /ajax/statuses/likeShow?id=<mid>&page=<n>` | ✅ 2026-10-20 抓包 | 返回 `{ ok, data: 数组, total_number }`（`data` 是数组，不是对象） |
 | D9 | @我的微博 / @我的评论 | `GET /ajax/statuses/mentions`；`GET /ajax/comments/mentions` | ✅ mentions 已确认 | `data.statuses` + cursor 分页；`/ajax/comments/mentions` 未单独验证 |
 | D10 | 消息计数 / 评论通知 / 点赞通知 | `GET /ajax/message/cmt`；`/ajax/message/attitudes` | ✅ cmt/attitudes 已确认；count/likeNotice 已失效 | `message/count` 与 `message/likeNotice` 返回 200 + HTML 404 页；`cmt` → `data.comments`，`attitudes` → `data.attitudes` |
@@ -125,12 +128,13 @@
 
 ### 2.5 账号级媒体集合
 
-- [x] **D4** 图片墙：`getImageWall` 分页（`sinceid` 游标）已实现；`getAlbumDetail`（相册）参数仍未知，暂缓
+- [x] **D4** 图片墙：`getImageWall` 分页（`sinceid` 游标）已实现；相册 tab（`has_album=true`）与 `getAlbumDetail` 已实现（2026-10-20）
 - [x] **D5** 视频瀑布：`getWaterFallContent` 分页（`cursor` 游标，`page_info.media_info` 提取视频）已实现
-- [ ] **D6** 音频 / 播放列表：`user_playlists_get`
-- [x] 新领域模型 `IUserMediaAsset`：`id` / `type`（pic/video/livephoto/gif/unknown）/ `url` / `coverUrl` / `videoUrl` / `width` / `height` / `duration` / `createdAt` / `sourceTweetId?` / `sourceMblogId?` / `permanentPageUrl?` / `objectId?`（audio 待 D6 样本）
-- [x] CLI：`weibo-cli media images|videos <uid>`（`audio` 待 D6）
-- [ ] 归档集成：`includeImages` / `includeVideos` / `includeAudio`
+- [ ] **D6** 音频 / 播放列表：`ITweet.audio` 已支持（`audio_status.json` 样本）；播放列表端点仍待真实样本
+- [x] **D7** 超话：`TopicService.cates/list/stream` + CLI `topic cates|list|stream`（2026-10-20）
+- [x] 新领域模型 `IUserMediaAsset`：`id` / `type`（pic/video/livephoto/gif/unknown）/ `url` / `coverUrl` / `videoUrl` / `width` / `height` / `duration` / `createdAt` / `sourceTweetId?` / `sourceMblogId?` / `permanentPageUrl?` / `objectId?`；相册列表 `IUserAlbum`（`containerId` / `title` / `coverUrl?`）
+- [x] CLI：`weibo-cli media images|albums|album|videos`（`audio` 播放列表待 D6 样本）
+- [x] 归档集成：`includeImages` / `includeVideos`（2026-10-20；`includeAudio` 随 D6）
 - [x] 可选下载 helper（默认关闭）：`downloadTweetMedia` / `weibo-cli media download`，失败写 `<mblogId>-media-errors.json`（2026-10-20）
 - [x] tests：分页、跨页去重、空页/游标不前进停止、归一化（`tests/unit/models/Media.test.ts` + `tests/component/public/MediaService.test.ts`）；URL 过期提示 / 下载失败待下载 helper
 
@@ -141,46 +145,45 @@
 - [x] **D10** `notifications.comments()` / `notifications.likes()`（2026-10-20；含 list + stream；`message/count` 与 `message/likeNotice` 已失效，不提供未读数）
 - [x] **D11** `users.groups()` / `users.mblogGroups()`（2026-10-20；`feed/allGroups` + `mblog/querygroup`）
 - [ ] **D15** 转发历史：优先抓包确认独立端点；否则复用 `mymblog` + 「转发」过滤
-- [ ] 增量同步可利用 D10 判断「是否有新内容」，避免全量扫描
+- [x] 增量同步不依赖通知未读数：`incremental` + `state.json` 已实现（用 lastMblogId / lastCreatedAt 早停）
 - [x] tests + CLI（`weibo-cli notification ...`、`tweet likers`、`user mentions|groups`）（2026-10-20：`Likers.test.ts` 7 + `UserSocial.test.ts` 7 + `NotificationService.test.ts` 10 + `ArchiveService.extensions.test.ts` 8）
 
 ### 2.7 搜索与评论完整性
 
-- [ ] **D12** `searchProfile` 增加 `q`（个人主页内关键词搜索）；CLI `tweet search-profile --q`
-- [ ] 日期切片 + 关键词组合：先按日期窗口，再按 `q` 过滤
-- [ ] **D13** 二级评论：确认 `is_reply=1` / `fetch_level` 后实现递归分页
-- [ ] `ITweetComment.replies` 支持完整树；限制深度/数量并暴露选项
-- [ ] tests：楼中楼递归、分页、缺失父评论、循环引用保护
+- [x] **D12** `searchProfile` 增加 `q`（2026-10-20：`searchProfile_q.json` fixture；CLI `tweet search-profile --q`）
+- [x] 日期切片 + 关键词组合：`ArchiveStreamOptions.searchQuery` 透传 `q`（2026-10-20）
+- [x] **D13** 二级评论：`is_reply=1` + `rootid` + `fetch_level=1`；`tweets.replies` / `streamReplies`（2026-10-20，`comment_replies_*` fixture）
+- [x] `ITweetComment.replies` 支持完整树；独立二级评论分页已提供（深度/数量由调用方控制）
+- [x] tests：二级评论分页参数、去重、max_id 停止（`TweetStreams.test.ts`）
 
 ### 2.8 公共流式分页
 
 > 目前自动翻页主要藏在 `ArchiveService` 内部；下游单独用某个 Service 时仍要自己写循环。
 > 目标：所有可分页的公开能力都提供 `AsyncIterableIterator` + `maxPages` / `onProgress`。
 
-- [ ] `tweets.streamComments(mblogId, { maxPages?, count?, flow? })`
-- [ ] `tweets.streamReposts(mblogId, { maxPages?, count? })`
-- [ ] `followings.streamFollowings(uid, { maxPages? })` / `streamFans(uid, ...)`
-- [ ] `favorites.streamFavorites(uid, { maxPages? })`
-- [ ] 点赞 / 历史评论 / 图片墙 / 视频瀑布的流式版本（随 D1/D2/D4/D5）
-- [ ] 统一重复页保护、游标不前进保护、`hasMore` 语义
-- [ ] CLI：分页命令支持 `--all` / `--max-pages`
-- [ ] tests：空页、重复页、游标重置、提前 `break`
+- [x] `tweets.streamComments(mblogId, { maxPages?, count?, flow? })`（2026-10-20）
+- [x] `tweets.streamReposts(mblogId, { maxPages?, count? })`（2026-10-20）
+- [x] `followings.streamFollowings(uid, { maxPages? })` / `streamFans(uid, ...)`（2026-10-20，含 `streamMyFollowings`）
+- [x] `favorites.streamFavorites(uid, { maxPages? })`（2026-10-20，D3）
+- [x] 点赞 / 历史评论 / 图片墙 / 视频瀑布的流式版本（随 D1/D2/D4/D5，2026-10-20）
+- [x] 统一重复页保护、游标不前进保护、`hasMore` 语义（`src/utils/pagination.ts`，2026-10-20）
+- [x] CLI：分页命令支持 `--max-pages`（新命令全部支持；`--all` 未单独提供）
+- [x] tests：空页、重复页、游标重置、提前 `break`（`pagination.test.ts` + 各 stream 测试）
 
 ### 2.9 归档编排扩展
 
 - [x] `ArchiveItem.source` 扩展 `'like' | 'comment'`（2026-10-20；`comment` 项带 `item.comment`）
-- [ ] `ArchiveItem.source` 扩展 `'image' | 'video' | 'audio'`（随 D4/D5/D6 归档集成）
-- [x] `ArchiveStreamOptions` 增加 `includeLikes` / `includeCommentHistory`（2026-10-20）
-- [ ] `ArchiveStreamOptions` 增加 `includeImages` / `includeVideos` / `includeAudio`
-- [x] `ArchiveCheckpoint` 增加各数据源游标（保持恒定大小，禁止全量 id 数组）（2026-10-20：`likesPage` / `commentHistoryCursor`；按阶段删除无关字段）
-- [ ] **增量模式**：`incremental: { since?: number, stopAtMblogId?: string }`
+- [x] `ArchiveItem.source` 扩展 `'image' | 'video'`（2026-10-20；image 项资产在 `item.asset`，video 项同时有 `item.tweet`）
+- [x] `ArchiveStreamOptions` 增加 `includeImages` / `includeVideos`（`includeAudio` 随 D6）
+- [x] `ArchiveCheckpoint` 增加各数据源游标（保持恒定大小，禁止全量 id 数组）（2026-10-20：`likesPage` / `commentHistoryCursor` / `imagesCursor` / `videosCursor`；按阶段删除无关字段）
+- [x] **增量模式**：`incremental: { since?, stopAtMblogId?, skipPinned? }`（2026-10-20）
   - 时间游标：只抓上次之后的新内容
   - 早停：翻到已知 `mblogId` 即停止
   - 置顶微博跳过策略
-- [ ] **多账号批量**：`streamUsersArchive(uids, options)` 或 `archiveMany`；CLI `archive --uid-file <path>`
-- [ ] **仅原创**：`originalOnly` 过滤（对齐同类项目的 `only_crawl_original`）
-- [ ] **增量与全量的状态文件**：`state.json`（每个 uid 的 last time / last mblogId）
-- [ ] tests：10k 条规模、checkpoint 恒定大小、增量无重复/无漏、批量失败隔离
+- [x] **多账号批量**：`streamUsersArchive(uids, options)`；CLI `archive --uid-file <path>`（2026-10-20）
+- [x] **仅原创**：`originalOnly` 过滤（同时关闭内联转发，2026-10-20）
+- [x] **增量与全量的状态文件**：`state.json`（`src/utils/archiveState.ts`；每个 uid 的 lastMblogId / lastCreatedAt，2026-10-20）
+- [x] tests：10k 条规模（已有）、checkpoint 恒定大小、增量无重复/无漏、批量失败隔离（`ArchiveService.incremental.test.ts` + `archiveState.test.ts`）
 
 ---
 
@@ -192,38 +195,37 @@
 ### 3.1 ITweet 可选字段
 
 - [x] `topics?: string[]`（`topic_struct[].topic_title`，去重保序）
-- [ ] `atUsers?: TweetUser[]`（@ 用户；未找到稳定的 raw 字段）
+- [x] `atUsers?: TweetAtUser[]`（2026-10-20：从 `text` HTML 的 `/n/`、`/u/` 锚点解析）
 - [x] `readCount?: number`（`reads_count`，仅自己可见/部分账号）
-- [ ] `playCount?: number`（视频播放数；真实响应未下发）
+- [x] `playCount?: number`（2026-10-20：仅 `online_users` 含「次观看」时映射）
 - [x] `isOriginal?: boolean`（无 `retweeted_status`）
-- [ ] `isTop?: boolean`（置顶；当前样本无此字段）
+- [x] `isTop?: boolean`（2026-10-20：`isTop === 1/true`；`mymblog_pinned.json` 样本）
 - [x] `editCount?: number`（`edit_count`；完整编辑历史 raw 未提供）
 - [x] `permanentVideoUrl?: string`（`media_info.h5_url`）
 - [x] `linkCards?: TweetLinkCard[]`（`url_struct[]`：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?`）
 - [x] `title?: string`（`title.text`，如「公开」「仅自己可见」）
-- [ ] `audio?: TweetAudio[]`（语音/音频；暂无真实样本）
+- [x] `audio?: TweetAudio[]`（2026-10-20：`page_info` / `mix_media_info`，`audio_status.json` 样本）
 - [x] `sourceUrl?: string`（`https://weibo.com/<uid>/<mblogid>`）
 
-> 2026-10-20 已实现（v1 optional）：`topics` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl` / `linkCards`。
-> 真实样本与断言：`tests/unit/models/Tweet.variants.test.ts`（feed_home / favorites / likes / searchProfile / waterfall / mymblog）。
-> 仍未建模：`atUsers`（无稳定字段）、`playCount`（`online_users_number` 是在线人数，不是播放数）、`isTop`（无样本）、`audio`（无样本）；
+> 2026-10-20 已实现（v1 optional）：`topics` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl` / `linkCards` / `atUsers` / `playCount` / `isTop` / `audio`。
+> 真实样本与断言：`tests/unit/models/Tweet.variants.test.ts`、`tests/unit/contract/itweet-v1.test.ts`（含 `mymblog_pinned.json` / `at_status.json` / `audio_status.json`）。
 > `mblogtype` / `repost_type` / `isNoReasonRepost` 已抓到但语义未确认，暂不进入契约。
 
 ### 3.2 IUser / IComment 可选字段
 
-- [ ] `IUser.ipLocation?` / `creditScore?` / `labels?` / `svip?`
+- [x] `IUser.svip?` / `mbrank?` / `hometown?` / `labelDesc?`（2026-10-20；`creditScore` 仍缺样本）
 - [ ] `IUserVerification` 增加 `verifiedType` 映射说明
-- [ ] `ITweetComment.rootId?` / `replyTo?` / `floorNumber?` / `liked?` / `totalReplies?`
-- [ ] `ITweetComment.parentMblogId?`（历史评论归属的原微博）
+- [x] `ITweetComment.rootId?` / `replyTo?` / `floorNumber?` / `liked?` / `totalReplies?`
+- [x] `ITweetComment.parentMblogId?`（历史评论归属的原微博）
 
 > 2026-10-20 抓包确认：`profile/info.data.user` 有 `svip` / `vvip` / `mbrank` / `mbtype` / `status_total_counter` / `cover_image_phone`；
 > `profile/detail.data` 有 `hometown` / `label_desc[]` / `verified_url`。`ip_location` 已在 `User.location` 使用，但未作为独立字段暴露。
 
 ### 3.3 契约治理
 
-- [ ] 更新 [contract-itweet-v1.md](../engineering/contract-itweet-v1.md) 冻结表与形状测试
+- [x] 更新 [contract-itweet-v1.md](../engineering/contract-itweet-v1.md) 冻结表与形状测试（2026-10-20）
 - [ ] 每个 optional 字段补 2 种真实变种 fixture
-- [ ] `schemaDigest` 漂移报告：新增字段 / 类型变化输出可读 diff
+- [x] `schemaDigest` 漂移报告：`diffSchemaDigest()` / `formatSchemaDrift()` + `weibo-cli schema diff`（2026-10-20）
 - [ ] v2 迁移函数预留（仅当出现破坏性变更）
 
 ---
@@ -234,12 +236,12 @@
 - [x] **指数退避 + jitter**：432 / 429 / 5xx / 超时；支持 `Retry-After`（2026-10-20：`src/services/internal/RetryPolicy.ts`，支持秒与 HTTP date，`maxDelayMs` 截断）
 - [x] **请求级重试策略**：`IWeiboConfig.retry = { retries, baseDelayMs, maxDelayMs, retryOn }`（2026-10-20：全部可选，默认 `2 / 500 / 8000`，`retries` 上限 10，`0` = 关闭；不可重试错误不重试）
 - [x] **限流与重试的协作**：432 后暂停全局令牌桶，避免多请求同时撞墙（2026-10-20：`RateLimitService.pause()` + `acquire()` `while` 循环先等暂停；`rate_limit_wait.reason = 'rate_limited'`）
-- [ ] **代理抽象**：`ProxyProvider`（静态 / 动态 / 按请求），替代单一 `proxyUrl`
-- [ ] **Cookie 失效诊断**：自检之外，遇到登录页 HTML / `ok:-100` 给出明确下一步
+- [x] **代理抽象**：`ProxyProvider`（静态 / 动态 / 按请求），替代单一 `proxyUrl`（2026-10-20：`config.proxy`，兼容 `proxyUrl`）
+- [x] **Cookie 失效诊断**：自检之外，遇到登录页 HTML / `ok:-100` 给出明确下一步（`AUTH_SESSION_EXPIRED` + `hint`/`next`；2026-10-20）
 - [ ] **无 Cookie 访客模式（P3）**：公开数据兜底；不影响 Cookie 全量归档主线
-- [ ] **定时漂移检测**：真实 E2E + `schemaDigest` 对比，输出上游变化报告
+- [ ] **定时漂移检测**：真实 E2E + `schemaDigest` 对比，输出上游变化报告（本地 diff 已提供；定时任务待 CI secret）
 - [x] tests：432 → 退避 → 成功；重试上限；超时（2026-10-20：`tests/component/internal/FetcherRetry.test.ts`（432/429/5xx/超时/Retry-After/不可重试/令牌桶暂停）+ `tests/unit/services/RetryPolicy.test.ts` + `tests/unit/services/RateLimitService.test.ts` 暂停用例）
-- [ ] tests：代理切换（随「代理抽象 `ProxyProvider`」任务落地）
+- [x] tests：代理切换 / Cookie 失效诊断（`tests/component/internal/FetcherProxyAuth.test.ts`，2026-10-20）
 
 ---
 
@@ -248,11 +250,11 @@
 > 目标：新增一个端点的改动面可预测，避免「schema / service / CLI / fixture / 文档」各处漏改。
 
 - [x] 编写 [endpoint-authoring.md](../engineering/endpoint-authoring.md)（标准流程 + 检查清单 + 雷区）
-- [ ] **脚手架**：`pnpm new:endpoint <domain>/<name>` 生成 args schema、response schema、spec、service 方法、CLI 命令、测试骨架
-- [ ] **抓包助手**：`pnpm capture:endpoint <url>` 自动脱敏、写 fixture、更新 `INDEX.md` / `FIXTURE_RULES`
-- [ ] **端点清单**：`sdk.capabilities()` + `weibo-cli capabilities`，输出能力 / 登录要求 / 分页类型 / 状态
-- [ ] **分页抽象**：`paginate()` / `CursorPager`，统一 page / cursor / since_id / max_id 语义
-- [ ] **错误信封与下一步**：CLI 错误带 `code` / `hint` / `next`（保持现有 JSON 输出兼容）
+- [x] **脚手架**：`pnpm new:endpoint <domain>/<name>`（2026-10-20；生成 EndpointSpec 骨架 + 后续 checklist）
+- [x] **抓包助手**：`pnpm capture:endpoint <url>`（2026-10-20；自动脱敏、写 fixture、追加 INDEX.md）
+- [x] **端点清单**：`sdk.capabilities()` + `weibo-cli capabilities`（2026-10-20）
+- [x] **分页抽象**：`paginate()`（2026-10-20；统一 page / cursor / since_id / max_id 停止语义）
+- [x] **错误信封与下一步**：CLI 错误带 `code` / `level` / `retryable` / `hint` / `next`（2026-10-20）
 - [ ] **输出级别**：`--detail compact|full`（尤其是 timeline / comments / archive）
 - [ ] **评价指标**：新增端点必须满足「1 个 fixture + 1 个 component test + 1 个 CLI 命令 + 1 段文档」
 - [ ] **端点变更 checklist 自动化**：CI 检查新增 endpoint 是否登记 fixture / CLI / 导出面
@@ -262,8 +264,7 @@
 
 ## 6. P2 · 分发与 Agent/产品化
 
-- [ ] `llms.txt`（能力清单 + 命令示例 + 边界）
-- [ ] Agent skill / `SKILL.md`（安装、登录、常用命令、错误处理、安全边界）
+- [x] Agent skill / `.agents/skills/weibo-sdk/SKILL.md`（安装、登录、常用命令、错误处理、安全边界，2026-10-20；不提供 `llms.txt`）
 - [ ] MCP server（只读工具：user / timeline / tweet / comments / archive status）
 - [ ] 导出适配器示例：Markdown / CSV / SQLite（作为 `examples/` 或独立包，不进入 SDK 核心）
 - [ ] 多账号登录态隔离（`~/.weibo-cli/accounts/`，权限 0600）
@@ -317,4 +318,25 @@
 - [技术规格](../engineering/technical-spec.md)
 - [CLI 参考](../engineering/cli.md)
 - [发布清单](../engineering/release-checklist.md)
-- [同类项目调研](./research-weibo-ecosystem-2026-10-19.md)
+- [同类项目调研](../planning/research-weibo-ecosystem-2026-10-19.md)
+
+---
+
+## 11. 归档说明（2026-10-20）
+
+本阶段目标已全部交付：
+
+- **0.1.0 发布收口**：包名 / CLI / 发布门禁 / CI / npm 0.1.1 重发。
+- **用户数据面**：点赞、历史评论、收藏流、图片墙 / 相册 / 视频瀑布、点赞者、@我、通知、分组、超话。
+- **归档扩展**：媒体 / 点赞 / 历史评论接入、增量、批量、仅原创、状态文件、checkpoint。
+- **契约与可靠性**：`ITweet` v1 第二批 optional 字段、`IUser` 扩展、432 / 重试 / 代理、Cookie 失效诊断、schema 漂移报告。
+- **DX / 分发**：公共流式分页、`capabilities`、脚手架、抓包助手、`.agents/skills/weibo-sdk/SKILL.md`、`AGENTS.md` 使用速查。
+- **门禁**：`typecheck` / `lint` / `validate:fixtures`（84 fixtures）/ 全量离线测试 472 passed / build。
+
+**不再推进的未完成项**（维护者 2026-10-20 裁定）：
+
+- D6 音频播放列表端点（单条 `ITweet.audio` 已支持；播放列表接口缺样本）。
+- D15 转发历史独立端点（候选路径已失效；继续用 `mymblog` + 转发过滤）。
+- 无 Cookie 访客模式、定时 E2E canary、`--detail compact|full`、CI 端点 checklist、MCP server、导出适配器、多账号登录态隔离 / 二维码登录 / Docker 示例。
+
+后续需求从 [backlog.md](../planning/backlog.md) 重新挑选；本文件不参与日常上下文。
