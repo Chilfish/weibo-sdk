@@ -244,6 +244,7 @@
 | `stopic_list_p2.json` | 9.9K | 同上 `page=2` | 20 条；`count=10` |
 | `stopic_list_search.json` | 9.3K | `/ajax/stopic/list?sort_id=0&keyword=游戏&page=1` | 关键词搜索 21 条；`count=2` |
 | `profile_detail_hometown.json` | 1.8K | `/ajax/profile/detail?uid=` | 真实 `hometown: "家乡：广东 深圳"`（已去前缀归一化） |
+| `tweet_RmITUtJpd.json` | 47K | `/ajax/statuses/show?id=` | 8 层转发链（`text_raw` 已脱敏为 `<TEXT>`）：`url_struct` 有 10 个 reppic 条目（5 个 `pic_id` 各重复一次），末端原微博 1 图；用于 `repostChain` 去重与计数 |
 
 ### D12 个人主页关键词搜索 —— `/ajax/statuses/searchProfile`
 

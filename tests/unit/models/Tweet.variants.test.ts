@@ -590,3 +590,101 @@ describe('optional metadata fields (v1 additions)', () => {
     expect(normalizeTweet(raw.data.list.find((item: any) => item.isTop === undefined)).isTop).toBeUndefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// 2026-10-20：转发链配图（reppic）不在 pic_ids / pic_infos，只在 url_struct；
+// repostChain 负责把图片按正文 //@ 层级归位。
+// ---------------------------------------------------------------------------
+
+describe('repost chain (reppic images in url_struct)', () => {
+  /** `url_struct[]` 的 reppic 条目（形状取自真实 `RmITUtJpd`）。 */
+  function picEntry(shortUrl: string, picId: string, imageUrl: string) {
+    return {
+      url_title: '查看图片',
+      url_type: 39,
+      short_url: shortUrl,
+      pic_ids: [picId],
+      pic_infos: { [picId]: { large: { url: imageUrl, width: 100, height: 80 } } },
+    }
+  }
+
+  it('collects and dedupes repost-chain images from a real 8-level chain fixture', async () => {
+    const raw = await loadRawJson('tweet_RmITUtJpd.json')
+    const tweet = normalizeTweet(raw)
+
+    // 顶层与末端原微博都不带「自己的」pic_ids；链上 5 张图全在 url_struct
+    expect(tweet.media).toEqual([])
+    expect(tweet.retweetedStatus?.media).toHaveLength(1)
+
+    const rawPicIds: string[] = raw.url_struct
+      .filter((item: any) => item.url_type === 39)
+      .flatMap((item: any) => item.pic_ids)
+    // 上游把每张图重复下发了一次（10 条），归一化后必须只剩 5 张
+    expect(rawPicIds).toHaveLength(10)
+
+    const media = tweet.repostChain?.flatMap(entry => entry.media) ?? []
+    expect(media).toHaveLength(5)
+    expect(new Set(media.map(item => item.id)).size).toBe(5)
+    expect(media.map(item => item.id).sort()).toEqual([...new Set(rawPicIds)].sort())
+  })
+
+  it('maps each repost image back to the //@ level containing its short link', () => {
+    const raw = makeRawTweet({
+      text_raw: '有点太简单了喵 http://t.cn/A1 //@A:数值检测判定为不通过 http://t.cn/A2 //@B:真不会算数值//@C:不会的就是不会 http://t.cn/A3',
+      retweeted_status: { mblogid: 'RT' },
+      url_struct: [
+        picEntry('http://t.cn/A1', 'p1', 'http://wx1.sinaimg.cn/large/p1.jpg'),
+        picEntry('http://t.cn/A2', 'p2', 'http://wx1.sinaimg.cn/large/p2.jpg'),
+        picEntry('http://t.cn/A3', 'p3', 'http://wx1.sinaimg.cn/large/p3.jpg'),
+        // 同一张图重复下发 → 按 pic_id 去重
+        picEntry('http://t.cn/A1', 'p1', 'http://wx1.sinaimg.cn/large/p1.jpg'),
+        // 正文里找不到对应短链 → 追加到末尾补充层，不丢数据
+        picEntry('http://t.cn/A9', 'p9', 'http://wx1.sinaimg.cn/large/p9.jpg'),
+      ],
+    })
+
+    const chain = normalizeTweet(raw).repostChain
+    expect(chain?.map(entry => [entry.index, entry.authorName, entry.text, entry.media.map(item => item.id)]))
+      .toEqual([
+        [0, '测试用户', '有点太简单了喵', ['p1']],
+        [1, 'A', '数值检测判定为不通过', ['p2']],
+        [2, 'B', '真不会算数值', []],
+        [3, 'C', '不会的就是不会', ['p3']],
+        [4, undefined, '', ['p9']],
+      ])
+    // url_struct 的 reppic 直链是 http；归一化统一升级为 https
+    expect(chain?.[0].media[0]).toMatchObject({
+      id: 'p1',
+      type: MediaType.PIC,
+      imageUrl: 'https://wx1.sinaimg.cn/large/p1.jpg',
+      width: 100,
+      height: 80,
+    })
+  })
+
+  it('falls back to textHtml when text_raw is missing (anchors are stripped before splitting)', () => {
+    const raw = makeRawTweet({
+      text_raw: undefined,
+      text: '龙焰算 http://t.cn/A1 //<a href=/n/A usercard="name=@A">@A</a>:龙吼算不算',
+      retweeted_status: { mblogid: 'RT' },
+      url_struct: [picEntry('http://t.cn/A1', 'p1', 'http://wx1.sinaimg.cn/large/p1.jpg')],
+    })
+
+    expect(normalizeTweet(raw).repostChain?.map(entry => [entry.authorName, entry.text, entry.media.map(item => item.id)]))
+      .toEqual([
+        ['测试用户', '龙焰算', ['p1']],
+        ['A', '龙吼算不算', []],
+      ])
+  })
+
+  it('omits repostChain for original tweets and image-less single-level reposts', async () => {
+    const original = await loadFixture('tweet_PCN4v8k6W.json')
+    expect(normalizeTweet(original).repostChain).toBeUndefined()
+
+    const bareRepost = makeRawTweet({
+      text_raw: '转发微博',
+      retweeted_status: { mblogid: 'RT' },
+    })
+    expect(normalizeTweet(bareRepost).repostChain).toBeUndefined()
+  })
+})

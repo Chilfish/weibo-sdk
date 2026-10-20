@@ -23,7 +23,7 @@ describe('iTweet v1 contract freeze', () => {
   it('freezes top-level field names at the type level', () => {
     expectTypeOf<keyof ITweet>().toEqualTypeOf<
       | 'id' | 'mblogId' | 'createdAt' | 'text' | 'textHtml' | 'regionName' | 'source'
-      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo'
+      | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'repostChain' | 'pageInfo' | 'media' | 'geo'
       | 'topics' | 'linkCards' | 'readCount' | 'editCount' | 'title' | 'permanentVideoUrl' | 'isOriginal' | 'sourceUrl'
       | 'atUsers' | 'playCount' | 'isTop' | 'audio'
       | 'comments'
@@ -56,6 +56,7 @@ describe('iTweet v1 contract freeze', () => {
       'playCount',
       'readCount',
       'regionName',
+      'repostChain',
       'retweetedStatus',
       'source',
       'sourceUrl',

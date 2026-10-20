@@ -84,6 +84,46 @@ describe('mediaService download (component)', () => {
     expect(fakeHttp.calls.every(call => call.referer === 'https://weibo.com/')).toBe(true)
   })
 
+  it('downloads repost-chain and retweeted media alongside the tweet\'s own media', async () => {
+    const { service, fakeStore } = createHarness(request => ({
+      status: 200,
+      headers: { 'content-type': byUrlType(request.url) },
+      chunks: [new Uint8Array([1])],
+    }))
+
+    const tweet: ITweet = {
+      ...makeTweet([media(MediaType.PIC, 'own', 'https://wx1.sinaimg.cn/large/own.jpg')]),
+      repostChain: [
+        {
+          index: 0,
+          authorName: 'tester',
+          text: '顶层转发配图',
+          media: [media(MediaType.PIC, 'rp1', 'https://wx1.sinaimg.cn/large/rp1.jpg')],
+        },
+        {
+          index: 1,
+          authorName: 'middle',
+          text: '中间层配图',
+          media: [media(MediaType.PIC, 'rp2', 'https://wx1.sinaimg.cn/large/rp2.jpg')],
+        },
+      ],
+      retweetedStatus: {
+        ...makeTweet([media(MediaType.PIC, 'rt1', 'https://wx1.sinaimg.cn/large/rt1.jpg')]),
+        mblogId: 'M0',
+      },
+    }
+
+    const result = await service.downloadTweetMedia(tweet, { dir: 'out' })
+
+    expect(result.totals).toEqual({ total: 4, downloaded: 4, skipped: 0, failed: 0, bytes: 4 })
+    expect([...fakeStore.files.keys()].sort()).toEqual([
+      'out/M1-01-own.jpg',
+      'out/M1-02-rp1.jpg',
+      'out/M1-03-rp2.jpg',
+      'out/M1-04-rt1.jpg',
+    ])
+  })
+
   it('skips existing non-empty files without making HTTP calls', async () => {
     const fakeStore = createFakeMediaStore({ 'out/M1-01-p1.jpg': 10 })
     const fakeHttp = createFakeMediaHttpClient(() => ({ status: 200 }))
