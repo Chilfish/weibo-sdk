@@ -5,6 +5,7 @@ import type {
   WeiboSDKLifecycleEvent,
   WeiboSDKSelfCheckMode,
 } from './types/hooks'
+import type { WeiboSessionContext } from './types/session'
 import { listCapabilities } from './capabilities'
 import { InvalidConfigError } from './models/errors/ConfigError'
 import { ArchiveService } from './services/public/ArchiveService'
@@ -20,6 +21,7 @@ import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
 import { resolveCookieInput } from './utils/cookieInput'
+import { parseSessionUid } from './utils/sessionUid'
 
 let sdkTraceSeq = 0
 function createSdkTraceId(): string {
@@ -71,6 +73,8 @@ export class WeiboSDK {
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
   private readyError?: unknown
+  private session?: WeiboSessionContext
+  private sessionPromise?: Promise<WeiboSessionContext>
 
   /**
    * 装配全部子 Service 并发出 `sdk_init` 生命周期事件。
@@ -117,6 +121,7 @@ export class WeiboSDK {
         fetchRawVideoPage: (uid, options) =>
           this.media.fetchRawVideoPage(uid, options),
       },
+      sessionUid: async () => (await this.getSession()).uid,
       telemetry: config.telemetry,
     })
 
@@ -179,7 +184,8 @@ export class WeiboSDK {
       })
 
       try {
-        await this.users.myDetails()
+        // 自检与 session 上下文共享同一次 `profile/detail`，不额外发请求。
+        await this.getSession()
         await this.emitLifecycle({
           event_name: 'self_check_ok',
           timestamp: Date.now(),
@@ -217,16 +223,63 @@ export class WeiboSDK {
   }
 
   /**
+   * 解析当前登录会话（uid / 详情 / 检查时间）。
+   *
+   * 实现要点：
+   * - **不额外请求**：复用启动自检（lazy / eager）已经发出的 `ajax/profile/detail`；
+   * - **single-flight + 实例级缓存**：并发调用共享同一个 Promise，成功后续直接返回；
+   * - `selfCheck: { mode: 'none' }` 时依然可用，首次调用会主动探测一次；
+   * - 失败不缓存，下次调用会重新探测。
+   *
+   * 适用场景：需要判断「目标 uid 是否为登录账号」的能力（收藏 / 历史评论 / 通知），
+   * 以及 `whoami` 这类会话诊断。不要在高频循环里调用 `refresh: true`。
+   *
+   * @throws 会话相关的结构化错误（如 `AUTH_SESSION_EXPIRED`）
+   */
+  async getSession(options: { refresh?: boolean } = {}): Promise<WeiboSessionContext> {
+    if (options.refresh) {
+      this.session = undefined
+      this.sessionPromise = undefined
+    }
+    else if (this.session) {
+      return this.session
+    }
+
+    if (this.sessionPromise)
+      return this.sessionPromise
+
+    this.sessionPromise = (async () => {
+      try {
+        const details = await this.users.myDetails()
+        const context: WeiboSessionContext = {
+          uid: parseSessionUid(details.data),
+          details,
+          checkedAt: Date.now(),
+        }
+        this.session = context
+        return context
+      }
+      catch (error) {
+        // 失败不缓存：网络抖动后下次仍可重试。
+        this.sessionPromise = undefined
+        throw error
+      }
+    })()
+
+    return this.sessionPromise
+  }
+
+  /**
    * 检查当前会话有效性（不会抛出业务错误，失败则返回 false）
    *
-   * 与 `selfCheck()` 的区别：不缓存结果、不走 lazy/eager 自检流程，仅做一次
-   * `ajax/profile/detail` 探测，适合 CLI 里的「是否登录」提示。
+   * 与 `getSession()` 共享缓存：同一实例只会在首次（或 `refresh: true`）时探测一次，
+   * 适合 CLI 里的「是否登录」提示。
    *
    * @returns `true` 表示 Cookie 仍可用；任何异常（含网络错误）都归为 `false`
    */
-  async checkSession(): Promise<boolean> {
+  async checkSession(options: { refresh?: boolean } = {}): Promise<boolean> {
     try {
-      await this.users.myDetails()
+      await this.getSession(options)
       return true
     }
     catch {

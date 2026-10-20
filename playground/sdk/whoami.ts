@@ -5,21 +5,17 @@ export const scenario: SdkScenario = {
   kind: 'sdk',
   id: 'whoami',
   title: '登录态与当前账号',
-  summary: 'checkSession → myDetails → 解析 verified_url 里的 uid → getById',
+  summary: 'getSession（复用启动自检）→ uid → getById',
   usage: 'pnpm play whoami',
   async run({ sdk, log }) {
-    const alive = await sdk.checkSession()
-    log.kv('checkSession', alive)
-    if (!alive)
-      throw new Error('Cookie 不可用：请重新从已登录浏览器导出 WEIBO_COOKIE（见 playground/README.md）')
+    const session = await sdk.getSession()
+    log.kv('getSession.uid', session.uid ?? '(未解析)')
+    log.kv('myDetails.ok', session.details.ok)
 
-    const details = await sdk.users.myDetails()
-    log.kv('myDetails.ok', details.ok)
-
-    const uid = details.data.verified_url?.match(/uid=(\d+)/)?.[1]
+    const uid = session.uid
     if (!uid) {
       log.warn('myDetails 未返回 verified_url，无法解析当前 uid；直接打印原始详情')
-      log.json(details)
+      log.json(session.details)
       return
     }
 

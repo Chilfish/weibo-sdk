@@ -28,4 +28,13 @@ describe('capabilities', () => {
     const archive = sdk.capabilities({ service: 'archive' })
     expect(archive.map(capability => capability.id)).toEqual(['archive.stream', 'archive.batch'])
   })
+
+  it('marks account-scoped capabilities', () => {
+    expect(listCapabilities({ service: 'favorites' }).map(capability => capability.accountScoped))
+      .toEqual([true, true])
+    expect(listCapabilities({ service: 'commentHistory' })[0].accountScoped).toBe(true)
+    expect(listCapabilities({ service: 'notifications' }).every(capability => capability.accountScoped)).toBe(true)
+    // 点赞按目标 uid 读取，不属于账号级能力
+    expect(listCapabilities({ service: 'likes' })[0].accountScoped).toBeUndefined()
+  })
 })

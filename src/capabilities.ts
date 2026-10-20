@@ -32,6 +32,13 @@ export interface WeiboCapability {
   description: string
   /** 登录要求：当前绝大多数端点需要 Cookie */
   auth: 'cookie' | 'none'
+  /**
+   * 是否只返回登录账号自身的数据（账号级能力）。
+   *
+   * 为 `true` 时，调用方传其他 uid / 不带 uid 都只能拿到 Cookie 对应账号的内容；
+   * 归档的 `includeFavorites` / `includeCommentHistory` 也属于这一类。
+   */
+  accountScoped?: boolean
   /** 分页类型 */
   pagination: CapabilityPagination
   /** 当前状态 */
@@ -50,6 +57,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['myDetails'],
     description: '当前登录用户详情（也用于会话自检）',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli whoami',
@@ -80,6 +88,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listMentions', 'streamMentions'],
     description: '@我的微博',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'max_id',
     status: 'stable',
     cli: 'weibo-cli user mentions|mentions-stream',
@@ -191,6 +200,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getMyFollowings', 'streamMyFollowings'],
     description: '当前用户关注列表',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli follow my|my-stream',
@@ -201,7 +211,9 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getFavorites', 'listFavorites', 'streamFavorites'],
     description: '收藏夹（可客户端按标签过滤）',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'page',
+    note: '上游 all_fav 忽略 uid，始终返回登录账号的收藏',
     status: 'stable',
     cli: 'weibo-cli favorite list|stream <uid>',
   },
@@ -211,6 +223,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getTags'],
     description: '收藏标签',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli favorite tags',
@@ -231,7 +244,9 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listMine', 'streamMine'],
     description: '当前登录用户历史评论',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'max_id',
+    note: '上游 myCmt 不接受 uid，始终返回登录账号的评论',
     status: 'stable',
     cli: 'weibo-cli comment mine|stream',
   },
@@ -292,6 +307,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listComments', 'streamComments'],
     description: '评论通知',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'max_id',
     status: 'stable',
     cli: 'weibo-cli notification comments|comments-stream',
@@ -302,6 +318,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listLikes', 'streamLikes'],
     description: '点赞通知',
     auth: 'cookie',
+    accountScoped: true,
     pagination: 'max_id',
     status: 'stable',
     cli: 'weibo-cli notification likes|likes-stream',
