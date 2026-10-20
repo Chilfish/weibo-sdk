@@ -53,7 +53,7 @@
 ### 4. 流程（非代码）
 
 - 合并策略/流程类决策先调研再定（改一次就是全仓文档 + 习惯同步一次）。
-- 流程级根因 → 同步更新 `CLAUDE.md` 强制规范或 `docs/engineering/git-workflow.md`（如有）。
+- 流程级根因 → 同步更新 `AGENTS.md` 强制规范或 `docs/engineering/git-workflow.md`（如有）。
 
 ## 如何新增一条 postmortem
 
@@ -61,4 +61,4 @@
 2. 复制 [TEMPLATE.md](TEMPLATE.md)，编号顺延（`NNN-short-slug.md`），补摘要/影响/时间线/根因/行动项。
 3. 在本索引表加一行；若属于既有根因归类，在「高频雷区」补规则。
 4. 在 `docs/development-log/` 记录当天事件。
-5. 根因是流程级 → 同步更新 `CLAUDE.md` 强制规范。
+5. 根因是流程级 → 同步更新 `AGENTS.md` 强制规范。

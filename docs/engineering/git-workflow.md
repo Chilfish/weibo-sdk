@@ -2,7 +2,7 @@
 
 **项目**: weibo-sdk | **最后更新**: 2026-08-09
 
-> 本文档对齐 Float / chill-s3 的 Git Workflow 规范，适配 weibo-sdk（TypeScript 库 + pnpm + Vitest）技术栈。根级硬约束见 [CLAUDE.md](../../CLAUDE.md)。
+> 本文档对齐 Float / chill-s3 的 Git Workflow 规范，适配 weibo-sdk（TypeScript 库 + pnpm + Vitest）技术栈。根级硬约束见 [AGENTS.md](../../AGENTS.md)。
 
 ## Commit 规范
 
@@ -102,7 +102,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 - [ ] 新功能/纯函数有测试；改动无回归
 - [ ] 遵循 [code-style.md](./code-style.md)
 - [ ] 无 `any`（边界层除外）、无 TODO 遗留
-- [ ] 新增/修改 schema 前有真实 fixture（数据驱动，见 [CLAUDE.md](../../CLAUDE.md)）
+- [ ] 新增/修改 schema 前有真实 fixture（数据驱动，见 [AGENTS.md](../../AGENTS.md)）
 - [ ] 新增公开 Service 方法时有对应 CLI 子命令（CLI Mandate）
 - [ ] 关键路径有 Wide Events（Happy + Error Path）
 - [ ] 相关文档已更新；新 Bug 模式写 postmortem
@@ -114,7 +114,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 - [ ] 文档与代码一致（docs-as-truth）
 - [ ] 新增功能有对应测试
 
-> 涉及较大重构 / breaking change / 需真实外网验证（E2E）的 PR，必须先在 PR 中明确风险点并等待确认后再合并（CLAUDE.md 自动化执行边界）。
+> 涉及较大重构 / breaking change / 需真实外网验证（E2E）的 PR，必须先在 PR 中明确风险点并等待确认后再合并（AGENTS.md 自动化执行边界）。
 
 ## 发布流程
 

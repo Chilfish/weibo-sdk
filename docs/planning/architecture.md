@@ -22,7 +22,7 @@
 - **决策**: 所有 Zod schema / 归一化逻辑必须以真实微博 API 响应（`tests/fixtures/raw/`）为准，禁止凭手写接口推导；新增/修改 schema 前必须先抓包存 fixture。
 - **背景**: 5 个生产 bug 全部源于"合理推断"而非"数据验证"——`since_id` 实际是 `string`、`total` 可为 `-1`、`retweeted_status.user` 可为 `null`。
 - **理由**: 这是逆向 SDK，上游无版本承诺。手写类型只是猜测，真实响应才是真相。
-- **后果**: 强制流程成本（先抓包再实现），换来 schema 与真实的契约一致性。写入 `CLAUDE.md` 成为硬约束。
+- **后果**: 强制流程成本（先抓包再实现），换来 schema 与真实的契约一致性。写入 `AGENTS.md` 成为硬约束。
 
 ## ADR-003: EndpointSpec + Zod 集中校验
 
@@ -31,7 +31,7 @@
 - **决策**: 端点定义统一为 `EndpointSpec`（`resourceType` + `endpoint` + `argsSchema` + `buildResource` + `okPolicy` + `schema`），用 `defineEndpoint()` 包装；禁止在 Service 内联 Zod/EndpointSpec。
 - **背景**: 早期 schema 散落在 service 文件中，难以统一校验、复用与审阅。
 - **理由**: args 类型从 `argsSchema` 自动推导；`request(spec, args)` 统一走 preflight → 请求 → okPolicy → safeParse → hooks/telemetry 全流程。
-- **后果**: 端点定义有唯一范式，反模式（内联 schema）被 `CLAUDE.md` 明确禁止。
+- **后果**: 端点定义有唯一范式，反模式（内联 schema）被 `AGENTS.md` 明确禁止。
 
 ## ADR-004: 结构化错误体系
 

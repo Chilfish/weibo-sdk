@@ -1,4 +1,4 @@
-# CLAUDE.md (Repo-wide)
+# AGENTS.md (Repo-wide)
 
 本文件的约束适用于整个仓库下所有目录与文件，除非子目录存在更具体的 `AGENTS.md` / `CLAUDE.md` 覆盖。
 
@@ -32,7 +32,7 @@
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
 | `docs/archive/todo-contract-freeze.md` | 上一阶段行动计划（契约冻结 + 归档硬化，已完成并归档；历史记录） |
-| `docs/planning/todo-post-0.1.0.md` | 当前行动计划（0.1.0 发布收口 + 0.2.0 数据丰富度 / 可靠性 / DX） |
+| `docs/archive/todo-post-0.1.0.md` | 上一阶段行动计划（0.1.0 发布收口 + 0.2.0 数据丰富度 / 可靠性 / DX）——已完成并归档，历史记录 |
 | `docs/planning/backlog.md` | 跨阶段候选任务清单 |
 | `docs/reviews/review-apple-design-2026-08-09.md` | Apple 视角设计审查（问题清单 + 行动依据） |
 | `docs/reviews/review-apple-design-2026-08-10.md` | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布背景） |
@@ -151,6 +151,109 @@ WeiboSDK（门面）
 4. 错误必须输出到 stderr 并以非零退出码退出。
 
 基于 [citty](https://github.com/unjs/citty)。详细命令参考见 `docs/engineering/cli.md`。
+
+## Agent 使用速查（SDK / CLI）
+
+> 面向下游/Agent 的「怎么用」速查；仓库级开发约束仍以本文件其余章节为准。
+> 技能形态的完整说明见 [`.agents/skills/weibo-sdk/SKILL.md`](.agents/skills/weibo-sdk/SKILL.md)。
+
+**安装与入口**
+
+```bash
+pnpm add @chilfish/weibo-sdk      # 或 npm install
+```
+
+- Node：`import { WeiboSDK } from '@chilfish/weibo-sdk'`
+- 浏览器 / userscript：`import { WeiboSDK } from '@chilfish/weibo-sdk/browser'`
+
+**认证**
+
+```bash
+weibo-cli whoami          # 校验 Cookie
+weibo-cli capabilities    # 能力 / 分页 / 状态
+```
+
+Cookie 只从 `.env` 读取（`WEIBO_COOKIE`）；Node 也接受 Netscape `cookies.txt` 路径或 header 串文本文件。失效时重新从已登录浏览器导出。
+
+**SDK 常用路径**
+
+```ts
+const sdk = new WeiboSDK({ cookie })
+
+const page = await sdk.tweets.listByUserId(uid)
+const home = await sdk.tweets.listFriendTimeline() // 首页「最新微博」；翻旧页用 home.maxId
+for await (const tweet of sdk.tweets.streamFriendTimeline({ maxPages: 3 })) { /* ... */ }
+for await (const comment of sdk.tweets.streamComments(mblogId, { maxPages: 3 })) { /* ... */ }
+
+for await (const item of sdk.archive.streamArchive(uid, {
+  includeLikes: true,
+  includeCommentHistory: true,
+  includeImages: true,
+  includeVideos: true,
+  incremental: { since: '2026-01-01', stopAtMblogId: lastSeenId },
+})) {
+  await persist(item)
+  await saveCheckpoint(item.checkpoint)
+}
+```
+
+`ArchiveItem.source` 为 `timeline | repost | favorite | like | comment | image | video`；媒体项在 `item.asset`，图片项可能没有 `item.tweet` / `item.mblogId`。
+
+**CLI 常用命令**
+
+```bash
+weibo-cli user timeline <uid>
+weibo-cli tweet detail <mblogId>
+weibo-cli tweet comments-stream <mblogId> --max-pages 3
+weibo-cli tweet home                          # 首页「最新微博」第一页
+weibo-cli tweet home --max-id <上一页 maxId>   # 翻旧页
+weibo-cli tweet home --since-id <微博数字 id>  # 只看更新（增量，单页）
+weibo-cli tweet home-stream --max-pages 3     # NDJSON progress/item/done
+weibo-cli follow stream <uid> --max-pages 2
+weibo-cli media images|videos|albums <uid>
+weibo-cli topic cates|stream
+weibo-cli notification comments-stream|likes-stream
+weibo-cli archive <uid> --likes --comment-history --images --videos
+weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
+weibo-cli schema diff before.json after.json
+```
+
+流式命令输出 NDJSON：`{ event: 'progress' | 'item' | 'done', ... }`，可直接管道给 `jq`。
+
+**分页速查**
+
+| 游标 | 端点 |
+|---|---|
+| `page` | mymblog、likes、favorites、followings/fans、reposts、likers |
+| `max_id` | comments、comment history、mentions、notifications、首页 Feed（`maxId`） |
+| `since_id` | 图片墙 / 相册；首页 Feed 仅做增量过滤（不是翻页游标） |
+| `cursor` | 视频瀑布 |
+
+流式方法在空页、整页重复、游标不前进、达到 `total` 或 `maxPages` 时停止。首页 Feed 的 `total_number` 实测恒为 2000 上限值，不代表剩余条数。
+
+**错误码（优先解析 `code`）**
+
+- `AUTH_SESSION_EXPIRED` — Cookie 缺失/过期；重新登录并导出。
+- `RATE_LIMITED` — HTTP 432/429；让 SDK 退避，不要绕过。
+- `NET_TIMEOUT` / `NET_REQUEST_FAILED` — 传输失败，可重试。
+- `API_NOT_OK` — 上游业务失败。
+- `API_BAD_RESPONSE` — 非 JSON（登录/风控页）或 schema 不匹配。
+- `CONFIG_INVALID` — Cookie / 代理 / 参数非法。
+- `MEDIA_DOWNLOAD_FAILED` / `MEDIA_BAD_RESPONSE` / `MEDIA_STORAGE_FAILED` — 媒体下载。
+
+**能力状态**
+
+- Stable：users / timeline / 首页 Feed / tweet detail / comments / reposts / followings / fans / favorites / likes / comment history / images / videos / notifications / trends / archive。
+- Degraded：tweet likers（网页端 `likeShow` 为空，改用 `m.weibo.cn/api/attitudes/show`，入参必须是数字 mid）。
+- Unavailable：公开关键词搜索（`searchUsers` / `searchTweets`）。
+
+**边界**
+
+- 只读；不提供发帖、点赞、转发、评论、关注等写操作。
+- 私信、仅粉丝可见、付费内容不在范围内。
+- 尊重微博条款 / 限流 / 隐私；只使用自己的账号 Cookie。
+- 媒体 URL 是短期签名 URL，归档消费方需及时下载。
+- 禁止提交真实 Cookie 或未脱敏的个人数据。
 
 ## 自动化执行边界
 

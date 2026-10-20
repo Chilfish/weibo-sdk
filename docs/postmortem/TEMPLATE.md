@@ -40,7 +40,7 @@
 
 ### 预防（针对整类问题）
 
-- [ ] 具体、可执行；流程级预防同步更新 `CLAUDE.md` / 相关 engineering 文档
+- [ ] 具体、可执行；流程级预防同步更新 `AGENTS.md` / 相关 engineering 文档
 
 ## 教训
 
