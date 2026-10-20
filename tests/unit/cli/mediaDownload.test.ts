@@ -112,7 +112,7 @@ describe('media CLI events', () => {
       dryRun: false,
       items: [],
       failures: [],
-      totals: { total: 1, downloaded: 1, skipped: 0, failed: 0, bytes: 3 },
+      totals: { total: 1, downloaded: 1, skipped: 0, failed: 0, planned: 0, bytes: 3 },
       durationMs: 4,
     })).toEqual({
       event: 'done',
@@ -123,6 +123,7 @@ describe('media CLI events', () => {
       downloaded: 1,
       skipped: 0,
       failed: 0,
+      planned: 0,
       bytes: 3,
       errorsFile: undefined,
       durationMs: 4,

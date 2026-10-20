@@ -72,7 +72,7 @@ describe('mediaService download (component)', () => {
       media(MediaType.LIVEPHOTO, 'p3', LIVE_IMAGE_URL, LIVE_VIDEO_URL),
     ]), { dir: 'out' })
 
-    expect(result.totals).toEqual({ total: 4, downloaded: 4, skipped: 0, failed: 0, bytes: 12 })
+    expect(result.totals).toEqual({ total: 4, downloaded: 4, skipped: 0, failed: 0, planned: 0, bytes: 12 })
     expect(result.failures).toHaveLength(0)
     expect([...fakeStore.files.keys()].sort()).toEqual([
       'out/M1-01-p1.jpg',
@@ -115,7 +115,7 @@ describe('mediaService download (component)', () => {
 
     const result = await service.downloadTweetMedia(tweet, { dir: 'out' })
 
-    expect(result.totals).toEqual({ total: 4, downloaded: 4, skipped: 0, failed: 0, bytes: 4 })
+    expect(result.totals).toEqual({ total: 4, downloaded: 4, skipped: 0, failed: 0, planned: 0, bytes: 4 })
     expect([...fakeStore.files.keys()].sort()).toEqual([
       'out/M1-01-own.jpg',
       'out/M1-02-rp1.jpg',
@@ -173,6 +173,7 @@ describe('mediaService download (component)', () => {
     ]), { dir: 'out', dryRun: true })
 
     expect(result.items[0]).toMatchObject({ status: 'planned', path: 'out/M1-01-p1.jpg' })
+    expect(result.totals).toMatchObject({ total: 1, downloaded: 0, skipped: 0, failed: 0, planned: 1 })
     expect(fakeHttp.calls).toHaveLength(0)
     expect(fakeStore.writes).toHaveLength(0)
   })

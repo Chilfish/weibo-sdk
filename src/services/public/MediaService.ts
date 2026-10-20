@@ -766,6 +766,7 @@ export class MediaService extends FetcherService {
       downloaded: result.totals.downloaded,
       skipped: result.totals.skipped,
       failed: result.totals.failed,
+      planned: result.totals.planned,
       bytes: result.totals.bytes,
       duration_ms: result.durationMs,
       refreshed,

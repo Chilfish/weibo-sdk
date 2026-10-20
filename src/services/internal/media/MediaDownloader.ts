@@ -470,6 +470,7 @@ export class MediaDownloader {
         downloaded: counters.downloaded,
         skipped: counters.skipped,
         failed: counters.failed,
+        planned: Math.max(0, total - counters.downloaded - counters.skipped - counters.failed),
         bytes: counters.bytes,
       },
       durationMs: Math.max(0, now() - startedAt),

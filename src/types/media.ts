@@ -118,6 +118,8 @@ export interface MediaDownloadTotals {
   downloaded: number
   skipped: number
   failed: number
+  /** 仅规划、未执行（dry-run，或 `failFast` 中止后）的条目数；`downloaded + skipped + failed + planned === total` */
+  planned: number
   bytes: number
 }
 

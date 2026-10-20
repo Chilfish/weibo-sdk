@@ -149,6 +149,7 @@ export function toDoneEvent(result: TweetMediaDownloadResult): Record<string, un
     downloaded: result.totals.downloaded,
     skipped: result.totals.skipped,
     failed: result.totals.failed,
+    planned: result.totals.planned,
     bytes: result.totals.bytes,
     errorsFile: result.errorsFile,
     durationMs: result.durationMs,
