@@ -38,6 +38,8 @@
 |---|---|---|
 | `unit/services/Favorites.test.ts` | `FavoriteService.getFavorites` | URL/params、`with_total=true`、可选 page、`page=0` / NaN 不透传、转发嵌套 |
 | `unit/services/FavoriteStream.test.ts` | `listFavorites` / `streamFavorites` | 单页与跨页去重、整页重复停止、`total_page` / `total_number`、空收藏、`maxPages`、标签过滤、进度回调异常 |
+| `unit/services/LikeService.test.ts` | `LikeService` | 真实 fixture safeParse、page 归一化（0/负数/NaN）、单页与跨页去重、空页/整页重复/`maxPages` 停止、进度回调异常、错误路径 |
+| `unit/services/CommentHistory.test.ts` | `CommentHistoryService` + `normalizeComment` | 真实 fixture safeParse、`max_id` 游标翻页、`next_cursor === 0`/空页/游标不前进/整页重复停止、`ITweetComment` 新字段与 `reply_comment` 递归归一化 |
 | `unit/models/Favorite.test.ts` | `matchesFavoriteTag` | 标签 id / 名称 / 原始字符串匹配，缺失与畸形 tags 返回 false |
 
 ### Unit — 入口/导出
@@ -77,6 +79,7 @@
 | `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败、`enrich` raw+归一化（含可选 longtext）、请求级 `onRaw` 在校验/ok 检查前触发 |
 | `component/public/ArchiveService.test.ts` | `ArchiveService` | timeline（内联 reposts）→ favorites 编排、恒定大小 checkpoint + `lastTimelineMblogId` 续传、整页重复即停止、无 timeline 重放、schemaDigest、归档级 `onRaw` 逐项交付且信封不含 raw、onRaw 抛错向上传播 |
 | `component/public/FavoriteService.test.ts` | `FavoriteService` | `getTags` 响应解析与 referer、`getFavorites` 透传 uid/page |
+| `component/public/LikeService.test.ts` | `LikeService` | 真实 `likes_p1` 归一化、`normalize_done` 事件、p1+p2+end 流式去重与请求序列 |
 
 ### E2E
 

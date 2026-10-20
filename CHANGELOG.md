@@ -6,6 +6,13 @@
 
 ### Added
 
+- **结构化限流错误 `RateLimitError`**（P1 可靠性）：HTTP **432**（微博风控）/ **429** 统一映射为 `code: 'RATE_LIMITED'`（`level: 'transport'`、`retryable: true`），`context` 携带 `status` / `retryAfterMs?` / `attempt` / `message?`；不再与 4xx/5xx 混在 `NET_REQUEST_FAILED` 里。
+- **请求级重试（指数退避 + jitter）**：新增可选 `IWeiboConfig.retry = { retries?, baseDelayMs?, maxDelayMs?, retryOn? }`（默认 `retries: 2`、`baseDelayMs: 500`、`maxDelayMs: 8000`、四类全开）。覆盖 `rate_limit`（432/429）/ `server_error`（5xx）/ `timeout` / `network_error`（无响应的连接类失败）；支持 `Retry-After`（秒或 HTTP date，受 `maxDelayMs` 截断）；`retries` 归一化到 `[0, 10]`，`0` 即关闭；不可重试错误（其余 4xx / `API_NOT_OK` / `API_BAD_RESPONSE` 等）永不重试。
+- **432 后暂停全局令牌桶**：`RateLimitService.pause(ms)` + `acquire()` 先等暂停结束再取令牌，避免并发请求同时撞墙；暂停期等待以 `rate_limit_wait.reason = 'rate_limited'` 记录。
+- 新增 telemetry 事件 `request_retry`（`attempt / max_attempts / delay_ms / reason / status? / error_*`）；`request_error` 新增可选 `attempt`，`rate_limit_wait` 新增可选 `reason`。
+- 新增 `tests/testkit/telemetryCollector.ts`（`TelemetryCollector`）并收敛测试内重复实现。
+- **点赞服务（D1）**：新增 `sdk.likes.listByUserId(uid, { page? })` 与 `streamByUserId(uid, { page?, maxPages?, onProgress? })`。真实端点为 `/ajax/statuses/likelist`（page 型、只有 `data.list`，越界页返回空数组）；自动翻页按空页 / 整页重复 / `maxPages` 停止，并跨页去重。CLI `weibo-cli like list|stream <uid>`。
+- **历史评论服务（D2）**：新增 `sdk.commentHistory.listMine({ maxId?, page? })` 与 `streamMine({ maxPages?, onProgress? })`。真实端点为 `/ajax/message/myCmt`，用 `max_id=<上一页 next_cursor>` 翻页、`next_cursor === 0` 停止；只读当前登录用户自己的评论。`ITweetComment` 在 v1 契约内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`。CLI `weibo-cli comment mine|stream`。
 - **收藏流式分页**（D3）：新增 `sdk.favorites.listFavorites(uid, { page?, tag? })` 与 `streamFavorites(uid, { page?, tag?, maxPages?, onProgress? })`，自动翻页、跨页去重、整页重复保护，并归一化为 `Tweet`；`FavoritePageResult` 带 `hasMore` / `total` / `totalPages`。
 - **收藏标签过滤**：按收藏项自带的 `tags` 做客户端精确匹配（id 或名称）。线上实测 `all_fav` 会忽略 `tag_id` / `tag` 参数。
 - 新增 CLI `weibo-cli favorite stream <uid> [--page] [--tag] [--max-pages]`，输出 `progress` / `item` / `done` NDJSON。

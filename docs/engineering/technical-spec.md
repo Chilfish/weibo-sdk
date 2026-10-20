@@ -1,8 +1,8 @@
 # 微博 SDK 技术规格书
 
-**版本**: 2.1.0
+**版本**: 2.2.0
 **状态**: 与实现对齐（docs-as-truth）
-**最后更新**: 2026-08-09
+**最后更新**: 2026-10-20
 **规范级别**: 类 RFC 2119
 
 > 本文档描述 **当前实现** 的架构与契约（以代码为准）。标注「目标 / 未实现」的条目为演进方向，不代表现状。
@@ -47,13 +47,15 @@
 request(spec, args)
  ├─ preflight（除非 skipPreflight）——selfCheck（lazy/eager）
  ├─ emit request_start（telemetry + hooks）
- ├─ rateLimitService.acquire()  ← 令牌桶，等待时 emit rate_limit_wait
+ ├─ rateLimitService.acquire()  ← 令牌桶，等待时 emit rate_limit_wait（含 432 后的全局暂停）
  ├─ 注入请求头：referer / host / user-agent / Auth(cookie+xsrf)
  ├─ axios 请求
- │   └─ 失败 → mapError：ECONNABORTED/ETIMEDOUT → NET_TIMEOUT；其余 → NET_REQUEST_FAILED
- ├─ okPolicy 校验（require_ok_1）
+ │   └─ 失败 → mapError：429/432 → RATE_LIMITED；ECONNABORTED/ETIMEDOUT → NET_TIMEOUT；其余 → NET_REQUEST_FAILED
+ ├─ 重试循环（config.retry，默认 2 次）：可重试错误 → 指数退避 + jitter（Retry-After 优先）→ emit request_retry → 重新 acquire
+ │   └─ 432/429 命中即 `rateLimitService.pause(delay)`，暂停全局令牌桶
+ ├─ okPolicy 校验（require_ok_1）（不重试）
  │   └─ ok !== 1 → API_NOT_OK（或 myDetails 的 AUTH_SESSION_EXPIRED）
- ├─ Zod safeParse
+ ├─ Zod safeParse（不重试）
  │   └─ 失败 → API_BAD_RESPONSE（context.zodIssues）
  └─ emit request_success + hooks.onFetched
 ```
@@ -142,11 +144,19 @@ interface IWeiboConfig {
   logging?: boolean
   maxConcurrent?: number                      // 默认 3（令牌桶容量）
   delay?: number | ((retryCount: number) => number)   // 默认 1000ms
+  retry?: {                                   // 请求级重试（P1 可靠性），全部可选
+    retries?: number                          // 默认 2（不含首次请求；0 = 不重试；硬上限 10）
+    baseDelayMs?: number                      // 默认 500（指数退避起点）
+    maxDelayMs?: number                       // 默认 8000（单次延迟上限，也截断 Retry-After）
+    retryOn?: ('rate_limit' | 'server_error' | 'timeout' | 'network_error')[]  // 默认全部
+  }
   hooks?: WeiboSDKHooks                       // onLifecycle / onRaw / onFetched(deprecated) / onError
   telemetry?: WeiboSDKTelemetry               // Wide Events（扁平 KV）
   selfCheck?: { mode?: 'none' | 'lazy' | 'eager' }    // 默认 lazy
 }
 ```
+
+> **重试语义**（`src/services/internal/RetryPolicy.ts`）：只对可重试的结构化错误生效——`RATE_LIMITED`（432/429）、`NET_REQUEST_FAILED`（仅 5xx 或无 `status` 的连接类失败）、`NET_TIMEOUT`。其余 4xx、`API_NOT_OK`、`API_BAD_RESPONSE`、`CONFIG_INVALID`、`AUTH_SESSION_EXPIRED` 一律不重试。延迟 = `min(maxDelayMs, baseDelayMs * 2^(n-1))` × jitter(0.5~1.0)；上游 `Retry-After`（秒或 HTTP date）优先，且同样受 `maxDelayMs` 截断。每次退避发 `request_retry` 事件，终态失败才发 `request_error` 与 hooks `onError`。
 
 > **Cookie 输入解析**（`src/utils/cookieInput.ts`）：`cookie` 支持 Cookie header 串、Netscape Cookie 文件路径（7 列 TSV，支持 `#HttpOnly_`，仅保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名并跳过过期条目）、内容为 header 串的文本文件路径（可带 `Cookie:` 前缀、可多行）。`WeiboSDK` 构造时解析一次，`AuthService` 兜底；浏览器环境无 `node:fs`，路径退化为普通字符串。路径不存在 / 读取失败 / 文件内无可用 Cookie 时抛 `InvalidConfigError`（`CONFIG_INVALID`）。
 
@@ -199,6 +209,26 @@ interface IWeiboConfig {
 > `hasMore` 优先用顶层 `total_page`，缺失时退回 `total_number` 估算；流式路径另有「整页重复即停止」保护。
 > `tag` 为**客户端过滤**：上游 `all_fav` 忽略 `tag_id` / `tag` 参数；匹配收藏项自带 `tags` 的 id / 名称。
 > `page=0` 实测上游 HTTP 400，SDK 统一按第一页处理。
+
+**LikeService**（`sdk.likes`）：
+
+| 方法 | 签名 | 说明 |
+|---|---|---|
+| `listByUserId` | `(uid, { page? }?) => Promise<LikePageResult>` | 单页归一化 + 页内 `mblogid` 去重；`hasMore` = 本页去重后非空 |
+| `streamByUserId` | `(uid, { page?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重；空页 / 整页重复 / `maxPages` 停止 |
+
+> 端点 `GET /ajax/statuses/likelist?uid=&page=`：真实响应只有 `data.list`，**无 total / cursor / hasMore**；`page=0` 与 `page=1` 等价，越界页返回 200 + 空数组。旧的 `/ajax/statuses/likes` 已下线（200 + HTML 404 页）。
+
+**CommentHistoryService**（`sdk.commentHistory`）：
+
+| 方法 | 签名 | 说明 |
+|---|---|---|
+| `listMine` | `({ maxId?, page? }?) => Promise<CommentHistoryPageResult>` | 单页归一化 + 去重；`cursor = data.next_cursor`，`hasMore = cursor !== 0 && comments.length > 0` |
+| `streamMine` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<ITweetComment>` | 游标翻页 + 跨页去重；`next_cursor === 0` / 空页 / 游标不前进 / 整页重复 / `maxPages` 停止 |
+
+> 端点 `GET /ajax/message/myCmt`：翻页用 `max_id=<上一页 data.next_cursor>`（`page` 等价，`cursor` 被忽略）；`next_cursor === 0` 表示到底。只读当前登录用户自己的历史评论，端点不接受 uid。
+> `ITweetComment` 在 v1 内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`；不挂完整 `parentTweet`。
+
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
 **SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
 
@@ -215,6 +245,7 @@ interface IWeiboConfig {
 - `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, sliceEnd?, slicePage?, sliceWindow?, lastMblogId? }`（P1-1/P1-2/P1-5）：**不再携带 `visitedMblogIds`**。`page` 语义 = mymblog 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博（mymblog 与日期切片页内共用）；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标（unix 秒），`sliceEnd` 存在即表示恢复时跳过 mymblog；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。
 - 反向兼容：`timelineSource='mymblog'` 时若 `data.total` 证明已完整则不切片；否则从最旧一条微博之前继续日期切片。单片 `total` 超过 `maxSliceItems` 时对半缩小窗口，避免 `searchProfile` 大范围下 `total` 失真与分页窗口重置；空切片会自动放大窗口跨过长期空档。
 - 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
+- 与请求级重试的分工（P1 可靠性）：`config.retry` 在 `FetcherService` 内先执行（同一次 HTTP 调用的退避重试）；归档级 `maxRetries` / `retryDelayMs` 只处理**编排层**失败（分页/单条），因此两者不会叠加成双倍重试风暴——归档层看到的是已耗尽请求级重试后的终态错误。
 - 判别标准：≤20 行代码 + 一条 `weibo-cli archive <uid>` 命令镜像单账号。
 
 ### 3.4 EndpointSpec
@@ -249,8 +280,8 @@ interface EndpointSpec<TResource, TArgsSchema> {
 **Telemetry**（`WeiboSDKTelemetry.emit(event)`）：Wide Events，扁平 KV，必含 `event_name/timestamp/trace_id`，其余字段 MUST 为 primitive。事件集：
 
 - `sdk_init` / `self_check_start` / `self_check_ok` / `self_check_error`
-- `request_start` / `request_success` / `request_error`
-- `rate_limit_wait`
+- `request_start` / `request_success` / `request_error`（`attempt?` = 第几次尝试）/ `request_retry`（P1 可靠性：`attempt / max_attempts / delay_ms / reason / status? / error_*`）
+- `rate_limit_wait`（`wait_ms / refill_rate_ms / max_tokens / tokens / reason?`，`reason` = `token_refill` 补充令牌 | `rate_limited` 432 后的全局暂停）
 - `normalize_done`
 - `archive_progress`（P1-3）：`uid / phase / processed / total? / remaining? / source? / page?`
 - `archive_item_error`（P1-4）：`uid / phase / stage / source? / mblogId? / parentMblogId? / page? / action / error_*`
@@ -267,7 +298,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - 领域模型：`User`、`Tweet`（类）、`normalizeTweet` / `normalizeComment`（函数）、`RawTweet`（类型）
 - 归档类型：`ArchiveItem` / `ArchiveCheckpoint` / `ArchiveStreamOptions` / `ArchiveProgress` / `ArchiveItemErrorContext` / `ArchiveRawMeta`
 - Telemetry JSONL 消费端（P2-3）：`createJsonlTelemetry` / `serializeTelemetryEvent` / `formatArchiveProgress` / `isArchiveProgress`
-- 结构化错误类：`WeiboSDKError` 基类与全部 6 个子类（见 §4）
+- 结构化错误类：`WeiboSDKError` 基类与全部 7 个子类（见 §4）
 
 **构建产物**（P2-1）：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxyUrl` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 
@@ -284,14 +315,15 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 ```
 WeiboSDKError (abstract: code / level / retryable / context)
- ├─ TransportError   → NET_TIMEOUT / NET_REQUEST_FAILED      (transport, retryable)
- ├─ ProtocolError    → API_BAD_RESPONSE                      (protocol)
+ ├─ TransportError   → NET_TIMEOUT / NET_REQUEST_FAILED / RATE_LIMITED  (transport, retryable)
+ ├─ ProtocolError    → API_BAD_RESPONSE                                (protocol)
  └─ BusinessError    → API_NOT_OK / AUTH_SESSION_EXPIRED / CONFIG_INVALID  (business)
 ```
 
 > 注：`level` 目前与类名解耦——`API_BAD_RESPONSE` 类继承 `ProtocolError`，`CONFIG_INVALID` 等继承 `BusinessError`，但 `level` 由各实例声明。禁止直接 `throw new Error('...')`，必须使用结构化错误。
+> `RATE_LIMITED` 归类为 **transport**：由 HTTP 状态码直接判定，与其余传输层错误同处「可重试」组（`retryable: true`）；与业务语义失败（`ok !== 1`）区分开，便于下游按「退避重试」而非「改参数/换 Cookie」处置。
 
-### 4.2 错误映射表（实际 6 类）
+### 4.2 错误映射表（实际 7 类）
 
 | code | 类 | level | 可重试 | 触发条件 |
 |------|----|-------|--------|----------|
@@ -301,20 +333,29 @@ WeiboSDKError (abstract: code / level / retryable / context)
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod 校验失败（`context.zodIssues`） |
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 超时（`ECONNABORTED`/`ETIMEDOUT`） |
 | `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 其他网络错误（含 4xx/5xx，`context.status`） |
+| `RATE_LIMITED` | `RateLimitError` | transport | ✅ | HTTP 432（微博风控）/ 429；`context` = `status` / `retryAfterMs?` / `attempt` / `message?` |
 
-错误映射链：axios error → `mapError` → TransportError；`ok≠1` → BusinessError；Zod fail → ProtocolError。错误分类详情与诊断流程见 `docs/engineering/error-diagnostics.md`。
+错误映射链：axios error → `mapError` → TransportError（429/432 优先映射为 `RATE_LIMITED`）；`ok≠1` → BusinessError；Zod fail → ProtocolError。可重试错误由 `FetcherService` 的重试循环消费（见 §5）。错误分类详情与诊断流程见 `docs/engineering/error-diagnostics.md`。
 
 ---
 
-## 5. 速率控制与并发
+## 5. 速率控制、重试与并发
 
 `RateLimitService` 基于令牌桶：
 
 - 容量：`config.maxConcurrent`（默认 3）
 - 补充速率：`config.delay`（默认 1000ms）
-- 等待时发出 `rate_limit_wait` 事件（含 `wait_ms/refill_rate_ms/max_tokens/tokens`）
+- 等待时发出 `rate_limit_wait` 事件（含 `wait_ms/refill_rate_ms/max_tokens/tokens/reason`）
 - 支持注入 `now()` / `sleep()`（FakeClock）以便离线测试
 - 请求前在 `FetcherService.request()` 中 `acquire({ trace_id })`
+- **全局暂停**（P1 可靠性）：`pause(ms, { trace_id, reason })` 把令牌桶冻结到 `now + ms`（多次暂停取最晚截止时间）；`acquire()` 的 `while` 循环会先等待暂停结束再取令牌。432/429 命中后由 `FetcherService` 调用，避免并发请求同时撞墙；暂停期内的等待以 `rate_limit_wait.reason = 'rate_limited'` 记录。
+
+**重试与限流的协作**（`RetryPolicy` + `FetcherService`）：
+
+- 重试循环用 `for`（非递归），每次尝试都重新 `acquire()`，因此暂停对重试同样生效。
+- 延迟算法：`min(maxDelayMs, baseDelayMs * 2^(attempt-1))` × jitter（0.5~1.0）；上游 `Retry-After`（秒 / HTTP date）优先且受 `maxDelayMs` 截断。
+- 幂等性：当前所有端点均为 `GET` 只读请求，重试安全；若未来引入写端点，必须先在 `retryOn` 中显式排除或新增 method 白名单。
+- `retries` 归一化到 `[0, 10]`，避免 `Infinity` 造成无限重试。
 
 ---
 
@@ -358,7 +399,7 @@ src/
     raw/{user,tweet,side,search}/**   # 原始响应类型（z.infer 替代中）
   services/
     public/{User,Tweet,Followings,Favorite,Trends,Search}Service.ts
-    internal/{FetcherService,AuthService,RateLimitService,EndpointSpec}.ts
+    internal/{FetcherService,AuthService,RateLimitService,RetryPolicy,EndpointSpec}.ts
     endpoints/{user,tweet,search,side,follow,favorite}.ts
   models/
     data/{User,Tweet}.ts    # 领域模型归一化（纯函数）

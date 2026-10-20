@@ -67,12 +67,12 @@
 ## 新增端点（2026-10-20 真实浏览器抓包：我的评论 / 我赞过的微博）
 
 > 抓包环境：已登录 Chrome（uid `7679065628`），经 `fetch(..., { credentials: 'include' })` 取原始响应，再按上方规则脱敏。
-> 未建模（无 EndpointSpec），已在 `scripts/validate-fixtures.ts` 的 `FIXTURE_RULES` 登记为 `unmodeled`。
+> 已建模：`myCmt` / `likelist` 已分别映射到 `myCommentsSpec` / `likeListSpec`（`mapped`）；`getLikeList` 仍为 `unmodeled`。
 > 脱敏补充：数组元素里的字符串同样按值脱敏（原 `scripts/sanitize-raw.mjs` 只处理对象字段，数组内 URL 会漏网）；`page_info.content1/content2` 是评论正文的镜像副本，与 `text` 一并置为 `<TEXT>`。分页游标（`next_cursor` / `previous_cursor` / `total_number`）按仓库既有惯例保留真实数值，`*_cursor_str` 按「长数字 ID」规则置为 `<ID>`。
 
 | 文件 | 大小 | 端点 | 说明 |
 |------|------|------|------|
-| `my_comments_p1.json` | 461K | `/ajax/message/myCmt` | 第 1 页（默认 / `cursor=0`），20 条 |
+| `my_comments_p1.json` | 461K | `/ajax/message/myCmt` | 第 1 页（不带参数；`cursor` 会被忽略），20 条 |
 | `my_comments_p2.json` | 460K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，20 条 |
 | `my_comments_end.json` | 0K | 同上越界（`page=999`） | `comments: []`、`next_cursor: 0`（停止态） |
 | `likes_p1.json` | 112K | `/ajax/statuses/likelist` | page=1，18 条 |

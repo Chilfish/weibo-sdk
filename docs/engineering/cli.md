@@ -113,6 +113,31 @@ weibo-cli favorite stream <uid> [--page <n>] [--tag <标签 id 或名称>] [--ma
 weibo-cli favorite tags
 ```
 
+### 点赞（`like`）
+
+```bash
+# 获取我赞过的微博（按页遍历；--page 从 1 开始）
+weibo-cli like list <uid> [--page <n>]
+
+# 流式遍历我赞过的微博（自动翻页 + 跨页去重）
+# NDJSON：progress / item / done 事件
+weibo-cli like stream <uid> [--page <n>] [--max-pages <n>]
+```
+
+### 历史评论（`comment`）
+
+```bash
+# 获取当前登录用户的历史评论（按页；--max-id 为上一页返回的 cursor）
+weibo-cli comment mine [--max-id <cursor>] [--page <n>]
+
+# 流式遍历历史评论（游标自动翻页 + 跨页去重）
+# NDJSON：progress / item / done 事件
+weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+```
+
+> `comment` 只读取**当前登录用户自己**发表过的评论（身份由 Cookie 决定，端点不接受 uid）；
+> `myCmt` 的翻页参数是 `max_id=<上一页 next_cursor>`，`--page` 与其等价。
+
 ### 搜索（`search`）
 
 ```bash
@@ -170,6 +195,10 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 | `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
 | `favorite stream` | `favorites.streamFavorites()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
 | `favorite tags` | `favorites.getTags()` | raw `FavoritesTagsResponse` |
+| `like list` | `likes.listByUserId()` | `LikePageResult`（`page`/`hasMore`/`tweets[]`） |
+| `like stream` | `likes.streamByUserId()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
+| `comment mine` | `commentHistory.listMine()` | `CommentHistoryPageResult`（`cursor`/`hasMore`/`total?`/`comments[]`） |
+| `comment stream` | `commentHistory.streamMine()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, comment }` / `{ event: 'done', count }` |
 | `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
 | `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
@@ -187,6 +216,8 @@ src/cli/
     tweet.ts            # tweet detail / comments / home / longtext / reposts / search-profile
     follow.ts           # follow list / follow fans / follow my
     favorite.ts         # favorite list / favorite stream / favorite tags
+    like.ts             # like list / like stream
+    comment.ts          # comment mine / comment stream
     search.ts           # search users / search tweets
 src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一解析
 ```

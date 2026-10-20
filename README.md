@@ -87,6 +87,20 @@ for await (const tweet of sdk.favorites.streamFavorites('1111681197', { tag: '�
 }
 ```
 
+### 遍历点赞与我的历史评论
+
+```typescript
+// 我赞过的微博（page 游标；上游无 total，空页停止）
+for await (const tweet of sdk.likes.streamByUserId('1111681197', { maxPages: 3 })) {
+  console.log(tweet.mblogId, tweet.text)
+}
+
+// 当前登录用户的历史评论（max_id 游标；next_cursor === 0 停止）
+for await (const comment of sdk.commentHistory.streamMine({ maxPages: 3 })) {
+  console.log(comment.createdAt, comment.parentMblogId, comment.text)
+}
+```
+
 ### 获取单条微博详情
 
 ```typescript

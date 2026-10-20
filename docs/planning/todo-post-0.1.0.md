@@ -90,26 +90,26 @@
 
 ### 2.2 Likes（用户点赞）
 
-- [ ] **D1** 抓包确认「用户点赞过的微博」端点、分页游标、`ok` 语义、返回是微博数组还是卡片
-- [ ] endpoint spec：`likes.ts`（args：`uid` / `page` 或 cursor）
-- [ ] `LikesService` / `sdk.likes`：`listByUserId` + `streamByUserId`
-- [ ] 归一化复用 `normalizeTweet`；需要区分「点赞时间」与「微博发布时间」（若有）
-- [ ] CLI：`weibo-cli like list <uid> [--page]`
+- [x] **D1** 抓包确认「用户点赞过的微博」端点、分页游标、`ok` 语义、返回是微博数组还是卡片（2026-10-20：真实端点为 `/ajax/statuses/likelist?uid=&page=`；候选 `/ajax/statuses/likes` 已下线，返回 200 + HTML 404 页）
+- [x] endpoint spec：`like.ts`（args：`uid` / `page`；`with_total` 被上游忽略）
+- [x] `LikeService` / `sdk.likes`：`listByUserId` + `streamByUserId`（page 型；空页 / 整页重复 / `maxPages` 停止）
+- [x] 归一化复用 `Tweet`；上游不提供「点赞时间」，只有微博发布时间 `created_at`
+- [x] CLI：`weibo-cli like list|stream <uid> [--page] [--max-pages]`
 - [ ] 归档集成：`streamArchive({ includeLikes: true })`，`ArchiveItem.source = 'like'`
 - [ ] checkpoint：独立 `likesPage` / `likesCursor`，中断续跑
-- [ ] tests：fixture safeParse、分页停止、重复页保护、归一化、错误路径
+- [x] tests：fixture safeParse、分页停止、重复页保护、归一化、错误路径（2026-10-20：`tests/unit/services/LikeService.test.ts` 21 例 + component 3 例）
 
 ### 2.3 Comment history（当前用户历史评论）
 
-- [ ] **D2** 抓包确认 `/ajax/message/myCmt` 参数（`cursor` / `page` / `uid`）与返回结构
-- [ ] endpoint spec：`comments.ts` / `myCommentsSpec`
-- [ ] `CommentService` / `sdk.comments`：`listMine` + `streamMine`
-- [ ] 归一化：`ITweetComment` 扩展 `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked`
-- [ ] 评论若带原微博引用，保留 `mblogId` / 原微博摘要（可选 `parentTweet`）
-- [ ] CLI：`weibo-cli comment history [--cursor]`
+- [x] **D2** 抓包确认 `/ajax/message/myCmt` 参数（`cursor` / `page` / `uid`）与返回结构（2026-10-20：真实翻页参数是 `max_id=<上一页 data.next_cursor>`，`page` 等价；`cursor` 被上游忽略；`next_cursor === 0` 停止）
+- [x] endpoint spec：`commentHistory.ts` / `myCommentsSpec`
+- [x] `CommentHistoryService` / `sdk.commentHistory`：`listMine` + `streamMine`（游标不前进 / 整页重复 / 空页 / `maxPages` 保护）
+- [x] 归一化：`ITweetComment` 扩展 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`
+- [x] 评论若带原微博引用，保留 `parentMblogId`；不挂完整 `parentTweet`（单页内嵌 status ~460K，避免归一化结果翻倍）
+- [x] CLI：`weibo-cli comment mine|stream [--max-id] [--page] [--max-pages]`
 - [ ] 归档集成：`streamArchive({ includeCommentHistory: true })`，`ArchiveItem.source = 'comment'`
-- [ ] 隐私边界：**只允许当前登录用户读取自己的历史评论**，不做他人评论历史
-- [ ] tests：分页、空结果、删除评论/微博的容错、归一化
+- [x] 隐私边界：**只允许当前登录用户读取自己的历史评论**，不做他人评论历史（端点不接受 uid，身份由 Cookie 决定）
+- [x] tests：分页、空结果、删除评论/微博的容错、归一化（2026-10-20：`tests/unit/services/CommentHistory.test.ts` 31 例）
 
 ### 2.4 Favorites 增强
 
@@ -217,15 +217,16 @@
 
 ## 4. P1 · 可靠性与风控
 
-- [ ] **432 独立错误**：`RateLimitError`（`retryable: true`），映射 HTTP 432 / 风控业务码
-- [ ] **指数退避 + jitter**：432 / 429 / 5xx / 超时；支持 `Retry-After`
-- [ ] **请求级重试策略**：`IWeiboConfig.retry = { retries, baseDelayMs, maxDelayMs, retryOn }`
-- [ ] **限流与重试的协作**：432 后暂停全局令牌桶，避免多请求同时撞墙
+- [x] **432 独立错误**：`RateLimitError`（`retryable: true`），映射 HTTP 432 / 风控业务码（2026-10-20：`RATE_LIMITED`，level `transport`，同时覆盖 429；`context` = `status` / `retryAfterMs?` / `attempt`）
+- [x] **指数退避 + jitter**：432 / 429 / 5xx / 超时；支持 `Retry-After`（2026-10-20：`src/services/internal/RetryPolicy.ts`，支持秒与 HTTP date，`maxDelayMs` 截断）
+- [x] **请求级重试策略**：`IWeiboConfig.retry = { retries, baseDelayMs, maxDelayMs, retryOn }`（2026-10-20：全部可选，默认 `2 / 500 / 8000`，`retries` 上限 10，`0` = 关闭；不可重试错误不重试）
+- [x] **限流与重试的协作**：432 后暂停全局令牌桶，避免多请求同时撞墙（2026-10-20：`RateLimitService.pause()` + `acquire()` `while` 循环先等暂停；`rate_limit_wait.reason = 'rate_limited'`）
 - [ ] **代理抽象**：`ProxyProvider`（静态 / 动态 / 按请求），替代单一 `proxyUrl`
 - [ ] **Cookie 失效诊断**：自检之外，遇到登录页 HTML / `ok:-100` 给出明确下一步
 - [ ] **无 Cookie 访客模式（P3）**：公开数据兜底；不影响 Cookie 全量归档主线
 - [ ] **定时漂移检测**：真实 E2E + `schemaDigest` 对比，输出上游变化报告
-- [ ] tests：432 → 退避 → 成功；重试上限；超时；代理切换
+- [x] tests：432 → 退避 → 成功；重试上限；超时（2026-10-20：`tests/component/internal/FetcherRetry.test.ts`（432/429/5xx/超时/Retry-After/不可重试/令牌桶暂停）+ `tests/unit/services/RetryPolicy.test.ts` + `tests/unit/services/RateLimitService.test.ts` 暂停用例）
+- [ ] tests：代理切换（随「代理抽象 `ProxyProvider`」任务落地）
 
 ---
 
