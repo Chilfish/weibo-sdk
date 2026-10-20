@@ -2,19 +2,22 @@
 
 > **状态**：2026-10-20 实测通过（OpenCLI 2.0.0 / 扩展 1.0.25 / Chrome 153，账号 uid `7679065628`）。
 > **用途**：数据驱动开发时**最快的一条**真实响应获取路径——不导出 Cookie、不重启 Chrome，直接复用当前已登录标签页。
-> **相关**：[endpoint-authoring.md](./endpoint-authoring.md) · [browser-capture.md](./browser-capture.md)（CDP 独立浏览器方案） · [`capture/README.md`](../../capture/README.md)（`pnpm capture`）
+> **相关**：[endpoint-authoring.md](./endpoint-authoring.md)（抓包 → fixture 标准流程） · [`capture/README.md`](../../capture/README.md)（CDP 通道的 API / CLI 契约） · [browser-capture.md](./browser-capture.md)（CDP 通道的方案选型记录）
 
 ---
 
 ## 1. 三种抓包路径怎么选
 
-| 路径 | 登录态来源 | 适合 | 不适合 |
+本节是两条浏览器通道**唯一的选型入口**；其他文档只做引用，不重复对比。
+
+| 路径 | 登录态来源 | 能做 | 不能做 |
 |---|---|---|---|
-| **OpenCLI browser bridge**（本文） | 用户正在用的 Chrome | 端点验证、未知端点发现、点击/滚动触发的 XHR、快速取一份真实响应 | CI / 无人值守 / 批量回归 |
-| `capture/` + `pnpm capture:endpoint`（CDP） | `.env` 的 `WEIBO_COOKIE` + 独立 profile | 可复现批量抓取、脚本化、headless | 需要真实登录态 / 风控严格时 |
+| **OpenCLI browser bridge**（本文） | 用户正在用的 Chrome | 端点复放、**发现未知端点**（`network` shape 预览）、点击 / 滚动触发的 XHR、快速取真实响应 | CI / 无人值守 / 批量回归 |
+| `capture/` + `pnpm capture`（CDP） | `.env` 的 `WEIBO_COOKIE` + 独立 profile | 可复现批量抓取、脚本化、headless、离线测试 | 主动点击；登录态过期后需重新导出 Cookie |
 | 手工 DevTools | 用户浏览器 | 一次性深挖 | 不可复现 |
 
-> 日常逆向优先 OpenCLI；需要固化/批量时再用 `capture/`。
+判断口诀：**要「点出请求」或「看请求长什么样」→ OpenCLI；要「跑批 / 固化 / 进流水线」→ `capture/`。**
+`capture/` 只能导航后被动收集响应，因此未知端点发现这一步绕不开 OpenCLI。
 
 ---
 

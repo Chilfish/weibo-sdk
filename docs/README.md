@@ -65,8 +65,8 @@
 | [media-download.md](engineering/media-download.md) | 单条微博媒体下载：命名、安全、重试、失败清单 | 修改下载行为 / 排障 |
 | [error-diagnostics.md](engineering/error-diagnostics.md) | 错误排障手册（结构化错误码表、排查流程） | 排障时 |
 | [skill.md](engineering/skill.md) | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 | 理解可观测性/SDD |
-| [browser-capture.md](engineering/browser-capture.md) | CDP 浏览器自动化抓取调研与方案（对应 `capture/` SDK，见 `capture/README.md`） | 真实数据获取 / 排障 |
-| [opencli-browser-bridge.md](engineering/opencli-browser-bridge.md) | OpenCLI Browser Bridge 操作手册：复用已登录 Chrome 抓包、发现未知端点、模拟点击触发 XHR | 端点验证 / 抓真实 fixture / 浏览器自动化 |
+| [opencli-browser-bridge.md](engineering/opencli-browser-bridge.md) | **两条抓包通道的选型入口** + OpenCLI 操作手册（复用已登录 Chrome、发现未知端点、模拟点击触发 XHR） | 抓真实 fixture 前先读 |
+| [browser-capture.md](engineering/browser-capture.md) | `capture/` CDP 通道的方案选型记录（候选方案对比 / 选型理由 / 与 OpenCLI 的分工）；操作契约见 [`capture/README.md`](../capture/README.md) | 想改抓包方案 / 理解历史选型 |
 
 ## postmortem/ — 事后分析
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/spike-cdp-capture.mjs
-// CDP 驱动浏览器抓取真实微博 API 响应，供数据驱动开发使用（见 docs/engineering/browser-capture.md）。
+// CDP 驱动浏览器抓取真实微博 API 响应。legacy：已被 capture/ 取代，新流程请用 `pnpm capture`。
 //
 // 用法（PowerShell）:
 //   node scripts/spike-cdp-capture.mjs --uid 2365795232 --out tests/fixtures/raw/cdp

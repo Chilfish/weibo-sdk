@@ -172,7 +172,7 @@
 
 ## 真实数据获取操作手册
 
-> **自动化抓取**：可复现的浏览器自动化（CDP）批量抓取见 [engineering/browser-capture.md](../engineering/browser-capture.md)。
+> **抓包通道**：日常逆向用 OpenCLI browser bridge，批量 / 固化用 `capture/`；选型入口见 [engineering/opencli-browser-bridge.md §1](../engineering/opencli-browser-bridge.md#1-三种抓包路径怎么选)，`capture/` 的 API 与 CLI 见 [`capture/README.md`](../../capture/README.md)，方案选型记录见 [engineering/browser-capture.md](../engineering/browser-capture.md)。
 
 ### 前置条件
 

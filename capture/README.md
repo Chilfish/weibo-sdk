@@ -2,7 +2,9 @@
 
 > 通过 Chrome DevTools Protocol 驱动本机浏览器，自动化「打开已登录微博 → 触发 API → 读取网络请求/响应」，
 > 直接产出真实 JSON，供**数据驱动开发**（抓真实 fixture）与**排障**（查看某端点的真实返回）使用。
-> 调研背景见 [docs/engineering/browser-capture.md](../../docs/engineering/browser-capture.md)。
+> 调研背景与选型理由见 [docs/engineering/browser-capture.md](../../docs/engineering/browser-capture.md)。
+> **什么时候不用它**：需要主动点击触发请求、或发现未知端点时，用 OpenCLI browser bridge
+> （见 [docs/engineering/opencli-browser-bridge.md](../../docs/engineering/opencli-browser-bridge.md)）；本工具只做「导航 + 被动收集响应」。
 
 **形态**：项目内独立工具库（`capture/`），不进入主包 `@chilfish/weibo-sdk` 发布面；独立 CLI `pnpm capture`。
 
