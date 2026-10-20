@@ -247,6 +247,7 @@
 | `tweet_RmITUtJpd.json` | 47K | `/ajax/statuses/show?id=` | 8 层转发链（`text_raw` 已脱敏为 `<TEXT>`）：`url_struct` 有 10 个 reppic 条目（5 个 `pic_id` 各重复一次），末端原微博 1 图；用于 `repostChain` 去重与计数 |
 | `tweet_RmyjwrKDs.json` | 3.0K | `/ajax/statuses/show?id=` | B 站视频网页卡：`page_info.content2` = `812播放  74点赞  0弹幕`、`object_id`；`url_struct` 含 `long_url` / `ori_url` / `url_type: 39`（用于 `pageInfo` / `linkCards` 元数据） |
 | `tweet_ReZzZFxVQ.json` | 3.0K | `/ajax/statuses/show?id=` | 网易云音乐音频卡：`page_info.object_type=audio`、`content2` 为空、`page_pic` 原始为 http（脱敏为 `<URL>`）；`url_struct` 含 `long_url` / `ori_url` / `url_type: 39` |
+| `tweet_RmX9TuHhV.json` | 3.6K | `/ajax/statuses/show?id=&isGetLongText=true` | 长文 + 1 张网页卡；`url_struct` 被上游重复下发 2 条（`short_url` / `long_url` / `url_title` 一致，仅 `actionlog.rid` / `url_type_pic` 协议不同），用于 `linkCards` 去重 |
 
 ### D12 个人主页关键词搜索 —— `/ajax/statuses/searchProfile`
 

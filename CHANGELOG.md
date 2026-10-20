@@ -21,6 +21,7 @@
 - `archive` 的 `includeFavorites` / `includeCommentHistory` 现在校验目标 uid 是否为登录账号。收藏（`all_fav` 忽略 uid）和历史评论（`myCmt` 无 uid）只能读取登录账号自身，跨账号归档会抛 `CONFIG_INVALID`，不再把登录账号的数据静默写进他人归档。
 - CLI 批量归档（`--uid-file`）默认不再包含收藏；需要时显式传 `--favorites`（仅当 uid 是登录账号）。
 - `media download` 的 `totals` 新增 `planned`：dry-run 下未执行项不再丢失，`downloaded + skipped + failed + planned === total`。
+- `statuses/show?isGetLongText=true` 会重复下发同一条 `url_struct`，`ITweet.linkCards` 现在按短链（无短链时按解析后的 URL）去重，`tweet context` 的「链接」不再重复打印同一张卡片。
 
 ### 变更
 

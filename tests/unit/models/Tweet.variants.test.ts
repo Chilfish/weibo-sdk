@@ -781,4 +781,48 @@ describe('page and link card metadata', () => {
       urlType: 0,
     })
   })
+
+  it('dedupes the same card repeated by statuses/show?isGetLongText=true (real fixture)', async () => {
+    const raw = await loadRawJson('tweet_RmX9TuHhV.json')
+    // 上游把同一条网页卡下发两次：short_url / long_url / url_title 完全一致
+    expect(raw.url_struct).toHaveLength(2)
+    expect(raw.url_struct[0].short_url).toBe(raw.url_struct[1].short_url)
+    expect(raw.url_struct[0].long_url).toBe(raw.url_struct[1].long_url)
+
+    const tweet = normalizeTweet(raw)
+
+    expect(tweet.linkCards).toHaveLength(1)
+    expect(tweet.linkCards?.[0]).toMatchObject({
+      title: raw.url_struct[0].url_title,
+      shortUrl: raw.url_struct[0].short_url,
+      longUrl: raw.url_struct[0].long_url,
+    })
+  })
+
+  it('keeps cards that share a long url but come from different short links', () => {
+    const tweet = normalizeTweet(makeRawTweet({
+      url_struct: [
+        { url_title: '卡片', short_url: 'http://t.cn/AAA', long_url: 'https://example.com/x' },
+        { url_title: '卡片', short_url: 'https://t.cn/BBB', long_url: 'https://example.com/x' },
+      ],
+    }))
+
+    expect(tweet.linkCards?.map(card => card.shortUrl)).toEqual([
+      'http://t.cn/AAA',
+      'https://t.cn/BBB',
+    ])
+  })
+
+  it('dedupes repeated cards without a short link by resolved url and keeps title-only cards', () => {
+    const tweet = normalizeTweet(makeRawTweet({
+      url_struct: [
+        { url_title: '卡片', h5_target_url: 'https://example.com/x' },
+        { url_title: '卡片', h5_target_url: 'https://example.com/x' },
+        { url_title: '纯标题 A' },
+        { url_title: '纯标题 B' },
+      ],
+    }))
+
+    expect(tweet.linkCards?.map(card => card.title)).toEqual(['卡片', '纯标题 A', '纯标题 B'])
+  })
 })

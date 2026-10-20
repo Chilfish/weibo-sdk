@@ -104,6 +104,9 @@
 
 > `url` 与 `longUrl` / `oriUrl` 是三个不同层级的地址：`url` 是客户端点击目标（优先 `h5_target_url`），
 > `longUrl` 是规范网页地址，`oriUrl` 是上游原始 scheme（可能是 `sinaweibo://browser?...`）。
+>
+> `statuses/show?isGetLongText=true` 会重复下发同一条 `url_struct`；归一化按 `shortUrl`（`t.cn` 短链 code，
+> 兼容 http/https）去重，无 `shortUrl` 时按解析后的 `url` 去重，只有标题的卡片不参与去重。
 
 ### TweetPageCard（页面卡片）
 

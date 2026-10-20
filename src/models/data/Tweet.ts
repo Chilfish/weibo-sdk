@@ -365,6 +365,7 @@ function extractLinkCards(rawRecord: UnknownRecord): TweetLinkCard[] | undefined
     return undefined
 
   const out: TweetLinkCard[] = []
+  const seen = new Set<string>()
   for (const item of list) {
     if (!isRecord(item))
       continue
@@ -395,6 +396,14 @@ function extractLinkCards(rawRecord: UnknownRecord): TweetLinkCard[] | undefined
     const urlType = getNumber(item.url_type)
     if (urlType !== undefined)
       card.urlType = urlType
+
+    // `statuses/show?isGetLongText=true` 会把同一张卡片重复下发，按短链（无短链时按 URL）去重。
+    const key = shortUrlKey(card.shortUrl) ?? card.url
+    if (key) {
+      if (seen.has(key))
+        continue
+      seen.add(key)
+    }
     out.push(card)
   }
   return out.length > 0 ? out : undefined

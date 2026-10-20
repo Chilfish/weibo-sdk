@@ -334,4 +334,20 @@ describe('buildTweetContext — 评论与渲染', () => {
     expect(spoken).toContain('这么好的！！')
     expect(spoken).not.toContain('//@')
   })
+
+  it('renders a link card repeated by upstream only once', () => {
+    const tweet = makeTweet({
+      text: '正文 http://t.cn/AXlTLGbF',
+      text_raw: '正文 http://t.cn/AXlTLGbF',
+      url_struct: [
+        { url_title: '网页链接', short_url: 'http://t.cn/AXlTLGbF', long_url: 'https://example.com/ir' },
+        { url_title: '网页链接', short_url: 'http://t.cn/AXlTLGbF', long_url: 'https://example.com/ir' },
+      ],
+    })
+
+    const context = buildTweetContext(tweet)
+
+    expect(context.post.links).toEqual([{ title: '网页链接', url: 'https://example.com/ir' }])
+    expect(renderTweetContextMarkdown(context).match(/^链接：/gm)).toHaveLength(1)
+  })
 })
