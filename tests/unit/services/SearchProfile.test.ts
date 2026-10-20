@@ -125,4 +125,24 @@ describe('searchProfile', () => {
     expect(getLastConfig()?.params?.hasori).toBe(1)
     expect(getLastConfig()?.params?.haspic).toBe(1)
   })
+
+  it('passes q for profile keyword search (D12)', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+    await service.searchByDate('777', { q: '游戏', page: 2 })
+    expect(getLastConfig()?.params).toMatchObject({ uid: '777', q: '游戏', page: 2 })
+  })
+
+  it('omits empty q', async () => {
+    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+    await service.searchByDate('888', { q: '' })
+    expect(getLastConfig()?.params).toEqual({ uid: '888' })
+  })
 })

@@ -557,6 +557,7 @@ export class TweetService extends FetcherService {
    * @param uid 用户 UID
    * @param options 检索选项（全部可选）
    * @param options.page 页码（从 1 开始；缺省 = 第一页）
+   * @param options.q 关键词（个人主页内搜索；缺省 = 不按关键词过滤）
    * @param options.starttime 时间下界（unix 秒或日期字符串，含）
    * @param options.endtime 时间上界（unix 秒或日期字符串，含）
    * @param options.hasori 是否包含原创（0 / 1）
@@ -569,6 +570,7 @@ export class TweetService extends FetcherService {
    */
   public async searchByDate(uid: string, options?: {
     page?: number
+    q?: string
     starttime?: number | string
     endtime?: number | string
     hasori?: number
@@ -582,6 +584,8 @@ export class TweetService extends FetcherService {
     if (options) {
       if (options.page !== undefined)
         args.page = options.page
+      if (options.q !== undefined && options.q !== '')
+        args.q = options.q
       if (options.starttime !== undefined)
         args.starttime = resolveTimeInput(options.starttime, { boundary: 'start', field: 'starttime' })
       if (options.endtime !== undefined)

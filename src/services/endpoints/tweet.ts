@@ -403,6 +403,8 @@ export const longtextSpec: EndpointSpec<'TWEET_LONGTEXT', typeof LongtextArgsSch
 const SearchProfileArgsSchema = z.object({
   uid: z.string(),
   page: z.number().optional(),
+  // 个人主页内关键词搜索（D12，与日期窗口可组合；空串等同不过滤）
+  q: z.string().optional(),
   // 实测为 unix 秒（如 1790784000）；字符串由 TweetService.searchByDate 在请求前换算（上游会忽略日期字符串）。
   starttime: z.union([z.number(), z.string()]).optional(),
   endtime: z.union([z.number(), z.string()]).optional(),
