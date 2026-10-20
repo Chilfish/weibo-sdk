@@ -1,10 +1,25 @@
 import type { MediaType } from './ITweet'
 
 /**
+ * 用户相册（D4，`getImageWall?has_album=true` 的 `data.album_list[]`）。
+ *
+ * `containerId` 是 `getAlbumDetail` 的入参；相册 tab 下发的是 `pc_profile_album`
+ * 形态的 containerid，可直接用于分页拉取照片。
+ */
+export interface IUserAlbum {
+  /** 相册 containerid（`getAlbumDetail` 入参） */
+  containerId: string
+  /** 相册标题（如「原创」「头像」） */
+  title: string
+  /** 封面图（临时 URL） */
+  coverUrl?: string
+}
+
+/**
  * 用户媒体资产（D4 / D5）。
  *
- * 覆盖图片墙（`getImageWall`）与视频瀑布（`getWaterFallContent`）两种来源：
- * - 图片墙：每项是一个媒体资产（`pid`），没有完整微博；
+ * 覆盖图片墙（`getImageWall`）、相册（`getAlbumDetail`）与视频瀑布（`getWaterFallContent`）：
+ * - 图片墙 / 相册：每项是一个媒体资产（`pid`），没有完整微博；
  * - 视频瀑布：每项是一条微博，资产从 `page_info.media_info` 提取。
  *
  * 这是新增的领域模型（不是 `ITweet` 契约的一部分），字段全部按真实响应归一化。

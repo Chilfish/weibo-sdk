@@ -1,3 +1,4 @@
+import type { ImageWallResponse, WaterfallResponse } from '../endpoints/media'
 import type { MediaDownloaderResult, ResolvedMediaOptions } from '../internal/media/MediaDownloader'
 import type { MediaFileStore } from '../internal/media/MediaFileStore'
 import type { MediaHttpClient } from '../internal/media/MediaHttpClient'
@@ -5,18 +6,18 @@ import type { MediaTimers } from '../internal/media/MediaStreamWriter'
 import type { IRateLimitClock } from '../internal/RateLimitService'
 import type { IWeiboConfig } from '~/types/config'
 import type { ITweet } from '~/types/domain/ITweet'
-import type { IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
+import type { IUserAlbum, IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
 import type {
   MediaDownloadItem,
   MediaDownloadOptions,
   TweetMediaDownloadResult,
 } from '~/types/media'
-import { normalizeImageWallItem, normalizeWaterfallVideo } from '~/models/data/Media'
+import { normalizeAlbum, normalizeImageWallItem, normalizeWaterfallVideo } from '~/models/data/Media'
 import { Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { MediaType } from '~/types/domain/ITweet'
-import { imageWallSpec, waterfallSpec } from '../endpoints/media'
+import { albumDetailSpec, imageWallSpec, waterfallSpec } from '../endpoints/media'
 import { statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 import { MediaDownloader } from '../internal/media/MediaDownloader'
@@ -86,6 +87,50 @@ export interface VideoWaterfallStreamOptions extends VideoWaterfallListOptions {
   maxPages?: number
   /** 每页进度回调；异常不会中断流 */
   onProgress?: (progress: MediaStreamProgress) => void | Promise<void>
+}
+
+/** 相册列表结果（`listAlbums` 返回值）。 */
+export interface AlbumListResult {
+  /** 相册列表（containerId 为空 / 标题为空的条目不参与归一化） */
+  albums: IUserAlbum[]
+}
+
+/** 相册流进度（每页触发一次）。 */
+export interface AlbumStreamProgress {
+  /** 相册 containerId */
+  containerId: string
+  /** 本次请求使用的游标（首屏为 `0`） */
+  cursor: string
+  /** 页码（从 1 开始） */
+  page: number
+  /** 已产出的照片数（跨页去重后） */
+  processed: number
+  /** 本页去重前的条目数 */
+  pageSize: number
+}
+
+/** 相册照片单页结果（`listAlbumPhotos` 返回值）。 */
+export interface AlbumPhotoPageResult {
+  /** 下一页游标（上游 `data.since_id`；`0` / 缺省表示到底） */
+  sinceId?: string
+  /** 是否可能还有下一页（空页 / 游标缺失 / 游标不前进时为 `false`） */
+  hasMore: boolean
+  /** 本页归一化后的照片资产（已过滤空 `pid`） */
+  assets: IUserMediaAsset[]
+}
+
+/** `listAlbumPhotos` 的选项。 */
+export interface AlbumPhotoListOptions {
+  /** 起始游标（缺省 / `0` / `-1` = 第一页；下一页传上一页的 `sinceId`） */
+  sinceId?: string | number
+}
+
+/** `streamAlbumPhotos` 的选项。 */
+export interface AlbumPhotoStreamOptions extends AlbumPhotoListOptions {
+  /** 最多翻页数（默认不限） */
+  maxPages?: number
+  /** 每页进度回调；异常不会中断流 */
+  onProgress?: (progress: AlbumStreamProgress) => void | Promise<void>
 }
 
 /** 下载相关的可注入依赖（测试用；默认使用 Node 文件系统与独立 axios 客户端）。 */
@@ -277,6 +322,149 @@ export class MediaService extends FetcherService {
   }
 
   /**
+   * 拉取一页图片墙原始响应（未归一化；归档层用于生成 `schemaDigest`）。
+   *
+   * @param uid 用户 UID
+   * @param options 分页选项（`options.sinceId` 为起始游标）
+   */
+  public async fetchRawImagePage(uid: string, options: ImageWallListOptions = {}): Promise<ImageWallResponse> {
+    const sinceId = normalizeCursor(options.sinceId)
+    return await this.request(imageWallSpec, { uid, sinceid: sinceId })
+  }
+
+  /**
+   * 拉取一页视频瀑布原始响应（未归一化；归档层用于生成 `schemaDigest` 并归一化微博）。
+   *
+   * @param uid 用户 UID
+   * @param options 分页选项（`options.cursor` 为起始游标）
+   */
+  public async fetchRawVideoPage(uid: string, options: VideoWaterfallListOptions = {}): Promise<WaterfallResponse> {
+    const cursor = normalizeCursor(options.cursor)
+    return await this.request(waterfallSpec, { uid, cursor })
+  }
+
+  /**
+   * 获取用户相册列表（D4）。
+   *
+   * 复用相册 tab 的真实请求：`getImageWall?uid=&sinceid=0&has_album=true`，
+   * 从 `data.album_list` 读取 `pc_profile_album` 形态的 containerid（可直接进入 `listAlbumPhotos`）。
+   *
+   * @param uid 用户 UID
+   * @returns 相册列表（过滤 containerid 为空的条目）
+   * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
+   */
+  public async listAlbums(uid: string): Promise<AlbumListResult> {
+    const startAt = Date.now()
+    const raw = await this.request(imageWallSpec, { uid, sinceid: 0, has_album: true })
+    const albums = (raw.data.album_list ?? [])
+      .map(normalizeAlbum)
+      .filter(album => album.containerId.length > 0)
+
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: this.newTraceId(),
+      model: 'UserAlbum',
+      count: albums.length,
+      duration_ms: Date.now() - startAt,
+    })
+
+    return { albums }
+  }
+
+  /**
+   * 获取并归一化一页相册照片（D4，`GET /ajax/profile/getAlbumDetail`）。
+   *
+   * @param containerId 相册 containerid（来自 `listAlbums`）
+   * @param options 分页选项
+   * @param options.sinceId 起始游标（缺省 = 第一页；下一页传上一页 `sinceId`）
+   * @returns 本页照片资产 + 下一页游标 + `hasMore`
+   * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
+   */
+  public async listAlbumPhotos(containerId: string, options: AlbumPhotoListOptions = {}): Promise<AlbumPhotoPageResult> {
+    const sinceId = normalizeCursor(options.sinceId)
+    const startAt = Date.now()
+    const raw = await this.request(albumDetailSpec, { containerid: containerId, since_id: sinceId })
+    const assets = raw.data.list
+      .map(normalizeImageWallItem)
+      .filter(asset => asset.id.length > 0)
+
+    await this.emitTelemetry({
+      event_name: 'normalize_done',
+      timestamp: Date.now(),
+      trace_id: this.newTraceId(),
+      model: 'UserMediaAsset',
+      count: assets.length,
+      duration_ms: Date.now() - startAt,
+    })
+
+    const nextSinceId = raw.data.since_id === undefined || raw.data.since_id === null
+      ? undefined
+      : String(raw.data.since_id)
+    return {
+      sinceId: nextSinceId,
+      hasMore: canAdvance(nextSinceId, sinceId, raw.data.list.length),
+      assets,
+    }
+  }
+
+  /**
+   * 流式遍历相册照片（`since_id` 游标自动翻页 + 跨页按 `pid` 去重）。
+   *
+   * 停止条件（任一命中）：空页 / 无新条目（整页重复）/ `maxPages`。
+   *
+   * @example
+   * for await (const photo of sdk.media.streamAlbumPhotos(album.containerId)) {
+   *   console.log(photo.id, photo.url)
+   * }
+   */
+  async* streamAlbumPhotos(containerId: string, options: AlbumPhotoStreamOptions = {}): AsyncIterableIterator<IUserMediaAsset> {
+    const maxPages = normalizeMaxPages(options.maxPages)
+    const seen = new Set<string>()
+    let cursor = normalizeCursor(options.sinceId)
+    let pages = 0
+    let processed = 0
+
+    while (pages < maxPages) {
+      const result = await this.listAlbumPhotos(containerId, { sinceId: cursor })
+      pages += 1
+      if (result.assets.length === 0)
+        break
+
+      const fresh = result.assets.filter((asset) => {
+        if (seen.has(asset.id))
+          return false
+        seen.add(asset.id)
+        return true
+      })
+      if (fresh.length === 0)
+        break
+
+      for (const asset of fresh) {
+        processed += 1
+        yield asset
+      }
+
+      try {
+        await options.onProgress?.({
+          containerId,
+          cursor,
+          page: pages,
+          processed,
+          pageSize: result.assets.length,
+        })
+      }
+      catch {
+        // 进度回调异常不影响流
+      }
+
+      if (!result.hasMore || result.sinceId === undefined)
+        break
+      cursor = result.sinceId
+    }
+  }
+
+  /**
    * 获取并归一化一页图片墙。
    *
    * @param uid 用户 UID
@@ -287,9 +475,9 @@ export class MediaService extends FetcherService {
    * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
    */
   public async listImages(uid: string, options: ImageWallListOptions = {}): Promise<ImageWallPageResult> {
-    const sinceId = normalizeCursor(options.sinceId)
     const startAt = Date.now()
-    const raw = await this.request(imageWallSpec, { uid, sinceid: sinceId })
+    const raw = await this.fetchRawImagePage(uid, options)
+    const sinceId = normalizeCursor(options.sinceId)
     const assets = raw.data.list
       .map(normalizeImageWallItem)
       .filter(asset => asset.id.length > 0)
@@ -381,9 +569,9 @@ export class MediaService extends FetcherService {
    * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
    */
   public async listVideos(uid: string, options: VideoWaterfallListOptions = {}): Promise<VideoWaterfallPageResult> {
-    const cursor = normalizeCursor(options.cursor)
     const startAt = Date.now()
-    const raw = await this.request(waterfallSpec, { uid, cursor })
+    const raw = await this.fetchRawVideoPage(uid, options)
+    const cursor = normalizeCursor(options.cursor)
     const assets = raw.data.list
       .map(normalizeWaterfallVideo)
       .filter((asset): asset is IUserMediaAsset => asset !== undefined)

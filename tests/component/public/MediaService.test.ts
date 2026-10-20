@@ -131,6 +131,62 @@ describe('mediaService (component, real fixtures)', () => {
     ])
   })
 
+  it('lists albums via getImageWall?has_album=true (pc containerid)', async () => {
+    const wall = loadFixture('image_wall_with_albums.json')
+    const { service, telemetry, requests } = createService(() => wall)
+
+    const result = await service.listAlbums('1749127163')
+
+    expect(result.albums).toHaveLength(2)
+    expect(result.albums[0]).toEqual({
+      containerId: wall.data.album_list[0].containerid,
+      title: '原创',
+      coverUrl: wall.data.album_list[0].pic,
+    })
+    expect(requests[0].url).toBe('https://weibo.com/ajax/profile/getImageWall')
+    expect(requests[0].params).toEqual({ uid: '1749127163', sinceid: 0, has_album: true })
+    expect(telemetry.byName('normalize_done')[0]).toEqual(
+      expect.objectContaining({ model: 'UserAlbum', count: 2 }),
+    )
+  })
+
+  it('lists album photos and streams across since_id pages', async () => {
+    const p1 = loadFixture('album_detail_p1.json')
+    const p2 = loadFixture('album_detail_p2.json')
+    const { service, requests } = createService((config) => {
+      const since = String(config.params?.since_id)
+      if (since === '0')
+        return p1
+      if (since === String(p1.data.since_id))
+        return p2
+      return { ok: 1, data: { list: [], since_id: 0, type: '' } }
+    })
+
+    const first = await service.listAlbumPhotos('album-1')
+    expect(first.assets).toHaveLength(24)
+    expect(first.sinceId).toBe(p1.data.since_id)
+    expect(first.hasMore).toBe(true)
+
+    const ids: string[] = []
+    const progress: number[] = []
+    for await (const asset of service.streamAlbumPhotos('album-1', {
+      onProgress: (p) => {
+        progress.push(p.processed)
+      },
+    })) {
+      ids.push(asset.id)
+    }
+
+    expect(ids).toHaveLength(39)
+    expect(new Set(ids).size).toBe(39)
+    expect(progress).toEqual([24, 39])
+    expect(requests.map(r => r.params?.since_id)).toEqual([
+      '0',
+      '0',
+      p1.data.since_id,
+    ])
+  })
+
   it('normalizes negative cursors to the first page', async () => {
     const p1 = loadFixture('image_wall_p1.json')
     const { service: imageService, requests: imageRequests } = createService(() => p1)

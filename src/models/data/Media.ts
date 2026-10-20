@@ -1,4 +1,4 @@
-import type { IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
+import type { IUserAlbum, IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
 import { MediaType } from '~/types/domain/ITweet'
 
 type UnknownRecord = Record<string, unknown>
@@ -55,6 +55,23 @@ function buildImageUrl(pid: string, type: string | undefined): string {
     return ''
   const ext = type === 'gif' ? 'gif' : 'jpg'
   return `https://wx3.sinaimg.cn/large/${pid}.${ext}`
+}
+
+/**
+ * 归一化相册条目（`GET /ajax/profile/getImageWall?has_album=true` 的 `data.album_list[]`）。
+ *
+ * 纯函数；`containerid` 缺失的条目由调用方过滤。
+ */
+export function normalizeAlbum(raw: unknown): IUserAlbum {
+  const record = isRecord(raw) ? raw : {}
+  const album: IUserAlbum = {
+    containerId: firstString(record.containerid) ?? '',
+    title: firstString(record.pic_title) ?? '',
+  }
+  const coverUrl = firstString(record.pic)
+  if (coverUrl !== undefined)
+    album.coverUrl = coverUrl
+  return album
 }
 
 /**

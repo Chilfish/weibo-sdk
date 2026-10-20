@@ -16,9 +16,11 @@ import { MyMBlogItemSchema } from './tweet'
 const ImageWallArgsSchema = z.object({
   uid: z.string(),
   sinceid: z.union([z.string(), z.number()]).optional(),
+  // D4：传入 true 时响应额外返回 data.album_list（相册 tab 的真实请求）
+  has_album: z.boolean().optional(),
 }).strict()
 
-const ImageWallItemSchema = z.object({
+export const ImageWallItemSchema = z.object({
   // 真实样本存在缺 pid 的破损条目（type=pic、object_id=null），保留但由归一化层过滤
   pid: z.string().optional(),
   mid: z.union([z.string(), z.number()]).optional(),
@@ -31,11 +33,20 @@ const ImageWallItemSchema = z.object({
   video: z.string().optional(),
 }).passthrough()
 
+const AlbumListItemSchema = z.object({
+  containerid: z.string(),
+  pic: z.string().optional(),
+  pic_title: z.string().optional(),
+}).passthrough()
+
 const ImageWallResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
     since_id: z.union([z.string(), z.number()]).optional(),
     list: z.array(ImageWallItemSchema),
+    // D4：has_album=true 时额外返回（相册 tab 同一请求）
+    album_list: z.array(AlbumListItemSchema).optional(),
+    album_since_id: z.union([z.string(), z.number()]).optional(),
   }).passthrough(),
   bottom_tips_visible: z.boolean().optional(),
   bottom_tips_text: z.string().optional(),
@@ -90,4 +101,42 @@ export const waterfallSpec: EndpointSpec<'PROFILE_WATERFALL', typeof WaterfallAr
   }),
   okPolicy: { mode: 'require_ok_1' },
   schema: WaterfallResponseSchema,
+})
+
+/**
+ * 相册详情（D4）：`GET /ajax/profile/getAlbumDetail?containerid=<album>&since_id=<cursor>`
+ *
+ * 真实响应（`tests/fixtures/raw/album_detail_p1.json` / `album_detail_p2.json`）：
+ * - `data.list` 与图片墙条目同构（`pid` / `mid` / `type` / `timeline_*`）；
+ * - `data.since_id` 是下一页游标（字符串），`0` 表示到底；
+ * - `containerid` 必须使用相册 tab（`getImageWall?has_album=true`）下发的
+ *   `pc_profile_album` 形态；`/ajax/profile/albumlist` 的 mobile containerid 可能返回空列表。
+ */
+const AlbumDetailArgsSchema = z.object({
+  containerid: z.string(),
+  since_id: z.union([z.string(), z.number()]).optional(),
+}).strict()
+
+const AlbumDetailResponseSchema = z.object({
+  ok: z.number(),
+  data: z.object({
+    list: z.array(ImageWallItemSchema),
+    since_id: z.union([z.string(), z.number()]).optional(),
+    type: z.string().optional(),
+  }).passthrough(),
+}).passthrough()
+
+export type AlbumDetailResponse = z.infer<typeof AlbumDetailResponseSchema>
+
+export const albumDetailSpec: EndpointSpec<'PROFILE_ALBUM_DETAIL', typeof AlbumDetailArgsSchema> = defineEndpoint({
+  resourceType: 'PROFILE_ALBUM_DETAIL',
+  endpoint: 'ajax/profile/getAlbumDetail',
+  argsSchema: AlbumDetailArgsSchema,
+  buildResource: () => ({
+    method: 'GET',
+    url: 'https://weibo.com/ajax/profile/getAlbumDetail',
+    headers: { referer: 'https://weibo.com/' },
+  }),
+  okPolicy: { mode: 'require_ok_1' },
+  schema: AlbumDetailResponseSchema,
 })
