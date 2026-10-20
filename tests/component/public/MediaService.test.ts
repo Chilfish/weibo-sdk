@@ -85,6 +85,18 @@ describe('mediaService (component, real fixtures)', () => {
     ])
   })
 
+  it('streamImages stops at maxItems without fetching the next page', async () => {
+    const p1 = loadFixture('image_wall_p1.json')
+    const { service, requests } = createService(() => p1)
+
+    const ids: string[] = []
+    for await (const asset of service.streamImages('2365795232', { maxItems: 5 }))
+      ids.push(asset.id)
+
+    expect(ids).toHaveLength(5)
+    expect(requests).toHaveLength(1)
+  })
+
   it('normalizes the real video waterfall page', async () => {
     const p1 = loadFixture('waterfall_p1.json')
     const { service, telemetry, requests } = createService(() => p1)

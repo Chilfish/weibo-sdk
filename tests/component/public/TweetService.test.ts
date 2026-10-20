@@ -354,6 +354,97 @@ describe('tweetService', () => {
     expect(getLastConfig()?.params).toEqual({ since_id: '7' })
   })
 
+  it('streamFriendTimeline honors maxItems without fetching another page', async () => {
+    let calls = 0
+    const { client } = createFakeAxios(async () => {
+      calls += 1
+      return {
+        ok: 1,
+        total_number: 2000,
+        statuses: [mkTweet('m3'), mkTweet('m2')],
+        max_id: 2,
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamFriendTimeline({ maxItems: 1 }))
+      out.push(tweet.mblogId)
+
+    expect(out).toEqual(['m3'])
+    expect(calls).toBe(1)
+  })
+
+  it('streamFriendTimeline stops at the since date boundary', async () => {
+    const at = (iso: string) => ({ ...mkTweet('m'), created_at: new Date(iso).toUTCString() })
+    let calls = 0
+    const { client } = createFakeAxios(async () => {
+      calls += 1
+      return {
+        ok: 1,
+        total_number: 2000,
+        statuses: [
+          { ...at('2026-10-20T00:00:00Z'), mblogid: 'm3', idstr: 'm3' },
+          { ...at('2026-10-19T00:00:00Z'), mblogid: 'm2', idstr: 'm2' },
+          { ...at('2026-10-18T00:00:00Z'), mblogid: 'm1', idstr: 'm1' },
+        ],
+        max_id: 2,
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamFriendTimeline({
+      since: Date.parse('2026-10-19T00:00:00Z') / 1000,
+      maxPages: 5,
+    })) {
+      out.push(tweet.mblogId)
+    }
+
+    expect(out).toEqual(['m3', 'm2'])
+    expect(calls).toBe(1)
+  })
+
+  it('streamByUserId honors maxItems and since', async () => {
+    const mk = (mblogid: string, createdAt: string) => ({
+      ...mkTweet(mblogid),
+      created_at: new Date(createdAt).toUTCString(),
+    })
+    let calls = 0
+    const { client } = createFakeAxios(async () => {
+      calls += 1
+      return {
+        ok: 1,
+        data: {
+          since_id: '',
+          list: [mk('A', '2026-10-20T00:00:00Z'), mk('B', '2026-10-18T00:00:00Z')],
+          total: -1,
+        },
+      }
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const out: string[] = []
+    for await (const tweet of service.streamByUserId('111', {
+      since: Date.parse('2026-10-19T00:00:00Z') / 1000,
+      maxPages: 5,
+    })) {
+      out.push(tweet.mblogId)
+    }
+
+    expect(out).toEqual(['A'])
+    expect(calls).toBe(1)
+  })
+
   it('listFriendTimeline stops when max_id does not advance', async () => {
     let calls = 0
     const { client } = createFakeAxios(async () => {
