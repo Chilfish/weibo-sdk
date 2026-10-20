@@ -88,6 +88,18 @@ export interface ITweet {
   isOriginal?: boolean
   /** 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） */
   sourceUrl?: string
+  /** @ 用户（从 `text` HTML 的 `<a href="/n/...">` 锚点解析；无 @ 时缺省） */
+  atUsers?: TweetAtUser[]
+  /**
+   * 视频播放数（上游 `page_info.media_info.online_users_number`）。
+   *
+   * 仅在 `online_users` 明确为「N次观看」时填写；直播的在线人数不是播放数，不映射。
+   */
+  playCount?: number
+  /** 是否置顶（上游 `isTop === 1`；非置顶时缺省） */
+  isTop?: boolean
+  /** 音频 / 播客（上游 `page_info.object_type === 'podcast_audio'`；无音频时缺省） */
+  audio?: TweetAudio[]
 
   /**
    * 评论（P1-6，可选）。
@@ -161,6 +173,43 @@ export interface TweetUser {
   verified: boolean
   /** 认证类型（对应上游 `verified_type`，未认证为 -1） */
   verifiedType: VerificationType
+}
+
+/**
+ * 微博正文中被 @ 的用户（从 `text` HTML 锚点解析）。
+ *
+ * 上游没有结构化 `at_users` 字段；可稳定拿到的是锚点文本与 `href` 路径，
+ * 数字 uid 不保证存在，因此 `id` 为可选。
+ */
+export interface TweetAtUser {
+  /** 展示名（锚点文本，去掉前导 `@`） */
+  name: string
+  /** 主页路径标识（`href="/n/<name>"` / `href="/u/<uid>"` 的路径段） */
+  username?: string
+  /** 用户主页地址（`https://weibo.com/n/<username>` 或数字 uid 主页） */
+  url?: string
+}
+
+/**
+ * 音频 / 播客（`page_info.object_type === 'podcast_audio'`）。
+ *
+ * `url` 与视频直链一样是临时签名 URL；长期存档需及时下载或保存 `pageUrl`。
+ */
+export interface TweetAudio {
+  /** 音频 id（`media_info.media_id` → `page_id` → `object_id`） */
+  id: string
+  /** 音频标题（`page_info.page_title`，缺省为空串） */
+  title: string
+  /** 音频直链（`media_info.stream_url`，临时 URL） */
+  url: string
+  /** 时长（秒） */
+  duration?: number
+  /** 永久播放页（`media_info.h5_url`） */
+  pageUrl?: string
+  /** 作者昵称（`media_info.author_info.screen_name`） */
+  authorName?: string
+  /** 作者 uid（`media_info.author_info.idstr` / `id`） */
+  authorId?: string
 }
 
 /**

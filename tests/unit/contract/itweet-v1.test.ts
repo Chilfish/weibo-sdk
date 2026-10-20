@@ -25,6 +25,7 @@ describe('iTweet v1 contract freeze', () => {
       | 'id' | 'mblogId' | 'createdAt' | 'text' | 'textHtml' | 'regionName' | 'source'
       | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'pageInfo' | 'media' | 'geo'
       | 'topics' | 'linkCards' | 'readCount' | 'editCount' | 'title' | 'permanentVideoUrl' | 'isOriginal' | 'sourceUrl'
+      | 'atUsers' | 'playCount' | 'isTop' | 'audio'
       | 'comments'
     >()
   })
@@ -39,16 +40,20 @@ describe('iTweet v1 contract freeze', () => {
     const tweet = normalizeTweet(item)
 
     expect(Object.keys(tweet).sort()).toEqual([
+      'atUsers',
+      'audio',
       'createdAt',
       'editCount',
       'geo',
       'id',
       'isOriginal',
+      'isTop',
       'linkCards',
       'mblogId',
       'media',
       'pageInfo',
       'permanentVideoUrl',
+      'playCount',
       'readCount',
       'regionName',
       'retweetedStatus',

@@ -1,5 +1,5 @@
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
@@ -401,6 +401,179 @@ function extractPermanentVideoUrl(rawRecord: UnknownRecord): string | undefined 
   return undefined
 }
 
+function decodeHtmlText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, '\'')
+    .trim()
+}
+
+/**
+ * 从 `text` HTML 的 `<a>` 锚点解析 @ 用户。
+ *
+ * 真实样本（`feed_home.json`）：
+ * `<a href=/n/Touko_Fujimiya usercard="name=@Touko_Fujimiya">@Touko_Fujimiya</a>`
+ * 上游没有结构化 `at_users` 字段；这里只保留指向用户主页的锚点（`/n/` 或 `/u/`）。
+ */
+function extractAtUsers(rawRecord: UnknownRecord): TweetAtUser[] | undefined {
+  const html = getString(rawRecord.text)
+  if (!html)
+    return undefined
+
+  const out: TweetAtUser[] = []
+  const seen = new Set<string>()
+  const anchorRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi
+  for (let match = anchorRe.exec(html); match !== null; match = anchorRe.exec(html)) {
+    const attrs = match[1] ?? ''
+    const inner = match[2] ?? ''
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i)
+    if (!hrefMatch)
+      continue
+    const href = (hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? '').trim()
+    const pathMatch = href.match(/(?:^|\/\/[^/]+)\/(?:n|u)\/([^/?#"'\s]+)/i)
+      ?? href.match(/^\/(?:n|u)\/([^/?#"'\s]+)/i)
+    if (!pathMatch)
+      continue
+
+    let username = pathMatch[1]
+    try {
+      username = decodeURIComponent(username)
+    }
+    catch {
+      // 非法的百分号编码：保留原样，避免因单个锚点丢弃整条微博
+    }
+    const name = decodeHtmlText(inner).replace(/^@/, '')
+    const key = username || name
+    if (!key || seen.has(key))
+      continue
+    seen.add(key)
+
+    const item: TweetAtUser = { name: name || username }
+    if (username)
+      item.username = username
+    if (href.startsWith('//'))
+      item.url = `https:${href}`
+    else if (/^https?:/i.test(href))
+      item.url = href
+    else
+      item.url = `https://weibo.com${href.startsWith('/') ? href : `/${href}`}`
+    out.push(item)
+  }
+
+  return out.length > 0 ? out : undefined
+}
+
+/** 视频播放数：只认 `online_users` 明确为「N次观看」的历史播放量，直播在线人数不映射。 */
+function extractPlayCount(rawRecord: UnknownRecord): number | undefined {
+  const fromMedia = (media: UnknownRecord): number | undefined => {
+    const label = getString(media.online_users)
+    if (!label || !label.includes('次观看'))
+      return undefined
+    return getNumber(media.online_users_number)
+  }
+
+  const page = isRecord(rawRecord.page_info) ? rawRecord.page_info : undefined
+  const pageMedia = page && isRecord(page.media_info) ? page.media_info : undefined
+  const fromPage = pageMedia ? fromMedia(pageMedia) : undefined
+  if (fromPage !== undefined)
+    return fromPage
+
+  const mix = isRecord(rawRecord.mix_media_info) ? rawRecord.mix_media_info : undefined
+  if (mix && Array.isArray(mix.items)) {
+    for (const item of mix.items) {
+      if (!isRecord(item) || !isRecord(item.data))
+        continue
+      const media = isRecord(item.data.media_info) ? item.data.media_info : undefined
+      const count = media ? fromMedia(media) : undefined
+      if (count !== undefined)
+        return count
+    }
+  }
+
+  return undefined
+}
+
+/** 置顶标记：`isTop === 1/true` 或 `top === 1/true`；非置顶返回 undefined。 */
+function extractIsTop(rawRecord: UnknownRecord): boolean | undefined {
+  const value = rawRecord.isTop ?? rawRecord.top
+  return value === 1 || value === true ? true : undefined
+}
+
+/** 单条音频归一化（`page_info` / `mix_media_info.items[].data` 同构）。 */
+function normalizeAudio(page: UnknownRecord, media: UnknownRecord): TweetAudio | undefined {
+  const objectType = getString(page.object_type)
+  const mediaType = getString(media.media_type)
+  const pageType = getString(page.type)
+  const isAudio = objectType === 'podcast_audio' || mediaType === 'audio' || pageType === '44'
+  if (!isAudio)
+    return undefined
+
+  const id = getString(media.media_id) ?? getString(page.page_id) ?? getString(page.object_id)
+  const url = getString(media.stream_url) ?? getString(media.h5_url)
+  if (!id && !url)
+    return undefined
+
+  const audio: TweetAudio = {
+    id: id ?? '',
+    title: getString(page.page_title) ?? getString(media.name) ?? '',
+    url: url ?? '',
+  }
+
+  const duration = getNumber(media.duration)
+  if (duration !== undefined)
+    audio.duration = duration
+  const pageUrl = getString(media.h5_url)
+  if (pageUrl)
+    audio.pageUrl = pageUrl
+  const author = isRecord(media.author_info) ? media.author_info : undefined
+  const authorName = author ? getString(author.screen_name) : undefined
+  if (authorName)
+    audio.authorName = authorName
+  const authorId = author ? getString(author.idstr) ?? getString(author.id) : undefined
+  if (authorId)
+    audio.authorId = authorId
+
+  return audio
+}
+
+/** 音频 / 播客：优先 `page_info`，其次 `mix_media_info.items[].data`。 */
+function extractAudio(rawRecord: UnknownRecord): TweetAudio[] | undefined {
+  const out: TweetAudio[] = []
+  const seen = new Set<string>()
+
+  const page = isRecord(rawRecord.page_info) ? rawRecord.page_info : undefined
+  const pageMedia = page && isRecord(page.media_info) ? page.media_info : undefined
+  if (page && pageMedia) {
+    const audio = normalizeAudio(page, pageMedia)
+    if (audio && !seen.has(audio.id || audio.url)) {
+      seen.add(audio.id || audio.url)
+      out.push(audio)
+    }
+  }
+
+  const mix = isRecord(rawRecord.mix_media_info) ? rawRecord.mix_media_info : undefined
+  if (mix && Array.isArray(mix.items)) {
+    for (const item of mix.items) {
+      if (!isRecord(item) || !isRecord(item.data))
+        continue
+      const media = isRecord(item.data.media_info) ? item.data.media_info : undefined
+      if (!media)
+        continue
+      const audio = normalizeAudio(item.data, media)
+      if (!audio || seen.has(audio.id || audio.url))
+        continue
+      seen.add(audio.id || audio.url)
+      out.push(audio)
+    }
+  }
+
+  return out.length > 0 ? out : undefined
+}
+
 /** 微博网页永久链接：`https://weibo.com/<uid>/<mblogid>`。 */
 function buildSourceUrl(user: TweetUser, mblogId: string): string | undefined {
   if (!user.id || !mblogId)
@@ -449,6 +622,10 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     permanentVideoUrl: extractPermanentVideoUrl(rawRecord),
     isOriginal: retweetedStatus === undefined,
     sourceUrl: buildSourceUrl(user, raw.mblogid),
+    atUsers: extractAtUsers(rawRecord),
+    playCount: extractPlayCount(rawRecord),
+    isTop: extractIsTop(rawRecord),
+    audio: extractAudio(rawRecord),
   }
 }
 

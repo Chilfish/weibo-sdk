@@ -533,4 +533,60 @@ describe('optional metadata fields (v1 additions)', () => {
     expect(tweet.permanentVideoUrl).toBe(item.page_info.media_info.h5_url)
     expect(tweet.isOriginal).toBe(true)
   })
+
+  it('extracts atUsers from the text HTML anchor (real fixture)', async () => {
+    const raw = await loadRawJson('at_status.json')
+    const tweet = normalizeTweet(raw)
+
+    expect(tweet.atUsers).toEqual([{
+      name: 'Touko_Fujimiya',
+      username: 'Touko_Fujimiya',
+      url: 'https://weibo.com/n/Touko_Fujimiya',
+    }])
+  })
+
+  it('extracts podcast audio from page_info (real fixture)', async () => {
+    const raw = await loadRawJson('audio_status.json')
+    const tweet = normalizeTweet(raw)
+
+    expect(tweet.audio).toHaveLength(1)
+    expect(tweet.audio?.[0]).toEqual(expect.objectContaining({
+      id: raw.page_info.media_info.media_id,
+      title: '日谈公园的微博音频',
+      duration: 3582,
+      authorName: '日谈公园',
+    }))
+    expect(tweet.audio?.[0].url).toBeTruthy()
+    // 音频不走视频 media 分支
+    expect(tweet.media).toEqual([])
+  })
+
+  it('extracts playCount only when online_users is a historical view count', async () => {
+    const raw = await loadRawJson('waterfall_p1.json')
+    const item = raw.data.list[0]
+    const tweet = normalizeTweet(item)
+
+    expect(item.page_info.media_info.online_users).toContain('次观看')
+    expect(tweet.playCount).toBe(item.page_info.media_info.online_users_number)
+  })
+
+  it('does not map live online viewers to playCount', () => {
+    const tweet = normalizeTweet(makeRawTweet({
+      page_info: {
+        object_type: 'video',
+        media_info: { media_type: 'video', online_users: '1.2万人正在观看', online_users_number: 12000 },
+      },
+    }))
+    expect(tweet.playCount).toBeUndefined()
+  })
+
+  it('extracts isTop from a real pinned timeline item', async () => {
+    const raw = await loadRawJson('mymblog_pinned.json')
+    const pinned = raw.data.list.find((item: any) => item.isTop === 1)
+    expect(pinned).toBeTruthy()
+
+    expect(normalizeTweet(pinned).isTop).toBe(true)
+    // 非置顶项省略该字段
+    expect(normalizeTweet(raw.data.list.find((item: any) => item.isTop === undefined)).isTop).toBeUndefined()
+  })
 })
