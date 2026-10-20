@@ -70,7 +70,8 @@ export async function capture(options: CaptureOptions, deps: CaptureDeps = {}): 
   const { cookie: cookieStr, source: cookieSource } = resolveCookie(options)
   if (!cookieStr)
     throw new Error(`WEIBO_COOKIE 缺失：请在 ${cookieSource} 配置或传 --cookie`)
-  const chromePath = options.chromePath ?? resolveChromePath()
+  // 注入 spawnChrome 时（测试）不需要真实的 Chrome 路径；只有走默认启动器才解析。
+  const chromePath = options.chromePath ?? (deps.spawnChrome ? 'chrome' : resolveChromePath())
   const targetUrl = options.url ?? (options.uid ? `https://weibo.com/u/${options.uid}` : 'https://weibo.com/')
 
   const port = await findPort(options.port ?? 9222)
