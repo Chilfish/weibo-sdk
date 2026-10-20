@@ -14,6 +14,7 @@
 - 新增点赞、历史评论、@ 我、评论通知、点赞通知、关注分组、微博分组、超话、热搜、点赞者、图片墙、相册和视频瀑布等数据能力。
 - 新增单条微博媒体下载：`media.downloadTweetMedia`、`media.downloadByMblogId` 和 `weibo-cli media download`。支持 dry-run、重试、URL 过期刷新、原子落盘和失败清单。
 - `ITweet` v1 增加 `topics`、`linkCards`、`readCount`、`editCount`、`title`、`permanentVideoUrl`、`isOriginal`、`sourceUrl`、`atUsers`、`playCount`、`isTop`、`audio` 和 `repostChain` 等可选字段。
+- `ITweet` v1 卡片元数据补齐：`TweetPageCard` 增加 `objectId` 和 `subtitle`，`TweetLinkCard` 增加 `longUrl`、`oriUrl` 和 `urlType`。`pageInfo.pagePic` 的 `http://` 地址统一升级为 `https://`，避免 https 页面被混合内容拦截。
 - `ITweetComment` 增加 `pics`，用于图片评论；`IUser` 增加 `svip`、`mbrank`、`hometown` 和 `labelDesc`。
 - 所有接受 `mblogId` 的方法现在也接受数字 mid 和微博状态 URL。新增 `parseTweetIdInput` 和 `normalizeTweetIdInput`。
 - 新增 `RateLimitError`（HTTP 432 / 429）、请求级指数退避重试，以及 432 后暂停全局令牌桶。

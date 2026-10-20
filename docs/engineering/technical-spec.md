@@ -109,7 +109,7 @@ request(spec, args)
 | `visible` | `TweetVisible` | REQUIRED | 可见性（0-4） |
 | `retweetedStatus` | `ITweet` | OPTIONAL | 被转发原微博（递归） |
 | `repostChain` | `TweetRepostEntry[]` | OPTIONAL | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博），每层聚合该层 reppic 配图 |
-| `pageInfo` | `TweetPageCard` | OPTIONAL | 链接/视频卡片 |
+| `pageInfo` | `TweetPageCard` | OPTIONAL | 链接/视频卡片（含封面、副标题、对象 id） |
 | `media` | `TweetMedia[]` | REQUIRED | 媒体列表（图片/视频/LivePhoto/GIF） |
 | `geo` | `TweetGeo` | OPTIONAL | 发博定位 |
 | `topics` | `string[]` | OPTIONAL | 话题（`topic_struct[].topic_title`，去重保序） |
@@ -130,7 +130,9 @@ request(spec, args)
 
 **媒体**（`TweetMedia`）：`id` / `type`（`pic|video|livephoto|gif|unknown`）/ `imageUrl` / `videoUrl?` / `duration?` / `width` / `height`。视频 URL 带签名与过期时间，一次性有效。`page_info.media_info` 形态的视频（视频瀑布 / 部分详情页）也会归一化进 `media`。
 
-**链接卡片**（`TweetLinkCard`）：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?`。
+**链接卡片**（`TweetLinkCard`）：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?` / `longUrl?` / `oriUrl?` / `urlType?`。`url` 是点击目标（`h5_target_url → long_url → ori_url`），`longUrl` 是规范网页地址，`oriUrl` 可能是 `sinaweibo://` scheme。
+
+**页面卡片**（`TweetPageCard`）：`pageId` / `pageTitle` / `pageUrl` / `pagePic` / `type` / `objectType` / `objectId?` / `subtitle?`。`pagePic` 的 `http://` 会统一升级为 `https://`；`subtitle` 对应上游 `content2`（如播放/点赞/弹幕统计）。
 
 **@ 用户**（`TweetAtUser`）：`name` / `username?` / `url?`。
 

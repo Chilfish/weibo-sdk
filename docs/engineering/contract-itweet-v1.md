@@ -50,7 +50,7 @@
 | `visible` | `TweetVisible`（enum 0-4） | 可见性；未知值回退 `PUBLIC(0)` |
 | `retweetedStatus?` | `ITweet` | 转发内容，**递归同构**；非转发缺省 |
 | `repostChain?` | `TweetRepostEntry[]` | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博）；每层聚合该层 reppic 配图，见下；非转发缺省 |
-| `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType }` |
+| `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType, objectId?, subtitle? }`；见下 |
 | `media` | `TweetMedia[]` | 见下；**恒为数组**（无媒体 = 空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
 | `topics?` | `string[]` | 话题（`topic_struct[].topic_title`，缺省退回 `title`；去重保序） |
@@ -93,11 +93,30 @@
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `title` | `string` | 卡片标题（`url_title`；缺省 `''`） |
-| `url` | `string` | 跳转地址（`h5_target_url` → `long_url` → `ori_url`；缺省 `''`） |
+| `url` | `string` | 跳转地址（`h5_target_url` → `long_url` → `ori_url`；缺省 `''`）。可能是中间页 / 短域，规范地址见 `longUrl` |
 | `shortUrl?` | `string` | 展示短地址（`short_url`） |
 | `pageId?` | `string` | 卡片 page id（`page_id`） |
 | `objectType?` | `string` | 对象类型（`object_type`） |
 | `typePic?` | `string` | 卡片图标（`url_type_pic`） |
+| `longUrl?` | `string` | 规范网页地址（`long_url`，如 `bilibili.com/video/...`）；上游未下发缺省 |
+| `oriUrl?` | `string` | 上游原始跳转（`ori_url`，可能是 `sinaweibo://` scheme）；原样保留，缺省 |
+| `urlType?` | `number` | 卡片类型码（`url_type`，样本 `39`）；`0` 也保留，缺省表示未下发 |
+
+> `url` 与 `longUrl` / `oriUrl` 是三个不同层级的地址：`url` 是客户端点击目标（优先 `h5_target_url`），
+> `longUrl` 是规范网页地址，`oriUrl` 是上游原始 scheme（可能是 `sinaweibo://browser?...`）。
+
+### TweetPageCard（页面卡片）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `pageId` | `string` | 卡片 id（`page_id`；缺省 `''`） |
+| `pageTitle` | `string` | 卡片标题（`page_title`；缺省 `''`） |
+| `pageUrl` | `string` | 卡片跳转（`page_url`；可能是 `sinaweibo://` scheme） |
+| `pagePic` | `string` | 封面图（`page_pic`；`http://` 统一升级为 `https://`） |
+| `type` | `number` | 卡片类型码（`type`；缺省 `0`） |
+| `objectType` | `string` | 对象类型（`object_type`；如 `webpage` / `video` / `podcast_audio` / `audio`） |
+| `objectId?` | `string` | 卡片对象 id（`object_id`）；未下发缺省 |
+| `subtitle?` | `string` | 卡片副标题 / 统计文案（`content2`，如「812播放  74点赞  0弹幕」）；空则缺省 |
 
 ### TweetRepostEntry（转发链层）
 
