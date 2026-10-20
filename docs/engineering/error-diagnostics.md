@@ -13,7 +13,8 @@
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | ❌ | API 返回 ok ≠ 1 |
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | ❌ | Zod schema 校验失败 / 响应非 JSON（登录页/风控页/接口移除） |
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | ✅ | 请求超时 |
-| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 网络错误（含 404/5xx） |
+| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | ✅ | 网络错误（含 4xx/5xx） |
+| `RATE_LIMITED` | `RateLimitError` | transport | ✅ | 上游限流/风控（HTTP 432 / 429） |
 
 ---
 
@@ -164,7 +165,68 @@ void new WeiboSDK({
 2. 检查 `error.context.data`（响应体）
 3. Telemetry 事件中查看 `url` 和 `method`
 
-**重试**：此错误 `retryable: true`，5xx 可延迟重试，4xx 不应重试。
+**重试**：`retryable: true`，SDK 默认对 **5xx** 与**无响应**的连接类失败做指数退避重试（`config.retry`）；其余 4xx（404/403…）不重试。
+
+---
+
+## 7. RATE_LIMITED
+
+**含义**：微博对当前 Cookie/IP 触发风控或限流——HTTP **432**（微博风控页）或 **429**（Too Many Requests）。
+
+**触发**：
+- 短时间大量归档/翻页请求（`streamArchive`、`streamFavorites`、连续详情请求）
+- 同一 Cookie 在网页端与 SDK 同时高频访问
+- 出口 IP 被判定为异常（共享代理、机房 IP）
+
+**诊断**：
+1. 查看 `error.context`：
+   ```json
+   { "status": 432, "retryAfterMs": 30000, "attempt": 3, "message": "..." }
+   ```
+   - `status`：432 / 429
+   - `retryAfterMs`：上游 `Retry-After`（秒或 HTTP date）解析后的毫秒数，缺失则退化为指数退避
+   - `attempt`：该错误是第几次尝试（`1` = 首次请求）
+2. 查看 telemetry：`request_retry` 记录每次退避（`attempt` / `delay_ms` / `reason` / `status`），`request_error`（`error_code: 'RATE_LIMITED'`）记录终态失败
+3. 检查 `rate_limit_wait` 事件的 `reason`：`rate_limited` 表示令牌桶正在全局暂停（其他并发请求已被拦住）
+
+**处置**：
+- 降低并发：`maxConcurrent: 1`、拉长 `delay`（例如 `delay: 3000`）
+- 加大退避：`retry: { retries: 3, baseDelayMs: 2000, maxDelayMs: 30000 }`
+- 换用浏览器同 IP 的 Cookie/网络；长时间 432 说明风控已生效，应暂停归档数小时
+- 432 命中后 SDK 会自动暂停全局令牌桶（`RateLimitService.pause`），避免并发请求同时撞墙
+
+**重试**：`retryable: true`，默认按指数退避 + jitter 自动重试（见 §8）。
+
+---
+
+## 8. 重试策略（config.retry）
+
+`FetcherService` 对**可重试**的结构化错误做指数退避 + jitter，全部可选、向后兼容：
+
+```typescript
+const sdk = new WeiboSDK({
+  cookie: '...',
+  retry: {
+    retries: 2,           // 最大重试次数（不含首次请求；0 = 不重试），默认 2，硬上限 10
+    baseDelayMs: 500,     // 首次重试基础延迟，默认 500ms
+    maxDelayMs: 8000,     // 单次延迟上限，默认 8000ms
+    retryOn: ['rate_limit', 'server_error', 'timeout', 'network_error'], // 默认全部
+  },
+})
+```
+
+| 类别 | 触发错误 | 默认重试 |
+|------|----------|----------|
+| `rate_limit` | `RATE_LIMITED`（432/429） | ✅ |
+| `server_error` | `NET_REQUEST_FAILED` 且 `status >= 500` | ✅ |
+| `timeout` | `NET_TIMEOUT` | ✅ |
+| `network_error` | `NET_REQUEST_FAILED` 且无 `status`（DNS/连接重置） | ✅ |
+
+**不重试**：其余 4xx（404/403…）、`API_NOT_OK`（`ok != 1`）、`API_BAD_RESPONSE`（schema/非 JSON）、`CONFIG_INVALID`、`AUTH_SESSION_EXPIRED`——即使配置了 `retries` 也不会重发。
+
+**延迟算法**：第 n 次重试 ≈ `min(maxDelayMs, baseDelayMs * 2^(n-1))`，再乘 jitter 系数 `0.5 ~ 1.0`；若上游给出 `Retry-After`，直接采用其值（同样受 `maxDelayMs` 截断，不做 jitter）。
+
+**可观测性**：每次退避发 `request_retry`（`attempt` / `max_attempts` / `delay_ms` / `reason` / `status` / `error_*`）；终态失败才发 `request_error`（`attempt` = 总尝试次数），hooks `onError` 同样只在终态触发（避免重试期间刷屏）。
 
 ---
 
@@ -217,8 +279,12 @@ if (errors.length > 0) {
 │  ├─ 用 E2E 抓取真实响应
 │  └─ 更新 Schema + 快照
 ├─ error.code === 'NET_TIMEOUT'
-│  └─ 增加 timeout 或检查代理
+│  └─ 增加 timeout 或检查代理（默认已自动退避重试）
+├─ error.code === 'RATE_LIMITED'（432 / 429）
+│  ├─ 看 request_retry 事件的 attempt / delay_ms 是否已耗尽 retries
+│  ├─ 降低 maxConcurrent / 拉长 delay，或加大 retry 退避
+│  └─ 持续 432 → 停一段时间（风控生效），必要时换出口 IP / Cookie
 └─ error.code === 'NET_REQUEST_FAILED'
-   ├─ status 4xx → 检查 URL
-   └─ status 5xx → 延迟重试
+   ├─ status 4xx → 检查 URL（不重试）
+   └─ status 5xx → 延迟重试（默认已自动退避重试）
 ```
