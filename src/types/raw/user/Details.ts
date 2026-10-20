@@ -15,6 +15,7 @@ export interface IRawUserDetails {
   description: string
   gender: string
   ip_location: string
+  hometown?: string
   real_name?: RealName
   followers: Followers
   label_desc: LabelDesc[]

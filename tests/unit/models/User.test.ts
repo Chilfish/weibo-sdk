@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { User } from '~/models/data/User'
+
+function loadFixture<T = any>(name: string): T {
+  return JSON.parse(readFileSync(join('tests/fixtures/raw', name), 'utf8'))
+}
 
 describe('user model normalization', () => {
   it('prefers avatar_hd then avatar_large then profile_image_url', () => {
@@ -164,5 +170,30 @@ describe('user model normalization', () => {
     expect(user.creditLevel).toBe('2')
     expect(user.externalLinks).toEqual([{ title: 't', url: 'u' }])
     expect(user.stats).toEqual({ followers: 3, friends: 4, statuses: 5 })
+  })
+
+  it('maps svip / mbrank / labelDesc from real fixtures', () => {
+    const info = loadFixture('profile_info_u2365795232.json')
+    const detail = loadFixture('profile_detail_v2.json')
+
+    const user = new User(info.data.user, detail.data)
+
+    expect(user.svip).toBe(0)
+    expect(user.mbrank).toBe(6)
+    expect(user.labelDesc).toEqual([{
+      name: '视频累计播放量4728',
+      normalMode: { wordColor: '#FFFF6200', backgroundColor: '#59FFDDCB' },
+      darkMode: { wordColor: '#FFEA8011', backgroundColor: '#FF181818' },
+    }])
+  })
+
+  it('strips the 家乡： prefix from a real hometown fixture', () => {
+    const detail = loadFixture('profile_detail_hometown.json')
+    const info = loadFixture('profile_info_u1740358225.json')
+
+    const user = new User(info.data.user, detail.data)
+
+    expect(detail.data.hometown).toBe('家乡：广东 深圳')
+    expect(user.hometown).toBe('广东 深圳')
   })
 })

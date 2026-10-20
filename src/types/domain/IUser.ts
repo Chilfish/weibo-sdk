@@ -37,6 +37,26 @@ export interface IUserVerification {
 }
 
 /**
+ * 用户标签（详情页 `label_desc[]`，如「微博创作者」「超话粉丝大咖」）。
+ */
+export interface IUserLabel {
+  /** 标签文案 */
+  name: string
+  /** 跳转地址（上游 `scheme_url`；缺省） */
+  schemeUrl?: string
+  /** 浅色模式配色 */
+  normalMode?: {
+    wordColor: string
+    backgroundColor: string
+  }
+  /** 深色模式配色 */
+  darkMode?: {
+    wordColor: string
+    backgroundColor: string
+  }
+}
+
+/**
  * 核心用户领域模型
  *
  * 由 raw 响应归一化得到的纯数据结构（实现见 `User`）；可选字段缺失表示上游未公开该项，
@@ -93,4 +113,12 @@ export interface IUser {
   externalLinks?: Array<{ title: string, url: string }>
   /** 学校（详情页 `education.school`） */
   school?: string
+  /** 微博会员等级（上游 `svip`；0 = 非会员 / 未下发时缺省） */
+  svip?: number
+  /** 微博会员等级（上游 `mbrank`；0 = 未开通 / 未下发时缺省） */
+  mbrank?: number
+  /** 家乡（详情页 `hometown`；未公开时缺省） */
+  hometown?: string
+  /** 用户标签（详情页 `label_desc[]`；无标签时缺省） */
+  labelDesc?: IUserLabel[]
 }

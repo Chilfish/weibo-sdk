@@ -1,6 +1,34 @@
-import type { Gender, IUser, IUserVerification } from '~/types/domain/IUser'
+import type { Gender, IUser, IUserLabel, IUserVerification } from '~/types/domain/IUser'
 import type { IRawUserDetails } from '~/types/raw/user/Details'
 import type { IRawUserInfo } from '~/types/raw/user/Info'
+
+function normalizeLabelDesc(labels: IRawUserDetails['label_desc'] | undefined): IUserLabel[] | undefined {
+  if (!Array.isArray(labels) || labels.length === 0)
+    return undefined
+
+  const out: IUserLabel[] = []
+  for (const label of labels) {
+    if (!label || typeof label.name !== 'string' || label.name.length === 0)
+      continue
+    const item: IUserLabel = { name: label.name }
+    if (typeof label.scheme_url === 'string' && label.scheme_url.length > 0)
+      item.schemeUrl = label.scheme_url
+    if (label.normal_mode) {
+      item.normalMode = {
+        wordColor: label.normal_mode.word_color,
+        backgroundColor: label.normal_mode.background_color,
+      }
+    }
+    if (label.dark_mode) {
+      item.darkMode = {
+        wordColor: label.dark_mode.word_color,
+        backgroundColor: label.dark_mode.background_color,
+      }
+    }
+    out.push(item)
+  }
+  return out.length > 0 ? out : undefined
+}
 
 /**
  * 用户领域模型（`IUser` 的具体实现）。
@@ -38,6 +66,14 @@ export class User implements IUser {
   public realName?: string
   /** 学校（raw `education.school`） */
   public school?: string
+  /** 微博会员等级（raw `svip`） */
+  public svip?: number
+  /** 微博会员等级（raw `mbrank`） */
+  public mbrank?: number
+  /** 家乡（详情页 raw `hometown`） */
+  public hometown?: string
+  /** 用户标签（详情页 raw `label_desc[]`） */
+  public labelDesc?: IUserLabel[]
   /** 计数器（粉丝 / 关注 / 微博数），非数字按 0 处理 */
   public stats: { followers: number, friends: number, statuses: number }
   /** 主页地址；`https://weibo.com` + raw `profile_url` */
@@ -84,5 +120,13 @@ export class User implements IUser {
       url: l.url,
     }))
     this.school = userDetails.education?.school
+
+    if (typeof userInfo.svip === 'number')
+      this.svip = userInfo.svip
+    if (typeof userInfo.mbrank === 'number')
+      this.mbrank = userInfo.mbrank
+    if (typeof userDetails.hometown === 'string' && userDetails.hometown.trim().length > 0)
+      this.hometown = userDetails.hometown.trim().replace(/^家乡：/, '')
+    this.labelDesc = normalizeLabelDesc(userDetails.label_desc)
   }
 }
