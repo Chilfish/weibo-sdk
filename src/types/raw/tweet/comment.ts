@@ -33,8 +33,26 @@ export interface CommentItem {
   max_id: number
   rootid: number
   rootidstr: string
-  /** 图片评论的媒体 */
+  /** 图片评论的图片数量（无图时缺省 / 0） */
+  pic_num?: number
+  /** 图片评论的短链列表（每张图一个 `http://t.cn/...`） */
+  mix_media_ids?: string[]
+  /** 图片评论的图片卡片；配图在 `pic_infos` 里 */
+  url_struct?: CommentUrlStruct[]
+  /** 图片评论的媒体（历史字段；当前 web 端点用 `url_struct[].pic_infos`） */
   pic?: CommentPic
+  [key: string]: unknown
+}
+
+export interface CommentUrlStruct {
+  url_title?: string
+  short_url?: string
+  long_url?: string
+  ori_url?: string
+  h5_target_url?: string
+  pic_ids?: string[]
+  /** key = 图片 id，value = 各尺寸 URL（thumbnail / bmiddle / large / woriginal ...） */
+  pic_infos?: Record<string, Record<string, unknown>>
   [key: string]: unknown
 }
 

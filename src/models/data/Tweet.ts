@@ -1,5 +1,5 @@
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
@@ -803,6 +803,56 @@ function getParentMblogId(rawRecord: UnknownRecord): string | undefined {
   return typeof mblogid === 'string' && mblogid.length > 0 ? mblogid : undefined
 }
 
+/** 评论配图的尺寸优先级：原图优先，`thumbnail` 兜底。 */
+const COMMENT_PIC_SIZE_KEYS = ['largest', 'original', 'woriginal', 'mw2000', 'large', 'bmiddle', 'thumbnail'] as const
+
+/**
+ * 图片评论配图：上游把图片放在 `url_struct[].pic_infos` 的「查看图片」卡片里。
+ *
+ * 多图评论可能下发多个 `url_struct` 项并重复同一 `pic_infos`，按 `pic_id` 去重；
+ * 无图片卡片时返回 undefined（调用方据此省略 optional 字段）。
+ */
+function extractCommentPics(record: UnknownRecord): TweetCommentPic[] | undefined {
+  const urlStruct = record.url_struct
+  if (!Array.isArray(urlStruct))
+    return undefined
+
+  const pics = new Map<string, TweetCommentPic>()
+  for (const item of urlStruct) {
+    if (!isRecord(item) || !isRecord(item.pic_infos))
+      continue
+
+    for (const [fallbackId, rawInfo] of Object.entries(item.pic_infos)) {
+      if (!isRecord(rawInfo))
+        continue
+
+      let best: UnknownRecord | undefined
+      for (const key of COMMENT_PIC_SIZE_KEYS) {
+        const candidate = rawInfo[key]
+        if (isRecord(candidate) && typeof candidate.url === 'string' && candidate.url.length > 0) {
+          best = candidate
+          break
+        }
+      }
+      if (!best)
+        continue
+
+      const id = getString(rawInfo.pic_id) ?? fallbackId
+      if (!id || pics.has(id))
+        continue
+
+      pics.set(id, {
+        id,
+        imageUrl: best.url as string,
+        width: getNumber(best.width) ?? 0,
+        height: getNumber(best.height) ?? 0,
+      })
+    }
+  }
+
+  return pics.size > 0 ? [...pics.values()] : undefined
+}
+
 /**
  * 评论归一化递归核（纯函数）。
  *
@@ -823,6 +873,10 @@ function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComm
     likes: getNumber(record.like_counts ?? record.like_count) ?? 0,
     user: normalizeUser(record.user),
   }
+
+  const pics = extractCommentPics(record)
+  if (pics)
+    comment.pics = pics
 
   const rootId = toIdString(record.rootidstr) ?? toIdString(record.rootid)
   if (rootId !== undefined)
@@ -864,6 +918,7 @@ function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComm
  * - D2 追加：`rootId`（`rootidstr`/`rootid`）、`replyTo`（`reply_comment`，递归）、
  *   `floorNumber`（`floor_number`）、`totalReplies`（`total_number`，缺省即省略）、
  *   `liked`（`liked`，缺省即省略）、`parentMblogId`（内嵌 `status.mblogid`）。
+ * - 图片评论：`pics` 取 `url_struct[].pic_infos`（最大尺寸 URL），按 `pic_id` 去重。
  * - `status` / `reply_comment` 缺失时不抛错，只是对应 optional 字段不出现。
  *
  * 保持向后兼容：`id` / `createdAt` / `text` / `textHtml` / `source` / `likes` / `user` 语义不变。

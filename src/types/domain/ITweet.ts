@@ -142,6 +142,8 @@ export interface ITweetComment {
   user: TweetUser
   /** 楼中楼回复（递归同构；无回复时缺省） */
   replies?: ITweetComment[]
+  /** 图片评论的配图（上游 `url_struct[].pic_infos`；无图时缺省） */
+  pics?: TweetCommentPic[]
 
   // ---- D2 新增（全部 optional，v1 内只增不改） ----
 
@@ -166,6 +168,23 @@ export interface ITweetComment {
   liked?: boolean
   /** 被评论微博的字母 id（上游内嵌 `status.mblogid`），用于回跳原微博 */
   parentMblogId?: string
+}
+
+/**
+ * 评论配图（图片评论）。
+ *
+ * 上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；
+ * `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。
+ */
+export interface TweetCommentPic {
+  /** 图片 id（`pic_infos` 键 / `pic_id`） */
+  id: string
+  /** 最大尺寸图片 URL（临时签名 URL） */
+  imageUrl: string
+  /** 像素宽度（缺省 0） */
+  width: number
+  /** 像素高度（缺省 0） */
+  height: number
 }
 
 /**

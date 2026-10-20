@@ -202,6 +202,18 @@ const BuildCommentsArgsSchema = z.object({
 
 export type BuildCommentsArgs = z.infer<typeof BuildCommentsArgsSchema>
 
+// 图片评论（真实样本：comments.json / comments_pic_multi.json）：配图在 url_struct[].pic_infos，
+// 多图评论可能重复下发同一 pic_infos（归一化按 pic_id 去重）。
+const CommentUrlStructSchema = z.object({
+  url_title: z.string().optional(),
+  short_url: z.string().optional(),
+  long_url: z.string().optional(),
+  ori_url: z.string().optional(),
+  h5_target_url: z.string().optional(),
+  pic_ids: z.array(z.string()).optional(),
+  pic_infos: z.record(z.string(), PicInfoSchema).optional(),
+}).passthrough()
+
 const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
@@ -217,6 +229,9 @@ const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
   max_id: z.number().optional(),
   rootid: z.number().optional(),
   rootidstr: z.string().optional(),
+  pic_num: z.number().optional(),
+  mix_media_ids: z.array(z.string()).optional(),
+  url_struct: z.array(CommentUrlStructSchema).optional(),
   user: z.object({
     id: IdSchema.optional(),
     idstr: z.string().optional(),
