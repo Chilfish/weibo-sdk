@@ -1,10 +1,10 @@
 # 微博 SDK 渐进式开发计划
 
-> **版本**: 2.0.1
-> **最后更新**: 2026-08-09
-> **状态**: 基础设施与 9 个端点已完成，进入"数据驱动精确化 + 新端点扩展"阶段
+> **版本**: 2.2.0
+> **最后更新**: 2026-10-20
+> **状态**: 0.1.0 发布与 0.2.0 用户数据面 / 可靠性 / DX 已完成并归档；当前无进行中的阶段计划，后续从 [backlog.md](./backlog.md) 挑选
 >
-> 后续所有开发必须以真实微博 API 返回数据为准（见 `CLAUDE.md` 中"数据驱动开发"章节）。
+> 后续所有开发必须以真实微博 API 返回数据为准（见 `AGENTS.md` 中"数据驱动开发"章节）。
 
 ---
 
@@ -36,8 +36,18 @@
 | `ajax/side/bandUnified` | `TrendsService.hotBand()` | 热搜榜单 |
 | `ajax/friendships/friends` | `FollowingsService.getFollowings()` | 用户关注列表 |
 | `ajax/profile/followContent` | `FollowingsService.getMyFollowings()` | 我的关注列表 |
-| `ajax/favorites/all_fav` | `FavoriteService.getFavorites()` | 收藏夹 |
-| `m.weibo.cn/api/container/getIndex` | `SearchService.searchUsers()` / `searchTweets()` | 搜索用户 / 微博 |
+| `ajax/favorites/all_fav` | `FavoriteService.getFavorites()` / `listFavorites()` / `streamFavorites()` | 收藏夹 |
+| `ajax/statuses/likelist` | `LikeService.listByUserId()` / `streamByUserId()` | 我赞过的微博（page） |
+| `ajax/message/myCmt` | `CommentHistoryService.listMine()` / `streamMine()` | 当前用户历史评论（max_id） |
+| `ajax/profile/getImageWall` | `MediaService.listImages()` / `streamImages()` / `listAlbums()` | 用户图片墙 + 相册 tab（`has_album=true`） |
+| `ajax/profile/getAlbumDetail` | `MediaService.listAlbumPhotos()` / `streamAlbumPhotos()` | 相册照片（`containerid` + `since_id`） |
+| `ajax/profile/getWaterFallContent` | `MediaService.listVideos()` / `streamVideos()` | 用户视频瀑布（cursor） |
+| `ajax/stopic/cates` / `ajax/stopic/list` | `TopicService.cates()` / `list()` / `stream()` | 超话分类 / 列表 / 关键词搜索 |
+| `m.weibo.cn/api/attitudes/show` | `TweetService.likers()` / `streamLikers()` | 微博点赞者（数字 mid；page） |
+| `ajax/statuses/mentions` | `UserService.listMentions()` / `streamMentions()` | @我的微博（max_id） |
+| `ajax/message/cmt` / `ajax/message/attitudes` | `NotificationService.listComments()` / `listLikes()` 等 | 评论 / 点赞通知（max_id） |
+| `ajax/feed/allGroups` / `ajax/mblog/querygroup` | `UserService.groups()` / `mblogGroups()` | 关注分组 / 微博分组 |
+| `m.weibo.cn/api/container/getIndex` | `SearchService.searchUsers()` / `searchTweets()` | 搜索用户 / 微博（产品暂缓） |
 
 所有端点均含 argsSchema 校验；`User` / `Tweet` 归一化由 `models/data/*.ts` 纯函数完成。
 
@@ -129,19 +139,21 @@
 
 > 标准流程、分页约定与高频雷区见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。
 
-### Phase 6：用户数据丰富度（0.2，已承接）
+### Phase 6：用户数据丰富度（0.2，已完成并归档）
 
-> 目标：从「微博正文归档」扩展到用户的完整公开数据面。行动清单见 [todo-post-0.1.0.md](./todo-post-0.1.0.md)。
+> 目标：从「微博正文归档」扩展到用户的完整公开数据面。行动清单见 [todo-post-0.1.0.md](../archive/todo-post-0.1.0.md)（已完成并归档）。
 
-- [ ] 用户点赞过的微博（`likes`）
-- [ ] 当前用户历史评论（`/ajax/message/myCmt`）
-- [ ] 图片墙 / 相册 / 视频瀑布 / 音频播放列表
-- [ ] 微博点赞者、@我的、消息通知、关注分组
-- [ ] 个人主页关键词搜索（`searchProfile` 增加 `q`）与二级评论完整分页
-- [ ] 增量归档、多账号批量、仅原创
-- [ ] `ITweet` / `IUser` / `ITweetComment` 可选字段补齐
-- [ ] 432 退避、请求级重试、代理抽象
-- [ ] 端点脚手架 / 抓包助手 / `capabilities` / 分页抽象
+- [x] 用户点赞过的微博（`likes`，D1）
+- [x] 当前用户历史评论（`/ajax/message/myCmt`，D2）
+- [x] 图片墙 / 视频瀑布 / 相册（D4/D5）；音频单条字段已支持，播放列表待样本（D6）
+- [x] 超话分类 / 列表 / 搜索（D7）
+- [x] 微博点赞者、@我的、消息通知、关注分组（D8–D11）
+- [x] 个人主页关键词搜索（`searchProfile` 增加 `q`，D12）与二级评论完整分页（D13）
+- [x] 增量归档、多账号批量、仅原创
+- [x] 媒体归档集成（`includeImages` / `includeVideos`）；`ITweet` v1 可选字段第一批（topics / linkCards / readCount / editCount / title / permanentVideoUrl / isOriginal / sourceUrl）
+- [x] 剩余可选字段（`atUsers` / `playCount` / `isTop` / `audio`；`IUser` 扩展）
+- [x] 432 退避、请求级重试；代理抽象进行中
+- [ ] 端点脚手架 / 抓包助手 / `capabilities` / 分页抽象（进行中）
 
 ---
 

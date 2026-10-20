@@ -1,6 +1,6 @@
 # 行动计划：契约冻结与归档硬化（发布就绪）
 
-> **已归档**（2026-10-20）：本阶段 P0/P1/P2 + DoD 全部收口，0.1.0 已发布（0.1.1 重发）。历史记录，不再主动读取；后续承接见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md)。
+> **已归档**（2026-10-20）：本阶段 P0/P1/P2 + DoD 全部收口，0.1.0 已发布（0.1.1 重发）。历史记录，不再主动读取；后续承接见 [todo-post-0.1.0.md](./todo-post-0.1.0.md)。
 > 承接 [todo-archive-mvp.md](./todo-archive-mvp.md)（A1-A8 + P0 已完成，已归档）。
 > **前提事实**：`@chilfish/weibo-sdk`（CLI `weibo-cli`）发布为 npm 包，被 Weibo-archiver 的 web-v3（浏览器 SPA）/ monkey / CLI 消费；`ITweet` 被定为下游 **UI 与存档终局契约**（ADR-007/008，存进 IndexedDB）。
 > 本阶段主题：**让 ITweet 成为可靠的磁盘格式 + 让归档主线在规模下成立**。
@@ -61,4 +61,4 @@
 - [x] 开发日志记录本阶段；关键返工沉淀 postmortem（[009-cookie-env-shadowing](../postmortem/009-cookie-env-shadowing.md)）
 
 > **2026-10-19 状态**：P0/P1/P2 全部收口，DoD 全绿；本阶段转为**发布准备**（按 [release-checklist.md](../engineering/release-checklist.md) 执行 0.1.0 发布）。未完成项回流 [backlog.md](../planning/backlog.md)。
-> **2026-10-20 状态**：0.1.0 已发布（首次 `npm publish` 把 `catalog:` 协议打进产物，改用 `pnpm publish` 重发 0.1.1，见 [postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。本档随之归档到 `docs/archive/`；后续行动计划为 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md)。
+> **2026-10-20 状态**：0.1.0 已发布（首次 `npm publish` 把 `catalog:` 协议打进产物，改用 `pnpm publish` 重发 0.1.1，见 [postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。本档随之归档到 `docs/archive/`；后续行动计划为 [todo-post-0.1.0.md](./todo-post-0.1.0.md)。
