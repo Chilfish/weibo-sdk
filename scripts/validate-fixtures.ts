@@ -70,6 +70,8 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'comments_no_type_end.json': validate(buildCommentsSpec),
   'comments_firewall.json': validate(buildCommentsSpec),
   'comments_hot_empty.json': validate(buildCommentsSpec),
+  // 2026-10-20 真实抓包：图片评论（单图 / 多图重复 url_struct）
+  'comments_pic_multi.json': validate(buildCommentsSpec),
   'repost_timeline.json': validate(repostTimelineSpec),
   'repost_timeline_p2.json': validate(repostTimelineSpec),
   'searchProfile_p1.json': validate(searchProfileSpec),

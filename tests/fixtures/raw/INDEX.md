@@ -302,3 +302,19 @@
 - **防火墙**：`trendsText` 为「博主已开启防火墙，部分内容暂不展示」时，`data` 会少于 `total_number` 且 `max_id=0`，属于上游限制。
 - **楼中楼**：`id=<一级评论 id>&is_reply=1&fetch_level=1`；`rootid` 可选；回复线程的 `max_id` 同样取响应顶层值，`0` 到底。
 
+## 新增抓包（2026-10-20：图片评论）
+
+> 抓包环境：同一 Cookie 直接调用 `/ajax/statuses/buildComments`（微博 `RnxOYgp3J`）。
+> 已建模：`comments_pic_multi.json` → `buildCommentsSpec`（mapped）；归一化产物为 `ITweetComment.pics`。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `comments_pic_multi.json` | 15K | `buildComments` | 2 条图片评论（1 图 / 2 图）；2 图评论的两个 `url_struct` 项重复同一 `pic_infos` |
+
+### 图片评论 —— `buildComments` 的 `url_struct[].pic_infos`
+
+- 评论顶层没有 `pic`；`pic_num` 是图片数，`mix_media_ids[]` 是每张图的 `http://t.cn/...` 短链。
+- 真正 URL 在 `url_struct[].pic_infos`（`url_title: "查看图片"`）：key = 图片 id，value 含 `thumbnail` / `bmiddle` / `large` / `woriginal`。
+- 多图评论可能返回多个 `url_struct` 项，后面的项可能重复前面的 `pic_infos`；归一化按 `pic_id` 去重。
+- `normalizeComment` 取 `largest → original → woriginal → mw2000 → large → bmiddle → thumbnail` 的首个可用 URL 填入 `pics[].imageUrl`（临时签名 URL）。
+

@@ -103,3 +103,16 @@ describe('buildComments real pagination fixtures', () => {
     expect(data.max_id).toBe(82083038794)
   })
 })
+
+describe('buildComments image comments (2026-10-20 real capture)', () => {
+  it('parses pic_num / mix_media_ids / url_struct.pic_infos', async () => {
+    const data = buildCommentsSpec.schema.parse(await loadFixture('comments_pic_multi.json'))
+
+    expect(data.data).toHaveLength(2)
+    const multi = data.data.find((comment: any) => comment.pic_num === 2)
+    expect(multi).toBeDefined()
+    expect(multi!.mix_media_ids).toHaveLength(2)
+    expect(multi!.url_struct![0].pic_infos).toBeDefined()
+    expect(Object.keys(multi!.url_struct![0].pic_infos!)).toHaveLength(2)
+  })
+})

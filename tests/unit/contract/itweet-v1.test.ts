@@ -1,7 +1,7 @@
-import type { ITweet, TweetContractVersion } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetContractVersion } from '~/types/domain/ITweet'
 import { readFileSync } from 'node:fs'
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { isRawTweet, normalizeTweet } from '~/models/data/Tweet'
+import { isRawTweet, normalizeComment, normalizeTweet } from '~/models/data/Tweet'
 import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
 
 /**
@@ -73,5 +73,20 @@ describe('iTweet v1 contract freeze', () => {
     expect(tweet.media.length).toBeGreaterThan(0)
     // pic_infos 路径的 media 键集（videoUrl 键恒在，无实况视频时值为 undefined）
     expect(Object.keys(tweet.media[0]).sort()).toEqual(['height', 'id', 'imageUrl', 'type', 'videoUrl', 'width'])
+  })
+
+  it('freezes ITweetComment v1 field names at the type level', () => {
+    expectTypeOf<keyof ITweetComment>().toEqualTypeOf<
+      | 'id' | 'createdAt' | 'text' | 'textHtml' | 'source' | 'likes' | 'user' | 'replies' | 'pics'
+      | 'rootId' | 'replyTo' | 'floorNumber' | 'totalReplies' | 'liked' | 'parentMblogId'
+    >()
+  })
+
+  it('normalizes real image comments into a frozen pics shape', () => {
+    const raw: unknown = JSON.parse(readFileSync('tests/fixtures/raw/comments_pic_multi.json', 'utf8'))
+    const comment = normalizeComment((raw as { data: unknown[] }).data[0])
+
+    expect(comment.pics).toHaveLength(2)
+    expect(Object.keys(comment.pics![0]).sort()).toEqual(['height', 'id', 'imageUrl', 'width'])
   })
 })
