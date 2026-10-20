@@ -36,6 +36,12 @@
 | `unit/services/RateLimitService.test.ts` | `RateLimitService` | 令牌桶算法、限流效果、FakeClock 注入、并发获取令牌、432 后全局暂停（`pause` / `isPaused` / `getPausedRemainingMs`、`rate_limit_wait.reason`） |
 | `unit/services/RetryPolicy.test.ts` | `RetryPolicy` | 默认/异常配置归一化、重试次数上限、失败类别分类（432/429/5xx/超时/无响应）、`Retry-After`（秒与 HTTP date）、指数退避 + jitter |
 
+### Unit — 工具
+
+| 文件 | 覆盖内容 | 关键测试点 |
+|---|---|---|
+| `unit/utils/tweetId.test.ts` | `parseTweetIdInput` / `normalizeTweetIdInput` | mblogid / 数字 mid / `m.weibo.cn` 与 `weibo.com` 状态 URL、分享文案、query/fragment/尾斜杠、拒绝用户主页/文章页/t.cn、`CONFIG_INVALID` context |
+
 ### Unit — 领域服务
 
 | 文件 | 覆盖内容 | 关键测试点 |
@@ -62,6 +68,9 @@
 | `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 默认全开；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
 | `unit/cli/parsePositiveInt.test.ts` | `parsePositiveInt` | 正整数字符串解析、小数取整；`0` / 负数 / 非数字 / 空串返回 undefined |
 | `unit/cli/tweetCommentsArgs.test.ts` | `tweet comments` 参数 | `--max-id` 已声明并作为 `max_id` 透传（缺省 undefined） |
+| `unit/cli/streamRangeArgs.test.ts` | 流式范围 CLI 参数 | `--max-items/--since/--until` 解析；时间序命令声明日期边界、非时间序命令只声明条数上限 |
+| `unit/utils/streamRange.test.ts` | `createStreamRange` | `maxItems` 上限、`since` 早停、`until` 跳过、日期窗口、不可解析时间保留、非法日期 `CONFIG_INVALID`、缺 `getTime` 报错 |
+| `unit/utils/pagination.test.ts` | `paginate` | 空页/去重/游标不前进/`maxPages`、`maxItems` 跨页截断、`since`/`until` 边界、日期边界缺 `getTime` 报错 |
 
 ### Unit — 错误
 
@@ -82,12 +91,14 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `component/public/UserService.test.ts` | `UserService` | info/details/myDetails 端点调用与 params、getById 归一化+正常化事件、session expired 错误、schema 校验失败 |
-| `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败、`enrich` raw+归一化（含可选 longtext）、请求级 `onRaw` 在校验/ok 检查前触发 |
+| `component/public/TweetService.test.ts` | `TweetService` | mymblog/show 端点调用与 params、listByUserId/getByMblogId 归一化+正常化事件、API not ok 错误、schema 校验失败、`enrich` raw+归一化（含可选 longtext）、请求级 `onRaw` 在校验/ok 检查前触发、流式 `maxItems` / `since` 早停 |
+| `component/public/MediaService.test.ts` | `MediaService` | 真实图片墙/视频瀑布 fixture、`sinceid` / `cursor` 翻页、跨页去重、空页停止、负游标归一化、`maxItems` 截断、`normalize_done` 事件 |
 | `component/public/ArchiveService.test.ts` | `ArchiveService` | timeline（内联 reposts）→ favorites 编排、恒定大小 checkpoint + `lastTimelineMblogId` 续传、整页重复即停止、无 timeline 重放、schemaDigest、归档级 `onRaw` 逐项交付且信封不含 raw、onRaw 抛错向上传播 |
 | `component/public/FavoriteService.test.ts` | `FavoriteService` | `getTags` 响应解析与 referer、`getFavorites` 透传 uid/page |
 | `component/public/LikeService.test.ts` | `LikeService` | 真实 `likes_p1` 归一化、`normalize_done` 事件、p1+p2+end 流式去重与请求序列 |
 | `component/public/MediaService.test.ts` | `MediaService` | 真实图片墙/视频瀑布 fixture、`sinceid` / `cursor` 翻页、跨页去重、空页停止、负游标归一化、`normalize_done` 事件 |
 | `component/public/Likers.test.ts` | `TweetService.likers` / `streamLikers`（D8） | 真实 `likers_p1/p2/end` fixture、m 站 URL/referer、数字 mid 参数、越界 `data: null`、跨页去重、`page=0` 归一化、`normalize_done` |
+| `component/public/TweetIdInput.test.ts` | Tweet id 输入归一化 | `getByMblogId` 状态 URL、`comments flow=1` 的 mid 解析、`getReposts` URL、`likers` mblogid→mid、`downloadByMblogId` URL |
 | `component/public/UserSocial.test.ts` | `UserService` mentions / groups（D9/D11） | 真实 `mentions_*` fixture、`max_id` 翻页与 `next_cursor=0` 停止、`feed_groups` 分类拍平、`mblog_groups` join_groups、`normalize_done` |
 | `component/public/NotificationService.test.ts` | `NotificationService`（D10） | 真实 `message_cmt_*` / `message_attitudes_*` fixture、`max_id` 翻页、`next_cursor=0` 停止、缺失 `status` 条目跳过、`normalize_done` |
 | `component/public/TweetStreams.test.ts` | 评论 / 转发 / 楼中楼流式分页 | `max_id` 翻页与跨页去重、`total_number` 不提前停止、空页结束、`flow=1` 只解析一次数字 mid、楼中楼 `max_id=0` 停止 |

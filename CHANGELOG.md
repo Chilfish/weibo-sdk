@@ -6,6 +6,10 @@
 
 ### Added
 
+- **微博 id 输入归一化**：所有接受 `mblogId` 的公开方法（`getByMblogId` / `show` / `enrich` / `comments` / `replies` / `longText` / `getReposts` / `stream*` / `media.downloadByMblogId`）现在也接受数字 mid 与微博状态 URL（`https://m.weibo.cn/status/<mid>`、`https://weibo.com/<uid>/<mblogid>`）。`likers` / `streamLikers` 只收数字 mid，非数字输入会用 `statuses/show` 自动解析一次。新增纯函数 `parseTweetIdInput` / `normalizeTweetIdInput` 并从包入口导出。
+- **Playground**：新增 `playground/` 场景化示例（15 个 SDK + 13 个 CLI），`pnpm play` 一键运行；SDK 示例使用真实包名 `@chilfish/weibo-sdk`，CLI 示例直接运行 `weibo-cli`。telemetry JSONL 示例迁移为 `playground/sdk/telemetry.ts`（离线可跑）。
+- **流式范围控制**：所有 `stream*` 方法新增 `maxItems`（跨页去重后的产出上限，达到后不再请求下一页；`paginate` 同步支持）；时间倒序的流（用户时间线 / 首页 Feed / 转发 / @我 / 历史评论 / 评论与点赞通知）额外支持 `since` / `until` 日期边界（`YYYY-MM-DD` / `YYYYMMDD` / unix 秒；`since` 更早即停止翻页，`until` 更晚跳过）。CLI 对应 `--max-items` / `--since` / `--until`，并新增 `weibo-cli user timeline-stream`。`since` 与 `sinceId` 语义区分：前者是日期边界，后者是微博 id / 媒体游标。
+- **`whoami` 错误信封**：Cookie 失效 / 缺失时改为与其他命令一致的 JSON 结构化错误（`AUTH_SESSION_EXPIRED` / `CONFIG_INVALID`），不再输出 `❌ ...` 纯文本。
 - **转发链配图（`repostChain`）**：`ITweet` v1 新增 optional `repostChain: TweetRepostEntry[]`，按正文 `//@` 由近到远分层（`index` 0 = 当前微博），把 `url_struct[]` 里的 reppic 配图按 `short_url` 挂回所属层（按 `pic_id` 去重；无法定位的图片追加到末尾补充层）。修复「带图转发 / 多层转发链」的图片完全丢失：此前只存在于 `url_struct`，`media` 为空。`sdk.media.downloadByMblogId` / `weibo-cli media download` 现在会合并下载 `media + repostChain[].media + retweetedStatus.media`。
 - **公共流式分页（0.2 DX）**：新增 `tweets.streamComments` / `streamReplies` / `streamReposts`、`followings.streamFollowings` / `streamFans` / `streamMyFollowings`；统一「空页 / 整页重复 / 游标不前进 / maxPages」停止语义（分页型端点另可按 total 提前停止；评论流的 total 含楼中楼，不参与停止）。CLI 新增 `tweet comments-stream|replies|replies-stream|reposts-stream`、`follow stream|fans-stream|my-stream`。
 - **通用分页器 `paginate()`**（`src/utils/pagination.ts`）：page / cursor / since_id / max_id 共用实现，支持跨页去重、进度回调与 `maxPages`。

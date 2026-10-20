@@ -49,6 +49,10 @@ weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 
 流式命令输出 NDJSON：每行是 `{ event: 'progress' | 'item' | 'done', ... }`，可直接管道给 `jq`。
 
+> `tweet` / `media download` 的 id 参数接受 mblogId、数字 mid、微博状态 URL
+> （如 `https://m.weibo.cn/status/5356120103455672`）；SDK/CLI 会自动归一化。
+> `likers` 只收数字 mid，SDK 会自动解析。
+
 ### 步骤 3：用 SDK 集成
 
 ```ts

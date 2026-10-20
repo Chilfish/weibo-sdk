@@ -18,6 +18,13 @@
 | [AGENTS.md](../AGENTS.md) | 仓库级开发约束 + SDK/CLI 使用速查（安装 / 登录 / 命令 / 分页 / 错误码 / 边界） | 任何开发任务开始前 |
 | [.agents/skills/weibo-sdk/SKILL.md](../.agents/skills/weibo-sdk/SKILL.md) | Agent 技能（按 skill-creator 模板：指令 / 示例 / 故障排除 / 边界） | 用 SDK/CLI 取数、归档或新增端点 |
 
+## playground/ — 可运行示例
+
+| 文档 | 说明 |
+|---|---|
+| [playground/README.md](../playground/README.md) | 场景化 SDK / CLI 示例、Quick Start、`pnpm play` 用法与排障 |
+| [playground/cli/README.md](../playground/cli/README.md) | CLI 命令食谱（复制即用，含 NDJSON 管道消费） |
+
 ## requirements/ — 需求文档
 
 | 文档 | 说明 | 何时阅读 |

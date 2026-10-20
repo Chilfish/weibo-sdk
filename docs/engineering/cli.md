@@ -48,6 +48,10 @@ weibo-cli search users 新闻 | jq '.data.cards[0].card_group[:3]'
 
 ## 命令参考
 
+> 所有 `<mblogId>` / `<mid>` 参数都接受 mblogId、数字 mid 或微博状态 URL
+> （`https://m.weibo.cn/status/<mid>`、`https://weibo.com/<uid>/<mblogid>`）。SDK 在请求前统一归一化；
+> `tweet likers` 会自动用 `statuses/show` 解析数字 mid。
+
 ### 用户操作（`user`）
 
 ```bash
@@ -57,9 +61,12 @@ weibo-cli user info <uid>
 # 获取用户微博时间线（归一化为 TweetPageResult）
 weibo-cli user timeline <uid> [--page/-p <n>] [--count <n>]
 
+# 流式遍历用户时间线（NDJSON progress/item/done；时间倒序）
+weibo-cli user timeline-stream <uid> [--page <n>] [--count <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
+
 # @我的微博（max_id 游标；--max-id 为上一页返回的 cursor）
 weibo-cli user mentions [--max-id <cursor>] [--page <n>]
-weibo-cli user mentions-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+weibo-cli user mentions-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 
 # 关注分组 / 微博分组（无分页）
 weibo-cli user groups
@@ -84,15 +91,15 @@ weibo-cli tweet comments <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1
 
 # 流式遍历评论（max_id 游标 + 自动去重；NDJSON progress/item/done）
 # 结束条件：max_id=0 或空页；total_number 含楼中楼，不能当作剩余条数
-weibo-cli tweet comments-stream <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1] [--max-pages <n>]
+weibo-cli tweet comments-stream <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1] [--max-pages <n>] [--max-items <n>]
 
 # 一级评论下的二级评论（is_reply=1 + fetch_level=1；请求 id=<rootCommentId>，不是 mblogId）
 weibo-cli tweet replies <mblogId> <rootCommentId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
-weibo-cli tweet replies-stream <mblogId> <rootCommentId> [--max-id <cursor>] [--max-pages <n>]
+weibo-cli tweet replies-stream <mblogId> <rootCommentId> [--max-id <cursor>] [--max-pages <n>] [--max-items <n>]
 
 # 首页「最新微博」关注时间线（max_id 翻旧页；since_id 只做增量过滤）
 weibo-cli tweet home [--max-id <id>] [--since-id <id>] [--list-id <id>] [--fid <id>] [--refresh <n>] [--count <n>]
-weibo-cli tweet home-stream [--max-id <id>] [--since-id <id>] [--max-pages <n>]
+weibo-cli tweet home-stream [--max-id <id>] [--since-id <id>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 
 # 获取长微博全文
 weibo-cli tweet longtext <mblogId>
@@ -101,7 +108,7 @@ weibo-cli tweet longtext <mblogId>
 weibo-cli tweet reposts <mblogId> [--page <n>]
 
 # 流式遍历转发（page 游标 + 自动去重；NDJSON progress/item/done）
-weibo-cli tweet reposts-stream <mblogId> [--page <n>] [--count <n>] [--max-pages <n>]
+weibo-cli tweet reposts-stream <mblogId> [--page <n>] [--count <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 
 # 按日期 / 关键词搜索用户微博（--q 为个人主页内关键词搜索）
 weibo-cli tweet search-profile <uid> [--page <n>] [--q <keyword>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
@@ -109,8 +116,10 @@ weibo-cli tweet search-profile <uid> [--page <n>] [--q <keyword>] [--starttime <
 
 # 微博点赞者（按页；入参必须是数字 mid，不是字母 mblogid）
 weibo-cli tweet likers <mid> [--page <n>]
-weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>]
+weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
+
+> **流式范围控制**：所有 `*-stream` 命令都支持 `--max-items <n>`（跨页去重后的产出上限，达到后不再请求下一页）。时间倒序的流额外支持 `--since <date>` / `--until <date>`（`YYYY-MM-DD` / `YYYYMMDD` / unix 秒；更早即停止翻页，更晚跳过）。`--since-id` 仍是微博 id / 媒体游标，不是日期。起始 `--page` / `--max-id` 用于断点续传与增量拉取。
 
 > `likers` 使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 仍返回正确
 > `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，按空页停止。
@@ -130,9 +139,9 @@ weibo-cli follow fans <uid> [--page <n>]
 weibo-cli follow my [--page <n>]
 
 # 流式遍历关注 / 粉丝 / 我的关注（page 游标 + 自动去重；NDJSON progress/item/done）
-weibo-cli follow stream <uid> [--page <n>] [--max-pages <n>]
-weibo-cli follow fans-stream <uid> [--page <n>] [--max-pages <n>]
-weibo-cli follow my-stream [--page <n>] [--max-pages <n>]
+weibo-cli follow stream <uid> [--page <n>] [--max-pages <n>] [--max-items <n>]
+weibo-cli follow fans-stream <uid> [--page <n>] [--max-pages <n>] [--max-items <n>]
+weibo-cli follow my-stream [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
 ### 收藏夹（`favorite`）
@@ -143,7 +152,7 @@ weibo-cli favorite list <uid> [--page <n>]
 
 # 流式遍历收藏夹（自动翻页 + 去重 + 客户端标签过滤）
 # NDJSON：progress / item / done 事件
-weibo-cli favorite stream <uid> [--page <n>] [--tag <标签 id 或名称>] [--max-pages <n>]
+weibo-cli favorite stream <uid> [--page <n>] [--tag <标签 id 或名称>] [--max-pages <n>] [--max-items <n>]
 
 # 获取收藏夹标签
 weibo-cli favorite tags
@@ -157,7 +166,7 @@ weibo-cli like list <uid> [--page <n>]
 
 # 流式遍历我赞过的微博（自动翻页 + 跨页去重）
 # NDJSON：progress / item / done 事件
-weibo-cli like stream <uid> [--page <n>] [--max-pages <n>]
+weibo-cli like stream <uid> [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
 ### 历史评论（`comment`）
@@ -168,7 +177,7 @@ weibo-cli comment mine [--max-id <cursor>] [--page <n>]
 
 # 流式遍历历史评论（游标自动翻页 + 跨页去重）
 # NDJSON：progress / item / done 事件
-weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 ```
 
 > `comment` 只读取**当前登录用户自己**发表过的评论（身份由 Cookie 决定，端点不接受 uid）；
@@ -179,17 +188,17 @@ weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
 ```bash
 # 流式遍历用户图片墙（pic / livephoto / gif；自动翻页 + 跨页去重）
 # NDJSON：progress / item / done 事件
-weibo-cli media images <uid> [--since-id <cursor>] [--max-pages <n>]
+weibo-cli media images <uid> [--since-id <cursor>] [--max-pages <n>] [--max-items <n>]
 
 # 流式遍历用户视频瀑布（从 page_info.media_info 提取视频）
 # NDJSON：progress / item / done 事件
-weibo-cli media videos <uid> [--cursor <cursor>] [--max-pages <n>]
+weibo-cli media videos <uid> [--cursor <cursor>] [--max-pages <n>] [--max-items <n>]
 
 # 相册列表（getImageWall?has_album=true 的 album_list）
 weibo-cli media albums <uid>
 
 # 流式遍历相册照片（since_id 游标 + 跨页去重）
-weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>]
+weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>] [--max-items <n>]
 ```
 
 > `images` 的上游游标是 `sinceid`（首屏不传 / `0`，下一页传上一页 `sinceId`）；`videos` 的游标是 `cursor`
@@ -201,11 +210,11 @@ weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>]
 ```bash
 # 评论通知（别人评论我 / 回复我；--max-id 为上一页返回的 cursor）
 weibo-cli notification comments [--max-id <cursor>] [--page <n>]
-weibo-cli notification comments-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+weibo-cli notification comments-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 
 # 点赞通知（别人赞我）
 weibo-cli notification likes [--max-id <cursor>] [--page <n>]
-weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>]
+weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 ```
 
 > 两个消息端点都使用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 到底。
@@ -236,7 +245,7 @@ weibo-cli topic cates
 weibo-cli topic list [--sort-id <id>] [--keyword <kw>] [--page <n>]
 
 # 流式遍历超话列表 / 搜索结果（page 游标 + 自动去重）
-weibo-cli topic stream [--sort-id <id>] [--keyword <kw>] [--page <n>] [--max-pages <n>]
+weibo-cli topic stream [--sort-id <id>] [--keyword <kw>] [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
 > `stopic/list` 的 `count` 是**总页数**（30 条/页）；`sort_id=0` + `keyword` 为搜索。

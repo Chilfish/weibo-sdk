@@ -16,7 +16,7 @@
 - **会话自检**：`selfCheck()` 支持 lazy/eager/none 三种模式，Cookie 过期提前诊断
 - **速率控制**：令牌桶算法，支持并发控制，避免触发风控
 - **浏览器可用**：`dist/browser.mjs` 自包含 ESM（axios/zod 内联），web-v3 / userscript 可直接 `import '@chilfish/weibo-sdk/browser'`
-- **流式分页**：评论 / 转发 / 关注 / 粉丝 / 点赞 / 收藏 / 历史评论 / 媒体等均提供 `stream*`（去重 + `maxPages` + `onProgress`）
+- **流式分页**：评论 / 转发 / 关注 / 粉丝 / 点赞 / 收藏 / 历史评论 / 媒体等均提供 `stream*`（去重 + `maxPages` + `maxItems` + `onProgress`；时间倒序的流另支持 `since` / `until` 日期边界）
 - **归档扩展**：点赞 / 历史评论 / 图片墙 / 视频瀑布 / 增量 / 多账号批量 / 仅原创 + 断点续传
 - **可诊断**：结构化错误带 `code/level/retryable/hint/next`；`capabilities()` 能力清单；`schema diff` 漂移报告
 
@@ -212,7 +212,15 @@ const incremental = await sdk.tweets.listFriendTimeline({ since_id: lastSeenId }
 ```typescript
 const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
 console.log(tweet.text, tweet.media)
+
+// 也接受数字 mid 和微博状态 URL（从浏览器复制来的链接可以直接传）
+await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
+await sdk.tweets.comments('https://weibo.com/7679065628/QqsYymYOS')
 ```
+
+> 所有接受 `mblogId` 的方法都支持 mblogId / 数字 mid / 微博状态 URL，入口统一归一化；
+> 点赞者等只收数字 mid 的端点会自动用 `statuses/show` 解析一次。纯函数
+> `parseTweetIdInput` / `normalizeTweetIdInput` 也从包入口导出。
 
 ### 获取原始响应（raw）与 enrich
 
@@ -330,6 +338,18 @@ npx weibo-cli whoami
 pnpm build
 node dist/cli.mjs whoami
 ```
+
+## Playground（可运行示例）
+
+`playground/` 把 SDK / CLI 当作真实下游，按场景提供可直接运行的示例：
+
+```bash
+pnpm play            # 列出场景
+pnpm play whoami
+pnpm play cli:home   # CLI 场景需要先 pnpm build
+```
+
+详见 [playground/README.md](./playground/README.md)。示例只读、默认有界（`maxPages: 1`、媒体下载默认 dry-run），Cookie 只从 `.env` 读取。
 
 ## 文档
 

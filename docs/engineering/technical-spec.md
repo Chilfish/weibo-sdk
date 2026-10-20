@@ -223,17 +223,20 @@ interface IWeiboConfig {
 | `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`；会话自检原语，不标弃用） |
 | `getById` | `(id: string) => Promise<User>` | info + details 归一化为 `User` |
 | `listMentions` | `({ maxId?, page? }?) => Promise<UserMentionsPageResult>` | `@我的微博` 单页（`max_id` / `page` 等价；`since_id` 被忽略） |
-| `streamMentions` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 游标翻页 + 跨页 `mblogid` 去重；`next_cursor === 0` / 空页 / 游标不前进停止 |
+| `streamMentions` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 游标翻页 + 跨页 `mblogid` 去重；`next_cursor === 0` / 空页 / 游标不前进 / 范围边界停止；时间倒序，支持日期早停 |
 | `groups` | `() => Promise<UserGroup[]>` | `/ajax/feed/allGroups` 拍平（`groups[].group[]`），按 `gid` 去重 |
 | `mblogGroups` | `() => Promise<MblogGroup[]>` | `/ajax/mblog/querygroup` 的 `data.join_groups` |
 
 **TweetService**（`sdk.tweets`）
 
+> 所有 `mblogId` 参数都接受 mblogId / 数字 mid / 微博状态 URL，入口统一经 `normalizeTweetIdInput`
+> 归一化；`likers` / `streamLikers` 只收数字 mid，非数字输入会先用 `statuses/show` 解析一次。
+
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `myMblog` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw，page 游标；**@deprecated**：用 `listByUserId` / `streamByUserId`） |
 | `listByUserId` | `(uid, { page?, count? }?) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
-| `streamByUserId` | `(uid, options?) => AsyncIterableIterator<Tweet>` | 自动翻页流式 |
+| `streamByUserId` | `(uid, { page?, count?, maxPages?, maxItems?, since?, until? }?) => AsyncIterableIterator<Tweet>` | 自动翻页流式；时间倒序，支持条数 / 日期边界 |
 | `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw；**@deprecated**：用 `getByMblogId`） |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
 | `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v1 |
@@ -243,9 +246,9 @@ interface IWeiboConfig {
 | `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒，日期取本地时区） |
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页「最新微博」关注时间线（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `({ max_id?, since_id?, list_id?, fid?, count?, refresh? }?) => Promise<TweetPageResult>` | 首页「最新微博」（归一化）；`max_id` 翻旧页，`since_id` 只做增量过滤 |
-| `streamFriendTimeline` | `({ maxId?, sinceId?, listId?, fid?, refresh?, count?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | `max_id` 自动翻页 + 跨页 `mblogId` 去重；`sinceId` 只请求一页增量 |
-| `likers` | `(mid, { page? }?) => Promise<TweetLikersPageResult>` | 微博点赞者单页（m 站 `api/attitudes/show`；入参必须是数字 mid） |
-| `streamLikers` | `(mid, { page?, maxPages?, onProgress? }?) => AsyncIterableIterator<TweetLiker>` | page 翻页 + 跨页用户 id 去重；空页 / 整页重复 / 达到 total 停止 |
+| `streamFriendTimeline` | `({ maxId?, sinceId?, listId?, fid?, refresh?, count?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | `max_id` 自动翻页 + 跨页 `mblogId` 去重；`sinceId` 只请求一页增量；支持条数 / 日期边界 |
+| `likers` | `(mid, { page? }?) => Promise<TweetLikersPageResult>` | 微博点赞者单页（m 站 `api/attitudes/show`；数字 mid / mblogId / URL 均可，非数字会自动解析） |
+| `streamLikers` | `(mid, { page?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<TweetLiker>` | page 翻页 + 跨页用户 id 去重；空页 / 整页重复 / 达到 total 停止 |
 
 > `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
 > `TweetPageResult = { page?: number, maxId?: string, sinceId?: string, hasMore: boolean, total?: number, tweets: Tweet[] }`。
@@ -259,7 +262,7 @@ interface IWeiboConfig {
 |---|---|---|
 | `getFavorites` | `(uid, page?) => Promise<FavoritesResponse>` | raw 收藏响应（`data.status` / `data.total_number`；`page < 1` 按未指定处理） |
 | `listFavorites` | `(uid, { page?, tag? }?) => Promise<FavoritePageResult>` | 单页归一化 + 页内去重 + 客户端标签过滤 |
-| `streamFavorites` | `(uid, { page?, tag?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重 + 标签过滤 |
+| `streamFavorites` | `(uid, { page?, tag?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重 + 标签过滤 |
 | `getTags` | `() => Promise<FavoritesTagsResponse>` | 收藏夹标签清单 |
 
 > `FavoritePageResult = { page: number, hasMore: boolean, total?: number, totalPages?: number, tweets: Tweet[] }`。
@@ -272,7 +275,7 @@ interface IWeiboConfig {
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listByUserId` | `(uid, { page? }?) => Promise<LikePageResult>` | 单页归一化 + 页内 `mblogid` 去重；`hasMore` = 本页去重后非空 |
-| `streamByUserId` | `(uid, { page?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重；空页 / 整页重复 / `maxPages` 停止 |
+| `streamByUserId` | `(uid, { page?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重；空页 / 整页重复 / `maxPages` 停止 |
 
 > 端点 `GET /ajax/statuses/likelist?uid=&page=`：真实响应只有 `data.list`，**无 total / cursor / hasMore**；`page=0` 与 `page=1` 等价，越界页返回 200 + 空数组。旧的 `/ajax/statuses/likes` 已下线（200 + HTML 404 页）。
 
@@ -281,7 +284,7 @@ interface IWeiboConfig {
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listMine` | `({ maxId?, page? }?) => Promise<CommentHistoryPageResult>` | 单页归一化 + 去重；`cursor = data.next_cursor`，`hasMore = cursor !== 0 && comments.length > 0` |
-| `streamMine` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<ITweetComment>` | 游标翻页 + 跨页去重；`next_cursor === 0` / 空页 / 游标不前进 / 整页重复 / `maxPages` 停止 |
+| `streamMine` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<ITweetComment>` | 游标翻页 + 跨页去重；`next_cursor === 0` / 空页 / 游标不前进 / 整页重复 / `maxPages` 停止；时间倒序，支持日期早停 |
 
 > 端点 `GET /ajax/message/myCmt`：翻页用 `max_id=<上一页 data.next_cursor>`（`page` 等价，`cursor` 被忽略）；`next_cursor === 0` 表示到底。只读当前登录用户自己的历史评论，端点不接受 uid。
 > `ITweetComment` 在 v1 内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId` / `pics`；不挂完整 `parentTweet`。
@@ -291,13 +294,13 @@ interface IWeiboConfig {
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listImages` | `(uid, { sinceId? }?) => Promise<ImageWallPageResult>` | 图片墙单页；`sinceId` 为上一页 `data.since_id`；过滤缺 `pid` 的破损条目 |
-| `streamImages` | `(uid, { sinceId?, maxPages?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 图片墙自动翻页 + 跨页按 `pid` 去重 |
+| `streamImages` | `(uid, { sinceId?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 图片墙自动翻页 + 跨页按 `pid` 去重 |
 | `listVideos` | `(uid, { cursor? }?) => Promise<VideoWaterfallPageResult>` | 视频瀑布单页；`cursor` 为上一页 `data.next_cursor`；从 `page_info.media_info` 提取视频 |
-| `streamVideos` | `(uid, { cursor?, maxPages?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 视频瀑布自动翻页 + 跨页按资产 id 去重 |
+| `streamVideos` | `(uid, { cursor?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 视频瀑布自动翻页 + 跨页按资产 id 去重 |
 | `fetchRawImagePage` | `(uid, { sinceId? }?) => Promise<ImageWallResponse>` | 图片墙原始页（归档 `schemaDigest`） |
 | `fetchRawVideoPage` | `(uid, { cursor? }?) => Promise<WaterfallResponse>` | 视频瀑布原始页（归档 `schemaDigest`） |
 | `listAlbums` | `(uid) => Promise<AlbumListResult>` | 相册列表（`getImageWall?has_album=true` 的 `album_list`） |
-| `listAlbumPhotos` / `streamAlbumPhotos` | `(containerId, { sinceId?, maxPages? }?)` | 相册照片（`getAlbumDetail`，`since_id` 游标） |
+| `listAlbumPhotos` / `streamAlbumPhotos` | `(containerId, { sinceId?, maxPages?, maxItems? }?)` | 相册照片（`getAlbumDetail`，`since_id` 游标） |
 | `downloadTweetMedia` | `(tweet, options) => Promise<TweetMediaDownloadResult>` | 单条微博媒体下载（Node-only；失败聚合） |
 | `downloadByMblogId` | `(mblogId, options) => Promise<TweetMediaDownloadResult>` | 先拉详情（不补长文）再下载 |
 
@@ -308,9 +311,9 @@ interface IWeiboConfig {
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listComments` | `({ maxId?, page? }?) => Promise<CommentNotificationPageResult>` | 评论通知单页；每项 `{ comment, tweet }` |
-| `streamComments` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<CommentNotification>` | 游标翻页 + 跨页评论 id 去重 |
+| `streamComments` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<CommentNotification>` | 游标翻页 + 跨页评论 id 去重；按评论时间早停 |
 | `listLikes` | `({ maxId?, page? }?) => Promise<LikeNotificationPageResult>` | 点赞通知单页；每项 `{ id, createdAt, attitude, source, user, tweet }` |
-| `streamLikes` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<LikeNotification>` | 游标翻页 + 跨页通知 id 去重 |
+| `streamLikes` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<LikeNotification>` | 游标翻页 + 跨页通知 id 去重；按点赞时间早停 |
 
 > 端点：`GET /ajax/message/cmt`（评论通知）与 `GET /ajax/message/attitudes`（点赞通知）。两者都用 `max_id=<上一页 data.next_cursor>` 翻页（`page` 等价，`cursor` 被忽略），`next_cursor === 0` 到底。被赞/被评论微博已删除时上游不返回 `status`，条目会被跳过。`/ajax/message/count` 与 `/ajax/message/likeNotice` 已失效（200 + HTML 404 页），因此不提供「未读数」。
 
@@ -337,6 +340,25 @@ interface IWeiboConfig {
 - 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
 - 与请求级重试的分工（P1 可靠性）：`config.retry` 在 `FetcherService` 内先执行（同一次 HTTP 调用的退避重试）；归档级 `maxRetries` / `retryDelayMs` 只处理**编排层**失败（分页/单条），因此两者不会叠加成双倍重试风暴——归档层看到的是已耗尽请求级重试后的终态错误。
 - 判别标准：≤20 行代码 + 一条 `weibo-cli archive <uid>` 命令镜像单账号。
+
+#### 3.3.1 流式范围控制（`StreamLimitOptions` / `StreamRangeOptions`）
+
+所有 `stream*` 方法共用 `src/utils/streamRange.ts` 的判定：
+
+- `maxItems?: number`：跨页去重后的产出上限；达到后**不再请求下一页**（`paginate` 同步支持）。
+- `since?: number | string` / `until?: number | string`：仅用于**时间倒序**的流。`since` 是下界（遇到更早条目即停止翻页），`until` 是上界（更晚条目跳过但仍继续）；接受 `YYYY-MM-DD` / `YYYYMMDD` / unix 秒，日期字符串按运行环境本地时区取当天起止。非法日期抛 `InvalidConfigError`（`CONFIG_INVALID`）。
+- 起始游标 / 页码仍是断点续传与增量入口：`page`（page 型）、`maxId` / `sinceId`（max_id 型）、`sinceId` / `cursor`（媒体游标）。`since` 与 `sinceId` 不是一回事：前者是日期边界，后者是微博 id 或媒体游标。
+- 日期边界只加在时间单调的流上：`streamByUserId` / `streamFriendTimeline` / `streamReposts` / `streamMentions` / `streamMine` / `streamComments`（通知）/ `streamLikes`（通知）。其余流（评论热度序、点赞/收藏的条目时间与被收藏时间不一致、图片墙月级 `createdAt`）只提供 `maxItems`，避免静默丢数据。
+
+```ts
+for await (const tweet of sdk.tweets.streamFriendTimeline({
+  maxId: lastSeenId,          // 断点续传
+  since: '2026-09-01',        // 增量下界
+  until: '2026-10-01',        // 上界
+  maxItems: 200,              // 最多 200 条
+  maxPages: 20,               // 请求预算兜底
+})) {}
+```
 
 ### 3.4 EndpointSpec
 

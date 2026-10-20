@@ -39,6 +39,7 @@
 | `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
 | `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
 | `docs/engineering/cli.md` | CLI 命令参考与架构说明 |
+| `playground/README.md` | 场景化可运行示例（SDK / CLI，`pnpm play`） |
 | `docs/engineering/endpoint-authoring.md` | 端点开发指南（新增/修改 endpoint 的标准流程、分页约定、高频雷区） |
 | `docs/engineering/error-diagnostics.md` | 错误排障手册（结构化错误码表、排查流程） |
 | `docs/engineering/skill.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
@@ -220,6 +221,9 @@ weibo-cli schema diff before.json after.json
 
 流式命令输出 NDJSON：`{ event: 'progress' | 'item' | 'done', ... }`，可直接管道给 `jq`。
 
+> `tweet` / `media download` 的 id 参数接受 mblogId、数字 mid、微博状态 URL
+> （如 `https://m.weibo.cn/status/5356120103455672`）；SDK/CLI 会自动归一化。
+
 **分页速查**
 
 | 游标 | 端点 |
@@ -230,6 +234,8 @@ weibo-cli schema diff before.json after.json
 | `cursor` | 视频瀑布 |
 
 流式方法在空页、整页重复、游标不前进、达到 `total` 或 `maxPages` 时停止。首页 Feed 的 `total_number` 实测恒为 2000 上限值，不代表剩余条数。
+
+所有 `stream*` 支持 `maxItems`（跨页去重后的产出上限，达到后不再请求下一页）；时间倒序的流（用户时间线 / 首页 Feed / 转发 / @我 / 历史评论 / 评论与点赞通知）另支持 `since` / `until` 日期边界（`YYYY-MM-DD` / unix 秒）。CLI 对应 `--max-items` / `--since` / `--until`，`--since-id` 仍是 id / 媒体游标而非日期。
 
 **错误码（优先解析 `code`）**
 

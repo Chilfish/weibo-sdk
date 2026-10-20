@@ -134,7 +134,7 @@
 | ID | 需求 | 状态 |
 |---|---|---|
 | F4.1 | Wide Events 覆盖 Happy/Error Path | ✅ |
-| F4.2 | 事件有消费端（JSONL exporter 示例） | ✅ `createJsonlTelemetry` + `examples/telemetry-jsonl.mjs` |
+| F4.2 | 事件有消费端（JSONL exporter 示例） | ✅ `createJsonlTelemetry` + `playground/sdk/telemetry.ts` |
 | F4.3 | 错误排障手册（`error-diagnostics.md`） | ✅ |
 
 ---
