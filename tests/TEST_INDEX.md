@@ -24,9 +24,9 @@
 | `unit/models/Tweet.test.ts` | `Tweet` 构造器（mymblog 来源） | 核心字段映射、media 提取（pic_infos）、regionName、visible、stats、geo 坐标兼容（lon/lat 顺序）、retweeted_status 递归构造 |
 | `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
 | `unit/models/Media.test.ts` | `normalizeImageWallItem` / `normalizeWaterfallVideo` | 图片墙 pic/livephoto/gif/unknown（URL 由 pid 构造）、视频瀑布 `page_info.media_info` 提取、`normalizeTweet` 的 page_info 视频映射 |
-| `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl`）、卡片元数据（`pageInfo.objectId` / `subtitle` / https 封面，`linkCards.longUrl` / `oriUrl` / `urlType`） |
+| `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl`）、卡片元数据（`pageInfo.objectId` / `subtitle` / https 封面，`linkCards.longUrl` / `oriUrl` / `urlType`）、`isGetLongText=true` 重复 `url_struct` 的 `linkCards` 去重 |
 | `unit/models/Tweet.commentPics.test.ts` | `normalizeComment` 图片评论 | 真实 `comments.json` / `comments_pic_multi.json` / `my_comments_p1.json`、`url_struct[].pic_infos` 提取、多图重复 `url_struct` 去重、尺寸优先 `woriginal`、`reply_comment` / 楼中楼递归、无图时省略 `pics` |
-| `unit/models/TweetContext.test.ts` | `buildTweetContext` / `renderTweetContextMarkdown` | 时间格式归一化、原创图文、长图/纯图提示、广告/付费/长文截断标记、`maxChars`/`maxMedia`、转发链只取当前作者正文、mentions 不含链上作者、原微博媒体归属、`--no-quoted`/`--no-chain` 语义、媒体下载回填、评论抽样声明、Markdown 章节 |
+| `unit/models/TweetContext.test.ts` | `buildTweetContext` / `renderTweetContextMarkdown` | 时间格式归一化、原创图文、长图/纯图提示、广告/付费/长文截断标记、`maxChars`/`maxMedia`、转发链只取当前作者正文、mentions 不含链上作者、原微博媒体归属、`--no-quoted`/`--no-chain` 语义、媒体下载回填、评论抽样声明、Markdown 章节、重复链接卡片只渲染一次 |
 | `unit/contract/itweet-v1.test.ts` | ITweet v1 契约冻结 | `TWEET_CONTRACT_VERSION = 1`、顶层键集类型/运行时锁定（含 2026-10-20 新增 optional 字段）、`ITweetComment` 键集与 `pics` 形状 |
 
 ### Unit — 服务基础设施
