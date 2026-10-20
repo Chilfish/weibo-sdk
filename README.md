@@ -16,6 +16,9 @@
 - **会话自检**：`selfCheck()` 支持 lazy/eager/none 三种模式，Cookie 过期提前诊断
 - **速率控制**：令牌桶算法，支持并发控制，避免触发风控
 - **浏览器可用**：`dist/browser.mjs` 自包含 ESM（axios/zod 内联），web-v3 / userscript 可直接 `import '@chilfish/weibo-sdk/browser'`
+- **流式分页**：评论 / 转发 / 关注 / 粉丝 / 点赞 / 收藏 / 历史评论 / 媒体等均提供 `stream*`（去重 + `maxPages` + `onProgress`）
+- **归档扩展**：点赞 / 历史评论 / 图片墙 / 视频瀑布 / 增量 / 多账号批量 / 仅原创 + 断点续传
+- **可诊断**：结构化错误带 `code/level/retryable/hint/next`；`capabilities()` 能力清单；`schema diff` 漂移报告
 
 ## 版本与契约
 
@@ -90,6 +93,19 @@ for await (const asset of sdk.media.streamImages('1111681197', { maxPages: 2 }))
 for await (const video of sdk.media.streamVideos('1111681197', { maxPages: 2 })) {
   console.log(video.sourceMblogId, video.duration, video.permanentPageUrl)
 }
+
+// 相册（D4）：先取相册列表，再按 since_id 遍历照片
+const { albums } = await sdk.media.listAlbums('1111681197')
+for await (const photo of sdk.media.streamAlbumPhotos(albums[0].containerId, { maxPages: 2 })) {
+  console.log(photo.id, photo.url)
+}
+```
+
+CLI：
+
+```bash
+weibo-cli media albums 1111681197
+weibo-cli media album '<containerId>' --max-pages 2
 ```
 
 ### 下载单条微博媒体
@@ -166,6 +182,31 @@ const mblogGroups = await sdk.users.mblogGroups()
 > 点赞者使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 目前仍返回正确
 > `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，服务层按空页停止。
 
+### 超话分类 / 列表 / 搜索
+
+```typescript
+// 分类（sort_id 来源）；列表 count 是总页数（30 条/页）
+const cates = await sdk.topics.cates()
+const page = await sdk.topics.list({ sortId: cates[0].id })
+
+// 关键词搜索（sort_id=0）
+for await (const topic of sdk.topics.stream({ keyword: '游戏', maxPages: 2 })) {
+  console.log(topic.pageId, topic.title)
+}
+```
+
+CLI：`weibo-cli topic cates|list|stream`。
+
+### 首页增量
+
+```typescript
+// 首页「最新微博」：max_id 翻旧页；since_id 只返回更新条目（单页）
+for await (const tweet of sdk.tweets.streamFriendTimeline({ maxPages: 3 })) {
+  console.log(tweet.mblogId)
+}
+const incremental = await sdk.tweets.listFriendTimeline({ since_id: lastSeenId })
+```
+
 ### 获取单条微博详情
 
 ```typescript
@@ -210,14 +251,71 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
   includeLikes: true, // D1：我赞过的微博（source='like'）
   includeCommentHistory: true, // D2：历史评论（source='comment'，评论在 item.comment）
   includeComments: true, // P1-6：评论挂到 item.tweet.comments
+  includeImages: true, // D4：图片墙（source='image'，资产在 item.asset）
+  includeVideos: true, // D5：视频瀑布（source='video'，同时有 item.tweet + item.asset）
+  originalOnly: false, // true = 跳过转发并关闭内联转发
   onProgress: p => console.log(p.phase, p.processed, p.total, p.remaining),
+  // 增量同步：翻到上次位置 / 早于 since 即停止（置顶不参与时间边界）
+  // incremental: { stopAtMblogId: lastSeenId, since: '2026-01-01', skipPinned: true },
   // 可选：直接按日期切片（跳过 mymblog）、限制下界（unix 秒）
   // timelineSource: 'search',
   // since: Math.floor(Date.UTC(2009, 7, 14) / 1000),
+  // searchQuery: '关键词',
 })) {
-  await persist(item.tweet)
-  await saveCheckpoint(item.checkpoint) // sliceEnd/slicePage/sliceWindow 可断点续传
+  if (item.tweet)
+    await persist(item.tweet)
+  if (item.asset)
+    await persistMedia(item.asset)
+  await saveCheckpoint(item.checkpoint) // 断点续传
 }
+```
+
+### 增量同步与多账号
+
+```typescript
+// 增量：状态文件由 CLI/调用方维护；SDK 只接收 incremental
+for await (const { uid, item } of sdk.archive.streamUsersArchive(['111', '222'], {
+  includeLikes: true,
+  getIncremental: uid => ({ stopAtMblogId: lastSeen[uid], skipPinned: true }),
+})) {
+  await persist(uid, item)
+}
+
+// 状态文件工具（Node 侧）
+import { parseArchiveState, updateArchiveState, incrementalOptionsFromState } from '@chilfish/weibo-sdk'
+```
+
+CLI 等价的增量用法：
+
+```bash
+weibo-cli archive <uid> --state .weibo-archive-state.json
+weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
+```
+
+### 能力清单与错误诊断
+
+```typescript
+const caps = sdk.capabilities({ service: 'tweets' })
+// [{ id, service, methods, auth, pagination, status, cli?, note? }, ...]
+```
+
+```bash
+weibo-cli capabilities --status degraded
+weibo-cli schema diff before-digest.json after-digest.json
+```
+
+CLI 错误统一输出 `{ event: 'error', code, level, retryable, message, hint?, next?, context? }`；
+Cookie 失效会得到 `AUTH_SESSION_EXPIRED` 并附带重新导出 Cookie 的下一步。
+
+### 代理
+
+```typescript
+const sdk = new WeiboSDK({
+  cookie,
+  proxy: 'http://127.0.0.1:7890', // 静态代理
+  // proxy: false,                // 显式直连
+  // proxy: { getProxy: ctx => pickProxy(ctx.attempt) }, // 动态代理（每次请求/重试）
+})
 ```
 
 ### CLI
@@ -244,7 +342,7 @@ node dist/cli.mjs whoami
 - CLI 命令参考：`docs/engineering/cli.md`
 - 错误排障手册：`docs/engineering/error-diagnostics.md`
 - 端点开发指南：`docs/engineering/endpoint-authoring.md`
-- 后续行动计划（0.2 数据丰富度）：`docs/planning/todo-post-0.1.0.md`
+- 上一阶段行动计划（0.1.0 + 0.2.0，已完成并归档）：`docs/archive/todo-post-0.1.0.md`
 
 ## 测试
 
@@ -279,7 +377,7 @@ pnpm run lint
 3. 提交更改（建议 Conventional Commits）
 4. 推送到分支并创建 Pull Request
 
-开发规范详见 `CLAUDE.md`。
+开发规范详见 `AGENTS.md`。
 
 ## 免责声明
 

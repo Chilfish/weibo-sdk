@@ -12,8 +12,9 @@
 ## 1. 版本机制（信封层）
 
 - **契约版本常量**：`TWEET_CONTRACT_VERSION`（`src/types/domain/ITweet.ts`，当前 `1`；类型 `TweetContractVersion`）
-- **归档信封**：`ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint }`
-  ——磁盘条目自描述；CLI `weibo-cli archive` 的 NDJSON 进度事件同样携带 `schemaVersion`
+- **归档信封**：`ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`
+  ——磁盘条目自描述；CLI `weibo-cli archive` 的 NDJSON 进度事件同样携带 `schemaVersion`。
+  `source: 'image'` 时 `tweet` / `mblogId` 可选，媒体资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`；其余微博类 source 的 `tweet` / `mblogId` 恒有。
 - **下游最小存档记录**建议：`{ schemaVersion: TweetContractVersion, tweet: ITweet }`
   （`source` / `checkpoint` 等为 SDK 归档流的附加元数据，消费方可按需取舍）
 - **契约版本 ≠ 包版本**（K2/P0-3 解耦，详见 [release-checklist.md](./release-checklist.md)）：
@@ -59,16 +60,12 @@
 | `permanentVideoUrl?` | `string` | 视频永久播放页（`media_info.h5_url`） |
 | `isOriginal?` | `boolean` | 是否原创（无 `retweeted_status`） |
 | `sourceUrl?` | `string` | 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
-| `comments?` | `ITweetComment[]` | 评论（P1-6，v1 新增 optional 字段）：普通 `normalizeTweet` 不填充；仅 `streamArchive({ includeComments: true })` 拉取并挂载。`ITweetComment = { id, createdAt, text, textHtml, source, likes, user, replies? }`，`replies` 递归同构 |
+| `comments?` | `ITweetComment[]` | 评论（P1-6，v1 新增 optional 字段）：普通 `normalizeTweet` 不填充；仅 `streamArchive({ includeComments: true })` 拉取并挂载。字段见 §3「ITweetComment」；`replies` 递归同构 |
+| `atUsers?` | `TweetAtUser[]` | @ 用户（从 `text` HTML 的 `/n/`、`/u/` 锚点解析；上游无结构化字段） |
+| `playCount?` | `number` | 视频播放量（仅 `online_users` 明确含「次观看」时；直播在线人数不映射） |
+| `isTop?` | `boolean` | 是否置顶（`isTop === 1/true`；非置顶缺省） |
+| `audio?` | `TweetAudio[]` | 音频 / 播客（`page_info` / `mix_media_info.items[].data`） |
 
-| `topics?` | `string[]` | 话题列表（`topic_struct[].topic_title`；无话题缺省） |
-| `linkCards?` | `TweetLinkCard[]` | 链接 / 超话卡片（`url_struct[]`；无卡片缺省） |
-| `readCount?` | `number` | 阅读数（`reads_count`；未下发或缺省时无此键） |
-| `editCount?` | `number` | 编辑次数（`edit_count`；未下发或缺省时无此键） |
-| `title?` | `string` | 顶栏标题（`title.text`，如「公开」；无则缺省） |
-| `permanentVideoUrl?` | `string` | 视频永久播放页（`media_info.h5_url`；无视频缺省） |
-| `isOriginal?` | `boolean` | 是否原创（无 `retweeted_status`；转发为 `false`） |
-| `sourceUrl?` | `string` | 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
 ### TweetUser（简版用户）
 
 | 字段 | 类型 | 语义 |
@@ -101,6 +98,57 @@
 | `objectType?` | `string` | 对象类型（`object_type`） |
 | `typePic?` | `string` | 卡片图标（`url_type_pic`） |
 
+### TweetAtUser（@ 用户）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `name` | `string` | 展示名（锚点文本去掉前导 `@`） |
+| `username?` | `string` | 主页路径中的用户名（`/n/<username>` / `/u/<uid>`） |
+| `url?` | `string` | 用户主页绝对 URL |
+
+### TweetAudio（音频 / 播客）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `id` | `string` | 音频 id（`media_id` → `page_id` → `object_id`） |
+| `title` | `string` | 标题（`page_title` / `name`） |
+| `url` | `string` | 播放地址（`stream_url` → `h5_url`） |
+| `duration?` | `number` | 时长（秒） |
+| `pageUrl?` | `string` | 播放页（`h5_url`） |
+| `authorName?` | `string` | 作者昵称（`author_info.screen_name`） |
+| `authorId?` | `string` | 作者 id（`author_info.idstr` → `id`） |
+
+### ITweetComment（评论）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `id` | `string` | 评论 id（`idstr` → `id`） |
+| `createdAt` | `string` | 上游原始时间字符串 |
+| `text` | `string` | 纯文本（`text_raw` → `text`） |
+| `textHtml` | `string` | HTML 片段（`text` → `text_raw`） |
+| `source` | `string` | 来源（如「来自 广东」） |
+| `likes` | `number` | 点赞数（`like_counts` → `like_count`；缺省 0） |
+| `user` | `TweetUser` | 评论作者（简版） |
+| `replies?` | `ITweetComment[]` | 楼中楼预览（上游 `comments[]`，递归同构） |
+| `pics?` | `TweetCommentPic[]` | 图片评论配图（上游 `url_struct[].pic_infos`；无图缺省） |
+| `rootId?` | `string` | 根评论 id（`rootidstr` → `rootid`） |
+| `replyTo?` | `ITweetComment` | 被回复的评论（`reply_comment`，递归；不展开 `comments`） |
+| `floorNumber?` | `number` | 楼层号（可为 0） |
+| `totalReplies?` | `number` | 楼中楼回复总数（`total_number`；不含不可见评论） |
+| `liked?` | `boolean` | 当前登录用户是否点赞（上游未下发时缺省） |
+| `parentMblogId?` | `string` | 被评论微博的字母 id（内嵌 `status.mblogid`） |
+
+### TweetCommentPic（评论配图）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `id` | `string` | 图片 id（`pic_infos` 键 / `pic_id`） |
+| `imageUrl` | `string` | 最大尺寸图片 URL（`largest` → `original` → `woriginal` → `mw2000` → `large` → `bmiddle` → `thumbnail`；**临时，见 §4**） |
+| `width` / `height` | `number` | 像素尺寸（缺省 0） |
+
+> 图片评论不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos`（「查看图片」短链卡片）。
+> 多图评论可能返回多个 `url_struct` 项并重复同一 `pic_infos`；归一化按 `pic_id` 去重，顺序为上游首次出现顺序。
+
 ### 嵌套说明
 
 - `retweetedStatus` 递归为同一 `ITweet` 形状（深度由上游数据决定）。
@@ -110,7 +158,7 @@
 
 **裁定**：「URL 临时、消费方自抓」。
 
-- `media[].imageUrl` / `videoUrl`（及 `pageInfo.pagePic`）是上游**临时签名 URL**：
+- `media[].imageUrl` / `videoUrl`（及 `pageInfo.pagePic`、`comments[].pics[].imageUrl`）是上游**临时签名 URL**：
   有效期 = 请求时间 + 1 小时、一次性（服务端再次下发新 URL 后旧链接作废）。
 - **归档流不下载/持久化媒体**；`ArchiveItem` 不含 `mediaFiles`（裁定同时定义了信封形状）。
 - **SDK 提供显式可选的媒体下载辅助**（`sdk.media.downloadTweetMedia` / `weibo-cli media download`），默认不启用，不改变本契约；详见 §4.2。

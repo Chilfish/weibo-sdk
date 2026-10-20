@@ -11,6 +11,13 @@
 
 ---
 
+## Agent 使用文档
+
+| 文档 | 说明 | 何时阅读 |
+|---|---|---|
+| [AGENTS.md](../AGENTS.md) | 仓库级开发约束 + SDK/CLI 使用速查（安装 / 登录 / 命令 / 分页 / 错误码 / 边界） | 任何开发任务开始前 |
+| [.agents/skills/weibo-sdk/SKILL.md](../.agents/skills/weibo-sdk/SKILL.md) | Agent 技能（按 skill-creator 模板：指令 / 示例 / 故障排除 / 边界） | 用 SDK/CLI 取数、归档或新增端点 |
+
 ## requirements/ — 需求文档
 
 | 文档 | 说明 | 何时阅读 |
@@ -24,10 +31,9 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~012），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
-| [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-5）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
-| [todo-post-0.1.0.md](planning/todo-post-0.1.0.md) | **当前行动计划**：0.1.0 发布收口 + 0.2.0 用户数据丰富度 / 可靠性 / DX | 承接下一阶段任务 |
+| [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-6）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
 | [research-weibo-ecosystem-2026-10-19.md](planning/research-weibo-ecosystem-2026-10-19.md) | 同类活跃项目调研（API 逆向 / CLI / 归档），含可借鉴设计与差距映射 | 规划 P1/P2 顺序、评估功能边界 |
-| [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下下阶段 |
+| [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 
 ## reviews/ — 代码审查记录
 
@@ -50,6 +56,7 @@
 | [error-diagnostics.md](engineering/error-diagnostics.md) | 错误排障手册（结构化错误码表、排查流程） | 排障时 |
 | [skill.md](engineering/skill.md) | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 | 理解可观测性/SDD |
 | [browser-capture.md](engineering/browser-capture.md) | CDP 浏览器自动化抓取调研与方案（对应 `capture/` SDK，见 `capture/README.md`） | 真实数据获取 / 排障 |
+| [opencli-browser-bridge.md](engineering/opencli-browser-bridge.md) | OpenCLI Browser Bridge 操作手册：复用已登录 Chrome 抓包、发现未知端点、模拟点击触发 XHR | 端点验证 / 抓真实 fixture / 浏览器自动化 |
 
 ## postmortem/ — 事后分析
 
@@ -67,16 +74,17 @@
 | [2026-08-10.md](development-log/2026-08-10.md) | 当日记录（契约冻结规划） |
 | [2026-09-04.md](development-log/2026-09-04.md) | 当日记录（契约冻结 P0 实施） |
 | [2026-10-19.md](development-log/2026-10-19.md) | 当日记录（Cookie 来源收口 / 真实 E2E 回归 / 生态调研） |
-| [2026-10-20.md](development-log/2026-10-20.md) | 当日记录（0.1.0 发布收口 / npm publish 事故与 0.1.1 重发 / CI 补强 / 收藏增强 D3 / Cookie 文件输入） |
+| [2026-10-20.md](development-log/2026-10-20.md) | 当日记录（0.1.0 发布收口 / 0.1.1 重发 / D1–D13 数据面 / 0.2 收尾归档） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 
 | 文档 | 说明 |
 |---|---|
 | [README.md](archive/README.md) | 归档约定 + 目录 |
-| [todo.md](archive/todo.md) | 早期 TODO（P0/P1/P2 完成记录，已收敛进当前计划） |
+| [todo.md](archive/todo.md) | 早期 TODO（历史记录，已完成项已归档） |
 | [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已完成，承接见 [todo-contract-freeze.md](archive/todo-contract-freeze.md)） |
 | [todo-contract-freeze.md](archive/todo-contract-freeze.md) | 上一阶段行动计划：契约冻结 + 归档硬化（P0/P1/P2 + DoD 全部完成，0.1.0 已发布）——历史记录，不主动读取 |
+| [todo-post-0.1.0.md](archive/todo-post-0.1.0.md) | 上一阶段行动计划：0.1.0 发布 + 0.2 数据面 / 可靠性 / DX（已完成并归档，含不再推进项说明）——历史记录，不主动读取 |
 
 ---
 

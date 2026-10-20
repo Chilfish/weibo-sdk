@@ -6,6 +6,27 @@
 
 ### Added
 
+- **公共流式分页（0.2 DX）**：新增 `tweets.streamComments` / `streamReplies` / `streamReposts`、`followings.streamFollowings` / `streamFans` / `streamMyFollowings`；统一「空页 / 整页重复 / 游标不前进 / maxPages」停止语义（分页型端点另可按 total 提前停止；评论流的 total 含楼中楼，不参与停止）。CLI 新增 `tweet comments-stream|replies|replies-stream|reposts-stream`、`follow stream|fans-stream|my-stream`。
+- **通用分页器 `paginate()`**（`src/utils/pagination.ts`）：page / cursor / since_id / max_id 共用实现，支持跨页去重、进度回调与 `maxPages`。
+- **二级评论（D13）**：`tweets.replies` / `streamReplies`（`is_reply=1` + `fetch_level=1`，请求 `id=<一级评论 id>`）；CLI `tweet replies|replies-stream`。`buildComments` args 增加 `is_reply`。
+- **个人主页关键词搜索（D12）**：`searchProfile` 增加 `q`；`tweets.searchByDate({ q })` 与 `weibo-cli tweet search-profile --q`；`ArchiveStreamOptions.searchQuery` 让日期切片按关键词过滤。
+- **归档媒体集成（D4/D5）**：`streamArchive({ includeImages, includeVideos })`；`ArchiveItem.source` 新增 `'image' | 'video'`，媒体资产在 `item.asset`（image 项可能没有 `item.tweet`）；checkpoint 新增 `imagesCursor` / `videosCursor`；CLI `archive --images --videos`。
+- **归档增量模式**：`streamArchive({ incremental: { since?, stopAtMblogId?, skipPinned? } })`，仅作用于 timeline；置顶微博不参与时间边界。
+- **多账号批量归档**：`sdk.archive.streamUsersArchive(uids, options)`（按 uid 串行、独立 checkpoint、单用户失败策略）；CLI `archive --uid-file <path>`。
+- **仅原创归档**：`streamArchive({ originalOnly: true })` 跳过转发微博并关闭内联转发。
+- **增量状态文件**：新增 `src/utils/archiveState.ts`（`parseArchiveState` / `updateArchiveState` / `incrementalOptionsFromState`）；CLI `archive --state <file>` 自动记录/复用 `lastMblogId` / `lastCreatedAt`。
+- **能力清单**：新增 `WEIBO_CAPABILITIES` / `listCapabilities()` / `sdk.capabilities()` 与 `weibo-cli capabilities`，输出服务 / 方法 / 登录要求 / 分页类型 / 状态。
+- **代理抽象（ProxyProvider）**：`IWeiboConfig.proxy` 支持静态 URL、`false` 或 `{ getProxy(ctx) }` 动态 Provider（每次请求/重试解析，支持 Basic Auth）；`proxyUrl` 保留为 deprecated 兼容。
+- **Cookie 失效诊断**：`ok === -100` / 登录类 message 映射为 `WeiboSessionExpiredError`（`AUTH_SESSION_EXPIRED`），非 JSON 登录页映射为 `API_BAD_RESPONSE`；两者均带 `hint` / `next` 下一步。CLI 未捕获错误统一输出 `{ event:'error', code, level, retryable, message, hint?, next?, context? }`。
+- **schemaDigest 漂移报告**：新增 `diffSchemaDigest()` / `formatSchemaDrift()` 与 `weibo-cli schema diff <before> <after>`。
+- **端点开发工具**：`pnpm new:endpoint <domain>/<name>` 生成 EndpointSpec 骨架；`pnpm capture:endpoint <url>` 抓取真实响应、脱敏、写 fixture 并追加 `INDEX.md`。
+- **Agent / 分发文档**：新增 [`.agents/skills/weibo-sdk/SKILL.md`](./.agents/skills/weibo-sdk/SKILL.md)（按 skill-creator 模板：指令 / 示例 / 故障排除 / 边界）与 [AGENTS.md](./AGENTS.md#agent-使用速查sdk--cli) 的「Agent 使用速查」（安装、登录、常用命令、分页、错误码、安全边界）。不提供 `llms.txt`（本项目不暴露 HTTP 服务）。
+- **ITweet v1 可选字段（第二批）**：`atUsers`（从 `text` HTML 锚点解析）、`playCount`（仅 `online_users` 含「次观看」）、`isTop`（`isTop === 1`）、`audio`（`page_info` / `mix_media_info` 播客音频）。新增 `TweetAtUser` / `TweetAudio` 类型。
+- **IUser 可选字段**：`svip` / `mbrank` / `hometown` / `labelDesc`（含 `IUserLabel` 深浅色配色）。
+- **Fixture**：新增 `searchProfile_q` / `comment_replies_*` / `mymblog_pinned` / `at_status` / `audio_status` / `image_wall_with_albums` / `album_*` / `stopic_*` / `profile_detail_hometown`，并在 `FIXTURE_RULES` 登记（`album_detail_*` / `stopic_*` 为 mapped；`album_list` 因 mobile containerid 不兼容保留 unmodeled）。
+- **相册（D4）**：`media.listAlbums(uid)`（`getImageWall?has_album=true` 的 `album_list`）与 `listAlbumPhotos` / `streamAlbumPhotos`（`getAlbumDetail`，`since_id` 游标）；CLI `media albums|album`。
+- **超话（D7）**：新增 `TopicService` / `sdk.topics`（`cates` / `list` / `stream`）；CLI `topic cates|list|stream`。`stopic/list` 的 `count` 为总页数。
+- **首页「最新微博」增量**：`listFriendTimeline` 改用 `max_id` 翻旧页（响应 `max_id`；`0` = 到底），`since_id` 仅做增量过滤；新增 `streamFriendTimeline` 与 CLI `tweet home-stream`。`TweetPageResult` 新增 optional `maxId` / `total`。
 - **结构化限流错误 `RateLimitError`**（P1 可靠性）：HTTP **432**（微博风控）/ **429** 统一映射为 `code: 'RATE_LIMITED'`（`level: 'transport'`、`retryable: true`），`context` 携带 `status` / `retryAfterMs?` / `attempt` / `message?`；不再与 4xx/5xx 混在 `NET_REQUEST_FAILED` 里。
 - **请求级重试（指数退避 + jitter）**：新增可选 `IWeiboConfig.retry = { retries?, baseDelayMs?, maxDelayMs?, retryOn? }`（默认 `retries: 2`、`baseDelayMs: 500`、`maxDelayMs: 8000`、四类全开）。覆盖 `rate_limit`（432/429）/ `server_error`（5xx）/ `timeout` / `network_error`（无响应的连接类失败）；支持 `Retry-After`（秒或 HTTP date，受 `maxDelayMs` 截断）；`retries` 归一化到 `[0, 10]`，`0` 即关闭；不可重试错误（其余 4xx / `API_NOT_OK` / `API_BAD_RESPONSE` 等）永不重试。
 - **432 后暂停全局令牌桶**：`RateLimitService.pause(ms)` + `acquire()` 先等暂停结束再取令牌，避免并发请求同时撞墙；暂停期等待以 `rate_limit_wait.reason = 'rate_limited'` 记录。
@@ -32,6 +53,9 @@
 
 ### Fixed
 
+- **评论区静默降级修复**：`buildComments` 不再发送 `type=feed`。2026-10-20 真实浏览器抓包确认，带该参数时上游首屏只返回 3 条（`ok` / `total_number` / `max_id` 仍正常），去掉后首屏恢复 20 条；`buildCommentsSpec` 的 `.strict()` args 同步移除 `type`。`flow=1`（按时间）要求数字 mid，字母 mblogid 会 400，`comments()` / `streamComments()` 现在自动用 `statuses/show` 解析（流式只解析一次）。
+- **评论流停止条件修正**：顶层 `total_number` 含楼中楼 / 不可见评论，不能作为结束条件；`streamComments` / `streamReplies` 改为仅按「空页 / 整页重复 / `max_id` 缺失或 0 或 不前进 / maxPages」停止。hot 排序可能先返回空页（`max_id` 仍非 0），按空页停止。
+- `buildComments` 响应 schema 增加 `trendsText` / `tip_msg`（如「博主已开启防火墙，部分内容暂不展示」），便于消费方识别部分可见。
 - `tweets.friendTimeline` 不再默认发送硬编码的 `list_id`（`4665452701982436`）。2026-10-20 实测缺省 `list_id` 同样返回默认首页 Feed，该 id 在当前账号分组中已不存在；需要指定分组时显式传 `list_id`。
 - `mymblog` 的 `data.since_id` 真实类型现在可能是 `number` 或带后缀的 `string`（如 `"...kp2"`），schema 由 `string` 放宽为 `z.union([z.string(), z.number()])`，避免真实响应被误判为 `API_BAD_RESPONSE`；同步更新 raw 类型与 fixture（`mymblog_page1_since_id_numeric.json`）。该漂移是账号相关的：部分账号 `since_id` 与 `page` 分页等价、`total` 为真实总数，另一些账号仍返回 `""` + `-1`。
 - `weibo-cli favorite list --page 0`（及其他非法页码）不再把 `0` 透传给上游导致 HTTP 400；`page < 1` / 非有限数按第一页处理。
@@ -76,7 +100,7 @@
 - `UserService` / `TweetService` 的离线组件测试与领域模型归一化测试。
 - `Tweet` 归一化 v1：支持 media（pic_infos + mix_media_info）/ pageInfo / geo / retweetedStatus。
 - Postmortem 机制：`postmortem/NNN-*.md`。
-- [docs/planning/todo-post-0.1.0.md](./docs/planning/todo-post-0.1.0.md)：0.1.0 发布收口 + 0.2.0 用户数据丰富度、可靠性、端点 DX 的完整行动清单（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 432 / Agent 等）。
+- [docs/archive/todo-post-0.1.0.md](./docs/archive/todo-post-0.1.0.md)：0.1.0 发布收口 + 0.2.0 用户数据丰富度、可靠性、端点 DX 的完整行动清单（已归档）。
 - [docs/engineering/endpoint-authoring.md](./docs/engineering/endpoint-authoring.md)：端点开发指南（抓包 → schema → spec → service → CLI → 测试 → 文档；分页约定与高频雷区）。
 - 包身份回归测试：断言 `package.json#name` 与 `bin.weibo-cli`。
 

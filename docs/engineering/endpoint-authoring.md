@@ -2,7 +2,7 @@
 
 **适用**: 新增微博端点、调整上游参数、扩展响应 Schema、修改分页/错误语义。
 **硬约束**: 数据驱动开发（真实 fixture 优先）、`EndpointSpec` 单一路径、每个功能有离线测试、CLI 暴露能力。
-**相关**: [technical-spec.md](./technical-spec.md) · [code-style.md](./code-style.md) · [CLI 参考](./cli.md) · [待办清单](../planning/todo-post-0.1.0.md)
+**相关**: [technical-spec.md](./technical-spec.md) · [code-style.md](./code-style.md) · [CLI 参考](./cli.md) · [行动清单（已归档）](../archive/todo-post-0.1.0.md)
 
 ---
 
@@ -23,9 +23,18 @@
 ### Step 1 · 抓真实响应
 
 ```bash
-# 方式 A：浏览器 DevTools 复制请求（推荐先在网页端确认参数）
-# 方式 B：项目 capture/（CDP）抓取
+# 方式 A：OpenCLI browser bridge 复用已登录 Chrome（推荐，见 opencli-browser-bridge.md）
+#   已知端点：页面内 fetch 复放
+opencli browser eval "fetch('/ajax/...',{credentials:'include'}).then(r=>r.json())" --session wb
+#   未知端点：打开页面让它自己发请求，再按 shape 预览 + --detail 取 body
+opencli browser network --session wb
+opencli browser network --detail "GET weibo.com/ajax/..." --session wb
+
+# 方式 B：项目 capture/（CDP，独立 profile + .env Cookie）
 pnpm capture -- --help
+
+# 方式 B+：一条命令抓取 + 脱敏 + 写 fixture + 追加 INDEX.md
+pnpm capture:endpoint "https://weibo.com/ajax/..." --name <fixture-name>
 
 # 方式 C：curl（Cookie 只从 .env 读取）
 curl -s -H "Cookie: $WEIBO_COOKIE" -H "X-XSRF-TOKEN: $TOKEN" \
@@ -37,6 +46,15 @@ curl -s -H "Cookie: $WEIBO_COOKIE" -H "X-XSRF-TOKEN: $TOKEN" \
 - 按 [fixtures/raw/INDEX.md](../../tests/fixtures/raw/INDEX.md) 脱敏：URL、长 ID、日期、长文本。
 - 在 `INDEX.md` 与 `scripts/validate-fixtures.ts` 的 `FIXTURE_RULES` 登记（mapped 或 unmodeled）。
 - **未登记 fixture 会导致 `pnpm run validate:fixtures` 失败**。
+
+### Step 1b · 生成 spec 骨架
+
+```bash
+pnpm new:endpoint <domain>/<name>
+# 例：pnpm new:endpoint tweet/bookmarks
+```
+
+脚本会创建 `src/services/endpoints/<domain>-<name>.ts`（args / response schema + `defineEndpoint`），并打印后续 checklist（fixture → service → CLI → 测试 → 文档）。
 
 ### Step 2 · 定义 argsSchema
 
@@ -139,7 +157,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] `docs/engineering/cli.md`：命令参考 + 输出形态
 - [ ] `README.md`：用户可见能力（如适用）
 - [ ] `CHANGELOG.md`：用户可感知变化
-- [ ] `docs/planning/todo-post-0.1.0.md`：勾选任务
+- [ ] `docs/planning/backlog.md`：阶段完成后登记后续候选（历史阶段计划归档到 `docs/archive/`）
 
 ---
 
@@ -148,10 +166,12 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 | 游标类型 | 典型端点 | Service 返回 | 停止条件 |
 |---|---|---|---|
 | `page` | `mymblog` / `searchProfile` / `favorites` / `repostTimeline` | `{ page: nextPage, hasMore }` | 空列表 / 整页重复 / `page` 越界重置 |
-| `since_id` | `friendstimeline` | `{ sinceId, hasMore }` | 空串 / 0 / 本页不足 |
-| `max_id` | `buildComments` | `{ maxId, hasMore }` | 无 `max_id` / 等于上一页 / 达到 total |
+| `max_id` | `buildComments` / `friendstimeline` | `{ maxId, hasMore }` | 无 `max_id`（0 / -1） / 等于上一页 / 空页 |
+| `since_id` | 仅增量过滤（如 `friendstimeline`） | — | 不用于翻页；`friendstimeline` 已改用 `max_id` |
 | `cursor` | `myCmt` / `getWaterFallContent` | `{ cursor, hasMore }` | 空 cursor / 游标不前进 |
 | `sinceid` | `getImageWall` | `{ sinceId, hasMore }` | 空 / 不前进 / 重复 |
+| `since_id` | `getAlbumDetail` | `{ sinceId, hasMore }` | `0` / 空 / 不前进 / 重复 |
+| `page` | `stopic/list` | `{ page: nextPage, hasMore }` | 空列表 / `page >= count`（`count` 是总页数） |
 
 **通用保护**：
 
@@ -176,9 +196,21 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] `geo` 可能是空字符串、对象或 `null`
 - [ ] `pic_infos.width/height` 可能是 `number | string`
 - [ ] 非 JSON 响应（登录页 / 风控页）要归为 `API_BAD_RESPONSE`，不要误报 `API_NOT_OK`
-- [ ] `buildComments` 缺固定参数会 400（`is_reload` / `is_show_bulletin` / `is_mix` / `type` / `fetch_level`）
+- [ ] `buildComments` 固定参数是 `is_reload` / `is_show_bulletin` / `is_mix` / `fetch_level`；**不要传 `type=feed`**——2026-10-20 实测带该参数时首屏只返回 3 条，`ok` / `total_number` / `max_id` 仍正常（静默降级）；浏览器真实请求不带 `type`，首屏 20 条
+- [ ] `buildComments` 的 `count` 被上游忽略（10 / 20 都返回约 20 条）；顶层 `total_number` 含楼中楼 / 不可见评论，不能作为结束条件；`max_id=0` 或空页才是到底
+- [ ] `buildComments` 的 hot 排序可能先返回空页（`data: []`、`max_id` 仍非 0），停止条件必须包含空页；`flow=1` 必须用数字 mid，字母 mblogid 会 400
+- [ ] `buildComments` 的 `trendsText` 出现「博主已开启防火墙」时，`data` 会少于 `total_number` 且直接 `max_id=0`，属于上游限制
 - [ ] 浏览器运行时不要注入 Node-only 的 axios `proxy`
 - [ ] Cookie 只从 `.env` 读取；不要回退到环境变量
+- [ ] `searchProfile` 的 `q` 与 `starttime` / `endtime` 可组合；`q` 为空/缺省才是不过滤，`data.total` 会随关键词收窄（2026-10-20 实测）
+- [ ] 二级评论必须用 `id=<一级评论 id>` + `fetch_level=1`（`is_reply=1` 可选）；传顶层微博 id 或 `fetch_level=0` 均返回空列表
+- [ ] `getAlbumDetail` 的 `containerid` 必须来自相册 tab 的 `getImageWall?has_album=true`（`pc_profile_album`）；`/ajax/profile/albumlist` 的 `mobile_profile_album` containerid 可能返回空列表
+- [ ] 相册详情的 `since_id` 是**数字/字符串游标**，`0` 到底；不要把它和图片墙的 `sinceid` 参数名混用
+- [ ] `stopic/list` 的 `count` 是**总页数**（30 条/页），不是条目总数；`sort_id=0` + `keyword` 才是搜索
+- [ ] 视频播放量取 `media_info.online_users_number`，但只在 `online_users` 明确为「N次观看」时映射；直播在线人数不是播放数
+- [ ] 置顶标记是微博级 `isTop: 1/true`（非置顶项通常缺省），不要从 `mblogtype` 推断
+- [ ] 音频 / 播客在 `page_info.object_type === 'podcast_audio'`，直链是 `media_info.stream_url`（不是视频的 `mp4_*`）
+- [ ] `atUsers` 没有结构化字段，只能从 `text` HTML 的用户主页锚点（`/n/` 或 `/u/`）解析；`text_raw` 里的 `//@name:` 是转发链，不是 @ 用户
 
 ---
 
@@ -195,12 +227,14 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 
 ---
 
-## 6. 工具化待办
+## 6. 工具化现状
 
-以下工具已登记在 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) §5：
+以下工具已落地（原登记于已归档的 [todo-post-0.1.0.md](../archive/todo-post-0.1.0.md) §5）：
 
-- `pnpm new:endpoint <domain>/<name>`：生成 spec / service / CLI / test 骨架
-- `pnpm capture:endpoint <url>`：抓包 + 脱敏 + fixture 登记
+- `pnpm new:endpoint <domain>/<name>`：生成 EndpointSpec 骨架 + checklists
+- `pnpm capture:endpoint <url>`：抓包 + 脱敏 + fixture + INDEX 登记
 - `sdk.capabilities()` / `weibo-cli capabilities`：能力清单
-- `paginate()` / `CursorPager`：统一分页
-- CI 检查：新增 endpoint 是否同时登记 fixture、CLI、文档
+- `paginate()`：统一 page / cursor / since_id / max_id 分页停止语义
+- `diffSchemaDigest()` / `weibo-cli schema diff`：schemaDigest 漂移报告
+
+> CI 检查「新增 endpoint 是否同时登记 fixture、CLI、文档」仍在 backlog。

@@ -6,7 +6,7 @@
 **规范级别**: 类 RFC 2119
 
 > 本文档描述 **当前实现** 的架构与契约（以代码为准）。标注「目标 / 未实现」的条目为演进方向，不代表现状。
-> 若发现本文与代码不一致，以代码为准，并请同步修正本文（见 `CLAUDE.md`「文档即事实」）。
+> 若发现本文与代码不一致，以代码为准，并请同步修正本文（见 `AGENTS.md`「文档即事实」）。
 
 ---
 
@@ -31,13 +31,15 @@
 
 ```
 客户端层   WeiboSDK（门面） + CLI（citty）
-服务层     UserService / TweetService / FollowingsService / FavoriteService / LikeService / CommentHistoryService / MediaService / NotificationService / TrendsService / SearchService
+服务层     UserService / TweetService / FollowingsService / FavoriteService / LikeService / CommentHistoryService / MediaService / NotificationService / TopicService / TrendsService / SearchService
 基础设施层  FetcherService（HTTP + 错误映射 + 校验） / AuthService / RateLimitService / EndpointSpec + Zod
 数据层     types/raw/**（原始响应类型） + types/domain/**（领域契约）+ models/data/**（归一化）
 错误层     models/errors/**（结构化错误）
 ```
 
-所有 Service 继承 `FetcherService`；`WeiboSDK` 聚合 6 个 Service 并以 `sdk.users` / `sdk.tweets` / `sdk.followings` / `sdk.favorites` / `sdk.trends` / `sdk.search` 暴露。
+所有 Service 继承 `FetcherService`；`WeiboSDK` 聚合 11 个领域服务 + `ArchiveService`，以
+`sdk.users` / `sdk.tweets` / `sdk.followings` / `sdk.favorites` / `sdk.likes` / `sdk.commentHistory` /
+`sdk.media` / `sdk.notifications` / `sdk.topics` / `sdk.trends` / `sdk.search` / `sdk.archive` 暴露。
 
 ### 1.3 请求生命周期
 
@@ -83,6 +85,9 @@ request(spec, args)
 | `verification` | `IUserVerification` | REQUIRED | `{ isVerified, type, reason? }` |
 | `stats` | `{ followers, friends, statuses }` | REQUIRED | 粉丝/关注/微博数 |
 | `company` / `school` / `creditLevel` / `externalLinks` | 各类型 | OPTIONAL | 详情扩展字段 |
+| `svip` / `mbrank` | `number` | OPTIONAL | 微博会员等级（`svip` / `mbrank`） |
+| `hometown` | `string` | OPTIONAL | 家乡（详情页 `hometown`） |
+| `labelDesc` | `IUserLabel[]` | OPTIONAL | 用户标签（详情页 `label_desc[]`，含深浅色配色） |
 
 **不变性**：
 - `id` 非空；`stats.*` ≥ 0；`name` 非空。
@@ -114,6 +119,10 @@ request(spec, args)
 | `permanentVideoUrl` | `string` | OPTIONAL | 视频永久播放页（`media_info.h5_url`） |
 | `isOriginal` | `boolean` | OPTIONAL | 是否原创（无 `retweeted_status`） |
 | `sourceUrl` | `string` | OPTIONAL | 网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
+| `atUsers` | `TweetAtUser[]` | OPTIONAL | @ 用户（从 `text` HTML 锚点解析，`/n/` 或 `/u/`） |
+| `playCount` | `number` | OPTIONAL | 视频播放量（仅 `online_users` 含「次观看」；直播在线人数不映射） |
+| `isTop` | `boolean` | OPTIONAL | 是否置顶（`isTop === 1/true`） |
+| `audio` | `TweetAudio[]` | OPTIONAL | 音频 / 播客（`page_info` / `mix_media_info`） |
 | `comments` | `ITweetComment[]` | OPTIONAL | 评论（P1-6）；普通 `normalizeTweet` 不填充，仅 `streamArchive({ includeComments: true })` 挂载 |
 
 **不变性**：`id`/`mblogId` 非空；`media` 为数组（可为空）；`stats.*` ≥ 0。
@@ -121,6 +130,10 @@ request(spec, args)
 **媒体**（`TweetMedia`）：`id` / `type`（`pic|video|livephoto|gif|unknown`）/ `imageUrl` / `videoUrl?` / `duration?` / `width` / `height`。视频 URL 带签名与过期时间，一次性有效。`page_info.media_info` 形态的视频（视频瀑布 / 部分详情页）也会归一化进 `media`。
 
 **链接卡片**（`TweetLinkCard`）：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?`。
+
+**@ 用户**（`TweetAtUser`）：`name` / `username?` / `url?`。
+
+**音频**（`TweetAudio`）：`id` / `title` / `url` / `duration?` / `pageUrl?` / `authorName?` / `authorId?`。
 
 ### 2.3 领域实体: IUserMediaAsset（D4 / D5）
 
@@ -157,6 +170,8 @@ class WeiboSDK {
   public readonly likes: LikeService
   public readonly commentHistory: CommentHistoryService
   public readonly media: MediaService
+  public readonly notifications: NotificationService
+  public readonly topics: TopicService
   public readonly trends: TrendsService
   public readonly search: SearchService
   public readonly archive: ArchiveService
@@ -225,15 +240,16 @@ interface IWeiboConfig {
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
 | `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒，日期取本地时区） |
-| `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw；**@deprecated**：用 `listFriendTimeline`） |
-| `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
+| `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页「最新微博」关注时间线（raw；**@deprecated**：用 `listFriendTimeline`） |
+| `listFriendTimeline` | `({ max_id?, since_id?, list_id?, fid?, count?, refresh? }?) => Promise<TweetPageResult>` | 首页「最新微博」（归一化）；`max_id` 翻旧页，`since_id` 只做增量过滤 |
+| `streamFriendTimeline` | `({ maxId?, sinceId?, listId?, fid?, refresh?, count?, maxPages?, onProgress? }?) => AsyncIterableIterator<Tweet>` | `max_id` 自动翻页 + 跨页 `mblogId` 去重；`sinceId` 只请求一页增量 |
 | `likers` | `(mid, { page? }?) => Promise<TweetLikersPageResult>` | 微博点赞者单页（m 站 `api/attitudes/show`；入参必须是数字 mid） |
 | `streamLikers` | `(mid, { page?, maxPages?, onProgress? }?) => AsyncIterableIterator<TweetLiker>` | page 翻页 + 跨页用户 id 去重；空页 / 整页重复 / 达到 total 停止 |
 
 > `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
-> `TweetPageResult = { page?: number, sinceId?: string, hasMore: boolean, tweets: Tweet[] }`。
+> `TweetPageResult = { page?: number, maxId?: string, sinceId?: string, hasMore: boolean, total?: number, tweets: Tweet[] }`。
 > 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码；2026-08 曾弃用 `since_id`，2026-10-20 复测 `since_id` 与 `page` 均可用且等价，归一化仍以 `page` 为主）；
-> `friendstimeline`（`listFriendTimeline`）用 `sinceId`（string，空串 = 无更多）。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
+> `friendstimeline`（`listFriendTimeline`/`streamFriendTimeline`）用 `maxId` 翻旧页（响应 `max_id`；`0` = 到底），`since_id` 只做增量过滤；`total_number` 实测恒为 2000 上限值，不能当作剩余条数。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
 
 **FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
 **FavoriteService**（`sdk.favorites`）：
@@ -267,16 +283,20 @@ interface IWeiboConfig {
 | `streamMine` | `({ maxId?, page?, maxPages?, onProgress? }?) => AsyncIterableIterator<ITweetComment>` | 游标翻页 + 跨页去重；`next_cursor === 0` / 空页 / 游标不前进 / 整页重复 / `maxPages` 停止 |
 
 > 端点 `GET /ajax/message/myCmt`：翻页用 `max_id=<上一页 data.next_cursor>`（`page` 等价，`cursor` 被忽略）；`next_cursor === 0` 表示到底。只读当前登录用户自己的历史评论，端点不接受 uid。
-> `ITweetComment` 在 v1 内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`；不挂完整 `parentTweet`。
+> `ITweetComment` 在 v1 内新增 optional `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId` / `pics`；不挂完整 `parentTweet`。
+> `pics`（`TweetCommentPic[]`）来自上游 `url_struct[].pic_infos`（图片评论），按 `pic_id` 去重；URL 同为临时签名 URL。
 
 **MediaService**（`sdk.media`）：
-
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listImages` | `(uid, { sinceId? }?) => Promise<ImageWallPageResult>` | 图片墙单页；`sinceId` 为上一页 `data.since_id`；过滤缺 `pid` 的破损条目 |
 | `streamImages` | `(uid, { sinceId?, maxPages?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 图片墙自动翻页 + 跨页按 `pid` 去重 |
 | `listVideos` | `(uid, { cursor? }?) => Promise<VideoWaterfallPageResult>` | 视频瀑布单页；`cursor` 为上一页 `data.next_cursor`；从 `page_info.media_info` 提取视频 |
 | `streamVideos` | `(uid, { cursor?, maxPages?, onProgress? }?) => AsyncIterableIterator<IUserMediaAsset>` | 视频瀑布自动翻页 + 跨页按资产 id 去重 |
+| `fetchRawImagePage` | `(uid, { sinceId? }?) => Promise<ImageWallResponse>` | 图片墙原始页（归档 `schemaDigest`） |
+| `fetchRawVideoPage` | `(uid, { cursor? }?) => Promise<WaterfallResponse>` | 视频瀑布原始页（归档 `schemaDigest`） |
+| `listAlbums` | `(uid) => Promise<AlbumListResult>` | 相册列表（`getImageWall?has_album=true` 的 `album_list`） |
+| `listAlbumPhotos` / `streamAlbumPhotos` | `(containerId, { sinceId?, maxPages? }?)` | 相册照片（`getAlbumDetail`，`since_id` 游标） |
 | `downloadTweetMedia` | `(tweet, options) => Promise<TweetMediaDownloadResult>` | 单条微博媒体下载（Node-only；失败聚合） |
 | `downloadByMblogId` | `(mblogId, options) => Promise<TweetMediaDownloadResult>` | 先拉详情（不补长文）再下载 |
 
@@ -284,7 +304,6 @@ interface IWeiboConfig {
 > 下载使用独立 CDN 客户端（不携带 Cookie，仅 Referer + host 白名单），与 API 令牌桶隔离；临时文件 + 原子 rename；403/404/410 单飞刷新一次。详见 [media-download.md](./media-download.md)。
 
 **NotificationService**（`sdk.notifications`）：
-
 | 方法 | 签名 | 说明 |
 |---|---|---|
 | `listComments` | `({ maxId?, page? }?) => Promise<CommentNotificationPageResult>` | 评论通知单页；每项 `{ comment, tweet }` |
@@ -295,6 +314,8 @@ interface IWeiboConfig {
 > 端点：`GET /ajax/message/cmt`（评论通知）与 `GET /ajax/message/attitudes`（点赞通知）。两者都用 `max_id=<上一页 data.next_cursor>` 翻页（`page` 等价，`cursor` 被忽略），`next_cursor === 0` 到底。被赞/被评论微博已删除时上游不返回 `status`，条目会被跳过。`/ajax/message/count` 与 `/ajax/message/likeNotice` 已失效（200 + HTML 404 页），因此不提供「未读数」。
 
 
+**TopicService**（`sdk.topics`）：`cates()`（超话分类）/ `list({ sortId?, keyword?, page? })`（`count` 为总页数）/ `stream({ sortId?, keyword?, page?, maxPages?, onProgress? })`。
+
 **TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
 **SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
 
@@ -302,13 +323,15 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（mymblog + 可选 searchProfile 日期切片，内联 reposts）→ likes → comments → favorites 一条可恢复流 |
+| `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（mymblog + 可选 searchProfile 日期切片，内联 reposts）→ likes → comments → favorites → images → videos 一条可恢复流 |
+| `streamUsersArchive` | `(uids, options?) => AsyncIterableIterator<{ uid, item }>` | 多账号串行归档；按 uid 读取 checkpoint / incremental，单用户失败可 `skip` |
 
-- `ArchiveItem = { schemaVersion, source, mblogId, tweet, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`tweet` 为归一化模型；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`：只保留 key 路径 + 值类型），作上游漂移检测；`checkpoint` 为进度快照（A6），保存最后一项即可断点续传。
+- `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博；`source: 'image'` 时 `tweet` 缺省、资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `1`，规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)）；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`）；`checkpoint` 为进度快照（A6）。
+- `ArchiveStreamOptions`（0.2）：`includeImages` / `includeVideos`（默认 `false`，需注入媒体原始页依赖）；`incremental: { since?, stopAtMblogId?, skipPinned? }`（仅 timeline）；`originalOnly`（跳过转发并关闭内联转发）；`searchQuery`（日期切片 `q`）。
 - `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [contract-itweet-v1.md §4.1](./contract-itweet-v1.md)）。
 - `ArchiveStreamOptions`（P1-5）：`timelineSource?: 'mymblog' | 'search'`（默认 `mymblog`）；`includeDateSlices?: boolean`（默认 `true`）；`since?: number`（unix 秒，默认 2009-08-14）；`until?: number`（unix 秒，默认当前时间）；`sliceWindow?: number`（初始自适应窗口秒数，默认 30 天）；`maxSliceItems?: number`（单片超过该条数就对半缩小窗口，默认 800）。
 - `ArchiveStreamOptions`（P1-3/P1-4/P1-6）：`onProgress(progress)`（每页/每阶段一次，`ArchiveProgress = { uid, phase, processed, total?, remaining?, source?, page? }`）；`onItemError(error, context)` 返回 `'abort' | 'skip' | 'retry'`；`repostErrorPolicy` / `commentsErrorPolicy` / `likesErrorPolicy` / `commentHistoryErrorPolicy`（转发/评论默认 `skip`，点赞/历史评论默认 `abort`）；`maxRetries`（默认 1，仅 `retryable` 错误）/ `retryDelayMs`；`includeComments`（默认 `false`）、`commentCount`（默认 20）、`maxCommentPagesPerTweet`（默认不限）；`includeLikes` / `includeCommentHistory`（默认 `false`）。`onProgress` 与 telemetry 异常不影响归档。
-- `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, likesPage?, commentHistoryCursor?, sliceEnd?, slicePage?, sliceWindow?, lastMblogId? }`（P1-1/P1-2/P1-5/D1/D2）：**不再携带 `visitedMblogIds`**。`page` 语义 = mymblog 阶段**当前页**（恢复时重跑该页）；`lastTimelineMblogId` = 已完整处理（含其转发）的最后一条微博（mymblog 与日期切片页内共用）；`likesPage` = likes 阶段当前页；`commentHistoryCursor` = comments 阶段当前页使用的 `max_id`（恢复时重跑该页，重复但不会漏）；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标（unix 秒），`sliceEnd` 存在即表示恢复时跳过 mymblog；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留，新流程不再产生。
+- `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, likesPage?, imagesCursor?, videosCursor?, commentHistoryCursor?, sliceEnd?, slicePage?, sliceWindow?, lastMblogId? }`（0.2）：**不再携带 `visitedMblogIds`**。`page` 语义 = mymblog 阶段**当前页**；`lastTimelineMblogId` = 已完整处理的最后一条微博；`likesPage` / `imagesCursor` / `videosCursor` 为对应阶段游标；`commentHistoryCursor` = comments 阶段当前页使用的 `max_id`；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标；`lastMblogId` 仅为兼容旧 checkpoint（`phase === 'reposts'`）保留。
 - 反向兼容：`timelineSource='mymblog'` 时若 `data.total` 证明已完整则不切片；否则从最旧一条微博之前继续日期切片。单片 `total` 超过 `maxSliceItems` 时对半缩小窗口，避免 `searchProfile` 大范围下 `total` 失真与分页窗口重置；空切片会自动放大窗口跨过长期空档。
 - 评论（P1-6）：`includeComments: true` 时对 timeline / repost 项调用 `tweets.comments` 分页拉取（`max_id`），归一化为 `ITweetComment[]` 挂到 `tweet.comments`；favorite 项不拉取。评论失败按 `commentsErrorPolicy` 默认 `skip`，微博本体仍产出。
 - 与请求级重试的分工（P1 可靠性）：`config.retry` 在 `FetcherService` 内先执行（同一次 HTTP 调用的退避重试）；归档级 `maxRetries` / `retryDelayMs` 只处理**编排层**失败（分页/单条），因此两者不会叠加成双倍重试风暴——归档层看到的是已耗尽请求级重试后的终态错误。
@@ -361,8 +384,10 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - `VERSION`（包版本号）
 - `WeiboSDK` 类（门面）
 - 类型与枚举（`types/*`）：`IWeiboConfig`、`IUser`/`ITweet`/`IUserMediaAsset`/`UserGroup`/`MblogGroup`/`TweetLiker`/`CommentNotification`/`LikeNotification` 及其子类型、`IResource`、hooks/telemetry 类型（含 `WeiboSDKRawMeta`）、raw/enrich 类型（`ArchiveRawMeta` / `TweetEnrichOptions` / `TweetEnrichResult`）、以及**所有 endpoint 响应类型**（`UserInfoResponse` / `UserDetailsResponse` / `MyMblogResponse` / `StatusShowResponse` / `LongtextResponse` / `SearchProfileResponse` / `BuildCommentsResponse` / `FriendstimelineResponse` / `SearchUsersResponse` / `SearchTweetsResponse` / `BandUnifiedResponse` / `FriendshipsResponse` / `FollowContentResponse` / `FavoritesResponse` / `FavoritesTagsResponse` / `LikeListResponse` / `MyCommentsResponse` / `ImageWallResponse` / `WaterfallResponse` / `LikersResponse` / `MentionsViewResponse` / `MessageCommentsResponse` / `MessageAttitudesResponse` / `FeedGroupsResponse` / `MblogGroupsResponse`）
-- 领域模型：`User`、`Tweet`（类）、`normalizeTweet` / `normalizeComment` / `normalizeLiker` / `normalizeCommentNotification` / `normalizeLikeNotification` / `normalizeUserGroups` / `normalizeMblogGroups`（函数）、`normalizeImageWallItem` / `normalizeWaterfallVideo`（函数）、`RawTweet` / `IUserMediaAsset`（类型）
-- 归档类型：`ArchiveItem` / `ArchiveCheckpoint` / `ArchiveStreamOptions` / `ArchiveProgress` / `ArchiveItemErrorContext` / `ArchiveRawMeta`
+- 领域模型：`User`、`Tweet`（类）、`SuperTopic` / `SuperTopicCategory`、`normalizeTweet` / `normalizeComment` / `normalizeLiker` / `normalizeCommentNotification` / `normalizeLikeNotification` / `normalizeUserGroups` / `normalizeMblogGroups` / `normalizeImageWallItem` / `normalizeWaterfallVideo` / `normalizeAlbum` / `normalizeSuperTopic`（函数）、`RawTweet` / `IUserMediaAsset` / `IUserAlbum`（类型）
+- 归档类型：`ArchiveItem` / `ArchiveCheckpoint` / `ArchiveStreamOptions` / `ArchiveIncrementalOptions` / `ArchiveUsersOptions` / `ArchiveUserItem` / `ArchiveProgress` / `ArchiveItemErrorContext` / `ArchiveRawMeta`
+- 能力清单：`WEIBO_CAPABILITIES` / `listCapabilities()` / `WeiboSDK.capabilities()`
+- 工具：`paginate()`（统一分页停止语义）、`diffSchemaDigest()` / `formatSchemaDrift()`、`parseArchiveState()` / `updateArchiveState()` / `incrementalOptionsFromState()`
 - Telemetry JSONL 消费端（P2-3）：`createJsonlTelemetry` / `serializeTelemetryEvent` / `formatArchiveProgress` / `isArchiveProgress`
 - 结构化错误类：`WeiboSDKError` 基类与全部 7 个子类（见 §4）
 
@@ -433,7 +458,7 @@ WeiboSDKError (abstract: code / level / retryable / context)
 - 所有 response schema 采用 `.passthrough()` 开放端点模式（保留未知字段），代码访问字段一律 `.optional()`。
 - `normalize`（`models/data/*.ts` 纯函数）提供默认值与 fallback 链：如 `avatar` fallback、`IP属地：`/`姓名：`前缀剥离、数字越界兜底。
 - Schema 精确化原则：先声明 Model 构造器实际访问的字段，其余保持宽松（`docs/planning/roadmap.md` Phase 2）。
-- 新增/修改 Schema 前 MUST 先获取真实 API 响应存为 fixture（数据驱动开发，见 `CLAUDE.md`）。
+- 新增/修改 Schema 前 MUST 先获取真实 API 响应存为 fixture（数据驱动开发，见 `AGENTS.md`）。
 
 ---
 
@@ -467,9 +492,9 @@ src/
     domain/{IUser,ITweet,IUserMediaAsset,IGroup,ILiker,INotification}.ts
     raw/{user,tweet,side,search}/**   # 原始响应类型（z.infer 替代中）
   services/
-    public/{User,Tweet,Followings,Favorite,Like,CommentHistory,Media,Notification,Trends,Search}Service.ts
+    public/{User,Tweet,Followings,Favorite,Like,CommentHistory,Media,Notification,Topic,Trends,Search}Service.ts
     internal/{FetcherService,AuthService,RateLimitService,RetryPolicy,EndpointSpec}.ts
-    endpoints/{user,tweet,search,side,follow,favorite,like,commentHistory,media,likers,mentions,notifications,groups}.ts
+    endpoints/{user,tweet,search,side,follow,favorite,like,commentHistory,media,likers,mentions,notifications,groups,topic}.ts
   models/
     data/{User,Tweet,Media,Group,Notification}.ts    # 领域模型归一化（纯函数）
     errors/*.ts             # 结构化错误
@@ -502,6 +527,6 @@ tests/
 - `docs/engineering/error-diagnostics.md` — 错误排障手册
 - `docs/engineering/cli.md` — CLI 命令参考
 - `docs/planning/architecture.md` — 架构决策记录（ADR）
-- `CLAUDE.md` — 仓库级硬约束（文档即事实 / 数据驱动 / 测试策略）
+- `AGENTS.md` — 仓库级硬约束（文档即事实 / 数据驱动 / 测试策略）
 
 **文档结束**

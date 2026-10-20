@@ -78,11 +78,21 @@ weibo-cli tweet detail <mblogId>
 # 补拉原始响应 + 归一化模型（下游自行保存 raw；--longtext 额外补拉全文）
 weibo-cli tweet enrich <mblogId> [--longtext] [--no-longtext]
 
-# 获取微博评论
-weibo-cli tweet comments <mblogId> [--count <n>] [--flow 0|1]
+# 获取微博评论（首屏约 20 条；count 被上游忽略；flow=1 时 SDK 自动把 mblogId 解析为数字 mid）
+# --max-id 为上一页响应顶层的 max_id（原始响应格式，含图片评论 url_struct 等字段）
+weibo-cli tweet comments <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
 
-# 获取首页 Feed（关注时间线，归一化为 TweetPageResult）
-weibo-cli tweet home [--since_id/-s <cursor>] [--count <n>]
+# 流式遍历评论（max_id 游标 + 自动去重；NDJSON progress/item/done）
+# 结束条件：max_id=0 或空页；total_number 含楼中楼，不能当作剩余条数
+weibo-cli tweet comments-stream <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1] [--max-pages <n>]
+
+# 一级评论下的二级评论（is_reply=1 + fetch_level=1；请求 id=<rootCommentId>，不是 mblogId）
+weibo-cli tweet replies <mblogId> <rootCommentId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
+weibo-cli tweet replies-stream <mblogId> <rootCommentId> [--max-id <cursor>] [--max-pages <n>]
+
+# 首页「最新微博」关注时间线（max_id 翻旧页；since_id 只做增量过滤）
+weibo-cli tweet home [--max-id <id>] [--since-id <id>] [--list-id <id>] [--fid <id>] [--refresh <n>] [--count <n>]
+weibo-cli tweet home-stream [--max-id <id>] [--since-id <id>] [--max-pages <n>]
 
 # 获取长微博全文
 weibo-cli tweet longtext <mblogId>
@@ -90,8 +100,11 @@ weibo-cli tweet longtext <mblogId>
 # 获取微博转发列表（分页用 --page；实测 next_cursor 参数无效）
 weibo-cli tweet reposts <mblogId> [--page <n>]
 
-# 按日期范围搜索用户微博
-weibo-cli tweet search-profile <uid> [--page <n>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
+# 流式遍历转发（page 游标 + 自动去重；NDJSON progress/item/done）
+weibo-cli tweet reposts-stream <mblogId> [--page <n>] [--count <n>] [--max-pages <n>]
+
+# 按日期 / 关键词搜索用户微博（--q 为个人主页内关键词搜索）
+weibo-cli tweet search-profile <uid> [--page <n>] [--q <keyword>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
 
 # 微博点赞者（按页；入参必须是数字 mid，不是字母 mblogid）
@@ -115,6 +128,11 @@ weibo-cli follow fans <uid> [--page <n>]
 
 # 获取自己关注列表
 weibo-cli follow my [--page <n>]
+
+# 流式遍历关注 / 粉丝 / 我的关注（page 游标 + 自动去重；NDJSON progress/item/done）
+weibo-cli follow stream <uid> [--page <n>] [--max-pages <n>]
+weibo-cli follow fans-stream <uid> [--page <n>] [--max-pages <n>]
+weibo-cli follow my-stream [--page <n>] [--max-pages <n>]
 ```
 
 ### 收藏夹（`favorite`）
@@ -166,6 +184,12 @@ weibo-cli media images <uid> [--since-id <cursor>] [--max-pages <n>]
 # 流式遍历用户视频瀑布（从 page_info.media_info 提取视频）
 # NDJSON：progress / item / done 事件
 weibo-cli media videos <uid> [--cursor <cursor>] [--max-pages <n>]
+
+# 相册列表（getImageWall?has_album=true 的 album_list）
+weibo-cli media albums <uid>
+
+# 流式遍历相册照片（since_id 游标 + 跨页去重）
+weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>]
 ```
 
 > `images` 的上游游标是 `sinceid`（首屏不传 / `0`，下一页传上一页 `sinceId`）；`videos` 的游标是 `cursor`
@@ -202,6 +226,21 @@ weibo-cli media download <mblogId> \
 - URL 过期（403/404/410）默认重新拉取微博换新 URL；`--no-refresh` 关闭。
 - NDJSON：`progress` / `item` / `item-error`（stderr）/ `done`；任一失败退出码 1，Ctrl+C 退出码 130。
 - 失败清单：`<out>/<mblogId>-media-errors.json`。
+### 超话（`topic`）
+
+```bash
+# 超话分类
+weibo-cli topic cates
+
+# 超话列表（--sort-id 来自 cates；--keyword 搜索；--page 从 1 开始）
+weibo-cli topic list [--sort-id <id>] [--keyword <kw>] [--page <n>]
+
+# 流式遍历超话列表 / 搜索结果（page 游标 + 自动去重）
+weibo-cli topic stream [--sort-id <id>] [--keyword <kw>] [--page <n>] [--max-pages <n>]
+```
+
+> `stopic/list` 的 `count` 是**总页数**（30 条/页）；`sort_id=0` + `keyword` 为搜索。
+
 ### 搜索（`search`）
 
 ```bash
@@ -221,12 +260,25 @@ weibo-cli trends [--type hot|topic|entertainment]
 # 验证 Cookie 有效性（myDetails → 从 verified_url 提取 UID → getById）
 weibo-cli whoami
 
-# 镜像单个账号（timeline + 日期切片 + reposts + favorites，可断点续传）
+# 镜像单个账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）
 # 输出 NDJSON 进度事件；checkpoint 落盘 .weibo-sdk-archive-<uid>.json，中断后重跑即续传
-weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-history] [--no-date-slices] \
+weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-history] \
+  [--images] [--videos] [--original-only] [--no-date-slices] \
   [--source mymblog|search] [--since <unix-seconds>] [--comments] [--comment-pages <n>] \
   [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
   [--checkpoint <file>] [--max-pages <n>]
+
+# 增量同步（状态文件记录每个 uid 的 lastMblogId / lastCreatedAt）
+weibo-cli archive <uid> --state .weibo-archive-state.json [--incremental-since <date|unix>] [--stop-at <mblogId>] [--skip-pinned]
+
+# 批量归档（每行一个 uid，# 开头为注释；单用户失败默认跳过）
+weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
+
+# 能力清单（离线；可按服务 / 状态过滤）
+weibo-cli capabilities [--service <name>] [--status stable|degraded|unavailable|planned]
+
+# 对比两份 schemaDigest / 结构快照
+weibo-cli schema diff before.json after.json
 ```
 
 > `archive` 默认先翻 `mymblog`；翻到底后若 `total` 表明仍有剩余（或 total 不可用），
@@ -236,7 +288,11 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-his
 > `--comments` 会把评论挂到 `tweet.comments`（favorite 项不拉取）；`--comment-pages` 限制每条微博评论页数。
 > `--likes` / `--comment-history` 把「我赞过的微博」与「当前用户历史评论」接入归档：
 > `source='like'`（微博本体为 `item.tweet`）与 `source='comment'`（评论在 `item.comment`，`item.tweet` 为被评论微博）。
-> 阶段顺序为 timeline → likes → comments → favorites。
+> `--images` / `--videos` 把图片墙 / 视频瀑布接入归档：`source='image'`（资产在 `item.asset`，可能没有 `item.tweet`）与
+> `source='video'`（同时有 `item.tweet` 与 `item.asset`）。
+> 阶段顺序为 timeline → likes → comments → favorites → images → videos。
+> `--original-only` 跳过转发微博并关闭内联转发；`incremental` 只作用于 timeline（点赞/收藏/媒体仍完整遍历）。
+> 批量模式（`--uid-file`）为每个 uid 独立 checkpoint / state；单用户失败默认 `skip` 并继续。
 > 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
 > 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
 > `item` / `done` 事件也携带 `count/total/remaining`。
@@ -256,7 +312,8 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-his
 | `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
 | `tweet enrich` | `tweets.enrich()` | `{ tweet, raw, longText? }`（raw 为 `statuses/show` 原始响应） |
 | `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
-| `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |
+| `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult`（`maxId` 翻旧页；`since_id` 仅增量） |
+| `tweet home-stream` | `tweets.streamFriendTimeline()` | NDJSON `progress` / `item` / `done`（`max_id` 自动翻页 + 去重） |
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
 | `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
 | `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒） |

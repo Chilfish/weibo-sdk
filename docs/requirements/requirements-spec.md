@@ -95,12 +95,17 @@
 | F1.4 | 获取转发列表 | ✅ `getReposts` |
 | F1.5 | 获取收藏夹（含标签） | ✅ `getFavorites` / `getTags` |
 | F1.6 | 获取关注 / 粉丝列表 | ✅ `getFollowings` / `getFans` |
-| F1.7 | 首页 Feed（双向关注时间线） | ✅ `listFriendTimeline` |
-| F1.8 | 获取用户点赞过的微博 | 🔜 `likes.listByUserId`（端点待真实抓包确认） |
-| F1.9 | 获取当前登录用户发布的历史评论 | 🔜 `comments.listMine`（`/ajax/message/myCmt`，cursor 分页） |
-| F1.10 | 获取用户图片墙 / 视频瀑布 / 音频等账号级媒体集合 | ✅ 图片墙 / 视频瀑布；🔜 音频 | `media.listImages/streamImages` / `media.listVideos/streamVideos` |
+| F1.7 | 首页 Feed（双向关注时间线） | ✅ `listFriendTimeline` / `streamFriendTimeline`（`max_id` 翻旧页；`since_id` 增量） |
+| F1.8 | 获取用户点赞过的微博 | ✅ `likes.listByUserId` / `streamByUserId`（`/ajax/statuses/likelist`，page 游标） |
+| F1.9 | 获取当前登录用户发布的历史评论 | ✅ `commentHistory.listMine` / `streamMine`（`/ajax/message/myCmt`，max_id 游标） |
+| F1.10 | 获取用户图片墙 / 相册 / 视频瀑布 / 音频等账号级媒体集合 | ✅ 图片墙 / 相册 / 视频瀑布；音频字段已支持，播放列表待样本 | `media.listImages/streamImages` / `media.listAlbums/listAlbumPhotos` / `media.listVideos/streamVideos` |
 | F1.11 | 下载单条微博媒体（可选辅助，默认不启用） | ✅ `media.downloadTweetMedia` / `downloadByMblogId`；CLI `media download` |
-| F1.11 | 获取微博点赞者列表 | 🔜 `tweets.likers`（`/ajax/statuses/likeShow`） |
+| F1.12 | 获取微博点赞者列表 | ✅ `tweets.likers` / `streamLikers`（`m.weibo.cn/api/attitudes/show`） |
+| F1.13 | 获取 @我的微博 | ✅ `users.listMentions` / `streamMentions` |
+| F1.14 | 获取评论 / 点赞通知 | ✅ `notifications.listComments` / `listLikes` 及流式版本 |
+| F1.15 | 获取关注分组 / 微博分组 | ✅ `users.groups` / `mblogGroups` |
+| F1.16 | 超话分类 / 列表 / 关键词搜索 | ✅ `topics.cates` / `list` / `stream` |
+| F1.17 | 二级评论完整分页 | ✅ `tweets.replies` / `streamReplies` |
 
 ### F2 归档链路
 
@@ -110,9 +115,9 @@
 | F2.2 | 断点续传（checkpoint 持久化） | ✅ `ArchiveCheckpoint` + CLI `--checkpoint` |
 | F2.3 | 全链路进度与事件可观测 | ✅ `archive_progress` + telemetry JSONL exporter |
 | F2.4 | CLI 一键归档 | ✅ `weibo-cli archive <uid>`（NDJSON） |
-| F2.5 | 增量归档（时间游标 / 已见 mblogId 早停） | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
-| F2.6 | 多账号批量归档（uid 列表） | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
-| F2.7 | 点赞 / 历史评论 / 图片 / 视频 / 音频进入归档流 | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
+| F2.5 | 增量归档（时间游标 / 已见 mblogId 早停） | 🔜 进行中（`incremental` + `state.json`） |
+| F2.6 | 多账号批量归档（uid 列表） | 🔜 进行中（`streamUsersArchive` + CLI `--uid-file`） |
+| F2.7 | 点赞 / 历史评论 / 图片 / 视频 / 音频进入归档流 | ✅ 点赞 / 历史评论 / 图片 / 视频；🔜 音频 |
 
 ### F3 数据契约
 
@@ -120,9 +125,9 @@
 |---|---|---|
 | F3.1 | normalized 领域模型（`User`/`Tweet`）含 fallback 链 | ✅ |
 | F3.2 | 结构化错误（code/level/retryable/context） | ✅ |
-| F3.3 | 公开 API 类型以真实响应为准（分页游标按端点：mymblog `page` / friendstimeline `sinceId`） | ✅ |
+| F3.3 | 公开 API 类型以真实响应为准（分页游标按端点：mymblog `page` / friendstimeline `maxId`） | ✅ |
 | F3.4 | 版本单一来源 + semver 策略 + 契约版本解耦 | ✅（P0-1/P0-3/P0-6） |
-| F3.5 | 领域模型补充阅读数 / 播放数 / 话题 / @用户 / 音频 / 编辑历史等 optional 字段 | 🔜 见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md) |
+| F3.5 | 领域模型补充阅读数 / 播放数 / 话题 / @用户 / 音频 / 编辑历史等 optional 字段 | ✅ topics / linkCards / readCount / editCount / title / permanentVideoUrl / isOriginal / sourceUrl / atUsers / playCount / isTop / audio；IUser `svip` / `mbrank` / `hometown` / `labelDesc` |
 
 ### F4 可观测性与诊断
 
@@ -142,7 +147,7 @@
 | **可测试性** | 默认离线可跑；每个功能有对应测试；schema 变更触发全量回归 | `pnpm test` + validate-fixtures 脚本 |
 | **开发者体验** | 完整类型推导、TSDoc 覆盖、快速开始示例 | typecheck / 文档 |
 | **可观测性** | 关键路径全链路 trace；`telemetry.emit` 失败不影响 SDK | 事件断言测试 |
-| **数据驱动** | 新增/修改 schema 前必须先取真实 fixture | CLAUDE.md 硬约束 |
+| **数据驱动** | 新增/修改 schema 前必须先取真实 fixture | AGENTS.md 硬约束 |
 
 ---
 

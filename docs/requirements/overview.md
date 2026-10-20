@@ -10,8 +10,8 @@
 
 分层目标见 `docs/engineering/technical-spec.md`，核心思想是：
 
-- **客户端层**：`WeiboSDK`（对外门面，聚合 6 个服务）
-- **服务层**：`UserService` / `TweetService` / `FollowingsService` / `FavoriteService` / `TrendsService` / `SearchService`（按领域组织 API，均继承 `FetcherService`）
+- **客户端层**：`WeiboSDK`（对外门面，聚合 11 个领域服务 + `ArchiveService`）
+- **服务层**：`UserService` / `TweetService` / `FollowingsService` / `FavoriteService` / `LikeService` / `CommentHistoryService` / `MediaService` / `NotificationService` / `TopicService` / `TrendsService` / `SearchService`（按领域组织 API，均继承 `FetcherService`）
 - **基础设施层**：`FetcherService`（HTTP 核心）、`AuthService`（认证）、`RateLimitService`（节流/并发）等
 - **数据层**：`types/raw/**`（原始 schema）、`types/domain/**` + `models/data/**`（领域契约与归一化）
 - **错误层**：`models/errors/**`，结构化错误（Transport / Protocol / Business）带 `code/level/retryable/context`
@@ -27,7 +27,7 @@ API endpoint 定义统一放在 `src/services/endpoints/<domain>.ts`，使用 `d
 
 Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → hooks emission → telemetry 全流程。
 
-当前已定义 **17 个 endpoint spec / 16 个 resource type**（按 domain 分文件）：
+当前已定义 **30+ 个 endpoint spec / resource type**（按 domain 分文件；完整清单见 `src/services/endpoints/`）：
 
 | 文件 | EndpointSpec | 资源 |
 |---|---|---|
@@ -43,12 +43,17 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 | 服务 | 门面属性 | 核心方法 |
 |---|---|---|
 | `UserService` | `sdk.users` | `info` / `details` / `myDetails` / `getById` |
-| `TweetService` | `sdk.tweets` | `myMblog` / `listByUserId` / `streamByUserId` / `show` / `getByMblogId` / `comments` / `longText` / `searchByDate` / `friendTimeline` / `listFriendTimeline` |
-| `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` |
-| `FavoriteService` | `sdk.favorites` | `getFavorites` / `getTags` |
-| `MediaService` | `sdk.media` | `listImages` / `streamImages` / `listVideos` / `streamVideos` / `downloadTweetMedia` / `downloadByMblogId` |
+| `TweetService` | `sdk.tweets` | `myMblog` / `listByUserId` / `streamByUserId` / `show` / `getByMblogId` / `comments` / `longText` / `searchByDate` / `friendTimeline` / `listFriendTimeline` / `streamFriendTimeline` |
+| `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` / `streamFollowings` / `streamFans` |
+| `FavoriteService` | `sdk.favorites` | `getFavorites` / `listFavorites` / `streamFavorites` / `getTags` |
+| `LikeService` | `sdk.likes` | `listByUserId` / `streamByUserId` |
+| `CommentHistoryService` | `sdk.commentHistory` | `listMine` / `streamMine` |
+| `MediaService` | `sdk.media` | `listImages` / `streamImages` / `listAlbums` / `listAlbumPhotos` / `streamAlbumPhotos` / `listVideos` / `streamVideos` / `downloadTweetMedia` / `downloadByMblogId` |
+| `NotificationService` | `sdk.notifications` | `listComments` / `streamComments` / `listLikes` / `streamLikes` |
+| `TopicService` | `sdk.topics` | `cates` / `list` / `stream` |
 | `TrendsService` | `sdk.trends` | `hotBand` |
 | `SearchService` | `sdk.search` | `searchUsers` / `searchTweets` |
+| `ArchiveService` | `sdk.archive` | `streamArchive` / `streamUsersArchive` |
 
 ## 可测试性与开发方式（TDD-first）
 
@@ -60,7 +65,7 @@ Service 中只需 `this.request(spec, args)` 即可完成请求 → 校验 → h
 
 测试工具：`tests/testkit/fakeAxios.ts` 提供 `createFakeAxios(handler)` 可代替真实 axios；各测试可按需定义 `FakeClock` / `TelemetryCollector`。
 
-**数据驱动开发**：所有 Zod schema / Model 归一化逻辑必须以真实微博 API 返回数据为准（`tests/fixtures/raw/` 存真实脱敏 fixture），禁止凭手写接口猜测 Schema。详见 `CLAUDE.md`「数据驱动开发」。
+**数据驱动开发**：所有 Zod schema / Model 归一化逻辑必须以真实微博 API 返回数据为准（`tests/fixtures/raw/` 存真实脱敏 fixture），禁止凭手写接口猜测 Schema。详见 `AGENTS.md`「数据驱动开发」。
 
 开发流程：先写契约与失败测试（Red），再最小实现（Green），最后重构（Refactor）。详见 `docs/planning/roadmap.md` 与 `docs/archive/todo-archive-mvp.md`。
 
@@ -99,4 +104,4 @@ npx weibo-cli --help
 
 ## 后续规划
 
-0.1.0 发布收口与 0.2.0 用户数据丰富度（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 可靠性 / DX）见 [todo-post-0.1.0.md](../planning/todo-post-0.1.0.md)；端点开发流程见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。
+0.1.0 发布收口与 0.2.0 用户数据丰富度（点赞 / 历史评论 / 媒体集合 / 增量 / 批量 / 可靠性 / DX）见 [todo-post-0.1.0.md](../archive/todo-post-0.1.0.md)（已完成并归档）；端点开发流程见 [endpoint-authoring.md](../engineering/endpoint-authoring.md)。
