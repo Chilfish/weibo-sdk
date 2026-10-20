@@ -167,7 +167,10 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] `since_id` 真实类型是 `string`（空串表示结束），不是 `number`
 - [ ] `total` 可能为 `-1`（防爬），不能直接当真实总数
 - [ ] `searchProfile` 的 `starttime` / `endtime` 是 **unix 秒**；日期字符串会被静默忽略
-- [ ] `favorites` 的 `data` 是 `{ status, total_number }`，不是数组
+- [ ] `favorites` 的 `data` 是 `{ status, total_number }`，不是数组；顶层另有 `count` / `total_page`
+- [ ] `favorites/all_fav` 的 `page` 从 1 开始，`page=0` 会返回 HTTP 400；非法页码应按第一页处理
+- [ ] `favorites/all_fav` 的 `tag_id` / `tag` 参数会被上游忽略（2026-10-20 实测），标签过滤只能客户端做
+- [ ] `favorites` 的 `total_number` 可能大于实际可翻页条目（含已删除收藏），`hasMore` 优先用 `total_page`
 - [ ] `mymblog` 已从 `since_id` 漂移为 `page`；`page` 越界可能重置到较新区间
 - [ ] `retweeted_status` / `user` 可能为 `null`
 - [ ] `geo` 可能是空字符串、对象或 `null`

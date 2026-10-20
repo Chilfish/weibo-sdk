@@ -113,11 +113,14 @@
 
 ### 2.4 Favorites 增强
 
-- [ ] **D3** `streamFavorites(uid, options)` 自动翻页 + 去重 + `hasMore`
-- [ ] 标签过滤（`favorites/tags` + 分类参数，若上游支持）
-- [ ] 收藏项保留收藏时间 / 来源（若 raw 提供）
-- [ ] CLI：`weibo-cli favorite stream <uid>` 或复用 `archive --favorites`
-- [ ] tests：翻页、整页重复、total 异常、空收藏
+- [x] **D3** `streamFavorites(uid, options)` 自动翻页 + 跨页去重 + `maxPages` / `onProgress`；配套 `listFavorites` 返回 `{ page, hasMore, total?, totalPages?, tweets }`（2026-10-20）
+- [x] 标签过滤：`listFavorites` / `streamFavorites` 的 `tag` 选项按收藏项自带 `tags` 做客户端精确匹配（id 或名称）（2026-10-20）
+- [x] 收藏项保留收藏时间 / 来源：raw 仅提供微博发布时间 `created_at` 与 `tags`，没有收藏时间字段；不新增 `ITweet` 字段，保持契约不变（2026-10-20 复核）
+- [x] CLI：`weibo-cli favorite stream <uid> [--page] [--tag] [--max-pages]`，NDJSON 输出 `progress` / `item` / `done`（2026-10-20）
+- [x] tests：翻页、整页重复、`maxPages`、`total_page` / `total_number` 估算、空收藏、标签过滤、进度回调异常（2026-10-20）
+- [x] 修复 `favorite list --page 0`（及非法页码）透传导致上游 HTTP 400（2026-10-20 线上复核：`page=0` 返回 400，`page` 从 1 开始）
+
+> 2026-10-20 线上复核（已登录 Chrome）：`all_fav` 顶层存在 `count` / `total_page`，用 `total_page` 判 `hasMore` 比 `total_number` 更可靠（`total_number` 可能包含已删除项）；`tag_id` / `tag` 参数被上游忽略，标签只能客户端过滤。
 
 ### 2.5 账号级媒体集合
 
