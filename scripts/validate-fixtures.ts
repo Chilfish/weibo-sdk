@@ -11,8 +11,10 @@ import type { ZodTypeAny } from 'zod'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { myCommentsSpec } from '../src/services/endpoints/commentHistory'
 import { favoritesSpec, favoritesTagsSpec } from '../src/services/endpoints/favorite'
 import { followContentSpec, friendshipsSpec } from '../src/services/endpoints/follow'
+import { likeListSpec } from '../src/services/endpoints/like'
 import { searchUsersSpec } from '../src/services/endpoints/search'
 import { bandUnifiedSpec } from '../src/services/endpoints/side'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../src/services/endpoints/tweet'
@@ -39,6 +41,7 @@ function validate(spec: { endpoint: string, schema: ZodTypeAny }): FixtureRule {
 export const FIXTURE_RULES: Record<string, FixtureRule> = {
   // tweet
   'mymblog_page1.json': validate(myMblogSpec),
+  'mymblog_page1_since_id_numeric.json': validate(myMblogSpec),
   'mymblog_page_end.json': validate(myMblogSpec),
   'timeline_u1740358225.json': validate(myMblogSpec),
   'timeline_u2365795232.json': validate(myMblogSpec),
@@ -75,14 +78,15 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'hot_trends.json': validate(bandUnifiedSpec),
   'search_users_p2.json': validate(searchUsersSpec),
   'search_users_p3.json': validate(searchUsersSpec),
-  // 未建模端点（2026-10-20 真实抓包：我的评论 / 我赞过的微博，无 EndpointSpec）
-  'my_comments_p1.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 未建模（cursor/max_id 分页待写 schema）' },
-  'my_comments_p2.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 第 2 页未建模（max_id=<next_cursor>）' },
-  'my_comments_end.json': { kind: 'unmodeled', note: '/ajax/message/myCmt 翻到底未建模（comments:[]，next_cursor=0）' },
-  'likes_p1.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 未建模（page 分页待写 schema）' },
-  'likes_p2.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 第 2 页未建模（page=2）' },
-  'likes_end.json': { kind: 'unmodeled', note: '/ajax/statuses/likelist 越界页未建模（list:[]）' },
-  'like_list_cursor_p1.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 未建模（cursor/next_cursor 分页待写 schema）' },
+  // 2026-10-20 真实抓包：我的评论 / 我赞过的微博
+  'my_comments_p1.json': validate(myCommentsSpec),
+  'my_comments_p2.json': validate(myCommentsSpec),
+  'my_comments_end.json': validate(myCommentsSpec),
+  'likes_p1.json': validate(likeListSpec),
+  'likes_p2.json': validate(likeListSpec),
+  'likes_end.json': validate(likeListSpec),
+  // getLikeList（个人页「赞」瀑布流）尚未建模
+  'like_list_cursor_p1.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 未建模（cursor/next_cursor 分页）' },
   'like_list_cursor_end.json': { kind: 'unmodeled', note: '/ajax/profile/getLikeList 结束态未建模（list:[]，next_cursor=-1）' },
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },

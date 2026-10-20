@@ -288,15 +288,49 @@ export function normalizeTweet(raw: RawTweet): ITweet {
 }
 
 /**
- * 将 `buildComments` 的原始评论归一化为 `ITweetComment`（P1-6）。
+ * 把「id 形态」（string / number）的 raw 字段归一化为非空字符串 id。
  *
- * `replies` 取上游 `comments` 数组并递归归一化；普通时间线归一化不会调用本函数。
+ * 上游同一 id 会以 `rootidstr`（string）与 `rootid`（number）双份下发；`0` / `''` / 缺失
+ * 一律视为「未下发」（`rootid: 0` 是「没有根评论」的哨兵值，不是有效 id）。
  */
-export function normalizeComment(raw: unknown): ITweetComment {
+function toIdString(value: unknown): string | undefined {
+  if (typeof value === 'string')
+    return value.length > 0 ? value : undefined
+  if (typeof value === 'number' && Number.isFinite(value) && value !== 0)
+    return String(value)
+  return undefined
+}
+
+/** 解析「非负整数」型 raw 字段（`floor_number` / `total_number`）；非法值视为未下发。 */
+function parseNonNegativeInt(value: unknown): number | undefined {
+  if (typeof value === 'number')
+    return Number.isInteger(value) && value >= 0 ? value : undefined
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
+  }
+  return undefined
+}
+
+/** 取内嵌 `status` 的 `mblogid`（被评论微博的字母 id）；缺失 / 非字符串时返回 undefined。 */
+function getParentMblogId(rawRecord: UnknownRecord): string | undefined {
+  const status = rawRecord.status
+  if (!isRecord(status))
+    return undefined
+  const mblogid = status.mblogid
+  return typeof mblogid === 'string' && mblogid.length > 0 ? mblogid : undefined
+}
+
+/**
+ * 评论归一化递归核（纯函数）。
+ *
+ * `includeReplies` 区分「楼中楼列表」`comments` 是否展开：
+ * - 顶层评论（`normalizeComment`）展开；
+ * - `reply_comment`（被回复评论）不展开——`reply_comment` 与 `comments` 是两个不同字段，
+ *   被回复评论里若残留 `comments` 不应被误读成「谁回复了它」。
+ */
+function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComment {
   const record = isRecord(raw) ? raw : {}
-  const replies = Array.isArray(record.comments)
-    ? record.comments.map(normalizeComment)
-    : undefined
 
   const comment: ITweetComment = {
     id: String(record.idstr || record.id || ''),
@@ -307,9 +341,53 @@ export function normalizeComment(raw: unknown): ITweetComment {
     likes: getNumber(record.like_counts ?? record.like_count) ?? 0,
     user: normalizeUser(record.user),
   }
-  if (replies && replies.length > 0)
-    comment.replies = replies
+
+  const rootId = toIdString(record.rootidstr) ?? toIdString(record.rootid)
+  if (rootId !== undefined)
+    comment.rootId = rootId
+
+  const floorNumber = parseNonNegativeInt(record.floor_number)
+  if (floorNumber !== undefined)
+    comment.floorNumber = floorNumber
+
+  // 只有 raw 真的带 `total_number` 时才填（myCmt 的评论项通常没有该字段）
+  const totalReplies = parseNonNegativeInt(record.total_number)
+  if (totalReplies !== undefined)
+    comment.totalReplies = totalReplies
+
+  if (typeof record.liked === 'boolean')
+    comment.liked = record.liked
+
+  const parentMblogId = getParentMblogId(record)
+  if (parentMblogId !== undefined)
+    comment.parentMblogId = parentMblogId
+
+  const replyToRaw = record.reply_comment
+  if (isRecord(replyToRaw))
+    comment.replyTo = normalizeCommentNode(replyToRaw, false)
+
+  if (includeReplies && Array.isArray(record.comments)) {
+    const replies = record.comments.map((reply: unknown) => normalizeCommentNode(reply, true))
+    if (replies.length > 0)
+      comment.replies = replies
+  }
+
   return comment
+}
+
+/**
+ * 将 `buildComments` / `myCmt` 的原始评论归一化为 `ITweetComment`（P1-6 / D2）。
+ *
+ * - `replies` 取上游 `comments` 数组并递归归一化（普通时间线归一化不会调用本函数）；
+ * - D2 追加：`rootId`（`rootidstr`/`rootid`）、`replyTo`（`reply_comment`，递归）、
+ *   `floorNumber`（`floor_number`）、`totalReplies`（`total_number`，缺省即省略）、
+ *   `liked`（`liked`，缺省即省略）、`parentMblogId`（内嵌 `status.mblogid`）。
+ * - `status` / `reply_comment` 缺失时不抛错，只是对应 optional 字段不出现。
+ *
+ * 保持向后兼容：`id` / `createdAt` / `text` / `textHtml` / `source` / `likes` / `user` 语义不变。
+ */
+export function normalizeComment(raw: unknown): ITweetComment {
+  return normalizeCommentNode(raw, true)
 }
 
 export class Tweet implements ITweet {

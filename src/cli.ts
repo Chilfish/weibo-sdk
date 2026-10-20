@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, runMain } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
+import { commentMine, commentStream } from './cli/commands/comment'
 import { favoriteList, favoriteStream, favoriteTags } from './cli/commands/favorite'
 import { followFans, followList, followMy } from './cli/commands/follow'
 import { likeList, likeStream } from './cli/commands/like'
@@ -196,6 +197,10 @@ const main = defineCommand({
     like: defineCommand({
       meta: { name: 'like', description: '我赞过的微博' },
       subCommands: { list: likeList, stream: likeStream },
+    }),
+    comment: defineCommand({
+      meta: { name: 'comment', description: '当前登录用户的历史评论' },
+      subCommands: { mine: commentMine, stream: commentStream },
     }),
     search: defineCommand({
       meta: { name: 'search', description: '搜索' },

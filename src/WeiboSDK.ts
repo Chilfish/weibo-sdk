@@ -3,6 +3,7 @@ import type { IWeiboConfig } from './types/config'
 import type { WeiboSDKLifecycleEvent, WeiboSDKSelfCheckMode } from './types/hooks'
 import { InvalidConfigError } from './models/errors/ConfigError'
 import { ArchiveService } from './services/public/ArchiveService'
+import { CommentHistoryService } from './services/public/CommentHistoryService'
 import { FavoriteService } from './services/public/FavoriteService'
 import { FollowingsService } from './services/public/FollowingsService'
 import { LikeService } from './services/public/LikeService'
@@ -45,6 +46,8 @@ export class WeiboSDK {
   public readonly favorites: FavoriteService
   /** 点赞服务：我赞过的微博（page 游标，无 total）。 */
   public readonly likes: LikeService
+  /** 历史评论服务：当前登录用户发表过的评论（max_id 游标，只读自己的）。 */
+  public readonly commentHistory: CommentHistoryService
   /** 热搜服务：热搜 / 话题 / 文娱榜单。 */
   public readonly trends: TrendsService
   /** 搜索服务：搜索用户与微博（上游接口当前失效，见方法注释）。 */
@@ -79,6 +82,7 @@ export class WeiboSDK {
     this.followings = new FollowingsService(config, deps)
     this.favorites = new FavoriteService(config, deps)
     this.likes = new LikeService(config, deps)
+    this.commentHistory = new CommentHistoryService(config, deps)
     this.trends = new TrendsService(config, deps)
     this.search = new SearchService(config, deps)
     this.archive = new ArchiveService({

@@ -1,3 +1,4 @@
+export type { MyCommentItem, MyCommentsArgs, MyCommentsResponse } from '../services/endpoints/commentHistory'
 export type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 export type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
 export type { LikeItem, LikeListArgs, LikeListResponse } from '../services/endpoints/like'
@@ -8,6 +9,7 @@ export type { BuildCommentsResponse, FriendstimelineResponse, LongtextResponse, 
 // Endpoint 响应类型（zod-inferred，服务的实际返回类型）
 export type { UserDetailsResponse, UserInfoResponse } from '../services/endpoints/user'
 export type { ArchiveCheckpoint, ArchiveErrorAction, ArchiveErrorStage, ArchiveItem, ArchiveItemErrorContext, ArchivePhase, ArchiveProgress, ArchiveRawMeta, ArchiveServiceDeps, ArchiveStreamOptions, ArchiveTimelineSource } from '../services/public/ArchiveService'
+export type { CommentHistoryListOptions, CommentHistoryPageResult, CommentHistoryStreamOptions, CommentHistoryStreamProgress } from '../services/public/CommentHistoryService'
 export type { FavoriteListOptions, FavoritePageResult, FavoriteStreamOptions, FavoriteStreamProgress } from '../services/public/FavoriteService'
 export type { LikeListOptions, LikePageResult, LikeStreamOptions, LikeStreamProgress } from '../services/public/LikeService'
 export type { TweetEnrichOptions, TweetEnrichResult } from '../services/public/TweetService'

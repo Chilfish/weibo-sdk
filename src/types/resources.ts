@@ -1,3 +1,4 @@
+import type { MyCommentsResponse } from '../services/endpoints/commentHistory'
 import type { FavoritesResponse, FavoritesTagsResponse } from '../services/endpoints/favorite'
 import type { FollowContentResponse, FriendshipsResponse } from '../services/endpoints/follow'
 import type { LikeListResponse } from '../services/endpoints/like'
@@ -20,6 +21,7 @@ export interface IResource {
   FAVORITES_ALLFAV: FavoritesResponse
   FAVORITES_TAGS: FavoritesTagsResponse
   LIKES_LIST: LikeListResponse
+  COMMENTS_MINE: MyCommentsResponse
   SEARCH_USERS: SearchUsersResponse
   SEARCH_TWEETS: SearchTweetsResponse
   FRIENDSHIPS_FRIENDS: FriendshipsResponse

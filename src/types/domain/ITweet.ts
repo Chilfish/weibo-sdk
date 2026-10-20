@@ -81,6 +81,9 @@ export interface ITweet {
 
 /**
  * 评论（P1-6）。`replies` 为楼中楼，递归同构；缺省表示没有回复。
+ *
+ * D2（我的评论历史）在 v1 契约内**只新增 optional 字段**（下同），老读取方忽略即可：
+ * `rootId` / `replyTo` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId`。
  */
 export interface ITweetComment {
   /** 评论 id（`idstr` 或 `id` 的字符串形式） */
@@ -99,6 +102,30 @@ export interface ITweetComment {
   user: TweetUser
   /** 楼中楼回复（递归同构；无回复时缺省） */
   replies?: ITweetComment[]
+
+  // ---- D2 新增（全部 optional，v1 内只增不改） ----
+
+  /**
+   * 根评论 id（上游 `rootidstr` 优先，退回 `rootid`；上游未下发或缺省为 0 时本字段缺省）。
+   *
+   * 楼中楼回复归属的一级评论 id，用于把平铺的评论树还原成楼层。
+   */
+  rootId?: string
+  /**
+   * 被回复的评论（上游 `reply_comment`，递归归一化；无则缺省）。
+   *
+   * 与 `replies`（上游 `comments` 楼中楼列表）是两个独立字段：前者是「我回复了谁」，
+   * 后者是「谁回复了这条」。
+   */
+  replyTo?: ITweetComment
+  /** 楼层号（上游 `floor_number`；可为 0，上游未下发时缺省） */
+  floorNumber?: number
+  /** 楼中楼回复总数（上游 `total_number`；上游未下发时缺省） */
+  totalReplies?: number
+  /** 当前登录用户是否点赞过该评论（上游 `liked`；上游未下发时缺省，不伪造 false） */
+  liked?: boolean
+  /** 被评论微博的字母 id（上游内嵌 `status.mblogid`），用于回跳原微博 */
+  parentMblogId?: string
 }
 
 /**
