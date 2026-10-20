@@ -1,7 +1,8 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { ZodTypeAny } from 'zod'
 import type { IWeiboConfig } from '../../types/config'
-import type { EndpointArgsFromSchema, EndpointSpec } from './EndpointSpec'
+import type { AuthContext, AuthFailureReason, AuthProvider, EffectiveAuthMode } from './AuthProvider'
+import type { EndpointArgsFromSchema, EndpointAuth, EndpointSpec } from './EndpointSpec'
 import type { IRateLimitClock } from './RateLimitService'
 import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks, WeiboSDKRawMeta } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
@@ -13,7 +14,7 @@ import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { getMessage, getOk, isRecord } from '~/utils/response'
 import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '../../models/errors/TransportError'
-import { AuthService } from './AuthService'
+import { authTelemetryFields, createAuthContext, isAuthFailureReason } from './AuthProvider'
 import { defaultClock, RateLimitService } from './RateLimitService'
 import {
   classifyRetryableError,
@@ -73,6 +74,31 @@ function getErrorStatus(error: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined
 }
 
+/** 从结构化错误里读取鉴权失败原因（用于 guest token 刷新决策）。 */
+function getAuthFailureReason(error: unknown): AuthFailureReason | undefined {
+  if (!(error instanceof WeiboSDKError))
+    return undefined
+  const reason = error.context?.authFailureReason
+  if (isAuthFailureReason(reason))
+    return reason
+  if (error instanceof UnexpectedAPIResponseError) {
+    const hint = error.context?.hint
+    if (typeof hint === 'string' && /HTML/i.test(hint))
+      return 'html'
+  }
+  return undefined
+}
+
+/** 空 JSON 对象（`{}`）常被上游用作静默登录门控。 */
+function isEmptyRecord(value: unknown): boolean {
+  return isRecord(value) && Object.keys(value).length === 0
+}
+
+/** 登录门控文案判定。 */
+function looksLikeLoginMessage(message: string | undefined): boolean {
+  return /未登录|请登录|登录已过期|登录失效|login|passport|signin/i.test(message ?? '')
+}
+
 /**
  * 判断当前是否运行在浏览器/浏览器类环境（SPA、userscript、Electron renderer）。
  *
@@ -125,7 +151,7 @@ function toTelemetryErrorFields(error: unknown): Pick<
 
 export class FetcherService {
   private client: AxiosInstance
-  private authService: AuthService
+  private auth: AuthContext
   private rateLimitService: RateLimitService
   private hooks?: WeiboSDKHooks
   private telemetry?: WeiboSDKTelemetry
@@ -142,7 +168,8 @@ export class FetcherService {
     private config: IWeiboConfig,
     deps?: {
       client?: AxiosInstance
-      authService?: AuthService
+      /** 鉴权运行时（由门面共享；缺省时按 config 创建） */
+      auth?: AuthContext
       rateLimitService?: RateLimitService
       hooks?: WeiboSDKHooks
       telemetry?: WeiboSDKTelemetry
@@ -152,7 +179,9 @@ export class FetcherService {
     },
   ) {
     this.client = deps?.client ?? createAxiosClient(config)
-    this.authService = deps?.authService ?? new AuthService(config)
+    this.auth = deps?.auth ?? createAuthContext(config, {
+      telemetry: deps?.telemetry ?? config.telemetry,
+    })
     this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
       config.maxConcurrent || 3,
       typeof config.delay === 'number' ? config.delay : 1000,
@@ -163,23 +192,40 @@ export class FetcherService {
     this.telemetry = deps?.telemetry ?? config.telemetry
     this.preflight = deps?.preflight
     this.clock = deps?.clock ?? defaultClock
-
-    this.setupInterceptors()
-  }
-
-  private setupInterceptors(): void {
-    this.client.interceptors.request.use((config) => {
-      // Cookie 以 AuthService 解析后的结果为准（`config.cookie` 可能是文件路径）。
-      const headers = this.authService.getAuthHeaders()
-      config.headers.Cookie = headers.Cookie
-      if (headers['X-XSRF-TOKEN'])
-        config.headers['X-XSRF-TOKEN'] = headers['X-XSRF-TOKEN']
-      return config
-    })
   }
 
   protected newTraceId(): string {
     return createTraceId()
+  }
+
+  /** 当前实例的有效鉴权模式。 */
+  protected get authMode(): EffectiveAuthMode {
+    return this.auth.mode
+  }
+
+  /** guest 模式下的 token 状态（供门面 / CLI 诊断）。 */
+  protected getGuestTokenStatus(): ReturnType<NonNullable<AuthContext['guestTokens']>['getStatus']> {
+    return this.auth.guestTokens?.getStatus()
+  }
+
+  /** 按端点声明的鉴权要求选择 provider；guest 模式下拒绝 cookie-only 端点。 */
+  private resolveProvider(endpointAuth: EndpointAuth): AuthProvider {
+    if (endpointAuth === 'none')
+      return this.auth.getProvider('none')
+
+    if (this.auth.mode === 'guest' && endpointAuth === 'cookie') {
+      throw new WeiboSessionExpiredError(
+        'This endpoint requires a signed-in Cookie and is unavailable in guest mode.',
+        {
+          auth_mode: 'guest',
+          requiredAuth: 'cookie',
+          hint: '该能力只能读取登录账号自身的数据，访客模式不可用',
+          next: '配置登录 Cookie（config.cookie 或 .env 的 WEIBO_COOKIE）后重试；guest 模式不会静默降级',
+        },
+      )
+    }
+
+    return this.auth.getProvider(endpointAuth)
   }
 
   protected async fetch<T>(
@@ -190,10 +236,18 @@ export class FetcherService {
       traceId?: string
       endpoint?: string
       resourceType?: IResourceType
+      /** 端点鉴权要求；缺省按 `cookie`（保持旧行为）。 */
+      auth?: EndpointAuth
+      /** 已解析的 provider（`request()` 传入，避免重复解析）。 */
+      provider?: AuthProvider
+      /** guest token 已刷新次数（进 telemetry）。 */
+      guestRefreshCount?: number
     },
   ): Promise<T> {
     const traceId = options?.traceId ?? createTraceId()
     const startAt = Date.now()
+    const provider = options?.provider ?? this.resolveProvider(options?.auth ?? 'cookie')
+    const authFields = authTelemetryFields(this.auth.mode, options?.guestRefreshCount)
 
     if (!options?.skipPreflight) {
       try {
@@ -218,6 +272,7 @@ export class FetcherService {
           endpoint: options?.endpoint,
           resource_type: options?.resourceType,
           duration_ms: Date.now() - startAt,
+          ...authFields,
           ...toTelemetryErrorFields(error),
         })
 
@@ -234,6 +289,7 @@ export class FetcherService {
       endpoint: options?.endpoint,
       resource_type: options?.resourceType,
       args_keys: getArgsKeys(args),
+      ...authFields,
     })
 
     const policy = resolveRetryPolicy(this.config.retry)
@@ -242,7 +298,7 @@ export class FetcherService {
     // 重试循环：用 for 而不是递归（见 postmortem「递归等待 = 深层 Promise 链」）
     for (let attempt = 1; ; attempt++) {
       try {
-        return await this.sendAttempt<T>(resource, args, traceId, attempt, options?.endpoint)
+        return await this.sendAttempt<T>(resource, args, traceId, attempt, options?.endpoint, provider)
       }
       catch (rawError) {
         const error = this.mapError(rawError, attempt)
@@ -275,6 +331,7 @@ export class FetcherService {
             delay_ms: delayMs,
             reason: kind,
             status: getErrorStatus(error),
+            ...authFields,
             ...toTelemetryErrorFields(error),
           })
 
@@ -301,6 +358,7 @@ export class FetcherService {
           resource_type: options?.resourceType,
           duration_ms: Date.now() - startAt,
           attempt,
+          ...authFields,
           ...toTelemetryErrorFields(error),
         })
 
@@ -319,18 +377,22 @@ export class FetcherService {
     args: Record<string, unknown> | undefined,
     traceId: string,
     attempt: number,
-    endpoint?: string,
+    endpoint: string | undefined,
+    provider: AuthProvider,
   ): Promise<T> {
     await this.rateLimitService.acquire({ trace_id: traceId })
+    const authHeaders = await provider.getHeaders()
     // host 头从请求 URL 推导，避免跨 host 端点（如 m.weibo.cn）被强加 weibo.com 而 404
     resource.headers = {
       'referer': 'https://weibo.com/',
       'host': new URL(resource.url).host,
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-      ...this.authService.getAuthHeaders(),
       ...resource.headers,
+      // 鉴权头最后覆盖，避免端点自定义 header 意外带出旧 Cookie
+      ...authHeaders,
     }
 
+    const guestMode = this.auth.mode === 'guest'
     const proxy = await this.resolveProxy(resource, traceId, attempt, endpoint)
     const config: AxiosRequestConfig = {
       method: resource.method,
@@ -339,9 +401,45 @@ export class FetcherService {
       params: resource.method === 'GET' ? args : undefined,
       data: resource.method === 'POST' ? args : undefined,
       ...(proxy === undefined ? {} : { proxy }),
+      // guest 模式自己处理重定向，才能区分「登录页 / visitor 入口」与普通跳转
+      ...(guestMode
+        ? {
+            maxRedirects: 0,
+            validateStatus: (status: number) => status >= 200 && status < 400,
+          }
+        : {}),
     }
 
     const response = await this.client.request<T>(config)
+
+    if (guestMode && response.status >= 300) {
+      const location = String(getHeaderValue(response.headers, 'location') ?? '')
+      if (location.includes('visitor.passport.weibo.cn')) {
+        throw new WeiboSessionExpiredError('Guest token is missing or invalid (visitor entry redirect).', {
+          auth_mode: 'guest',
+          authFailureReason: 'visitor_entry' satisfies AuthFailureReason,
+          status: response.status,
+          location,
+          endpoint,
+        })
+      }
+      if (location.includes('passport.weibo.com') || looksLikeLoginMessage(location)) {
+        throw new WeiboSessionExpiredError('Guest identity was rejected (redirected to login).', {
+          auth_mode: 'guest',
+          authFailureReason: 'redirect_to_login' satisfies AuthFailureReason,
+          status: response.status,
+          location,
+          endpoint,
+        })
+      }
+      throw new UnexpectedAPIResponseError(`Unexpected redirect (HTTP ${response.status}) from ${endpoint ?? resource.url}.`, {
+        auth_mode: 'guest',
+        status: response.status,
+        location,
+        endpoint,
+      })
+    }
+
     return response.data
   }
 
@@ -440,16 +538,69 @@ export class FetcherService {
       skipPreflight?: boolean
     },
   ): Promise<IResource[TResource]> {
+    const endpointAuth = spec.auth ?? 'cookie'
+    const provider = this.resolveProvider(endpointAuth)
+    const refresh = provider.refresh?.bind(provider)
+    let guestRefreshCount = 0
+    let refreshed = false
+
+    while (true) {
+      try {
+        return await this.requestOnce(spec, args, options, provider, endpointAuth, guestRefreshCount)
+      }
+      catch (error) {
+        const reason = getAuthFailureReason(error)
+        const canRefresh = !refreshed
+          && reason !== undefined
+          && this.auth.mode === 'guest'
+          && endpointAuth !== 'none'
+          && refresh !== undefined
+          && (this.config.guest?.autoRefresh ?? true)
+
+        if (!canRefresh)
+          throw error
+
+        refreshed = true
+        guestRefreshCount += 1
+        let refreshedOk = false
+        try {
+          refreshedOk = await refresh(reason)
+        }
+        catch {
+          refreshedOk = false
+        }
+        // 刷新失败保留旧 token，并抛出原始鉴权错误（每请求最多刷新一次）。
+        if (!refreshedOk)
+          throw error
+      }
+    }
+  }
+
+  private async requestOnce<
+    TResource extends IResourceType,
+    TArgsSchema extends ZodTypeAny | undefined,
+  >(
+    spec: EndpointSpec<TResource, TArgsSchema>,
+    args: EndpointArgsFromSchema<TArgsSchema>,
+    options: { skipPreflight?: boolean } | undefined,
+    provider: AuthProvider,
+    endpointAuth: EndpointAuth,
+    guestRefreshCount: number,
+  ): Promise<IResource[TResource]> {
     const traceId = this.newTraceId()
     const startAt = Date.now()
     const request = spec.buildResource(args)
     const argsRecord = (args ?? undefined) as unknown as Record<string, unknown> | undefined
+    const authFields = authTelemetryFields(this.auth.mode, guestRefreshCount)
 
     const raw = await this.fetch<unknown>(request, argsRecord, {
       ...options,
       traceId,
       endpoint: spec.endpoint,
       resourceType: spec.resourceType,
+      auth: endpointAuth,
+      provider,
+      guestRefreshCount,
     })
 
     // P1-9：raw 必须在 okPolicy / Zod 校验前交付，保证失败响应也能被下游保存。
@@ -462,6 +613,40 @@ export class FetcherService {
       timestamp: Date.now(),
     })
 
+    // guest 下的 `{}` 是静默登录门控（不是合法的空结果）；刷新 token 后重试一次。
+    if (this.auth.mode === 'guest' && endpointAuth === 'guest' && isEmptyRecord(raw)) {
+      const error = new WeiboSessionExpiredError('Guest request returned an empty JSON object (silent login gate).', {
+        endpoint: spec.endpoint,
+        args: argsRecord,
+        auth_mode: 'guest',
+        authFailureReason: 'empty_object' satisfies AuthFailureReason,
+        hint: '访客身份被上游静默拒绝',
+        next: '稍后重试；若持续失败，检查该端点是否已要求登录',
+      })
+      await this.emitError(error, {
+        phase: 'response',
+        endpoint: spec.endpoint,
+        request,
+        args: argsRecord,
+        trace_id: traceId,
+        timestamp: Date.now(),
+      })
+      await this.emitTelemetry({
+        event_name: 'request_error',
+        timestamp: Date.now(),
+        trace_id: traceId,
+        phase: 'response',
+        method: request.method,
+        url: request.url,
+        endpoint: spec.endpoint,
+        resource_type: spec.resourceType,
+        duration_ms: Date.now() - startAt,
+        ...authFields,
+        ...toTelemetryErrorFields(error),
+      })
+      throw error
+    }
+
     const ok = getOk(raw)
     // 非 JSON 对象响应（HTML 登录页/风控页）不适用「ok !== 1」业务语义：跳过业务检查，
     // 让 schema 校验失败路径抛 ProtocolError（分类更准确，避免误报 API_NOT_OK）。
@@ -469,14 +654,15 @@ export class FetcherService {
       const okNumber = ok ?? 0
       const message = getMessage(raw)
       if (okNumber !== 1) {
+        const looksLikeAuthFailure = okNumber === -100 || looksLikeLoginMessage(message)
         const notOkContext = {
           endpoint: spec.endpoint,
           ok: okNumber,
           message,
           args: argsRecord,
+          auth_mode: this.auth.mode,
+          ...(okNumber === -100 ? { authFailureReason: 'ok_minus_100' satisfies AuthFailureReason } : {}),
         }
-        const looksLikeAuthFailure = okNumber === -100
-          || /未登录|请登录|登录已过期|登录失效|login|passport/i.test(message ?? '')
 
         let error = spec.okPolicy.notOkError?.({
           endpoint: spec.endpoint,
@@ -489,8 +675,12 @@ export class FetcherService {
           error = looksLikeAuthFailure
             ? new WeiboSessionExpiredError('Weibo session is missing or expired (ok != 1).', {
                 ...notOkContext,
-                hint: 'Cookie 可能已过期或未登录',
-                next: '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后更新 .env 的 WEIBO_COOKIE（或传 --cookie）',
+                hint: this.auth.mode === 'guest'
+                  ? '访客 token 可能已失效'
+                  : 'Cookie 可能已过期或未登录',
+                next: this.auth.mode === 'guest'
+                  ? 'SDK 会自动刷新一次访客 token；持续失败时稍后重试或显式提供 config.guest.token'
+                  : '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后更新 .env 的 WEIBO_COOKIE（或传 --cookie）',
               })
             : new WeiboAPINotOkError(`Weibo API returned ok != 1 (${spec.endpoint}).`, {
                 ...notOkContext,
@@ -521,6 +711,7 @@ export class FetcherService {
           duration_ms: Date.now() - startAt,
           ok: okNumber,
           message,
+          ...authFields,
           ...toTelemetryErrorFields(error),
         })
 
@@ -544,14 +735,20 @@ export class FetcherService {
           args: argsRecord,
           raw: isNonJson && typeof raw === 'string' ? raw.slice(0, 200) : raw,
           zodIssues: isNonJson ? [] : parsed.error.issues,
+          auth_mode: this.auth.mode,
+          ...(isNonJson && looksLikeLoginPage
+            ? { authFailureReason: 'html' satisfies AuthFailureReason }
+            : {}),
           ...(isNonJson
             ? {
                 hint: looksLikeLoginPage
                   ? '响应是 HTML 登录 / 风控页，而不是 JSON'
                   : '响应不是 JSON，端点可能已下线或需要登录态',
-                next: looksLikeLoginPage
-                  ? '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后重试'
-                  : '检查该端点是否仍存在；如为登录态问题，请更新 Cookie',
+                next: this.auth.mode === 'guest'
+                  ? 'SDK 会自动刷新一次访客 token；持续失败时稍后重试或改用登录 Cookie'
+                  : looksLikeLoginPage
+                    ? '在浏览器打开 weibo.com 确认已登录，重新导出 Cookie 后重试'
+                    : '检查该端点是否仍存在；如为登录态问题，请更新 Cookie',
               }
             : {}),
         },
@@ -576,6 +773,7 @@ export class FetcherService {
         endpoint: spec.endpoint,
         resource_type: spec.resourceType,
         duration_ms: Date.now() - startAt,
+        ...authFields,
         ...toTelemetryErrorFields(error),
       })
 
@@ -595,6 +793,7 @@ export class FetcherService {
       resource_type: spec.resourceType,
       duration_ms: Date.now() - startAt,
       ok: ok ?? undefined,
+      ...authFields,
     })
     return data
   }
@@ -655,6 +854,22 @@ export class FetcherService {
             ...(message === undefined ? {} : { message }),
           },
         )
+      }
+
+      // guest 下的 403 往往是登录门控，而不是普通网络失败
+      if (status === 403 && this.auth.mode === 'guest') {
+        const message = getMessage(axiosError.response?.data)
+          ?? (typeof axiosError.response?.data === 'string' ? axiosError.response.data : undefined)
+          ?? axiosError.message
+        return new WeiboSessionExpiredError('Guest identity was rejected by the endpoint (HTTP 403).', {
+          status,
+          auth_mode: 'guest',
+          authFailureReason: 'forbidden' satisfies AuthFailureReason,
+          message,
+          attempt,
+          hint: '该端点可能已要求登录',
+          next: 'SDK 会自动刷新一次访客 token；持续失败时改用登录 Cookie',
+        })
       }
 
       if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {

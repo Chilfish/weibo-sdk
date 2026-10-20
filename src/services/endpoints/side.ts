@@ -36,6 +36,8 @@ export const bandUnifiedSpec: EndpointSpec<'SIDE_BANDUNIFIED', typeof BandUnifie
     url: 'https://weibo.com/ajax/side/bandUnified',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 热搜榜公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: BandUnifiedResponseSchema,
 })

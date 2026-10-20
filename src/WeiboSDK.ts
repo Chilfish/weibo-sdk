@@ -1,4 +1,5 @@
 import type { CapabilityFilter, WeiboCapability } from './capabilities'
+import type { AuthContext } from './services/internal/AuthProvider'
 // src/WeiboSDK.ts
 import type { IWeiboConfig } from './types/config'
 import type {
@@ -7,7 +8,8 @@ import type {
 } from './types/hooks'
 import type { WeiboSessionContext } from './types/session'
 import { listCapabilities } from './capabilities'
-import { InvalidConfigError } from './models/errors/ConfigError'
+import { WeiboSessionExpiredError } from './models/errors/BusinessError'
+import { createAuthContext, resolveAuthMode } from './services/internal/AuthProvider'
 import { ArchiveService } from './services/public/ArchiveService'
 import { CommentHistoryService } from './services/public/CommentHistoryService'
 import { FavoriteService } from './services/public/FavoriteService'
@@ -70,6 +72,7 @@ export class WeiboSDK {
   public readonly search: SearchService
   /** 归档服务：把 timeline + favorites 串成可恢复的 AsyncIterator。 */
   public readonly archive: ArchiveService
+  private readonly authContext: AuthContext
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
   private readyError?: unknown
@@ -81,31 +84,38 @@ export class WeiboSDK {
    *
    * `config.selfCheck.mode: 'eager'` 时会在构造末尾立即（不 await）触发一次会话自检。
    *
-   * @param config SDK 配置，至少需要非空的 `cookie`
-   * @throws `InvalidConfigError`（code `CONFIG_INVALID`）缺少 `cookie` 时抛出
+   * @param config SDK 配置；Cookie 模式需要非空的 `cookie`，`auth: 'guest'` 或无 Cookie 时使用访客身份
+   * @throws `InvalidConfigError`（code `CONFIG_INVALID`）`auth: 'cookie'` 但没有 Cookie 时抛出
    */
   constructor(private readonly config: IWeiboConfig) {
     // Cookie 支持 header 串或文件路径：在这里解析一次，避免每个 Service 各读一次文件。
-    this.config = { ...config, cookie: resolveCookieInput(config.cookie) }
+    this.config = { ...config, cookie: resolveCookieInput(config.cookie ?? '') }
     this.validateConfig(this.config)
+    this.authContext = createAuthContext(this.config, {
+      telemetry: this.config.telemetry,
+    })
     this.selfCheckMode = this.config.selfCheck?.mode ?? 'lazy'
 
     const deps = {
-      hooks: config.hooks,
+      hooks: this.config.hooks,
       preflight: () => this.ensureReady(),
+      auth: this.authContext,
     }
 
-    this.users = new UserService(config, deps)
-    this.tweets = new TweetService(config, deps)
-    this.followings = new FollowingsService(config, deps)
-    this.favorites = new FavoriteService(config, deps)
-    this.likes = new LikeService(config, deps)
-    this.commentHistory = new CommentHistoryService(config, deps)
-    this.media = new MediaService(config, deps)
-    this.notifications = new NotificationService(config, deps)
-    this.topics = new TopicService(config, deps)
-    this.trends = new TrendsService(config, deps)
-    this.search = new SearchService(config, deps)
+    this.users = new UserService(this.config, deps)
+    this.tweets = new TweetService(this.config, deps, {
+      // context() 只补 author 的简版资料（1 次 profile/info），不拉完整 User 详情。
+      authorProfile: async uid => (await this.users.info(uid)).data.user,
+    })
+    this.followings = new FollowingsService(this.config, deps)
+    this.favorites = new FavoriteService(this.config, deps)
+    this.likes = new LikeService(this.config, deps)
+    this.commentHistory = new CommentHistoryService(this.config, deps)
+    this.media = new MediaService(this.config, deps)
+    this.notifications = new NotificationService(this.config, deps)
+    this.topics = new TopicService(this.config, deps)
+    this.trends = new TrendsService(this.config, deps)
+    this.search = new SearchService(this.config, deps)
     this.archive = new ArchiveService({
       tweets: this.tweets,
       favorites: this.favorites,
@@ -122,7 +132,8 @@ export class WeiboSDK {
           this.media.fetchRawVideoPage(uid, options),
       },
       sessionUid: async () => (await this.getSession()).uid,
-      telemetry: config.telemetry,
+      authMode: this.authContext.mode,
+      telemetry: this.config.telemetry,
     })
 
     void this.emitLifecycle({
@@ -137,14 +148,8 @@ export class WeiboSDK {
   }
 
   private validateConfig(config: IWeiboConfig): void {
-    if (!config.cookie) {
-      throw new InvalidConfigError(
-        'Weibo SDK requires a valid cookie in configuration.',
-        {
-          field: 'cookie',
-        },
-      )
-    }
+    // 解析有效鉴权模式：`auth: 'cookie'` 但没有 Cookie 时在这里抛 `CONFIG_INVALID`。
+    resolveAuthMode(config)
   }
 
   /**
@@ -250,8 +255,35 @@ export class WeiboSDK {
 
     this.sessionPromise = (async () => {
       try {
+        if (this.authContext.mode === 'guest') {
+          const tokens = this.authContext.guestTokens
+          if (!tokens) {
+            throw new WeiboSessionExpiredError('Guest token service is not initialized.', {
+              auth_mode: 'guest',
+            })
+          }
+          if (options.refresh) {
+            const refreshed = await tokens.refresh()
+            if (!refreshed) {
+              throw new WeiboSessionExpiredError('Failed to refresh the guest token.', {
+                auth_mode: 'guest',
+                reason: 'guest_token_issue',
+              })
+            }
+          }
+          const token = await tokens.getToken()
+          const context: WeiboSessionContext = {
+            authMode: 'guest',
+            checkedAt: Date.now(),
+            guestTokenIssuedAt: token.issuedAt,
+          }
+          this.session = context
+          return context
+        }
+
         const details = await this.users.myDetails()
         const context: WeiboSessionContext = {
+          authMode: 'cookie',
           uid: parseSessionUid(details.data),
           details,
           checkedAt: Date.now(),
@@ -267,6 +299,28 @@ export class WeiboSDK {
     })()
 
     return this.sessionPromise
+  }
+
+  /** 当前有效鉴权模式（构造时已确定，不随 Cookie 失效改变）。 */
+  public get authMode(): 'cookie' | 'guest' {
+    return this.authContext.mode
+  }
+
+  /**
+   * 访客 token 状态（不含 token 明文）。
+   *
+   * guest 模式下若尚未发放 token，会触发一次发放（single-flight）。
+   */
+  public async getGuestTokenStatus(): Promise<{ issuedAt: number, scope: 'pc' | 'all', source: 'preset' | 'mobile' | 'desktop' } | undefined> {
+    const tokens = this.authContext.guestTokens
+    if (!tokens)
+      return undefined
+    const token = await tokens.getToken()
+    return {
+      issuedAt: token.issuedAt,
+      scope: token.scope,
+      source: token.source,
+    }
   }
 
   /**

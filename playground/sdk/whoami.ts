@@ -9,13 +9,26 @@ export const scenario: SdkScenario = {
   usage: 'pnpm play whoami',
   async run({ sdk, log }) {
     const session = await sdk.getSession()
+    log.kv('getSession.authMode', session.authMode)
     log.kv('getSession.uid', session.uid ?? '(未解析)')
-    log.kv('myDetails.ok', session.details.ok)
+
+    if (session.authMode === 'guest') {
+      log.kv('guestTokenIssuedAt', session.guestTokenIssuedAt ?? '(未发放)')
+      log.warn('guest 模式没有登录账号 uid；下方示例只展示公开能力')
+      return
+    }
+
+    const details = session.details
+    if (!details) {
+      log.warn('会话没有 profile/detail 响应')
+      return
+    }
+    log.kv('myDetails.ok', details.ok)
 
     const uid = session.uid
     if (!uid) {
       log.warn('myDetails 未返回 verified_url，无法解析当前 uid；直接打印原始详情')
-      log.json(session.details)
+      log.json(details)
       return
     }
 

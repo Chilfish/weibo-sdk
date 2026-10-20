@@ -3,8 +3,10 @@ import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { StreamLimitOptions } from '~/utils/streamRange'
 import { isRawTweet, Tweet } from '~/models/data/Tweet'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { createStreamRange } from '~/utils/streamRange'
 import { likeListSpec } from '../endpoints/like'
+import { extractMobileMblogs, mobileContainerSpec } from '../endpoints/mobile'
 import { FetcherService } from '../internal/FetcherService'
 
 /** 一页「我赞过的微博」的归一化结果（`listByUserId` 返回值）。 */
@@ -20,6 +22,12 @@ export interface LikePageResult {
   hasMore: boolean
   /** 本页归一化后的微博（已按 `mblogid` 去重） */
   tweets: Tweet[]
+  /**
+   * 是否为不完整采样。
+   *
+   * guest 模式只能拿 m 站第一页，此时为 `true` 且 `hasMore` 恒为 `false`。
+   */
+  partial?: boolean
 }
 
 /** `listByUserId` 的选项。 */
@@ -119,6 +127,34 @@ export class LikeService extends FetcherService {
    */
   public async listByUserId(uid: string, options: LikeListOptions = {}): Promise<LikePageResult> {
     const page = normalizePage(options.page)
+
+    if (this.authMode === 'guest') {
+      if (page > 1) {
+        throw new InvalidConfigError(
+          'Guest mode can only read the first page of likes; anonymous page 2 is login-gated.',
+          { field: 'page', page, uid, guestPagination: 'first_page' },
+        )
+      }
+      const startedAt = Date.now()
+      const mobile = await this.request(mobileContainerSpec, { containerid: `230869${uid}` })
+      const rawTweets: unknown[] = extractMobileMblogs(mobile)
+      const tweets = rawTweets.filter(isRawTweet).map(item => new Tweet(item))
+      await this.emitTelemetry({
+        event_name: 'normalize_done',
+        timestamp: Date.now(),
+        trace_id: this.newTraceId(),
+        model: 'Tweet',
+        count: tweets.length,
+        duration_ms: Date.now() - startedAt,
+      })
+      return {
+        page: 1,
+        hasMore: false,
+        partial: true,
+        tweets,
+      }
+    }
+
     const raw = await this.request(likeListSpec, { uid, page })
     const items = uniqueRawTweets(raw.data.list ?? [])
 
@@ -170,6 +206,26 @@ export class LikeService extends FetcherService {
     let pages = 0
     let processed = 0
     const seen = new Set<string>()
+
+    if (this.authMode === 'guest') {
+      const first = await this.listByUserId(uid, { page })
+      for (const tweet of first.tweets) {
+        const decision = range.decide(tweet)
+        if (decision === 'stop')
+          break
+        if (decision === 'skip')
+          continue
+        processed += 1
+        yield tweet
+      }
+      try {
+        await options.onProgress?.({ uid, page: 1, processed, pageSize: first.tweets.length })
+      }
+      catch {
+        // 进度回调异常不影响流
+      }
+      return
+    }
 
     while (pages < maxPages) {
       const items = await this.fetchLikePage(uid, page)

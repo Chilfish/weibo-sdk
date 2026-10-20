@@ -138,3 +138,66 @@ export function parseTweetIdInput(input: string): ParsedTweetId {
 export function normalizeTweetIdInput(input: string): string {
   return parseTweetIdInput(input).id
 }
+
+/** 微博 mblogid 使用的 base62 字母表（数字 → 小写 → 大写，与网页端一致）。 */
+const MBLOGID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+/** mid 每段 7 位十进制（末段在右）。 */
+const MID_CHUNK_LENGTH = 7
+
+/** 每段 7 位十进制对应 4 位 base62（62^4 = 14776336 > 9999999）。 */
+const MBLOGID_CHUNK_LENGTH = 4
+
+/** 纯正整数（不接受前导 0 / 正负号 / 小数 / 空白）。 */
+const POSITIVE_DIGITS_PATTERN = /^[1-9]\d*$/
+
+function toBase62(value: number): string {
+  if (value <= 0)
+    return '0'
+  let rest = value
+  let encoded = ''
+  while (rest > 0) {
+    encoded = MBLOGID_ALPHABET[rest % 62] + encoded
+    rest = Math.floor(rest / 62)
+  }
+  return encoded
+}
+
+function digitsToMblogId(digits: string): string {
+  if (!POSITIVE_DIGITS_PATTERN.test(digits))
+    return ''
+
+  const chunks: string[] = []
+  for (let end = digits.length; end > 0; end -= MID_CHUNK_LENGTH)
+    chunks.unshift(digits.slice(Math.max(0, end - MID_CHUNK_LENGTH), end))
+
+  // 最高位那一段不补 0，其余段按 4 位 base62 左补 0（保证定长可逆）
+  return chunks
+    .map((chunk, index) => {
+      const encoded = toBase62(Number(chunk))
+      return index === 0 ? encoded : encoded.padStart(MBLOGID_CHUNK_LENGTH, '0')
+    })
+    .join('')
+}
+
+/**
+ * 数字 mid → 字母 mblogid（网页端 9 位形式）。
+ *
+ * 算法：把十进制 mid 自右向左按 7 位切段，每段转成 base62
+ * （字母表 `0-9a-zA-Z`），除最高段外每段补齐 4 位后拼接。
+ *
+ * 用途：`m.weibo.cn` 容器（`api/container/getIndex`）返回的微博对象只有数字 `mid` / `id`，
+ * 没有 `mblogid`，需要本地换算后交给网页端模型 / 归一化层。
+ *
+ * 已验证：`5039815108333719 → OgHLUyXYP`。
+ *
+ * @param mid 数字 mid（字符串或安全整数）；带前导 0、负数、小数、非数字都视为无效
+ * @returns mblogid；输入无效时返回 `''`
+ */
+export function midToMblogId(mid: string | number): string {
+  if (typeof mid === 'number')
+    return Number.isSafeInteger(mid) ? digitsToMblogId(String(mid)) : ''
+  if (typeof mid !== 'string')
+    return ''
+  return digitsToMblogId(mid.trim())
+}

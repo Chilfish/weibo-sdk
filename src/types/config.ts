@@ -68,21 +68,58 @@ export interface IProxyProvider {
 export type WeiboProxyInput = string | false | IProxyProvider
 
 /**
+ * 鉴权模式。
+ *
+ * - `auto`（默认）：有 Cookie 用 Cookie，没有 Cookie 用访客身份；
+ *   **Cookie 失效后不会静默降级到 guest**（数据完整性会变化）。
+ * - `cookie`：只允许 Cookie；构造时没有 Cookie 直接抛 `CONFIG_INVALID`。
+ * - `guest`：只使用访客 token，显式忽略传入的 Cookie。
+ */
+export type WeiboAuthMode = 'auto' | 'cookie' | 'guest'
+
+/** 访客 token 配置。 */
+export interface IWeiboGuestConfig {
+  /**
+   * 预置访客 Cookie（`SUB=...; SUBP=...`），用于复用外部已发放的 token。
+   *
+   * 提供且包含 `SUB` 时不会触发放接口。
+   */
+  token?: string
+  /**
+   * token 发放方式（默认 `mobile`）。
+   *
+   * - `mobile`：`visitor.passport.weibo.cn`，PC 与 m 站通用
+   * - `desktop`：`passport.weibo.com/visitor/genvisitor2`，仅对 `weibo.com` 有效
+   * - `auto`：移动端优先，失败后尝试桌面端
+   */
+  issuer?: 'mobile' | 'desktop' | 'auto'
+  /** token 失效时是否自动刷新（默认 `true`）；每个请求最多刷新一次。 */
+  autoRefresh?: boolean
+}
+
+/**
  * `new WeiboSDK(...)` 的构造配置。
  *
- * 只有 `cookie` 必填；其余项都有安全的默认值（超时 30s、并发 3、请求间隔 1000ms、重试 2 次、懒自检）。
+ * `cookie` 在 `auth: 'guest'` 或未提供时可省略；其余项都有安全的默认值
+ * （超时 30s、并发 3、请求间隔 1000ms、重试 2 次、懒自检）。
  */
 export interface IWeiboConfig {
   /**
-   * 微博登录 Cookie（必填）。支持三种输入：
+   * 微博登录 Cookie。支持三种输入：
    * - Cookie header 串（`SUB=xxx; SUBP=xxx`）
    * - Netscape Cookie 文件路径（浏览器扩展 / curl `cookies.txt`），仅 Node 环境生效
    * - 内容为 header 串的文本文件路径（可带 `Cookie:` 前缀），仅 Node 环境生效
    *
    * 文件中的非微博域名 Cookie 会被忽略；路径不存在或文件内没有可用 Cookie 时抛
    * `InvalidConfigError`。失效会在自检或 `ok !== 1` 时以结构化错误暴露。
+   *
+   * `auth: 'guest'` 时可省略；`auth: 'cookie'` 时必填。
    */
-  cookie: string
+  cookie?: string
+  /** 鉴权模式（默认 `auto`）。 */
+  auth?: WeiboAuthMode
+  /** 访客 token 配置（`auth: 'guest'` / 无 Cookie 时生效）。 */
+  guest?: IWeiboGuestConfig
   /** XSRF Token；部分 POST 端点需要，缺省时仅发送 Cookie */
   xsrfToken?: string
   /**

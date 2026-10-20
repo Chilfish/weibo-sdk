@@ -63,6 +63,8 @@ export const imageWallSpec: EndpointSpec<'PROFILE_IMAGE_WALL', typeof ImageWallA
     url: 'https://weibo.com/ajax/profile/getImageWall',
     headers: { referer: `https://weibo.com/u/${uid}` },
   }),
+  // 公开媒体：访客 token 可用（含游标翻页）
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: ImageWallResponseSchema,
 })
@@ -99,6 +101,8 @@ export const waterfallSpec: EndpointSpec<'PROFILE_WATERFALL', typeof WaterfallAr
     url: 'https://weibo.com/ajax/profile/getWaterFallContent',
     headers: { referer: `https://weibo.com/u/${uid}` },
   }),
+  // 公开媒体：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: WaterfallResponseSchema,
 })
@@ -137,6 +141,8 @@ export const albumDetailSpec: EndpointSpec<'PROFILE_ALBUM_DETAIL', typeof AlbumD
     url: 'https://weibo.com/ajax/profile/getAlbumDetail',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 公开媒体：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: AlbumDetailResponseSchema,
 })

@@ -1,8 +1,11 @@
 import type { FollowContentResponse, FriendshipsResponse } from '../endpoints/follow'
+import type { MobileContainerResponse } from '../endpoints/mobile'
 import type { IWeiboConfig } from '~/types/config'
 import type { StreamLimitOptions } from '~/utils/streamRange'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { normalizeMaxPages, paginate } from '../../utils/pagination'
 import { followContentSpec, friendshipsSpec } from '../endpoints/follow'
+import { extractMobileUsers, mobileContainerSpec } from '../endpoints/mobile'
 import { FetcherService } from '../internal/FetcherService'
 
 /** 关注关系数据源。 */
@@ -52,6 +55,27 @@ function usersFromFollowContent(raw: FollowContentResponse): { users: FollowingU
   }
 }
 
+function assertFirstPage(page: number | undefined, source: string): void {
+  if (page !== undefined && page > 1) {
+    throw new InvalidConfigError(
+      `Guest mode can only read the first page of ${source}; anonymous page 2 is login-gated.`,
+      { field: 'page', page, source, guestPagination: 'first_page' },
+    )
+  }
+}
+
+/** 把 m 站 container 第一页的 `card.user` 适配成 `friendships` 响应形状。 */
+function mobileUsersToFriendships(raw: MobileContainerResponse): FriendshipsResponse {
+  const users = extractMobileUsers(raw)
+  const total = raw.data.cardlistInfo?.total
+  return {
+    ok: 1,
+    users,
+    ...(total === undefined ? {} : { total_number: total }),
+    next_cursor: 0,
+  }
+}
+
 /**
  * 关注关系领域服务。
  *
@@ -75,6 +99,13 @@ export class FollowingsService extends FetcherService {
    * @returns 校验后的 friendships 响应（`data.users` 为用户数组，含 `next_cursor`）
    */
   public async getFollowings(uid: string, page?: number): Promise<FriendshipsResponse> {
+    if (this.authMode === 'guest') {
+      assertFirstPage(page, 'followings')
+      // 上游命名与直觉相反：`followers` 容器返回「他的全部关注」
+      return mobileUsersToFriendships(
+        await this.request(mobileContainerSpec, { containerid: `231051_-_followers_-_${uid}` }),
+      )
+    }
     const args: { uid: string, page?: number } = { uid }
     if (page !== undefined)
       args.page = page
@@ -89,6 +120,13 @@ export class FollowingsService extends FetcherService {
    * @returns 校验后的 friendships 响应（`data.users` 为粉丝数组）
    */
   public async getFans(uid: string, page?: number): Promise<FriendshipsResponse> {
+    if (this.authMode === 'guest') {
+      assertFirstPage(page, 'fans')
+      // 上游命名与直觉相反：`follows` 容器返回「他的全部粉丝」
+      return mobileUsersToFriendships(
+        await this.request(mobileContainerSpec, { containerid: `231051_-_follows_-_${uid}` }),
+      )
+    }
     const args: { uid: string, relate: 'fans', page?: number } = { uid, relate: 'fans' }
     if (page !== undefined)
       args.page = page
@@ -121,6 +159,10 @@ export class FollowingsService extends FetcherService {
    * }
    */
   async* streamFollowings(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+    if (this.authMode === 'guest') {
+      yield* this.streamMobileUsers('following', uid, await this.getFollowings(uid, options.page), options)
+      return
+    }
     yield* this.streamUsers(
       'following',
       uid,
@@ -139,6 +181,10 @@ export class FollowingsService extends FetcherService {
    * }
    */
   async* streamFans(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+    if (this.authMode === 'guest') {
+      yield* this.streamMobileUsers('fans', uid, await this.getFans(uid, options.page), options)
+      return
+    }
     yield* this.streamUsers(
       'fans',
       uid,
@@ -164,6 +210,36 @@ export class FollowingsService extends FetcherService {
       usersFromFollowContent,
       options,
     )
+  }
+
+  /** guest 模式：只产出一页用户（上游匿名只有第一页）。 */
+  private async* streamMobileUsers(
+    source: FollowingsSource,
+    uid: string,
+    raw: FriendshipsResponse,
+    options: FollowingsStreamOptions,
+  ): AsyncIterableIterator<FollowingUser> {
+    const limit = options.maxItems
+    let processed = 0
+    for (const user of raw.users) {
+      if (limit !== undefined && processed >= limit)
+        break
+      processed += 1
+      yield user
+    }
+    try {
+      await options.onProgress?.({
+        uid,
+        source,
+        page: 1,
+        processed,
+        pageSize: raw.users.length,
+        total: raw.total_number,
+      })
+    }
+    catch {
+      // 进度回调异常不影响流
+    }
   }
 
   private async* streamUsers<TRaw>(

@@ -72,6 +72,8 @@ export const likersSpec: EndpointSpec<'TWEET_LIKERS', typeof LikersArgsSchema> =
     url: 'https://m.weibo.cn/api/attitudes/show',
     headers: { referer: `https://m.weibo.cn/status/${id}` },
   }),
+  // m 站点赞者公开可读：访客 token 可用（研究实测含翻页）
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: LikersResponseSchema,
 })

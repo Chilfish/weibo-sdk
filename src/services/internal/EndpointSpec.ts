@@ -3,6 +3,15 @@ import type { IRequestResource } from './FetcherService'
 import type { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import type { IResource, IResourceType } from '~/types/resources'
 
+/**
+ * 端点声明的鉴权要求。
+ *
+ * - `cookie`（默认）：必须登录 Cookie；guest 模式下直接拒绝，不发请求。
+ * - `guest`：访客 token 可用；Cookie 模式下仍优先使用 Cookie。
+ * - `none`：不需要任何凭证（不注入 Cookie）。
+ */
+export type EndpointAuth = 'cookie' | 'guest' | 'none'
+
 export type EndpointOkPolicy
   = | { mode: 'none' }
     | {
@@ -28,6 +37,8 @@ export interface EndpointSpec<
   argsSchema?: TArgsSchema
   buildResource: (args: EndpointArgsFromSchema<TArgsSchema>) => IRequestResource
   okPolicy?: EndpointOkPolicy
+  /** 鉴权要求（默认 `cookie`，避免已有端点被意外放行）。 */
+  auth?: EndpointAuth
   schema: ZodType<IResource[TResource]>
 }
 

@@ -20,6 +20,24 @@ export type CapabilityStatus
 export type CapabilityPagination
   = 'none' | 'page' | 'cursor' | 'max_id' | 'since_id' | 'mixed'
 
+/** 登录要求。 */
+export type CapabilityAuth
+  /** 必须 Cookie（登录账号） */
+  = | 'cookie'
+  /** 可用访客身份（guest token / m 站免登录接口） */
+    | 'guest'
+  /** 完全无需登录 */
+    | 'none'
+
+/** guest 模式下的分页能力。 */
+export type CapabilityGuestPagination
+  /** guest 模式不支持分页 */
+  = | 'none'
+  /** guest 模式仅能取到第一页 */
+    | 'first_page'
+  /** guest 模式可完整分页 */
+    | 'full'
+
 /** 一条能力描述。 */
 export interface WeiboCapability {
   /** 稳定 id（如 `tweets.comments`） */
@@ -30,8 +48,12 @@ export interface WeiboCapability {
   methods: string[]
   /** 能力说明 */
   description: string
-  /** 登录要求：当前绝大多数端点需要 Cookie */
-  auth: 'cookie' | 'none'
+  /** 登录要求：是否需要 Cookie / 可用 guest / 无需登录 */
+  auth: CapabilityAuth
+  /** guest 模式下的分页能力（未设置时视为 guest 能力未覆盖分页语义） */
+  guestPagination?: CapabilityGuestPagination
+  /** guest 模式下的备注（可覆盖范围 / 限制） */
+  guestNote?: string
   /**
    * 是否只返回登录账号自身的数据（账号级能力）。
    *
@@ -67,7 +89,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'users',
     methods: ['info', 'details', 'getById'],
     description: '用户信息 / 详情',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'none',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli user info <uid>',
@@ -78,6 +101,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['timeline'],
     description: '用户微博列表（归一化）',
     auth: 'cookie',
+    guestPagination: 'first_page',
+    guestNote: 'guest 模式仅返回 m 站第一页，标注 partial: true',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli user timeline <uid>',
@@ -98,7 +123,9 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'users',
     methods: ['groups', 'mblogGroups'],
     description: '关注分组 / 微博分组',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'none',
+    guestNote: 'feed/allGroups 无需登录；mblog 分组仍需 Cookie',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli user groups|mblog-groups',
@@ -108,17 +135,31 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'tweets',
     methods: ['getByMblogId'],
     description: '单条微博详情（归一化）',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'none',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli tweet detail <mblogId>',
+  },
+  {
+    id: 'tweets.context',
+    service: 'tweets',
+    methods: ['context'],
+    description: 'Agent 视角的单条微博上下文（作者 / 时间 / 正文 / 媒体归属与下载 / 转发关系 / 评论抽样 / 未知项）',
+    auth: 'guest',
+    guestPagination: 'none',
+    pagination: 'none',
+    status: 'stable',
+    cli: 'weibo-cli tweet context <mblogId>',
+    note: '确定性投影，不调用 LLM；--download-media 复用媒体下载链路',
   },
   {
     id: 'tweets.enrich',
     service: 'tweets',
     methods: ['enrich'],
     description: '单条微博 raw + 归一化模型（可选长文）',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'none',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli tweet enrich <mblogId>',
@@ -128,7 +169,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'tweets',
     methods: ['comments', 'streamComments'],
     description: '微博评论（含楼中楼内联回复）',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'max_id',
     status: 'stable',
     cli: 'weibo-cli tweet comments|comments-stream <mblogId>',
@@ -138,7 +180,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'tweets',
     methods: ['getReposts', 'streamReposts'],
     description: '微博转发列表',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli tweet reposts|reposts-stream <mblogId>',
@@ -148,7 +191,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'tweets',
     methods: ['likers', 'streamLikers'],
     description: '微博点赞者',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'page',
     status: 'degraded',
     cli: 'weibo-cli tweet likers|likers-stream <mid>',
@@ -180,6 +224,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getFollowings', 'streamFollowings'],
     description: '用户关注列表',
     auth: 'cookie',
+    guestNote: 'guest 模式仅 m 站第一页',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli follow list|stream <uid>',
@@ -190,6 +235,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getFans', 'streamFans'],
     description: '用户粉丝列表',
     auth: 'cookie',
+    guestNote: 'guest 模式仅 m 站第一页',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli follow fans|fans-stream <uid>',
@@ -211,6 +257,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getFavorites', 'listFavorites', 'streamFavorites'],
     description: '收藏夹（可客户端按标签过滤）',
     auth: 'cookie',
+    guestNote: '账号级数据；guest 不可用',
     accountScoped: true,
     pagination: 'page',
     note: '上游 all_fav 忽略 uid，始终返回登录账号的收藏',
@@ -223,6 +270,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['getTags'],
     description: '收藏标签',
     auth: 'cookie',
+    guestNote: '账号级数据；guest 不可用',
     accountScoped: true,
     pagination: 'none',
     status: 'stable',
@@ -234,6 +282,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listByUserId', 'streamByUserId'],
     description: '我赞过的微博',
     auth: 'cookie',
+    guestNote: 'guest 模式仅 m 站第一页',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli like list|stream <uid>',
@@ -244,6 +293,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listMine', 'streamMine'],
     description: '当前登录用户历史评论',
     auth: 'cookie',
+    guestNote: '账号级数据；guest 不可用',
     accountScoped: true,
     pagination: 'max_id',
     note: '上游 myCmt 不接受 uid，始终返回登录账号的评论',
@@ -255,7 +305,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'media',
     methods: ['listImages', 'streamImages'],
     description: '用户图片墙',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'since_id',
     status: 'stable',
     cli: 'weibo-cli media images <uid>',
@@ -265,7 +316,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'media',
     methods: ['listVideos', 'streamVideos'],
     description: '用户视频瀑布',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'cursor',
     status: 'stable',
     cli: 'weibo-cli media videos <uid>',
@@ -275,7 +327,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'media',
     methods: ['listAlbums', 'listAlbumPhotos', 'streamAlbumPhotos'],
     description: '用户相册（相册列表 + since_id 分页照片）',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'since_id',
     status: 'stable',
     cli: 'weibo-cli media albums|album',
@@ -287,6 +340,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['downloadTweetMedia', 'downloadByMblogId'],
     description: '单条微博媒体下载',
     auth: 'none',
+    guestPagination: 'none',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli media download <mblogId>',
@@ -296,7 +350,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'topics',
     methods: ['cates', 'list', 'stream'],
     description: '超话分类 / 列表 / 关键词搜索',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'full',
     pagination: 'page',
     status: 'stable',
     cli: 'weibo-cli topic cates|list|stream',
@@ -307,6 +362,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listComments', 'streamComments'],
     description: '评论通知',
     auth: 'cookie',
+    guestNote: '账号级数据；guest 不可用',
     accountScoped: true,
     pagination: 'max_id',
     status: 'stable',
@@ -318,6 +374,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['listLikes', 'streamLikes'],
     description: '点赞通知',
     auth: 'cookie',
+    guestNote: '账号级数据；guest 不可用',
     accountScoped: true,
     pagination: 'max_id',
     status: 'stable',
@@ -328,7 +385,8 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     service: 'trends',
     methods: ['hotBand'],
     description: '热搜 / 话题 / 文娱榜单',
-    auth: 'cookie',
+    auth: 'guest',
+    guestPagination: 'none',
     pagination: 'none',
     status: 'stable',
     cli: 'weibo-cli trends',
@@ -361,6 +419,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['streamArchive'],
     description: '单账号归档流（可断点续传 / 增量 / 媒体）',
     auth: 'cookie',
+    guestNote: 'guest 模式不支持完整归档',
     pagination: 'mixed',
     status: 'stable',
     cli: 'weibo-cli archive <uid>',
@@ -371,6 +430,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     methods: ['streamUsersArchive'],
     description: '多账号批量归档',
     auth: 'cookie',
+    guestNote: 'guest 模式不支持完整归档',
     pagination: 'mixed',
     status: 'stable',
     cli: 'weibo-cli archive --uid-file <path>',

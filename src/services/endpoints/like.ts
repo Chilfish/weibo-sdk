@@ -74,6 +74,8 @@ export const likeListSpec: EndpointSpec<'LIKES_LIST', typeof LikeListArgsSchema>
     url: 'https://weibo.com/ajax/statuses/likelist',
     headers: { referer: `https://weibo.com/u/${uid}` },
   }),
+  // 点赞列表：guest 下 PC 端点返回 `{}`，改走 m 站 containerid=230869 第一页（见 mobile.ts）
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: LikeListResponseSchema,
 })

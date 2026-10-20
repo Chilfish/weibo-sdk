@@ -1,6 +1,35 @@
+import { isAbsolute, join } from 'node:path'
 import { defineCommand } from 'citty'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { attachMediaDownloads, collectMediaOwners, renderTweetContextMarkdown } from '~/models/view/TweetContext'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg, streamRangeArg, streamRangeFromArgs } from '../shared'
+
+/** `--format` 只接受 markdown / json；未知值直接报参数错误。 */
+function parseContextFormat(value: unknown): 'markdown' | 'json' {
+  if (value === undefined || value === '')
+    return 'markdown'
+  if (value === 'markdown' || value === 'md')
+    return 'markdown'
+  if (value === 'json')
+    return 'json'
+  throw new InvalidConfigError(`Unknown context format: ${String(value)}`, {
+    field: 'format',
+    value,
+  })
+}
+
+/** `--comment-flow` 只接受 hot / time。 */
+function parseCommentFlow(value: unknown): 'hot' | 'time' {
+  if (value === undefined || value === '' || value === 'hot' || value === '0')
+    return 'hot'
+  if (value === 'time' || value === '1')
+    return 'time'
+  throw new InvalidConfigError(`Unknown comment flow: ${String(value)}`, {
+    field: 'comment-flow',
+    value,
+  })
+}
 
 export const tweetDetail = defineCommand({
   meta: { name: 'detail', description: '获取微博详情' },
@@ -8,6 +37,111 @@ export const tweetDetail = defineCommand({
   async run({ args }) {
     const tweet = await createSDK(args).tweets.getByMblogId(args.id)
     console.log(JSON.stringify(tweet, null, 2))
+  },
+})
+
+export const tweetContext = defineCommand({
+  meta: {
+    name: 'context',
+    description:
+      '生成 Agent 视角的单条微博上下文（谁说的 / 什么时候 / 正文 / 媒体归属与下载 / 转发关系 / 评论抽样 / 未知项）\n输出为确定性投影，不调用任何 LLM；默认 Markdown，--format json 输出结构化数据',
+  },
+  args: {
+    'id': {
+      type: 'positional',
+      description: '微博 id：mblogId / 数字 mid / 微博状态 URL',
+      required: true,
+    },
+    'format': {
+      type: 'string',
+      description: '输出格式：markdown | json（默认 markdown）',
+      alias: 'f',
+      default: 'markdown',
+    },
+    'comments': {
+      type: 'string',
+      description: '抽样评论条数（默认 0，不拉评论；按 --comment-flow 排序）',
+    },
+    'comment-flow': {
+      type: 'string',
+      description: '评论排序：hot | time（默认 hot；time 需要数字 mid，SDK 自动解析）',
+      default: 'hot',
+    },
+    'author': {
+      type: 'boolean',
+      description: '补拉作者资料：简介 / 粉丝数 / 认证说明 / 关注关系（默认开启；--no-author 关闭）',
+      default: true,
+    },
+    'longtext': {
+      type: 'boolean',
+      description: '上游标记长文时自动补拉全文（默认开启；--no-longtext 关闭）',
+      default: true,
+    },
+    'quoted': {
+      type: 'boolean',
+      description: '展开转发的原微博（默认开启；--no-quoted 关闭）',
+      default: true,
+    },
+    'chain': {
+      type: 'boolean',
+      description: '展开转发链（默认开启；--no-chain 关闭）',
+      default: true,
+    },
+    'max-media': {
+      type: 'string',
+      description: '最多列出的媒体数（默认全部；超出部分写入 unknowns）',
+    },
+    'max-chars': {
+      type: 'string',
+      description: '单个文本字段字符上限（默认 4000；0 = 不限）',
+      default: '4000',
+    },
+    'download-media': {
+      type: 'string',
+      description: '下载媒体到目录，并在上下文里回填本地路径（会为每个媒体所属微博刷新一次临时 URL）',
+    },
+    'overwrite': {
+      type: 'boolean',
+      description: '下载时覆盖已存在的同名文件（默认跳过）',
+      default: false,
+    },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const sdk = createSDK(args)
+    const format = parseContextFormat(args.format)
+    const downloadDir = typeof args['download-media'] === 'string' && args['download-media'].trim() !== ''
+      ? args['download-media'].trim()
+      : undefined
+
+    const context = await sdk.tweets.context(args.id, {
+      author: args.author !== false,
+      comments: parsePositiveInt(args.comments),
+      commentFlow: parseCommentFlow(args['comment-flow']),
+      longText: args.longtext !== false,
+      maxChars: parsePositiveInt(args['max-chars']),
+      maxMedia: parsePositiveInt(args['max-media']),
+      includeQuoted: args.quoted !== false,
+      includeRepostChain: args.chain !== false,
+      authMode: sdk.authMode,
+    })
+
+    if (downloadDir) {
+      const dir = isAbsolute(downloadDir) ? downloadDir : join(process.cwd(), downloadDir)
+      for (const owner of collectMediaOwners(context)) {
+        const result = await sdk.media.downloadByMblogId(owner.mblogId, {
+          dir,
+          overwrite: args.overwrite === true,
+          refreshExpired: true,
+        })
+        attachMediaDownloads(context, owner.relation, result.items)
+      }
+    }
+
+    if (format === 'json')
+      console.log(JSON.stringify(context, null, 2))
+    else
+      console.log(renderTweetContextMarkdown(context))
   },
 })
 

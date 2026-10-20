@@ -81,9 +81,28 @@ export function resolveArchiveIncludeFlags(
   }
 }
 
+/**
+ * 按 CLI 参数构造 SDK。
+ *
+ * - `--guest`：显式访客身份，**完全不读** `.env` / `--cookie`（访客模式本身也会忽略 Cookie）。
+ * - 默认：`auth: 'auto'`，Cookie 从 `.env` / `--cookie` 读取；解析结果为空时交给 SDK 走访客身份，
+ *   但「提供了非法 Cookie」（如不存在的文件路径）仍在 `getCookie` 抛 `CONFIG_INVALID`，不会静默降级。
+ */
 export function createSDK(args: Record<string, unknown>): WeiboSDK {
+  if (args.guest === true) {
+    const guestConfig: IWeiboConfig = {
+      auth: 'guest',
+      selfCheck: { mode: 'lazy' },
+    }
+    return new WeiboSDK(guestConfig)
+  }
+
   const cookie = getCookie(args)
-  const config: IWeiboConfig = { cookie, selfCheck: { mode: 'lazy' } }
+  const config: IWeiboConfig = {
+    auth: 'auto',
+    cookie,
+    selfCheck: { mode: 'lazy' },
+  }
   return new WeiboSDK(config)
 }
 
@@ -97,6 +116,10 @@ export const cookieArg = {
   'env-file': {
     type: 'string',
     description: '环境文件路径（默认 <pwd>/.env）',
+  },
+  'guest': {
+    type: 'boolean',
+    description: '使用访客身份（不读取 .env Cookie，仅公开数据）',
   },
 } as const
 

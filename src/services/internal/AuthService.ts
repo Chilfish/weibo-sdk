@@ -6,7 +6,7 @@ export class AuthService {
   private xsrfToken: string
 
   constructor(config: IWeiboConfig) {
-    this.cookie = resolveCookieInput(config.cookie)
+    this.cookie = resolveCookieInput(config.cookie ?? '')
     this.xsrfToken = config.xsrfToken || this.extractXsrfToken(this.cookie)
   }
 

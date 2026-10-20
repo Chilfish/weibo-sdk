@@ -6,6 +6,7 @@ import type { LikeListResponse } from '../services/endpoints/like'
 import type { LikersResponse } from '../services/endpoints/likers'
 import type { AlbumDetailResponse, ImageWallResponse, WaterfallResponse } from '../services/endpoints/media'
 import type { MentionsViewResponse } from '../services/endpoints/mentions'
+import type { MobileContainerResponse } from '../services/endpoints/mobile'
 import type { MessageAttitudesResponse, MessageCommentsResponse } from '../services/endpoints/notifications'
 import type { SearchTweetsResponse, SearchUsersResponse } from '../services/endpoints/search'
 import type { BandUnifiedResponse } from '../services/endpoints/side'
@@ -39,6 +40,8 @@ export interface IResource {
   MESSAGE_ATTITUDES: MessageAttitudesResponse
   SEARCH_USERS: SearchUsersResponse
   SEARCH_TWEETS: SearchTweetsResponse
+  // m 站通用容器（guest 第一页读取：用户时间线 / 点赞 / 关注 / 粉丝）
+  MOBILE_CONTAINER: MobileContainerResponse
   FRIENDSHIPS_FRIENDS: FriendshipsResponse
   PROFILE_FOLLOWCONTENT: FollowContentResponse
   STOPIC_CATES: STopicCatesResponse

@@ -8,6 +8,9 @@ import { defineEndpoint } from '../internal/EndpointSpec'
  * containerid 编码格式：`100103type={type}&q={query}&t=`
  * - type=3 → 用户搜索
  * - type=1 → 微博搜索
+ *
+ * 鉴权：两个 spec 保持默认 `auth: 'cookie'`。G5（guest 搜索）经产品决定**暂缓**：
+ * 访客身份下 m 站搜索不稳定，需产品确认后再改为 `guest`，避免静默降级。
  */
 
 const SearchArgsSchema = z.object({

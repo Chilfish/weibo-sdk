@@ -232,6 +232,13 @@ export interface ArchiveServiceDeps {
    * 未提供时不校验跨账号（自定义 deps 场景），默认 SDK 会注入。
    */
   sessionUid?: () => Promise<string | undefined>
+  /**
+   * 当前 SDK 的鉴权模式（默认 `cookie`）。
+   *
+   * guest 模式不承诺完整时间线（m 站匿名只有第一页），因此归档直接拒绝，
+   * 避免把「第一页采样」当成完整归档。
+   */
+  authMode?: 'cookie' | 'guest'
   /** P1-3：归档进度 Wide Event（可选；失败不影响归档）。 */
   telemetry?: WeiboSDKTelemetry
 }
@@ -547,6 +554,20 @@ export class ArchiveService {
    * @throws 原始错误（当错误策略为 `abort`，或 `retry` 已达上限且阶段默认为 `abort`）
    */
   async* streamArchive(uid: string, options: ArchiveStreamOptions = {}): AsyncIterableIterator<ArchiveItem> {
+    if (this.deps.authMode === 'guest') {
+      throw new InvalidConfigError(
+        'Guest mode cannot run a full archive: anonymous m.weibo.cn lists are first-page only. '
+        + 'Provide a signed-in cookie for archive, or use detail / comments / media reads individually.',
+        {
+          field: 'archive',
+          authMode: 'guest',
+          uid,
+          hint: '访客模式只支持公开数据采样，不承诺完整时间线',
+          next: '配置登录 Cookie 后重试；或改用 sdk.tweets / sdk.media 等单点能力',
+        },
+      )
+    }
+
     const originalOnly = options.originalOnly ?? false
     const includeReposts = (options.includeReposts ?? true) && !originalOnly
     const includeFavorites = options.includeFavorites ?? true
@@ -1566,6 +1587,13 @@ export class ArchiveService {
     } = options
     const maxRetries = streamOptions.maxRetries ?? 1
     const targets = uids.filter(value => typeof value === 'string' && value.trim() !== '')
+
+    if (this.deps.authMode === 'guest') {
+      throw new InvalidConfigError(
+        'Guest mode cannot run a full archive: anonymous m.weibo.cn lists are first-page only.',
+        { field: 'archive', authMode: 'guest', uids: targets },
+      )
+    }
 
     // 账号级数据源只能读登录账号自身；批量跨账号时在产出任何 item 前失败。
     await this.assertAccountLevelSources(targets, {

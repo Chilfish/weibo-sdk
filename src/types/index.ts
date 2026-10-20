@@ -32,6 +32,12 @@ export type {
   MentionsViewResponse,
 } from '../services/endpoints/mentions'
 export type {
+  MobileCard,
+  MobileCardPic,
+  MobileContainerArgs,
+  MobileContainerResponse,
+} from '../services/endpoints/mobile'
+export type {
   AttitudeItem,
   MessageArgs,
   MessageAttitudesResponse,
@@ -130,6 +136,8 @@ export type {
 export type {
   TweetCommentsStreamOptions,
   TweetCommentsStreamProgress,
+  TweetContextDeps,
+  TweetContextOptions,
   TweetEnrichOptions,
   TweetEnrichResult,
   TweetFriendTimelineStreamOptions,
@@ -163,6 +171,7 @@ export * from './domain/ILiker'
 export * from './domain/INotification'
 export * from './domain/ISuperTopic'
 export * from './domain/ITweet'
+export * from './domain/ITweetContext'
 export * from './domain/IUser'
 export * from './domain/IUserMediaAsset'
 export * from './hooks'

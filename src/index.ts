@@ -6,6 +6,7 @@ export const VERSION = pkg.version
 export * from './capabilities'
 export * from './models/data'
 export * from './models/errors'
+export * from './models/view/TweetContext'
 export * from './types'
 export * from './utils/schemaDrift'
 export * from './utils/telemetryJsonl'

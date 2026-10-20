@@ -41,6 +41,7 @@ import { topicCates, topicList, topicStream } from './cli/commands/topic'
 import {
   tweetComments,
   tweetCommentsStream,
+  tweetContext,
   tweetDetail,
   tweetEnrich,
   tweetHomeStream,
@@ -67,12 +68,9 @@ import {
   cookieArg,
   createSDK,
   formatCliError,
-  getCookie,
-  getEnvFilePath,
   resolveArchiveIncludeFlags,
 } from './cli/shared'
 import { WeiboSessionExpiredError } from './models/errors/BusinessError'
-import { InvalidConfigError } from './models/errors/ConfigError'
 import {
   incrementalOptionsFromState,
   parseArchiveState,
@@ -97,37 +95,49 @@ const trends = defineCommand({
 })
 
 const whoami = defineCommand({
-  meta: { name: 'whoami', description: '查看当前登录用户信息' },
+  meta: {
+    name: 'whoami',
+    description:
+      '查看当前登录用户信息（无 Cookie 时自动走访客身份，输出访客 token 状态；--guest 强制访客）',
+  },
   args: { ...cookieArg },
   async run({ args }) {
-    const cookie = getCookie(args)
-    if (!cookie) {
-      throw new InvalidConfigError(
-        `未在 ${getEnvFilePath(args)} 中找到 WEIBO_COOKIE，或通过 --cookie 参数传入`,
-        { field: 'cookie', envFile: getEnvFilePath(args) },
-      )
-    }
     const sdk = createSDK(args)
-    const details = await sdk.users.myDetails()
+    // 失败（Cookie 过期 / 访客 token 发放失败）由统一错误信封输出。
+    const session = await sdk.getSession()
+
+    if (sdk.authMode === 'guest') {
+      // 只输出 token 元信息（issuedAt / scope / source），永远不打印 token 明文。
+      console.log(
+        JSON.stringify(
+          {
+            auth: 'guest',
+            login: false,
+            tokenIssuedAt: session.guestTokenIssuedAt ?? null,
+            token: await sdk.getGuestTokenStatus(),
+          },
+          null,
+          2,
+        ),
+      )
+      return
+    }
+
+    const details = session.details ?? (await sdk.users.myDetails())
     if (details.ok !== 1) {
       throw new WeiboSessionExpiredError('Cookie 无效或已过期', {
         endpoint: 'ajax/profile/info',
       })
     }
 
-    // Extract UID from verified_url: "https://verified.weibo.com/verify?fr=myverified?uid=7679065628"
-    const verifiedUrl = (details.data as any)?.verified_url as
-      string | undefined
-    const uidMatch = verifiedUrl?.match(/uid=(\d+)/)
-    const uid = uidMatch ? uidMatch[1] : null
-
-    if (uid) {
-      const user = await sdk.users.getById(uid)
+    // uid 由 SDK 会话解析（`data.verified_url` 的 `uid=`），避免 CLI 重复解析。
+    if (session.uid) {
+      const user = await sdk.users.getById(session.uid)
       console.log(JSON.stringify(user, null, 2))
+      return
     }
-    else {
-      console.log(JSON.stringify(details, null, 2))
-    }
+
+    console.log(JSON.stringify(details, null, 2))
   },
 })
 
@@ -213,7 +223,7 @@ const archive = defineCommand({
   meta: {
     name: 'archive',
     description:
-      '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）',
+      '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）\n注意：--guest 不支持归档（访客只有匿名首屏数据），SDK 会以 CONFIG_INVALID 拒绝',
   },
   args: {
     'uid': {
@@ -480,7 +490,7 @@ const archive = defineCommand({
       )
     }
     catch (e: any) {
-      console.error(JSON.stringify({ event: 'error', message: e?.message }))
+      console.error(JSON.stringify(formatCliError(e)))
       if (last) {
         writeFileSync(
           checkpointPath(last.uid),
@@ -521,7 +531,7 @@ const main = defineCommand({
     name: 'weibo-cli',
     version: pkg.version,
     description:
-      '微博 API 逆向 SDK 命令行工具\n\nCookie：从 .env 文件读取（默认 <pwd>/.env，可用 --env-file 指定；--cookie/-c 显式覆盖）',
+      '微博 API 逆向 SDK 命令行工具\n\nCookie：从 .env 文件读取（默认 <pwd>/.env，可用 --env-file 指定；--cookie/-c 显式覆盖）\n访客：任一命令均支持 --guest（使用访客身份，不读取 .env Cookie，仅公开数据）',
   },
   subCommands: {
     user: defineCommand({
@@ -540,6 +550,7 @@ const main = defineCommand({
       meta: { name: 'tweet', description: '微博相关操作' },
       subCommands: {
         'detail': tweetDetail,
+        'context': tweetContext,
         'enrich': tweetEnrich,
         'comments': tweetComments,
         'comments-stream': tweetCommentsStream,

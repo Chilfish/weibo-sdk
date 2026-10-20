@@ -35,6 +35,10 @@ export type TelemetryEvent
     endpoint?: string
     resource_type?: IResourceType
     args_keys?: string
+    /** 本次请求使用的鉴权身份 */
+    auth_mode?: 'cookie' | 'guest'
+    /** guest token 在本次逻辑请求内的刷新次数（0/1） */
+    guest_refresh_count?: number
   })
   | (TelemetryEventBase & {
     /** 请求成功（已通过 `ok` 检查与 schema 校验） */
@@ -45,6 +49,8 @@ export type TelemetryEvent
     resource_type?: IResourceType
     duration_ms: number
     ok?: number
+    auth_mode?: 'cookie' | 'guest'
+    guest_refresh_count?: number
   })
   | (TelemetryEventBase & {
     /** 任一失败路径（自检 / 网络 / 业务码 / 解析），错误摘要已扁平化 */
@@ -64,6 +70,10 @@ export type TelemetryEvent
     error_code?: string
     error_level?: WeiboSDKError['level']
     error_retryable?: boolean
+    auth_mode?: 'cookie' | 'guest'
+    guest_refresh_count?: number
+    /** 鉴权失败原因（guest 刷新决策） */
+    auth_failure_reason?: 'redirect_to_login' | 'visitor_entry' | 'ok_minus_100' | 'forbidden' | 'empty_object' | 'html'
   })
   | (TelemetryEventBase & {
     /** 请求失败但按重试策略进行退避重试（终态失败发 `request_error`，不重复发本事件） */
@@ -87,6 +97,26 @@ export type TelemetryEvent
     error_code?: string
     error_level?: WeiboSDKError['level']
     error_retryable?: boolean
+    auth_mode?: 'cookie' | 'guest'
+    guest_refresh_count?: number
+  })
+  | (TelemetryEventBase & {
+    /** 访客 token 发放成功（由 `GuestTokenService` 发出，不含 token 明文） */
+    event_name: 'guest_token_issue'
+    source: 'preset' | 'mobile' | 'desktop'
+    scope: 'pc' | 'all'
+    duration_ms: number
+    refreshed: boolean
+  })
+  | (TelemetryEventBase & {
+    /** 访客 token 发放失败（由 `GuestTokenService` 发出） */
+    event_name: 'guest_token_error'
+    issuer: 'mobile' | 'desktop' | 'auto'
+    duration_ms: number
+    refreshed: boolean
+    error_name: string
+    error_message?: string
+    status?: number
   })
   | (TelemetryEventBase & {
     /** 令牌桶等待发生（并发/间隔限流命中，或 432 后的全局暂停） */

@@ -73,6 +73,8 @@ export const feedGroupsSpec: EndpointSpec<'FEED_GROUPS', typeof FeedGroupsArgsSc
     url: 'https://weibo.com/ajax/feed/allGroups',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 分组定义是公开配置：不注入任何凭证也能读到（D11）
+  auth: 'none',
   okPolicy: { mode: 'require_ok_1' },
   schema: FeedGroupsResponseSchema,
 })
@@ -86,6 +88,8 @@ export const mblogGroupsSpec: EndpointSpec<'MBLOG_GROUPS', typeof MblogGroupsArg
     url: 'https://weibo.com/ajax/mblog/querygroup',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 微博分组是账号数据：guest 下返回访客自己的分组（假成功），必须要求 Cookie
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: MblogGroupsResponseSchema,
 })

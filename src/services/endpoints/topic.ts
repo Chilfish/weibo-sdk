@@ -33,6 +33,8 @@ export const stopicCatesSpec: EndpointSpec<'STOPIC_CATES', typeof STopicCatesArg
     url: 'https://weibo.com/ajax/stopic/cates',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 超话分类公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: STopicCatesResponseSchema,
 })
@@ -81,6 +83,8 @@ export const stopicListSpec: EndpointSpec<'STOPIC_LIST', typeof STopicListArgsSc
     url: 'https://weibo.com/ajax/stopic/list',
     headers: { referer: 'https://weibo.com/' },
   }),
+  // 超话列表 / 搜索公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: STopicListResponseSchema,
 })

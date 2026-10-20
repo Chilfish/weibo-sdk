@@ -53,6 +53,8 @@ export const friendshipsSpec: EndpointSpec<'FRIENDSHIPS_FRIENDS', typeof Friends
       referer: `https://weibo.com/u/${uid}`,
     },
   }),
+  // 关注 / 粉丝列表：guest 下 PC 端点返回 `{}`，改走 m 站容器第一页（见 mobile.ts）
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: FriendshipsResponseSchema,
 })
@@ -100,6 +102,8 @@ export const followContentSpec: EndpointSpec<'PROFILE_FOLLOWCONTENT', typeof Fol
       referer: 'https://weibo.com/',
     },
   }),
+  // 关注 tab 内容（含特别关注分组）：guest 下无业务数据
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: FollowContentResponseSchema,
 })

@@ -177,6 +177,8 @@ export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema
       referer: `https://weibo.com/u/${uid}`,
     },
   }),
+  // 用户时间线：guest 下改走 m 站容器（见 mobile.ts），PC 端点需要 Cookie
+  auth: 'cookie',
   okPolicy: { mode: 'none' },
   schema: MyMblogResponseSchema,
 })
@@ -276,6 +278,8 @@ export const buildCommentsSpec: EndpointSpec<'TWEET_COMMENTS', typeof BuildComme
       referer: `https://weibo.com/detail/${id}`,
     },
   }),
+  // 评论首屏公开可读：访客 token 可翻页（研究实测 page 型分页有效）
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: BuildCommentsResponseSchema,
 })
@@ -323,6 +327,8 @@ export const friendstimelineSpec: EndpointSpec<'TWEET_FRIENDTIMELINE', typeof Fr
       referer: 'https://weibo.com/',
     },
   }),
+  // 首页关注时间线是账号级数据：访客 token 无法读取
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: FriendstimelineResponseSchema,
 })
@@ -338,6 +344,8 @@ export const statusShowSpec: EndpointSpec<'TWEET_SHOW', typeof StatusShowArgsSch
       referer: `https://weibo.com/detail/${id}`,
     },
   }),
+  // 单条微博公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: StatusShowResponseSchema,
 })
@@ -375,6 +383,8 @@ export const repostTimelineSpec: EndpointSpec<'TWEET_REPOST_TIMELINE', typeof Re
       referer: `https://weibo.com/detail/${id}`,
     },
   }),
+  // 转发列表公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: RepostTimelineResponseSchema,
 })
@@ -409,6 +419,8 @@ export const longtextSpec: EndpointSpec<'TWEET_LONGTEXT', typeof LongtextArgsSch
       referer: `https://weibo.com/detail/${id}`,
     },
   }),
+  // 长文正文公开可读：访客 token 可用
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: LongtextResponseSchema,
 })
@@ -455,6 +467,8 @@ export const searchProfileSpec: EndpointSpec<'TWEET_SEARCHPROFILE', typeof Searc
       referer: `https://weibo.com/u/${uid}`,
     },
   }),
+  // 个人主页内检索：访客 token 实测被静默门控（返回空列表），保持 Cookie 要求
+  auth: 'cookie',
   okPolicy: { mode: 'require_ok_1' },
   schema: SearchProfileResponseSchema,
 })

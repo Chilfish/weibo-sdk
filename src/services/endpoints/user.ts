@@ -79,6 +79,8 @@ export const userInfoSpec: EndpointSpec<'USER_INFO', typeof UserInfoArgsSchema> 
       referer: `https://weibo.com/u/${uid}`,
     },
   }),
+  // 公开资料：访客 token 可读（G2）
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: UserInfoResponseSchema,
 })
@@ -94,6 +96,8 @@ export const userDetailsSpec: EndpointSpec<'USER_DETAILS', typeof UserDetailsArg
       referer: `https://weibo.com/u/${uid}`,
     },
   }),
+  // 公开的资料详情（ip 属地 / 教育 / 公司等）：访客 token 可读（G2）
+  auth: 'guest',
   okPolicy: { mode: 'require_ok_1' },
   schema: UserDetailsResponseSchema,
 })
@@ -111,6 +115,8 @@ export const myDetailsSpec: EndpointSpec<'USER_DETAILS', typeof MyDetailsArgsSch
       referer: 'https://weibo.com/',
     },
   }),
+  // 账号自身资料：访客 token 只会返回访客自己的数据，必须要求登录 Cookie
+  auth: 'cookie',
   okPolicy: {
     mode: 'require_ok_1',
     notOkError: ({ endpoint, ok, message, raw }) => new WeiboSessionExpiredError('Weibo session expired or cookie is invalid.', {
