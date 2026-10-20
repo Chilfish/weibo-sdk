@@ -3,8 +3,14 @@ import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { WeiboSDK } from '~/WeiboSDK'
 
 describe('weiboSDK', () => {
-  it('throws InvalidConfigError when cookie is missing', () => {
-    expect(() => new WeiboSDK({ cookie: '' })).toThrowError(InvalidConfigError)
+  it('uses guest mode when auth is auto and cookie is missing', () => {
+    expect(new WeiboSDK({ cookie: '' }).authMode).toBe('guest')
+    expect(new WeiboSDK({ auth: 'guest' }).authMode).toBe('guest')
+  })
+
+  it('throws InvalidConfigError when auth is cookie but cookie is missing', () => {
+    expect(() => new WeiboSDK({ cookie: '', auth: 'cookie' })).toThrowError(InvalidConfigError)
+    expect(() => new WeiboSDK({ auth: 'cookie' })).toThrowError(InvalidConfigError)
   })
 
   it('emits sdk_init lifecycle event', async () => {

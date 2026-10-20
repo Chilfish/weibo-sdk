@@ -1,7 +1,7 @@
 import type { TweetIdKind } from '~/utils/tweetId'
 import { describe, expect, it } from 'vitest'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
-import { normalizeTweetIdInput, parseTweetIdInput } from '~/utils/tweetId'
+import { midToMblogId, normalizeTweetIdInput, parseTweetIdInput } from '~/utils/tweetId'
 
 interface Case {
   input: string
@@ -63,5 +63,81 @@ describe('parseTweetIdInput', () => {
         input: 'https://example.com/status/1',
       })
     }
+  })
+})
+
+const BASE62_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+/** `midToMblogId` 的逆运算（仅测试用）：4 位 base62 → 7 位十进制。 */
+function mblogIdToMid(mblogid: string): string {
+  const chunks: string[] = []
+  for (let end = mblogid.length; end > 0; end -= 4)
+    chunks.unshift(mblogid.slice(Math.max(0, end - 4), end))
+  return chunks
+    .map((chunk, index) => {
+      let value = 0
+      for (const char of chunk)
+        value = value * 62 + BASE62_ALPHABET.indexOf(char)
+      const digits = String(value)
+      return index === 0 ? digits : digits.padStart(7, '0')
+    })
+    .join('')
+}
+
+describe('midToMblogId', () => {
+  it('converts the verified real pair (mid 5039815108333719 ↔ OgHLUyXYP)', () => {
+    expect(midToMblogId('5039815108333719')).toBe('OgHLUyXYP')
+    expect(midToMblogId(5039815108333719)).toBe('OgHLUyXYP')
+  })
+
+  it('trims surrounding whitespace', () => {
+    expect(midToMblogId('  5039815108333719  ')).toBe('OgHLUyXYP')
+  })
+
+  it('matches regression pairs produced by the standard 7-digit split', () => {
+    expect(midToMblogId('5263079145477010')).toBe('QqsYymYOS')
+    expect(midToMblogId('5115617398491601')).toBe('P6yhlzD3j')
+  })
+
+  it.each([
+    '5039815108333719',
+    '5263079145477010',
+    '5115617398491601',
+    '1',
+    '9999999',
+    '10000000',
+    '9999999999999999',
+  ])('round-trips %s through the inverse', (mid) => {
+    const mblogid = midToMblogId(mid)
+    expect(mblogid).not.toBe('')
+    expect(mblogIdToMid(mblogid)).toBe(mid)
+  })
+
+  it.each([
+    '',
+    '   ',
+    'abc',
+    'QqsYymYOS',
+    '12a34',
+    '0',
+    '0123',
+    '-1',
+    '+1',
+    '1.5',
+    '1e10',
+    ' 5039815108333719x ',
+  ])('returns an empty string for invalid string input %j', (input) => {
+    expect(midToMblogId(input)).toBe('')
+  })
+
+  it.each([
+    0,
+    -1,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    2 ** 60,
+  ])('returns an empty string for invalid numeric input %s', (value) => {
+    expect(midToMblogId(value)).toBe('')
   })
 })

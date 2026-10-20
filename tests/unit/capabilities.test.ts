@@ -1,6 +1,25 @@
+import type { WeiboCapability } from '~/capabilities'
 import { describe, expect, it } from 'vitest'
 import { listCapabilities, WEIBO_CAPABILITIES } from '~/capabilities'
 import { WeiboSDK } from '~/WeiboSDK'
+
+const VALID_AUTH: readonly WeiboCapability['auth'][] = ['cookie', 'guest', 'none']
+
+const GUEST_CAPABLE_IDS = [
+  'users.profile',
+  'users.groups',
+  'tweets.detail',
+  'tweets.context',
+  'tweets.enrich',
+  'tweets.comments',
+  'tweets.reposts',
+  'tweets.likers',
+  'media.images',
+  'media.videos',
+  'media.albums',
+  'topics.list',
+  'trends.hot',
+]
 
 describe('capabilities', () => {
   it('registers core capabilities with stable ids', () => {
@@ -36,5 +55,41 @@ describe('capabilities', () => {
     expect(listCapabilities({ service: 'notifications' }).every(capability => capability.accountScoped)).toBe(true)
     // 点赞按目标 uid 读取，不属于账号级能力
     expect(listCapabilities({ service: 'likes' })[0].accountScoped).toBeUndefined()
+  })
+
+  it('declares a valid auth requirement for every entry', () => {
+    for (const capability of WEIBO_CAPABILITIES)
+      expect(VALID_AUTH, capability.id).toContain(capability.auth)
+  })
+
+  it('marks guest-capable entries with auth guest', () => {
+    expect(WEIBO_CAPABILITIES.filter(capability => capability.auth === 'guest').map(capability => capability.id))
+      .toEqual(GUEST_CAPABLE_IDS)
+
+    for (const id of GUEST_CAPABLE_IDS) {
+      const capability = WEIBO_CAPABILITIES.find(item => item.id === id)
+      expect(capability, id).toBeDefined()
+      // 每个 guest 能力都要声明 guest 模式下的分页行为
+      expect(['none', 'first_page', 'full'], id).toContain(capability?.guestPagination)
+    }
+  })
+
+  it('degrades guest timeline to the first page only', () => {
+    const timeline = WEIBO_CAPABILITIES.find(capability => capability.id === 'users.timeline')
+    expect(timeline?.auth).toBe('cookie')
+    expect(timeline?.guestPagination).toBe('first_page')
+    expect(timeline?.guestNote).toContain('partial: true')
+  })
+
+  it('keeps archive cookie-only', () => {
+    const archive = listCapabilities({ service: 'archive' })
+    expect(archive.length).toBe(2)
+    expect(archive.every(capability => capability.auth === 'cookie')).toBe(true)
+    expect(archive.every(capability => capability.guestNote !== undefined)).toBe(true)
+  })
+
+  it('keeps media.download login-free', () => {
+    const download = WEIBO_CAPABILITIES.find(capability => capability.id === 'media.download')
+    expect(download?.auth).toBe('none')
   })
 })
