@@ -80,9 +80,11 @@ weibo-cli tweet longtext <mblogId>
 weibo-cli tweet reposts <mblogId> [--page <n>]
 
 # 按日期范围搜索用户微博
-weibo-cli tweet search-profile <uid> [--page <n>] [--starttime <yyyyMMdd>] [--endtime <yyyyMMdd>] \
+weibo-cli tweet search-profile <uid> [--page <n>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
 ```
+
+`--starttime` / `--endtime` 既可以是 unix 秒，也可以是 `YYYY-MM-DD` / `YYYYMMDD`：前者原样透传，后者在请求前换算（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）。非法日期以非零退出码报错，不会静默返回未过滤结果。
 
 ### 关注/粉丝（`follow`）
 
@@ -161,7 +163,7 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--no-date-slices] \
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult` |
 | `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
 | `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
-| `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 为 unix 秒） |
+| `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒） |
 | `follow list` | `followings.getFollowings()` | raw `FriendshipsResponse` |
 | `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
 | `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |

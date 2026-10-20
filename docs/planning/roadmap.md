@@ -63,7 +63,7 @@
 
 - `mymblog`：`since_id` 已不可用，`page` 游标成立；`listByUserId()` 返回 `page`，不再返回 `sinceId`。
 - `favorites`：`data = { status, total_number }` 对象，不是数组。
-- `searchProfile`：无日期与带日期参数均可用；`starttime` / `endtime` 为 **unix 秒**（日期字符串会被静默忽略）；单页约 50 条，大范围 `total` 会失真且 page 越界会重置，归档需用自适应日期窗口；曾出现一次瞬时空列表，重跑恢复——测试需容忍瞬时空结果。
+- `searchProfile`：无日期与带日期参数均可用；上游只认 **unix 秒**（日期字符串会被静默忽略），SDK 自 2026-10-20 起在 `searchByDate` 边界把 `YYYY-MM-DD` / `YYYYMMDD` 换算为秒；单页约 50 条，大范围 `total` 会失真且 page 越界会重置，归档需用自适应日期窗口；曾出现一次瞬时空列表，重跑恢复——测试需容忍瞬时空结果。
 - `friendships`：raw 用户字段继续增加（`pay_date` / `brand_ability` 等），`passthrough` 承接。
 - `statuses/show` + `mix_media_info`：稳定；LivePhoto 的 `gif_mp4` 作为 `videoUrl` 输出。
 

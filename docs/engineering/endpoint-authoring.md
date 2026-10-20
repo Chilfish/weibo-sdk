@@ -166,7 +166,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 
 - [ ] `since_id` 真实类型是 `string`（空串表示结束），不是 `number`
 - [ ] `total` 可能为 `-1`（防爬），不能直接当真实总数
-- [ ] `searchProfile` 的 `starttime` / `endtime` 是 **unix 秒**；日期字符串会被静默忽略
+- [ ] `searchProfile` 的 `starttime` / `endtime` 是 **unix 秒**；日期字符串会被静默忽略（`TweetService.searchByDate` 已在边界把 `YYYY-MM-DD` / `YYYYMMDD` 换算为秒；直接发请求时仍需传秒）
 - [ ] `favorites` 的 `data` 是 `{ status, total_number }`，不是数组；顶层另有 `count` / `total_page`
 - [ ] `favorites/all_fav` 的 `page` 从 1 开始，`page=0` 会返回 HTTP 400；非法页码应按第一页处理
 - [ ] `favorites/all_fav` 的 `tag_id` / `tag` 参数会被上游忽略（2026-10-20 实测），标签过滤只能客户端做

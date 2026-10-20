@@ -11,6 +11,7 @@
 - 新增 CLI `weibo-cli favorite stream <uid> [--page] [--tag] [--max-pages]`，输出 `progress` / `item` / `done` NDJSON。
 - `favorites/all_fav` schema 补充顶层 `count` / `total_page` 与收藏项 `tags` 字段（均为 optional）。
 - **Cookie 文件输入**：`IWeiboConfig.cookie`、CLI `--cookie` 与 `.env` 的 `WEIBO_COOKIE` 现在也接受完整文件路径，自动识别 Netscape `cookies.txt`（7 列 TSV，支持 `#HttpOnly_`）与 header 串内容（可带 `Cookie:` 前缀、可多行）。仅保留 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名 Cookie 并跳过过期条目；路径不存在 / 无可用 Cookie 抛 `InvalidConfigError`（`CONFIG_INVALID`）。浏览器运行时不支持文件路径（无 `node:fs`），按普通字符串处理。
+- **日期参数支持可读格式**：`tweets.searchByDate` 的 `starttime` / `endtime` 与 CLI `tweet search-profile --starttime/--endtime` 除 unix 秒外，接受 `YYYY-MM-DD` / `YYYYMMDD`（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）；请求前统一换算为上游要求的 unix 秒。非法日期 / 无法识别的格式抛 `InvalidConfigError`（`CONFIG_INVALID`），不再把会被上游静默忽略的字符串发出去。
 
 ### Fixed
 

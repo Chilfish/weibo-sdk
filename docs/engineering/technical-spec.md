@@ -176,7 +176,7 @@ interface IWeiboConfig {
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
-| `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 为 **unix 秒**） |
+| `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒，日期取本地时区） |
 | `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页 Feed（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `(options?) => Promise<TweetPageResult>` | 首页 Feed（归一化） |
 
