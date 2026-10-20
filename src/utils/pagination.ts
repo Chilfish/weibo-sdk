@@ -12,6 +12,8 @@
  * 提供去重键（建议使用稳定 id），并用 `onProgress` 消费每页进度。
  */
 
+import { createStreamRange } from './streamRange'
+
 /** 单页结果。`next` 缺省表示没有下一页（到底）。 */
 export interface PaginationPage<T, TCursor extends string | number = number> {
   /** 本页条目（未去重） */
@@ -46,6 +48,14 @@ export interface PaginateOptions<T, TCursor extends string | number = number> {
   maxPages?: number
   /** 去重键；缺省时不去重（也无法识别整页重复） */
   getKey?: (item: T) => string | undefined
+  /** 最多产出的条目数（跨页去重后；缺省不限） */
+  maxItems?: number
+  /** 时间下界（含当天）：更早的条目停止翻页 */
+  since?: number | string
+  /** 时间上界（含当天）：更晚的条目跳过 */
+  until?: number | string
+  /** 条目时间读取器；提供 `since` / `until` 时必传 */
+  getTime?: (item: T) => string | number | Date | undefined
   /** 每页进度回调；异常不会中断流 */
   onProgress?: (progress: PaginationProgress<TCursor>) => void | Promise<void>
 }
@@ -82,6 +92,7 @@ export async function* paginate<T, TCursor extends string | number = number>(
   options: PaginateOptions<T, TCursor> = {},
 ): AsyncIterableIterator<T> {
   const maxPages = normalizeMaxPages(options.maxPages)
+  const range = createStreamRange<T>(options, options.getTime)
   const seen = new Set<string>()
   let cursor = options.initialCursor
   let page = 1
@@ -118,6 +129,11 @@ export async function* paginate<T, TCursor extends string | number = number>(
       break
 
     for (const item of fresh) {
+      const decision = range.decide(item)
+      if (decision === 'stop')
+        break
+      if (decision === 'skip')
+        continue
       processed += 1
       yield item
     }
@@ -134,6 +150,9 @@ export async function* paginate<T, TCursor extends string | number = number>(
     catch {
       // 进度回调异常不影响流
     }
+
+    if (range.stopped)
+      break
 
     if (result.hasMore === false)
       break
