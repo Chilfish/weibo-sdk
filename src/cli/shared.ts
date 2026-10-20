@@ -1,8 +1,37 @@
 import type { IWeiboConfig } from '../types/config'
 import { join, resolve } from 'node:path'
+import { WeiboSDKError } from '../models/errors/WeiboSDKError'
 import { resolveCookieInput } from '../utils/cookieInput'
 import { readEnvValue } from '../utils/envFile'
 import { WeiboSDK } from '../WeiboSDK'
+
+/**
+ * 把任意错误转换成 CLI 的 JSON 错误信封（stderr）。
+ *
+ * 结构化错误额外携带 `code` / `level` / `retryable` / `hint` / `next`，
+ * 让 Agent / 脚本能在不解析自然语言的情况下决定下一步。
+ */
+export function formatCliError(error: unknown): Record<string, unknown> {
+  if (error instanceof WeiboSDKError) {
+    const context = error.context ?? {}
+    return {
+      event: 'error',
+      code: error.code,
+      level: error.level,
+      retryable: error.retryable,
+      message: error.message,
+      ...(typeof context.endpoint === 'string' ? { endpoint: context.endpoint } : {}),
+      ...(typeof context.hint === 'string' ? { hint: context.hint } : {}),
+      ...(typeof context.next === 'string' ? { next: context.next } : {}),
+      context,
+    }
+  }
+  return {
+    event: 'error',
+    code: 'UNKNOWN',
+    message: error instanceof Error ? error.message : String(error),
+  }
+}
 
 /** `--env-file` 指定路径（相对路径按 pwd 解析），默认 `<pwd>/.env` */
 export function getEnvFilePath(args: Record<string, unknown>): string {

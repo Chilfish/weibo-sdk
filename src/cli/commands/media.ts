@@ -203,6 +203,42 @@ export const mediaVideos = defineCommand({
   },
 })
 
+export const mediaAlbums = defineCommand({
+  meta: { name: 'albums', description: '获取用户相册列表（相册 tab 的 getImageWall?has_album=true）' },
+  args: {
+    uid: { type: 'positional', description: '用户 UID', required: true },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    const result = await createSDK(args).media.listAlbums(args.uid)
+    console.log(JSON.stringify(result, null, 2))
+  },
+})
+
+export const mediaAlbum = defineCommand({
+  meta: { name: 'album', description: '流式遍历相册照片（since_id 游标 + 跨页去重）' },
+  args: {
+    'container-id': { type: 'positional', description: '相册 containerId（来自 media albums）', required: true },
+    'since-id': { type: 'string', description: '起始游标（缺省第一页；下一页传上一页 sinceId）' },
+    'max-pages': { type: 'string', description: '最多翻页数（可选，默认不限）' },
+    ...cookieArg,
+  },
+  async run({ args }) {
+    let count = 0
+    for await (const asset of createSDK(args).media.streamAlbumPhotos(args['container-id'], {
+      sinceId: args['since-id'],
+      maxPages: parsePositiveInt(args['max-pages']),
+      onProgress: (progress) => {
+        console.log(JSON.stringify({ event: 'progress', ...progress }))
+      },
+    })) {
+      count += 1
+      console.log(JSON.stringify({ event: 'item', count, asset }))
+    }
+    console.log(JSON.stringify({ event: 'done', containerId: args['container-id'], count }))
+  },
+})
+
 export const mediaDownload = defineCommand({
   meta: { name: 'download', description: '下载单条微博的全部媒体（扁平目录 + 失败清单）' },
   args: {
