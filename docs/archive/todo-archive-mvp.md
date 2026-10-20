@@ -2,7 +2,7 @@
 
 **产品定位**（2026-08-09 决策）：`weibo-sdk` = 可靠地把一个微博账号的公开数据**镜像下来**——可断点续传、可观测、默认离线可测。
 
-> 来源：[review-apple-design-2026-08-09.md](../reviews/review-apple-design-2026-08-09.md)（F/C/E/D 问题编号）。本计划承接产品主线，候选任务见 [backlog.md](./backlog.md)。
+> 来源：[review-apple-design-2026-08-09.md](../reviews/review-apple-design-2026-08-09.md)（F/C/E/D 问题编号）。本计划承接产品主线，候选任务见 [backlog.md](../planning/backlog.md)。
 
 **优先级**: 🔴 P0（立即）→ 🟡 P1（产品主线 / 契约硬化）→ 🟢 P2（DX / 流程减负）
 
@@ -72,4 +72,4 @@
 - [ ] 归档主线可演示：≤20 行代码 + 1 条 CLI 命令完成单账号镜像
 - [ ] 开发日志记录本阶段；关键返工沉淀 postmortem
 
-> 阶段完成后本档移入 `docs/archive/`，未完成项回流 [backlog.md](./backlog.md)。
+> 阶段完成后本档移入 `docs/archive/`，未完成项回流 [backlog.md](../planning/backlog.md)。

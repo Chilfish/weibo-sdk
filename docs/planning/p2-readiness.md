@@ -1,6 +1,6 @@
 # P2 下游集成就绪：决策与评估
 
-> 对应 [todo-contract-freeze.md](./todo-contract-freeze.md) P2-2 / P2-4 / P2-5。
+> 对应 [todo-contract-freeze.md](../archive/todo-contract-freeze.md) P2-2 / P2-4 / P2-5。
 > 结论日期：2026-10-19。目标是把「发布前必须拍板」的三件事写成可执行决定，而不是继续扩功能。
 
 ## P2-2 有损迁移评估（K5）

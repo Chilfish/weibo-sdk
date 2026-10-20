@@ -8,7 +8,7 @@
 
 > 本档是第二轮「锐评」的正式沉淀。第一轮（2026-08-09，[review-apple-design-2026-08-09.md](./review-apple-design-2026-08-09.md)）确立了「个人数据归档」定位并推动了 MVP（A1-A8）；本轮基于**npm 发布 + 真实下游**两个新事实重评。
 > 引用编号：本档问题用 K / R 两组；沿用第一轮 C / E / F 编号的升级项单独列出。
-> 行动计划见 [todo-contract-freeze.md](../planning/todo-contract-freeze.md)。
+> 行动计划见 [todo-contract-freeze.md](../archive/todo-contract-freeze.md)。
 
 ---
 
@@ -114,7 +114,7 @@
 
 ## 五、行动优先级（依据）
 
-> 行动项已落到 [todo-contract-freeze.md](../planning/todo-contract-freeze.md)，此处只给方向。
+> 行动项已落到 [todo-contract-freeze.md](../archive/todo-contract-freeze.md)，此处只给方向。
 
 **P0（发布阻塞）**：K1 契约版本化、K2 版本策略解耦、K3 媒体契约裁定（**跨项目，先开会**）、契约卫生（C3/E2/E5/F2）、版本声明（0.x 冻结 or 1.0）。
 
@@ -127,7 +127,7 @@
 ## 参考
 
 - 第一轮审查：[review-apple-design-2026-08-09.md](./review-apple-design-2026-08-09.md)
-- 行动计划：[todo-contract-freeze.md](../planning/todo-contract-freeze.md)
+- 行动计划：[todo-contract-freeze.md](../archive/todo-contract-freeze.md)
 - 下游集成方案：`I:\dev\Weibo-archiver\docs\planning\weibo-sdk-integration.md`
 - 下游迁移方案：`I:\dev\Weibo-archiver\docs\planning\web-v3-migration.md`
 - 需求规格：[requirements-spec.md](../requirements/requirements-spec.md)

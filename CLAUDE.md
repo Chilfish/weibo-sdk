@@ -31,7 +31,7 @@
 | `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
-| `docs/planning/todo-contract-freeze.md` | 上一阶段行动计划（契约冻结 + 归档硬化，已完成） |
+| `docs/archive/todo-contract-freeze.md` | 上一阶段行动计划（契约冻结 + 归档硬化，已完成并归档；历史记录） |
 | `docs/planning/todo-post-0.1.0.md` | 当前行动计划（0.1.0 发布收口 + 0.2.0 数据丰富度 / 可靠性 / DX） |
 | `docs/planning/backlog.md` | 跨阶段候选任务清单 |
 | `docs/reviews/review-apple-design-2026-08-09.md` | Apple 视角设计审查（问题清单 + 行动依据） |
