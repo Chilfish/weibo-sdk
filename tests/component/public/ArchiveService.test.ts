@@ -1,5 +1,6 @@
 import type { ArchiveCheckpoint, ArchiveServiceDeps } from '~/services/public/ArchiveService'
 import { describe, expect, it, vi } from 'vitest'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { NetworkRequestError } from '~/models/errors/TransportError'
 import { ArchiveService } from '~/services/public/ArchiveService'
 
@@ -446,6 +447,89 @@ describe('archiveService', () => {
 
     expect(items.map(i => i.mblogId)).toEqual(['A', 'B', 'C', 'D'])
     expect(searchByDate.mock.calls.map(c => c[1].page)).toEqual([1, 2, 3])
+  })
+
+  it('re-primes searchProfile when a page returns another date window', async () => {
+    const { deps, myMblog, getReposts, getFavorites, searchByDate } = createDeps()
+    const until = ts('2026-10-18T00:00:00+08:00')
+    const since = ts('2026-10-01T00:00:00+08:00')
+
+    let page2Calls = 0
+    searchByDate.mockImplementation((_uid, options) => {
+      if (options.page === 1)
+        return Promise.resolve(mkSearchPage([mkRaw('B', '2026-10-17T00:00:00+08:00')], 2))
+      page2Calls += 1
+      // 第一次 page=2 被另一个窗口的查询覆盖：日期与 total 都不属于当前切片。
+      if (page2Calls === 1)
+        return Promise.resolve(mkSearchPage([mkRaw('X', '2026-10-25T00:00:00+08:00')], 5))
+      return Promise.resolve(mkSearchPage([mkRaw('C', '2026-10-16T00:00:00+08:00')], 2))
+    })
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', {
+      timelineSource: 'search',
+      since,
+      until,
+    }) as any)
+
+    expect(myMblog).not.toHaveBeenCalled()
+    expect(items.map(i => i.mblogId)).toEqual(['B', 'C'])
+    // page=2 异常 → 重新请求 page=1 恢复会话 → 再重试 page=2
+    expect(searchByDate.mock.calls.map(c => c[1].page)).toEqual([1, 2, 1, 2])
+  })
+
+  it('re-primes searchProfile when a page is empty but results remain', async () => {
+    const { deps, getReposts, getFavorites, searchByDate } = createDeps()
+    const until = ts('2026-10-18T00:00:00+08:00')
+    const since = ts('2026-10-01T00:00:00+08:00')
+
+    let page2Calls = 0
+    searchByDate.mockImplementation((_uid, options) => {
+      if (options.page === 1)
+        return Promise.resolve(mkSearchPage([mkRaw('B', '2026-10-17T00:00:00+08:00')], 2))
+      page2Calls += 1
+      if (page2Calls === 1)
+        return Promise.resolve(mkSearchPage([], 0))
+      return Promise.resolve(mkSearchPage([mkRaw('C', '2026-10-16T00:00:00+08:00')], 2))
+    })
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+    const items = await collect(service.streamArchive('111', {
+      timelineSource: 'search',
+      since,
+      until,
+    }) as any)
+
+    expect(items.map(i => i.mblogId)).toEqual(['B', 'C'])
+  })
+
+  it('throws when searchProfile keeps returning another date window', async () => {
+    const { deps, getReposts, getFavorites, searchByDate } = createDeps()
+    const until = ts('2026-10-18T00:00:00+08:00')
+    const since = ts('2026-10-01T00:00:00+08:00')
+
+    searchByDate.mockImplementation((_uid, options) => {
+      if (options.page === 1)
+        return Promise.resolve(mkSearchPage([mkRaw('B', '2026-10-17T00:00:00+08:00')], 2))
+      return Promise.resolve(mkSearchPage([mkRaw('X', '2026-10-25T00:00:00+08:00')], 5))
+    })
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const service = new ArchiveService(deps)
+    const error = await collect(service.streamArchive('111', {
+      timelineSource: 'search',
+      since,
+      until,
+    }) as any).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(UnexpectedAPIResponseError)
+    expect(error).toMatchObject({ code: 'API_BAD_RESPONSE' })
+    expect((error as UnexpectedAPIResponseError).context).toMatchObject({ page: 2, sliceStart: since, sliceEnd: until })
   })
 
   it('skips mymblog entirely when timelineSource=search', async () => {

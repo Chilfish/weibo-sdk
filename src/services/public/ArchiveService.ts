@@ -9,6 +9,7 @@ import type { WeiboSDKTelemetry } from '~/types/telemetry'
 import { normalizeImageWallItem, normalizeWaterfallVideo } from '~/models/data/Media'
 import { normalizeComment, Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
 import { stripVolatileKeys } from '~/utils/structure'
@@ -409,6 +410,11 @@ const DEFAULT_SLICE_WINDOW = 30 * 24 * 60 * 60
 const MIN_SLICE_WINDOW = 60
 const MAX_SLICE_WINDOW = 5 * 365 * 24 * 60 * 60
 const DEFAULT_MAX_SLICE_ITEMS = 800
+/**
+ * searchProfile 的 `page > 1` 复用会话里最近一次 `page=1` 的窗口。
+ * 窗口被别的查询覆盖时，重新请求 `page=1` 即可恢复；连续失败则判定为协议异常。
+ */
+const MAX_SLICE_PAGE_REPRIMES = 2
 const DEFAULT_ARCHIVE_CONCURRENCY = 3
 const MAX_ARCHIVE_CONCURRENCY = 8
 
@@ -1163,20 +1169,22 @@ export class ArchiveService {
       while (sliceEnd !== undefined && sliceEnd >= since && pages < maxPages) {
         const sliceStart = Math.max(since, sliceEnd - sliceWindow + 1)
 
-        const first = await runWithPolicy(
+        const fetchSlicePage = (page: number): Promise<SearchProfileResponse | undefined> => runWithPolicy(
           () => searchByDate(uid, {
-            page: 1,
+            page,
             ...(options.searchQuery === undefined ? {} : { q: options.searchQuery }),
             starttime: sliceStart,
             endtime: sliceEnd,
           }),
-          { stage: 'timeline', source: 'timeline', page: 1 },
+          { stage: 'timeline', source: 'timeline', page },
           'abort',
         )
+
+        const first = await fetchSlicePage(1)
         if (!first)
           break
         const firstList = uniqueByMblogId(first.data.list || [])
-        const total = parseTotal(first.data.total)
+        let total = parseTotal(first.data.total)
 
         // 空切片：直接跨过，并扩大窗口加速扫描长期无内容的区间。
         if (firstList.length === 0 && (total === undefined || total <= 0)) {
@@ -1198,34 +1206,69 @@ export class ArchiveService {
         let collected = 0
         const resumePage = currentPage
         let currentLastId = sliceLastId
+        let reprimes = 0
 
         while (pages < maxPages) {
-          const response = currentPage === 1
-            ? first
-            : await runWithPolicy(
-                () => searchByDate(uid, {
-                  page: currentPage,
-                  ...(options.searchQuery === undefined ? {} : { q: options.searchQuery }),
-                  starttime: sliceStart,
-                  endtime: sliceEnd,
-                }),
-                { stage: 'timeline', source: 'timeline', page: currentPage },
-                'abort',
-              )
+          const response = currentPage === 1 ? first : await fetchSlicePage(currentPage)
           if (!response)
             break
-          const rawList = response.data.list || []
-          const list = uniqueByMblogId(rawList)
+          const list = uniqueByMblogId(response.data.list || [])
           const ids = list.map(item => item.mblogid)
+          const firstTs = parseCreatedAt(list[0]?.created_at)
+
+          // searchProfile 的 page>1 复用会话里最近一次 page=1 的窗口（starttime/endtime 被忽略）。
+          // 窗口被别的查询覆盖时会返回别的日期区间；重新请求 page=1 恢复会话后重试当前页。
+          if (currentPage > 1) {
+            const pageTotal = parseTotal(response.data.total)
+            const totalMoved = total !== undefined && pageTotal !== undefined && pageTotal !== total
+            const wentOlderThanWindow = list.some((item) => {
+              const itemTs = parseCreatedAt(item.created_at)
+              return itemTs !== undefined && itemTs < sliceStart
+            })
+            const emptyWithRemaining = ids.length === 0 && total !== undefined && collected < total
+            const clobbered = wentOlderThanWindow || (totalMoved && ids.length > 0)
+
+            if (clobbered || emptyWithRemaining) {
+              if (reprimes < MAX_SLICE_PAGE_REPRIMES) {
+                reprimes += 1
+                const primed = await fetchSlicePage(1)
+                if (!primed)
+                  break
+                // total 也可能因删除/新增真实漂移，priming 时一并刷新，避免误判。
+                const primedTotal = parseTotal(primed.data.total)
+                if (primedTotal !== undefined)
+                  total = primedTotal
+                continue
+              }
+              if (clobbered) {
+                throw new UnexpectedAPIResponseError(
+                  'searchProfile pagination returned another date window; the session was clobbered by a concurrent query.',
+                  {
+                    endpoint: 'ajax/statuses/searchProfile',
+                    uid,
+                    page: currentPage,
+                    sliceStart,
+                    sliceEnd,
+                    expectedTotal: total,
+                    actualTotal: pageTotal,
+                    mblogIds: ids.slice(0, 3),
+                  },
+                )
+              }
+              // 空页且 total 仍声称有剩余：按上游 total 高估处理，保留「到底」语义。
+              break
+            }
+          }
+
           if (ids.length === 0)
             break
           if (currentPage > 1 && isRepeatedPage(ids, previousPageIds))
             break
-
-          const firstTs = parseCreatedAt(list[0]?.created_at)
           // 上游 page 越界后会重置到较新的区间：日期不再变旧 → 视为到底，避免重复/漏页。
           if (currentPage > 1 && previousFirstTs !== undefined && firstTs !== undefined && firstTs > previousFirstTs)
             break
+          if (currentPage > 1)
+            reprimes = 0
 
           // 恢复：只在进入续跑页时按 lastTimelineMblogId 跳过已处理项。
           const resumeAt = currentLastId && currentPage === resumePage ? ids.indexOf(currentLastId) : -1

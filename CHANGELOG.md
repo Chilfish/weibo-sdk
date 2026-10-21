@@ -9,6 +9,10 @@
 - 新增结构化日志出口 `config.logger`（默认关闭）。SDK 把已有的 Wide Events 与 `sdk_init` / `self_check_*` 映射为带级别的日志记录，不新增埋点；`WeiboLogger.log()` 抛错或 reject 不影响业务。公共导出新增 `createConsoleLogger` / `createJsonlLogger` / `createMultiLogger` / `createLoggerPlugin`、`WeiboLogger` / `WeiboLogRecord` / `WeiboLogLevel`，内置 sink 默认替换 Cookie / token 等敏感字段。`weibo-cli` 的 stdout 数据与 NDJSON 协议不经过 logger。
 - CLI 查询命令新增 `--format`（默认 `json`，可选 `markdown` / `md`），覆盖 `user`、`tweet`、`follow`、`favorite list`、`like list`、`comment mine`、`notification`、`media albums`、`topic`、`trends`、`whoami`，直接输出可读的用户卡片、微博列表、评论、关注列表、热搜等。默认 JSON 与 NDJSON 行为不变；流式命令、`archive` 和 `media download` 不提供该参数。
 
+### 修复
+
+- 修复 `streamArchive` 日期切片在 `searchProfile` 上的静默丢数据：上游 `page > 1` 复用会话里最近一次 `page=1` 的日期窗口（`starttime` / `endtime` 被忽略），交错请求会让分页返回别的区间或空页。现在检测到窗口漂移会重新请求 `page=1` 恢复会话后重试当前页，连续失败抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），不再把错误窗口或空页静默当成到底。`scripts/archive-user.ts` 同时移除 `--slice-concurrency`，日期切片改为串行枚举（该参数并发时会互相覆盖，导致每个切片只拿到第一页）。
+
 ### 变更
 
 - **BREAKING CHANGE**：`ITweet` / `ITweetComment` 删除 `textHtml`，`TWEET_CONTRACT_VERSION` 升为 `2`；归档记录的 `longText` / `quotedLongText` 一并删除。`statuses/show` 默认带 `isGetLongText=true`，长微博全文已经在 `tweet.text`，无需单独补拉。
