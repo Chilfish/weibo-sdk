@@ -531,15 +531,17 @@ export class TweetService extends FetcherService {
   public async enrich(mblogId: string, options: TweetEnrichOptions = {}): Promise<TweetEnrichResult> {
     const traceId = `${Date.now()}-enrich-${++normalizeSeq}`
     const id = normalizeTweetIdInput(mblogId)
-    const raw = await this.show(id, options.isGetLongText ?? true)
+    // 长文与详情互不依赖，同时发出；两者都只依赖归一化后的 id。
+    const [raw, longTextResponse] = await Promise.all([
+      this.show(id, options.isGetLongText ?? true),
+      options.includeLongText ? this.longText(id) : undefined,
+    ])
     const startAt = Date.now()
     const tweet = new Tweet(raw)
 
-    let longText: string | undefined
-    if (options.includeLongText) {
-      const response = await this.longText(id)
-      longText = response.data.longTextContent_raw ?? response.data.longTextContent
-    }
+    const longText = longTextResponse
+      ? longTextResponse.data.longTextContent_raw ?? longTextResponse.data.longTextContent
+      : undefined
 
     await this.emitTelemetry({
       event_name: 'normalize_done',
@@ -585,42 +587,49 @@ export class TweetService extends FetcherService {
     const tweet = new Tweet(raw)
     const rawRecord = raw as unknown as Record<string, unknown>
 
-    let longText: string | undefined
+    // show 之后的长文 / 作者 / 评论互不依赖，并行拉取；评论自身分页仍是串行游标。
     const wantsLongText = options.longText !== false && rawRecord.isLongText === true
-    if (wantsLongText) {
-      const response = await this.longText(id)
-      longText = response.data.longTextContent_raw ?? response.data.longTextContent
-    }
+    const longTextPromise = wantsLongText
+      ? this.longText(id).then(response => response.data.longTextContent_raw ?? response.data.longTextContent)
+      : undefined
 
-    let author: TweetContextAuthor | undefined
-    let authorError: string | undefined
-    if (options.author !== false && tweet.user.id && this.contextDeps.authorProfile) {
-      try {
-        author = normalizeContextAuthor(await this.contextDeps.authorProfile(tweet.user.id), tweet.user)
-      }
-      catch (error) {
-        authorError = error instanceof Error ? error.message : String(error)
-      }
-    }
+    const authorProfile = this.contextDeps.authorProfile
+    const authorPromise: Promise<{ author?: TweetContextAuthor, authorError?: string }> | undefined
+      = options.author !== false && tweet.user.id && authorProfile
+        ? authorProfile(tweet.user.id)
+            .then(profile => ({ author: normalizeContextAuthor(profile, tweet.user) }))
+            .catch((error: unknown) => ({ authorError: error instanceof Error ? error.message : String(error) }))
+        : undefined
 
     const limit = options.comments !== undefined && Number.isFinite(options.comments)
       ? Math.max(0, Math.floor(options.comments))
       : 0
-    const comments: ITweetComment[] = []
-    if (limit > 0) {
-      // 时间序需要数字 mid；直接用 idstr 可避免 streamComments 内部的第二次 show 请求。
-      const commentsId = options.commentFlow === 'time' ? tweet.id : tweet.mblogId
-      for await (const comment of this.streamComments(commentsId, {
-        maxItems: limit,
-        flow: options.commentFlow === 'time' ? 1 : 0,
-      })) {
-        comments.push(comment)
-      }
-    }
+    const commentsPromise = limit > 0
+      ? (async () => {
+          const collected: ITweetComment[] = []
+          // 时间序需要数字 mid；直接用 idstr 可避免 streamComments 内部的第二次 show 请求。
+          const commentsId = options.commentFlow === 'time' ? tweet.id : tweet.mblogId
+          for await (const comment of this.streamComments(commentsId, {
+            maxItems: limit,
+            flow: options.commentFlow === 'time' ? 1 : 0,
+          })) {
+            collected.push(comment)
+          }
+          return collected
+        })()
+      : undefined
+
+    const [longText, authorResult, comments] = await Promise.all([
+      longTextPromise,
+      authorPromise,
+      commentsPromise,
+    ])
+    const author = authorResult?.author
+    const authorError = authorResult?.authorError
 
     return buildTweetContext(tweet, {
       ...(author ? { author } : {}),
-      ...(comments.length > 0 ? { comments } : {}),
+      ...(comments && comments.length > 0 ? { comments } : {}),
       raw,
       quotedRaw: rawRecord.retweeted_status,
       ...(longText !== undefined ? { longText } : {}),

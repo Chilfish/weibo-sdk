@@ -156,4 +156,59 @@ describe('tweetService.context', () => {
     ])
     expect(context.provenance.commentsSampled).toBe(1)
   })
+
+  it('runs long-text, author and comment requests in parallel', async () => {
+    let releaseLongText!: () => void
+    const longTextGate = new Promise<void>((resolve) => {
+      releaseLongText = resolve
+    })
+    let markCommentStarted!: () => void
+    const commentStarted = new Promise<void>((resolve) => {
+      markCommentStarted = resolve
+    })
+
+    const { service, authorProfile } = createService(async (config) => {
+      if (config.url?.endsWith('/longtext')) {
+        await longTextGate
+        return { ok: 1, data: { longTextContent_raw: '完整正文' } }
+      }
+      if (config.url?.endsWith('/buildComments')) {
+        markCommentStarted()
+        return {
+          ok: 1,
+          data: [{
+            id: 1,
+            idstr: 'c1',
+            text_raw: '热评',
+            user: { id: '3', idstr: '3', screen_name: '路人' },
+          }],
+          total_number: 1,
+          max_id: 0,
+        }
+      }
+      return { ...SHOW_RESPONSE, isLongText: true, text: '短', text_raw: '短' }
+    })
+
+    let markAuthorStarted!: () => void
+    const authorStarted = new Promise<void>((resolve) => {
+      markAuthorStarted = resolve
+    })
+    authorProfile.mockImplementation(async () => {
+      markAuthorStarted()
+      return AUTHOR
+    })
+
+    const result = service.context('X', { comments: 5 })
+    // 长文仍被 gate 住时，作者与评论请求应该已经发出（串行实现会一直等到 gate 释放）。
+    const outcome = await Promise.race([
+      Promise.all([commentStarted, authorStarted]).then(() => 'parallel' as const),
+      new Promise<'timeout'>(resolve => setTimeout(resolve, 100, 'timeout')),
+    ])
+    releaseLongText()
+
+    expect(outcome).toBe('parallel')
+    const context = await result
+    expect(context.post.text).toBe('完整正文')
+    expect(context.discussion).toHaveLength(1)
+  })
 })

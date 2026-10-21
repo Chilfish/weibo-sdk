@@ -710,6 +710,53 @@ describe('tweetService', () => {
     expect(calls.map(c => c.url)).toEqual(['https://weibo.com/ajax/statuses/show'])
   })
 
+  it('starts the long-text request in parallel with statuses/show', async () => {
+    const showRaw = {
+      ok: 1,
+      id: 1,
+      idstr: '1',
+      mblogid: 'MB1',
+      created_at: 'now',
+      text: '',
+      text_raw: 'short',
+      visible: { type: 0, list_id: 0 },
+      user: { id: 2, idstr: '2', screen_name: 'u' },
+    }
+    const longRaw = { ok: 1, data: { longTextContent_raw: 'plain long' } }
+
+    let releaseShow!: () => void
+    const showGate = new Promise<void>((resolve) => {
+      releaseShow = resolve
+    })
+    let markLongTextStarted!: () => void
+    const longTextStarted = new Promise<void>((resolve) => {
+      markLongTextStarted = resolve
+    })
+
+    const { client } = createFakeAxios(async (cfg) => {
+      if (cfg.url?.endsWith('/longtext')) {
+        markLongTextStarted()
+        return longRaw
+      }
+      await showGate
+      return showRaw
+    })
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { client, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const result = service.enrich('MB1', { includeLongText: true })
+    const outcome = await Promise.race([
+      longTextStarted.then(() => 'parallel' as const),
+      new Promise<'timeout'>(resolve => setTimeout(resolve, 100, 'timeout')),
+    ])
+    releaseShow()
+
+    expect(outcome).toBe('parallel')
+    expect((await result).longText).toBe('plain long')
+  })
+
   it('onRaw receives raw before schema validation (even when parsing fails)', async () => {
     // 缺 id/idstr → 必然 schema 失败
     const raw = { ok: 1, mblogid: 'x', user: {} }
