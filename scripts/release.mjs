@@ -106,6 +106,7 @@ if (!skipChecks) {
   await run('pnpm', ['test', '--run'])
   await run('pnpm', ['run', 'validate:fixtures'])
   await run('pnpm', ['run', 'build'])
+  await run('node', ['scripts/browser-smoke.mjs', '--no-browser'])
 }
 
 await run('pnpm', [
