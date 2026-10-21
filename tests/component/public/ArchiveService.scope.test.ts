@@ -35,7 +35,7 @@ function createDeps(sessionUid: () => Promise<string | undefined>): {
   const getFavorites = vi.fn(() => Promise.resolve({ ok: 1, data: { status: [], total_number: 0 } }))
   const commentHistory = vi.fn(() => Promise.resolve({ ok: 1, data: { comments: [], next_cursor: 0 } }))
   const deps: ArchiveServiceDeps = {
-    tweets: { myMblog, getReposts },
+    tweets: { fetchRawUserTimelinePage: myMblog, getReposts },
     favorites: { getFavorites },
     commentHistory: { fetchRawPage: commentHistory },
     sessionUid,

@@ -24,10 +24,10 @@ function setup(
   config: Omit<IWeiboConfig, 'cookie'>,
   handler: Parameters<typeof createFakeAxios>[0],
 ) {
-  const { client, getLastConfig } = createFakeAxios(handler)
+  const { transport, getLastConfig } = createFakeAxios(handler)
   const fetcher = new TestFetcherService(
     { cookie: 'SUB=abc', ...config },
-    { client, rateLimitService: { acquire: async () => {} } as any },
+    { transport, rateLimitService: { acquire: async () => {} } as any },
   )
   return { fetcher, getLastConfig }
 }

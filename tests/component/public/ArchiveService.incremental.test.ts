@@ -25,7 +25,7 @@ function createDeps(items: unknown[]): { deps: ArchiveServiceDeps, myMblog: Retu
     .mockResolvedValue(mkPage([]))
   const deps: ArchiveServiceDeps = {
     tweets: {
-      myMblog,
+      fetchRawUserTimelinePage: myMblog,
       getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
       searchByDate: vi.fn(),
     },
@@ -127,7 +127,7 @@ describe('archiveService multi-account', () => {
     const myMblog = vi.fn(async (uid: string) => mkPage([mkRaw(`T${uid}`)]))
     const deps: ArchiveServiceDeps = {
       tweets: {
-        myMblog,
+        fetchRawUserTimelinePage: myMblog,
         getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
       },
       favorites: {
@@ -162,7 +162,7 @@ describe('archiveService multi-account', () => {
     })
     const deps: ArchiveServiceDeps = {
       tweets: {
-        myMblog,
+        fetchRawUserTimelinePage: myMblog,
         getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
       },
       favorites: {

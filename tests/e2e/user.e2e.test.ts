@@ -17,10 +17,10 @@ describeE2E('e2e:user', () => {
       cookie: cookie!,
       selfCheck: { mode: 'lazy' },
       hooks: {
-        onFetched: async (resource, data, meta) => {
-          if (resource === 'USER_DETAILS' && !meta.args?.uid)
+        onRaw: async (raw, meta) => {
+          if (meta.resourceType === 'USER_DETAILS' && !meta.args?.uid)
             return
-          await writeJson(data, `${rawPath}/${resource}.json`)
+          await writeJson(raw, `${rawPath}/${meta.resourceType}.json`)
         },
       },
     })

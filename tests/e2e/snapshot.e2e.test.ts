@@ -12,7 +12,7 @@ describeE2E('snapshot: user profile structure', () => {
     const { userId } = await import('tests/utils')
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    const raw = await weibo.users.info(userId)
+    const raw = await weibo.users.fetchRawInfo(userId)
     expect(stripVolatileKeys(raw)).toMatchSnapshot()
   })
 
@@ -20,7 +20,7 @@ describeE2E('snapshot: user profile structure', () => {
     const { userId } = await import('tests/utils')
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    const raw = await weibo.users.details(userId)
+    const raw = await weibo.users.fetchRawDetails(userId)
     expect(stripVolatileKeys(raw)).toMatchSnapshot()
   })
 
@@ -57,7 +57,7 @@ describeE2E('snapshot: tweet structure', () => {
     const { userId } = await import('tests/utils')
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
-    const raw = await weibo.tweets.myMblog(userId)
+    const raw = await weibo.tweets.fetchRawUserTimelinePage(userId)
     expect(raw.data.list.length).toBeGreaterThan(0)
     // 列表元素随上游内容变化（同端点不同变种微博结构不同），只锁响应信封；
     // 列表项漂移由 Zod schema + 归一化断言覆盖。
@@ -95,7 +95,7 @@ describeE2E('snapshot: tweet structure', () => {
     const weibo = new WeiboSDK({ cookie: cookie!, selfCheck: { mode: 'lazy' } })
 
     for (const mblogId of STABLE_MBLOG_IDS) {
-      const raw = await weibo.tweets.show(mblogId, true)
+      const { raw } = await weibo.tweets.enrich(mblogId, { isGetLongText: true })
       expect(raw.ok).toBe(1)
       expect(raw.mblogid).toBe(mblogId)
       expect(raw.user).toBeDefined()

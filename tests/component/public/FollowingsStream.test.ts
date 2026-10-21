@@ -7,10 +7,10 @@ function mkUser(id: string) {
 }
 
 function createService(handler: Parameters<typeof createFakeAxios>[0]) {
-  const { client } = createFakeAxios(handler)
+  const { transport } = createFakeAxios(handler)
   return new FollowingsService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any },
+    { transport, rateLimitService: new NoopRateLimitService() as any },
   )
 }
 

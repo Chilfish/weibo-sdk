@@ -10,6 +10,7 @@ import { feedGroupsSpec } from '~/services/endpoints/groups'
 import { myMblogSpec } from '~/services/endpoints/tweet'
 import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
+import { axiosTransport } from '~/services/internal/transport'
 
 interface FakeResponse {
   data: unknown
@@ -123,7 +124,7 @@ function setup(
   const fetcher = new TestFetcherService(
     { cookie: '', telemetry, ...config },
     {
-      client: axios.client,
+      transport: axiosTransport({ client: axios.client }),
       auth: auth.auth,
       rateLimitService: { acquire: async () => {}, pause: () => {} } as any,
       telemetry,

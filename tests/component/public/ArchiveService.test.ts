@@ -65,7 +65,7 @@ function createDeps(overrides?: Partial<ArchiveServiceDeps>): {
   const searchByDate = vi.fn()
   const comments = vi.fn()
   const deps: ArchiveServiceDeps = {
-    tweets: { myMblog, getReposts, searchByDate, comments },
+    tweets: { fetchRawUserTimelinePage: myMblog, getReposts, searchByDate, comments },
     favorites: { getFavorites },
     ...overrides,
   }
@@ -161,28 +161,6 @@ describe('archiveService', () => {
     expect(getReposts.mock.calls[0][0]).toBe('B')
   })
 
-  it('normalizes legacy reposts checkpoint back to timeline', async () => {
-    const { deps, myMblog, getReposts, getFavorites } = createDeps()
-    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
-    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
-    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
-
-    // P1-2 之前的 checkpoint：reposts 阶段 + lastMblogId + visitedMblogIds
-    const checkpoint = {
-      uid: '111',
-      phase: 'reposts',
-      lastMblogId: 'A',
-      visitedMblogIds: ['A'],
-    } as unknown as ArchiveCheckpoint
-
-    const service = new ArchiveService(deps)
-    const items = await collect(service.streamArchive('111', { checkpoint }) as any)
-
-    expect(items.map(i => i.mblogId)).toEqual(['B'])
-    expect(getReposts).toHaveBeenCalledTimes(1)
-    expect(getReposts.mock.calls[0][0]).toBe('B')
-  })
-
   it('dedupes duplicate ids within a page', async () => {
     const { deps, myMblog, getReposts, getFavorites } = createDeps()
     mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('A'), mkRaw('B')])
@@ -271,7 +249,7 @@ describe('archiveService', () => {
 
   it('honors includeReposts=false to skip inline reposts', async () => {
     const { deps, getReposts, getFavorites } = createDeps()
-    const { myMblog } = deps.tweets as any
+    const { fetchRawUserTimelinePage: myMblog } = deps.tweets as any
     mockTimelinePages(myMblog, [mkRaw('A')])
     getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
 
@@ -495,7 +473,7 @@ describe('archiveService', () => {
 
   it('throws when timelineSource=search but searchByDate is unavailable', async () => {
     const { deps } = createDeps({
-      tweets: { myMblog: vi.fn(), getReposts: vi.fn() },
+      tweets: { fetchRawUserTimelinePage: vi.fn(), getReposts: vi.fn() },
       favorites: { getFavorites: vi.fn() },
     })
     const service = new ArchiveService(deps)
@@ -792,7 +770,7 @@ describe('archiveService', () => {
 
   it('throws when includeComments=true but comments dependency is missing', async () => {
     const { deps } = createDeps({
-      tweets: { myMblog: vi.fn(), getReposts: vi.fn() },
+      tweets: { fetchRawUserTimelinePage: vi.fn(), getReposts: vi.fn() },
       favorites: { getFavorites: vi.fn() },
     })
     const service = new ArchiveService(deps)

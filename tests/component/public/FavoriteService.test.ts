@@ -12,13 +12,13 @@ describe('favoriteService', () => {
       ok: 1,
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/favorites/tags')
       return response
     })
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const raw = await service.getTags()
@@ -35,10 +35,10 @@ describe('favoriteService', () => {
       data: { status: [], total_number: 0 },
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const { transport, getLastConfig } = createFakeAxios(async () => response)
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await service.getFavorites('111', 2)

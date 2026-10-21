@@ -15,13 +15,13 @@ describe('longtext', () => {
   }
 
   it('calls longtext endpoint with correct params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/longtext')
       return fixture
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.longText('AbCdEf123')
     expect(data.ok).toBe(1)
@@ -32,11 +32,11 @@ describe('longtext', () => {
   })
 
   it('emits telemetry on request', async () => {
-    const { client } = createFakeAxios(async () => fixture)
+    const { transport } = createFakeAxios(async () => fixture)
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+      { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
     await service.longText('test')
     expect(telemetry.emit).toHaveBeenCalledWith(

@@ -12,13 +12,13 @@ describe('followingsService', () => {
       ok: 1,
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/friendships/friends')
       return response
     })
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const raw = await service.getFollowings('2365795232', 1)
@@ -38,13 +38,13 @@ describe('followingsService', () => {
       ok: 1,
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/friendships/friends')
       return response
     })
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const raw = await service.getFans('2365795232')

@@ -31,14 +31,14 @@ function page(items: RawFavorite[], options: PageOptions = {}): Record<string, u
 }
 
 function createService(responses: Record<number, unknown>, requested: number[] = []) {
-  const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+  const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
     const pageNo = Number(cfg.params?.page ?? 1)
     requested.push(pageNo)
     return responses[pageNo] ?? page([])
   })
   const service = new FavoriteService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any },
+    { transport, rateLimitService: new NoopRateLimitService() as any },
   )
   return { service, getLastConfig }
 }

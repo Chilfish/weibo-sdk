@@ -44,7 +44,7 @@ function createDeps(): {
   const videoPage = vi.fn()
   const deps: ArchiveServiceDeps = {
     tweets: {
-      myMblog: vi.fn().mockResolvedValue(mkEmptyTimeline()),
+      fetchRawUserTimelinePage: vi.fn().mockResolvedValue(mkEmptyTimeline()),
       getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
     },
     favorites: {
@@ -116,7 +116,7 @@ describe('archiveService media sources', () => {
 
     expect(imagePage).toHaveBeenCalledWith('111', { sinceId: 'I9' })
     expect(items.map(item => item.source)).toEqual(['image', 'video'])
-    expect((deps.tweets as any).myMblog).not.toHaveBeenCalled()
+    expect((deps.tweets as any).fetchRawUserTimelinePage).not.toHaveBeenCalled()
   })
 
   it('requires media deps when enabled', async () => {

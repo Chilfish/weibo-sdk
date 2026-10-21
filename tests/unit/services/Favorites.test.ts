@@ -37,13 +37,13 @@ describe('favorites/all_fav', () => {
   }
 
   it('calls favorites/all_fav with correct params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/favorites/all_fav')
       return fixture
     })
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.getFavorites('111', 1)
     expect(data.ok).toBe(1)
@@ -53,20 +53,20 @@ describe('favorites/all_fav', () => {
   })
 
   it('works without optional page', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.getFavorites('222')
     expect(getLastConfig()?.params).toEqual({ uid: '222', with_total: true })
   })
 
   it('drops invalid page values instead of letting upstream 400', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     // 上游 page 从 1 开始：page=0 实测返回 HTTP 400，必须按未指定处理
@@ -106,10 +106,10 @@ describe('favorites/all_fav', () => {
         }],
       },
     }
-    const { client } = createFakeAxios(async () => fixtureRT)
+    const { transport } = createFakeAxios(async () => fixtureRT)
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.getFavorites('111')
     expect(data.data.status[0].retweeted_status!.mblogid).toBe('RT001')

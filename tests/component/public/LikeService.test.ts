@@ -20,14 +20,14 @@ interface Harness {
 function createService(responses: Record<number, unknown>): Harness {
   const requested: number[] = []
   const telemetry = new TelemetryCollector()
-  const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+  const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
     const page = Number(cfg.params?.page ?? 1)
     requested.push(page)
     return responses[page] ?? { ok: 1, data: { list: [] } }
   })
   const service = new LikeService(
     { cookie: 'SUB=abc', telemetry },
-    { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+    { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
   )
   return { service, telemetry, requested, lastConfig: getLastConfig }
 }

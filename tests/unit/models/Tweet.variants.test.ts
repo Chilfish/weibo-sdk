@@ -455,10 +455,10 @@ describe('variant 4: ad tweets (isAd)', () => {
       .map((t: any) => t.mblogid)
     expect(adMblogIds.length).toBeGreaterThan(0)
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listByUserId('1740358225')

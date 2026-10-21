@@ -55,10 +55,10 @@ function setup(config: Omit<IWeiboConfig, 'cookie'>, handler: FakeAxiosHandler, 
   const telemetry = new TelemetryCollector()
   const clock = new FakeClock()
   const rateLimit = new RateLimitService(tokens, 1000, clock, telemetry)
-  const { client } = createFakeAxios(handler)
+  const { transport } = createFakeAxios(handler)
   const fetcher = new TestFetcherService(
     { cookie: 'SUB=abc', telemetry, ...config },
-    { client, rateLimitService: rateLimit, telemetry, clock },
+    { transport, rateLimitService: rateLimit, telemetry, clock },
   )
 
   return { fetcher, telemetry, clock, rateLimit }

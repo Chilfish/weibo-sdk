@@ -1,6 +1,7 @@
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import type { IRequestResource } from '~/services/internal/FetcherService'
 import type { ResponseContext, WeiboPlugin } from '~/services/internal/plugins'
+import type { WeiboTransport } from '~/services/internal/transport'
 import type { IWeiboConfig } from '~/types/config'
 import { createFakeAxios, FakeClock, NoopRateLimitService, TelemetryCollector } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
@@ -8,6 +9,7 @@ import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
 import { NetworkRequestError, RateLimitError } from '~/models/errors/TransportError'
 import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
+import { axiosTransport } from '~/services/internal/transport'
 
 class TestFetcherService extends FetcherService {
   public async get<T>(resource: IRequestResource, args?: Record<string, unknown>): Promise<T> {
@@ -77,13 +79,13 @@ function fakeAxiosError(status: number, options: { headers?: Record<string, stri
   return error
 }
 
-function createFetcher(config: Omit<IWeiboConfig, 'cookie'>, client: AxiosInstance) {
+function createFetcher(config: Omit<IWeiboConfig, 'cookie'>, transport: WeiboTransport) {
   const clock = new FakeClock()
   const telemetry = new TelemetryCollector()
   const fetcher = new TestFetcherService(
     { cookie: 'SUB=abc', telemetry, ...config },
     {
-      client,
+      transport,
       rateLimitService: new NoopRateLimitService() as any,
       clock,
       telemetry,
@@ -108,9 +110,9 @@ describe('fetcherService plugins: wiring', () => {
       },
     }
 
-    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const { transport, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
     // 不传 deps.pipeline：必须由 config.plugins 自动编译
-    const { fetcher } = createFetcher({ plugins: [auto] }, client)
+    const { fetcher } = createFetcher({ plugins: [auto] }, transport)
 
     await fetcher.get(RESOURCE, { uid: '1' })
 
@@ -119,8 +121,8 @@ describe('fetcherService plugins: wiring', () => {
   })
 
   it('leaves behavior unchanged when no plugins are configured', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => USER_OK)
-    const { fetcher, clock, telemetry } = createFetcher({}, client)
+    const { transport, getLastConfig } = createFakeAxios(async () => USER_OK)
+    const { fetcher, clock, telemetry } = createFetcher({}, transport)
 
     await expect(fetcher.callUser('1')).resolves.toEqual(USER_OK)
 
@@ -143,8 +145,8 @@ describe('fetcherService plugins: hooks', () => {
       },
     }
 
-    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
-    const { fetcher } = createFetcher({ plugins: [mutate] }, client)
+    const { transport, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const { fetcher } = createFetcher({ plugins: [mutate] }, transport)
 
     await fetcher.get(RESOURCE, { uid: '1' })
 
@@ -166,11 +168,11 @@ describe('fetcherService plugins: hooks', () => {
       }),
     }
 
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       axiosCalls += 1
       return { ok: 1 }
     })
-    const { fetcher } = createFetcher({ plugins: [mock] }, client)
+    const { fetcher } = createFetcher({ plugins: [mock] }, transport)
 
     await expect(fetcher.get(RESOURCE)).resolves.toEqual({ ok: 1, mocked: true })
     expect(axiosCalls).toBe(0)
@@ -188,11 +190,11 @@ describe('fetcherService plugins: hooks', () => {
       },
     }
 
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       axiosCalls += 1
       return { ok: 1 }
     })
-    const { fetcher } = createFetcher({ plugins: [fatal] }, client)
+    const { fetcher } = createFetcher({ plugins: [fatal] }, transport)
 
     await expect(fetcher.get(RESOURCE)).rejects.toThrow('plugin rejected the request')
     expect(axiosCalls).toBe(0)
@@ -215,7 +217,7 @@ describe('fetcherService plugins: hooks', () => {
       headers: { 'X-Rate-Left': '42', 'Content-Type': 'application/json' },
       data: { ok: 0, message: 'not ok' },
     }))
-    const { fetcher } = createFetcher({ plugins: [inspector], retry: { retries: 0 } }, client)
+    const { fetcher } = createFetcher({ plugins: [inspector], retry: { retries: 0 } }, axiosTransport({ client }))
 
     // okPolicy 判定失败，但 afterResponse 已经拿到完整响应
     await expect(fetcher.callUser('1')).rejects.toBeInstanceOf(WeiboAPINotOkError)
@@ -245,10 +247,10 @@ describe('fetcherService plugins: hooks', () => {
       },
     }
 
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       throw fakeAxiosError(432)
     })
-    const { fetcher } = createFetcher({ plugins: [inspector], retry: { retries: 0 } }, client)
+    const { fetcher } = createFetcher({ plugins: [inspector], retry: { retries: 0 } }, transport)
 
     await expect(fetcher.callUser('1')).rejects.toBeInstanceOf(RateLimitError)
     expect(statuses).toEqual([432])
@@ -269,14 +271,14 @@ describe('fetcherService plugins: hooks', () => {
     }
 
     const { client } = createStatusAxios(() => ({ status: 500, data: { ok: 0 } }))
-    const { fetcher } = createFetcher({ plugins: [replacer], retry: { retries: 0 } }, client)
+    const { fetcher } = createFetcher({ plugins: [replacer], retry: { retries: 0 } }, axiosTransport({ client }))
 
     await expect(fetcher.get(RESOURCE)).rejects.toBe(replacement)
     expect(phase).toBe('request')
 
     // 未安装插件时同一响应仍映射为 NetworkRequestError（证明是插件替换了错误）
     const { client: plainClient } = createStatusAxios(() => ({ status: 500, data: { ok: 0 } }))
-    const plain = createFetcher({ retry: { retries: 0 } }, plainClient)
+    const plain = createFetcher({ retry: { retries: 0 } }, axiosTransport({ client: plainClient }))
     await expect(plain.fetcher.get(RESOURCE)).rejects.toBeInstanceOf(NetworkRequestError)
   })
 
@@ -294,7 +296,7 @@ describe('fetcherService plugins: hooks', () => {
     }
 
     let calls = 0
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       if (calls === 1)
         throw fakeAxiosError(432)
@@ -303,7 +305,7 @@ describe('fetcherService plugins: hooks', () => {
     const { fetcher, clock } = createFetcher({
       plugins: [faster],
       retry: { retries: 2, baseDelayMs: 100, maxDelayMs: 1000 },
-    }, client)
+    }, transport)
 
     await expect(fetcher.get(RESOURCE)).resolves.toEqual({ ok: 1 })
 
@@ -324,14 +326,14 @@ describe('fetcherService plugins: hooks', () => {
       },
     }
 
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       throw fakeAxiosError(432)
     })
     const { fetcher, clock } = createFetcher({
       plugins: [stop],
       retry: { retries: 2, baseDelayMs: 100, maxDelayMs: 1000 },
-    }, client)
+    }, transport)
 
     await expect(fetcher.get(RESOURCE)).rejects.toBeInstanceOf(RateLimitError)
     expect(calls).toBe(1)
@@ -355,8 +357,8 @@ describe('fetcherService plugins: hooks', () => {
       },
     }
 
-    const { client } = createFakeAxios(async () => USER_OK)
-    const { fetcher } = createFetcher({ plugins: [boom, recorder] }, client)
+    const { transport } = createFakeAxios(async () => USER_OK)
+    const { fetcher } = createFetcher({ plugins: [boom, recorder] }, transport)
 
     await expect(fetcher.callUser('1')).resolves.toEqual(USER_OK)
     expect(events).toEqual(['request_start', 'request_success'])

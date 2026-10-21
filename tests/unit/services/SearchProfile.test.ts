@@ -36,13 +36,13 @@ describe('searchProfile', () => {
   }
 
   it('converts date strings to unix seconds before requesting', async () => {
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/searchProfile')
       return fixture
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.searchByDate('111', {
       page: 1,
@@ -60,20 +60,20 @@ describe('searchProfile', () => {
   })
 
   it('works with minimal params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('222')
     expect(getLastConfig()?.params).toEqual({ uid: '222' })
   })
 
   it('passes unix-second date range params without stringifying', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('444', {
       page: 2,
@@ -87,10 +87,10 @@ describe('searchProfile', () => {
   })
 
   it('converts compact dates and numeric strings to unix seconds', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('555', {
       starttime: '20240101',
@@ -103,10 +103,10 @@ describe('searchProfile', () => {
 
   it('rejects invalid date strings before sending a request', async () => {
     const handler = vi.fn(async () => fixture)
-    const { client } = createFakeAxios(handler)
+    const { transport } = createFakeAxios(handler)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(service.searchByDate('666', { starttime: '2024-02-30' }))
@@ -116,10 +116,10 @@ describe('searchProfile', () => {
   })
 
   it('passes filter params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('333', { hasori: 1, haspic: 1 })
     expect(getLastConfig()?.params?.hasori).toBe(1)
@@ -127,20 +127,20 @@ describe('searchProfile', () => {
   })
 
   it('passes q for profile keyword search (D12)', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('777', { q: '游戏', page: 2 })
     expect(getLastConfig()?.params).toMatchObject({ uid: '777', q: '游戏', page: 2 })
   })
 
   it('omits empty q', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.searchByDate('888', { q: '' })
     expect(getLastConfig()?.params).toEqual({ uid: '888' })

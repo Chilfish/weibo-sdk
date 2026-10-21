@@ -7,52 +7,50 @@ import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { UserService } from '~/services/public/UserService'
 
 describe('userService', () => {
-  it('calls info endpoint with correct params and triggers onFetched', async () => {
+  it('calls info endpoint with correct params', async () => {
     const response = {
       ok: 1,
       data: { user: { id: 1, idstr: '1' }, tabList: [], blockText: '' },
     } as any as IUserInfoResponse
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/info')
       return response
     })
 
     const service = new UserService(
       { cookie: 'SUB=abc; XSRF-TOKEN=token' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    service.onFetched = vi.fn()
-
-    const data = await service.info('111')
+    const data = await service.fetchRawInfo('111')
     expect(data.ok).toBe(1)
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ uid: '111' })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
-    expect(service.onFetched).toHaveBeenCalledWith('USER_INFO', response)
   })
 
-  it('triggers global hooks.onFetched with meta', async () => {
+  it('triggers global hooks.onRaw with meta', async () => {
     const response = {
       ok: 1,
       data: { user: { id: 1, idstr: '1' }, tabList: [], blockText: '' },
     } as any as IUserInfoResponse
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
 
-    const onFetched = vi.fn()
+    const onRaw = vi.fn()
     const service = new UserService(
-      { cookie: 'SUB=abc', hooks: { onFetched } },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { cookie: 'SUB=abc', hooks: { onRaw } },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    await service.info('111')
+    await service.fetchRawInfo('111')
 
-    expect(onFetched).toHaveBeenCalledTimes(1)
-    expect(onFetched).toHaveBeenCalledWith('USER_INFO', response, expect.objectContaining({
+    expect(onRaw).toHaveBeenCalledTimes(1)
+    expect(onRaw).toHaveBeenCalledWith(response, expect.objectContaining({
       endpoint: 'ajax/profile/info',
+      resourceType: 'USER_INFO',
       args: { uid: '111' },
       request: expect.objectContaining({
         method: 'GET',
@@ -63,50 +61,45 @@ describe('userService', () => {
     }))
   })
 
-  it('calls details endpoint with correct params and triggers onFetched', async () => {
+  it('calls details endpoint with correct params', async () => {
     const response = {
       ok: 1,
       data: { created_at: 'x', desc_text: '' },
     } as any as IUserDetailsResponse
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/detail')
       return response
     })
 
     const service = new UserService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    service.onFetched = vi.fn()
-
-    const data = await service.details('222')
+    const data = await service.fetchRawDetails('222')
     expect(data.ok).toBe(1)
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ uid: '222' })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/222')
-    expect(service.onFetched).toHaveBeenCalledWith('USER_DETAILS', response)
   })
 
-  it('calls myDetails endpoint without uid and triggers onFetched', async () => {
+  it('calls myDetails endpoint without uid', async () => {
     const response = {
       ok: 1,
       data: { created_at: 'x', desc_text: '' },
     } as any as IUserDetailsResponse
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/detail')
       return response
     })
 
     const service = new UserService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
-
-    service.onFetched = vi.fn()
 
     const data = await service.myDetails()
     expect(data.ok).toBe(1)
@@ -114,41 +107,40 @@ describe('userService', () => {
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({})
     expect(cfg?.headers?.referer).toBe('https://weibo.com/')
-    expect(service.onFetched).toHaveBeenCalledWith('USER_DETAILS', response)
   })
 
   it('myDetails throws WeiboSessionExpiredError when ok != 1', async () => {
-    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'need login' }))
+    const { transport } = createFakeAxios(async () => ({ ok: 0, msg: 'need login' }))
 
     const service = new UserService(
       { cookie: 'SUB=expired' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
     await expect(service.myDetails()).rejects.toBeInstanceOf(WeiboSessionExpiredError)
   })
 
   it('info throws UnexpectedAPIResponseError when schema validation fails', async () => {
-    const { client } = createFakeAxios(async () => ({ ok: 1, data: {} }))
+    const { transport } = createFakeAxios(async () => ({ ok: 1, data: {} }))
 
     const service = new UserService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    await expect(service.info('111')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+    await expect(service.fetchRawInfo('111')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
   it('triggers global hooks.onError for ok != 1', async () => {
-    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'need login' }))
+    const { transport } = createFakeAxios(async () => ({ ok: 0, msg: 'need login' }))
 
     const onError = vi.fn()
     const service = new UserService(
       { cookie: 'SUB=expired', hooks: { onError } },
-      { client, rateLimitService: { acquire: vi.fn() } as any },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    await expect(service.info('111')).rejects.toBeDefined()
+    await expect(service.fetchRawInfo('111')).rejects.toBeDefined()
 
     expect(onError).toHaveBeenCalledTimes(1)
     const [error, meta] = onError.mock.calls[0]!
@@ -210,7 +202,7 @@ describe('userService', () => {
       },
     } as any as IUserDetailsResponse
 
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       if (cfg.url === 'https://weibo.com/ajax/profile/info')
         return infoResponse
       if (cfg.url === 'https://weibo.com/ajax/profile/detail')
@@ -221,7 +213,7 @@ describe('userService', () => {
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new UserService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: { acquire: vi.fn() } as any, telemetry },
+      { transport, rateLimitService: { acquire: vi.fn() } as any, telemetry },
     )
 
     const user = await service.getById('111')

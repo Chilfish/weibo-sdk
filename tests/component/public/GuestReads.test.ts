@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { axiosTransport } from '~/services/internal/transport'
 import { ArchiveService } from '~/services/public/ArchiveService'
 import { FollowingsService } from '~/services/public/FollowingsService'
 import { LikeService } from '~/services/public/LikeService'
@@ -55,7 +56,7 @@ function serviceFor<T>(
   Service: new (config: { cookie: string }, deps: any) => T,
   handler: (config: AxiosRequestConfig) => unknown,
 ): T {
-  return new Service({ cookie: '' }, { ...deps, client: createAxios(handler) })
+  return new Service({ cookie: '' }, { ...deps, transport: axiosTransport({ client: createAxios(handler) }) })
 }
 
 describe('guest first-page reads (real fixtures)', () => {
@@ -177,7 +178,7 @@ describe('guest first-page reads (real fixtures)', () => {
 
 describe('guest archive guard', () => {
   const archiveDeps = {
-    tweets: { myMblog: vi.fn(), getReposts: vi.fn() },
+    tweets: { fetchRawUserTimelinePage: vi.fn(), getReposts: vi.fn() },
     favorites: { getFavorites: vi.fn() },
     authMode: 'guest' as const,
   } satisfies ArchiveServiceDeps
@@ -190,7 +191,7 @@ describe('guest archive guard', () => {
         void _
     }).rejects.toMatchObject({ code: 'CONFIG_INVALID', context: expect.objectContaining({ authMode: 'guest' }) })
 
-    expect(archiveDeps.tweets.myMblog).not.toHaveBeenCalled()
+    expect(archiveDeps.tweets.fetchRawUserTimelinePage).not.toHaveBeenCalled()
   })
 })
 

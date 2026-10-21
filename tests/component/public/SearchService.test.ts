@@ -7,10 +7,10 @@ import { SearchService } from '~/services/public/SearchService'
 describe('searchService', () => {
   it('searchUsers maps m.weibo.cn HTML login page to ProtocolError (endpoint removed)', async () => {
     // 实测：m.weibo.cn 搜索接口已失效，返回登录页 HTML（weibo.com cookie 不适用 + 微博移除 JSON 搜索 API）
-    const { client, getLastConfig } = createFakeAxios(async () => '<!doctype html><title>登录 - 微博</title>')
+    const { transport, getLastConfig } = createFakeAxios(async () => '<!doctype html><title>登录 - 微博</title>')
     const service = new SearchService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(service.searchUsers('前端开发', 1)).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
@@ -21,10 +21,10 @@ describe('searchService', () => {
   })
 
   it('searchTweets maps HTML response to ProtocolError', async () => {
-    const { client } = createFakeAxios(async () => '<html></html>')
+    const { transport } = createFakeAxios(async () => '<html></html>')
     const service = new SearchService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(service.searchTweets('TypeScript', 1)).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
@@ -47,10 +47,10 @@ describe('searchService', () => {
       },
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const service = new SearchService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const raw = await service.searchUsers('u', 1)

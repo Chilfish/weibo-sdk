@@ -20,13 +20,13 @@ interface Harness {
 function createService(handler: (cfg: AxiosRequestConfig) => unknown): Harness {
   const requests: Array<Record<string, unknown> | undefined> = []
   const telemetry = new TelemetryCollector()
-  const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+  const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
     requests.push(cfg.params as Record<string, unknown> | undefined)
     return handler(cfg)
   })
   const service = new NotificationService(
     { cookie: 'SUB=abc', telemetry },
-    { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+    { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
   )
   return { service, telemetry, requests, lastConfig: getLastConfig }
 }

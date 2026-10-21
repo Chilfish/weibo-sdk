@@ -58,7 +58,7 @@ function createDeps(overrides?: Partial<ArchiveServiceDeps>): {
   const likesFetch = vi.fn()
   const commentFetch = vi.fn()
   const deps: ArchiveServiceDeps = {
-    tweets: { myMblog, getReposts },
+    tweets: { fetchRawUserTimelinePage: myMblog, getReposts },
     favorites: { getFavorites },
     likes: { fetchRawPage: likesFetch },
     commentHistory: { fetchRawPage: commentFetch },

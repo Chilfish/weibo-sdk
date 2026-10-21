@@ -81,14 +81,14 @@ function createService(
   telemetry?: TelemetryCollector,
 ) {
   const requested: Array<Record<string, unknown>> = []
-  const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+  const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
     const params = (cfg.params ?? {}) as Record<string, unknown>
     requested.push(params)
     return respond(params)
   })
   const service = new CommentHistoryService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+    { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
   )
   return { service, requested, getLastConfig }
 }

@@ -1,9 +1,11 @@
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { axiosTransport } from '~/services/internal/transport'
 
 export type FakeAxiosHandler = (config: AxiosRequestConfig) => Promise<unknown>
 
 export function createFakeAxios(handler: FakeAxiosHandler): {
   client: AxiosInstance
+  transport: ReturnType<typeof axiosTransport>
   getLastConfig: () => AxiosRequestConfig | undefined
 } {
   let interceptor: ((config: any) => any) | undefined
@@ -33,7 +35,7 @@ export function createFakeAxios(handler: FakeAxiosHandler): {
     },
   } as any
 
-  return { client, getLastConfig: () => lastConfig }
+  return { client, transport: axiosTransport({ client }), getLastConfig: () => lastConfig }
 }
 
 export class NoopRateLimitService {

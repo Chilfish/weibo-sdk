@@ -26,10 +26,10 @@ function mkComment(id: string) {
 }
 
 function createService(handler: Parameters<typeof createFakeAxios>[0]) {
-  const { client, getLastConfig } = createFakeAxios(handler)
+  const { transport, getLastConfig } = createFakeAxios(handler)
   const service = new TweetService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any },
+    { transport, rateLimitService: new NoopRateLimitService() as any },
   )
   return { service, getLastConfig }
 }

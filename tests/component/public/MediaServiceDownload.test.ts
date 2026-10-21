@@ -205,7 +205,7 @@ describe('mediaService download (component)', () => {
         },
       },
     })
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       showCalls += 1
       return raw(showCalls === 1 ? oldUrl : newUrl)
     })
@@ -219,7 +219,7 @@ describe('mediaService download (component)', () => {
     })
     const service = new MediaService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
       { http: fakeHttp.client, fileStore: fakeStore.store },
     )
 

@@ -25,10 +25,10 @@ function showPayload(): Record<string, unknown> {
 }
 
 function createService(handler: (config: AxiosRequestConfig) => Promise<unknown>) {
-  const { client, getLastConfig } = createFakeAxios(handler)
+  const { transport, getLastConfig } = createFakeAxios(handler)
   const service = new TweetService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any },
+    { transport, rateLimitService: new NoopRateLimitService() as any },
   )
   return { service, getLastConfig }
 }
@@ -93,10 +93,10 @@ describe('tweet id input normalization', () => {
   })
 
   it('media download accepts a status URL and resolves it through statuses/show', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => showPayload())
+    const { transport, getLastConfig } = createFakeAxios(async () => showPayload())
     const service = new MediaService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
       { fileStore: null },
     )
 

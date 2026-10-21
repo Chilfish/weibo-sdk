@@ -84,6 +84,27 @@ describe('mediaHttpClient', () => {
     expect(error.context?.retryAfterMs).toBe(2000)
   })
 
+  it('resolves the per-URL proxy provider before each media request', async () => {
+    const { calls, transport } = createTransport(() => ({ status: 200 }))
+    const seen: string[] = []
+    const client = createAxiosMediaHttpClient({
+      transport,
+      proxy: (url) => {
+        seen.push(url)
+        return 'http://127.0.0.1:7890'
+      },
+    })
+
+    await client.open(baseRequest)
+
+    expect(seen).toEqual([baseRequest.url])
+    expect(calls[0].proxy).toEqual({
+      host: '127.0.0.1',
+      port: 7890,
+      protocol: 'http',
+    })
+  })
+
   it('rejects non-media statuses and disallowed initial hosts', async () => {
     const { transport } = createTransport(() => ({ status: 400 }))
     const client = createAxiosMediaHttpClient({ transport })

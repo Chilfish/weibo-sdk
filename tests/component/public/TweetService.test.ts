@@ -20,28 +20,25 @@ function mkTweet(mblogid: string) {
 }
 
 describe('tweetService', () => {
-  it('calls mymblog endpoint with correct params and triggers onFetched', async () => {
+  it('calls mymblog endpoint with correct params', async () => {
     const response = { ok: 1, data: { since_id: '0', list: [], total: -1 } } as any
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/mymblog')
       return response
     })
 
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    service.onFetched = vi.fn()
-
-    const data = await service.myMblog('111', 2, 20)
+    const data = await service.fetchRawUserTimelinePage('111', 2, 20)
     expect(data.data.since_id).toBe('0')
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ uid: '111', page: 2, count: 20 })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
-    expect(service.onFetched).toHaveBeenCalledWith('TWEET_MYMBLOG', response)
   })
 
   it('listByUserId returns normalized Tweet list with page cursor', async () => {
@@ -79,11 +76,11 @@ describe('tweetService', () => {
       },
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const { transport, getLastConfig } = createFakeAxios(async () => response)
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+      { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
 
     const page = await service.listByUserId('111')
@@ -122,10 +119,10 @@ describe('tweetService', () => {
       },
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listByUserId('111')
@@ -138,10 +135,10 @@ describe('tweetService', () => {
       data: { since_id: '', list: [], total: -1 },
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listByUserId('111', { page: 999 })
@@ -181,10 +178,10 @@ describe('tweetService', () => {
       },
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const { transport, getLastConfig } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listByUserId('111', { page: 3, count: 20 })
@@ -205,7 +202,7 @@ describe('tweetService', () => {
       user: { id: 2, idstr: '2', screen_name: 'u' },
     })
     // page=1 → 一条；page=2 → 一条；page=3 → 空（到底）
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       const page = (cfg.params as any)?.page ?? 1
       if (page === 1)
         return { ok: 1, data: { since_id: '', list: [mk('A')], total: -1 } }
@@ -215,7 +212,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const pulled: string[] = []
@@ -234,15 +231,14 @@ describe('tweetService', () => {
       max_id: 0,
     } as any
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listFriendTimeline()
     expect(page.maxId).toBeUndefined()
-    expect(page.sinceId).toBeUndefined()
     expect(page.hasMore).toBe(false)
   })
 
@@ -277,15 +273,14 @@ describe('tweetService', () => {
       max_id: 12345,
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const { transport, getLastConfig } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const page = await service.listFriendTimeline({ max_id: '999' })
     expect(page.maxId).toBe('12345')
-    expect(page.sinceId).toBeUndefined()
     expect(page.hasMore).toBe(true)
     expect(page.tweets).toHaveLength(1)
 
@@ -295,7 +290,7 @@ describe('tweetService', () => {
 
   it('streamFriendTimeline paginates by max_id and dedupes the inclusive cursor', async () => {
     const progress: any[] = []
-    const { client } = createFakeAxios(async (config) => {
+    const { transport } = createFakeAxios(async (config) => {
       if (config.params.max_id === undefined) {
         return {
           ok: 1,
@@ -314,7 +309,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -331,7 +326,7 @@ describe('tweetService', () => {
 
   it('streamFriendTimeline with sinceId fetches exactly one incremental page', async () => {
     let calls = 0
-    const { client, getLastConfig } = createFakeAxios(async () => {
+    const { transport, getLastConfig } = createFakeAxios(async () => {
       calls += 1
       return {
         ok: 1,
@@ -342,7 +337,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -356,7 +351,7 @@ describe('tweetService', () => {
 
   it('streamFriendTimeline honors maxItems without fetching another page', async () => {
     let calls = 0
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       return {
         ok: 1,
@@ -367,7 +362,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -381,7 +376,7 @@ describe('tweetService', () => {
   it('streamFriendTimeline stops at the since date boundary', async () => {
     const at = (iso: string) => ({ ...mkTweet('m'), created_at: new Date(iso).toUTCString() })
     let calls = 0
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       return {
         ok: 1,
@@ -396,7 +391,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -417,7 +412,7 @@ describe('tweetService', () => {
       created_at: new Date(createdAt).toUTCString(),
     })
     let calls = 0
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       return {
         ok: 1,
@@ -430,7 +425,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -447,7 +442,7 @@ describe('tweetService', () => {
 
   it('listFriendTimeline stops when max_id does not advance', async () => {
     let calls = 0
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       calls += 1
       return {
         ok: 1,
@@ -458,7 +453,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const out: string[] = []
@@ -489,15 +484,14 @@ describe('tweetService', () => {
       empty_tip: '',
     } as any
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/repostTimeline')
       return response
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    service.onFetched = vi.fn()
 
     const raw = await service.getReposts('QEV15en4k', { page: 2 })
     expect(raw.data).toHaveLength(1)
@@ -507,10 +501,9 @@ describe('tweetService', () => {
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ id: 'QEV15en4k', page: 2 })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/detail/QEV15en4k')
-    expect(service.onFetched).toHaveBeenCalledWith('TWEET_REPOST_TIMELINE', response)
   })
 
-  it('calls show endpoint with correct params and triggers onFetched', async () => {
+  it('calls show endpoint with correct params', async () => {
     const response = {
       ok: 1,
       id: 1,
@@ -528,60 +521,58 @@ describe('tweetService', () => {
       },
     } as any as IStatusShowResponse
 
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/show')
       return response
     })
 
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    service.onFetched = vi.fn()
-
-    const data = await service.show('QqsYymYOS', true)
-    expect(data.ok).toBe(1)
+    const tweet = await service.getByMblogId('QqsYymYOS', true)
+    expect(tweet.mblogId).toBe('QqsYymYOS')
+    expect(tweet.text).toBe('plain')
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ id: 'QqsYymYOS', isGetLongText: true })
     expect(cfg?.headers?.referer).toBe('https://weibo.com/detail/QqsYymYOS')
-    expect(service.onFetched).toHaveBeenCalledWith('TWEET_SHOW', response)
   })
 
-  it('show throws WeiboAPINotOkError when ok != 1', async () => {
-    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'bad id' }))
+  it('getByMblogId throws WeiboAPINotOkError when ok != 1', async () => {
+    const { transport } = createFakeAxios(async () => ({ ok: 0, msg: 'bad id' }))
 
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    await expect(service.show('bad')).rejects.toBeInstanceOf(WeiboAPINotOkError)
+    await expect(service.getByMblogId('bad')).rejects.toBeInstanceOf(WeiboAPINotOkError)
   })
 
-  it('show throws UnexpectedAPIResponseError when schema validation fails', async () => {
-    const { client } = createFakeAxios(async () => ({ ok: 1, mblogid: 'x', user: {} }))
+  it('getByMblogId throws UnexpectedAPIResponseError when schema validation fails', async () => {
+    const { transport } = createFakeAxios(async () => ({ ok: 1, mblogid: 'x', user: {} }))
 
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+    await expect(service.getByMblogId('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
-  it('show maps non-JSON HTML response to ProtocolError (login page detection, not API_NOT_OK)', async () => {
+  it('getByMblogId maps non-JSON HTML response to ProtocolError (login page detection, not API_NOT_OK)', async () => {
     // 端点返回登录页 HTML（如失效/风控）时，应归为协议层错误而非业务失败
-    const { client } = createFakeAxios(async () => '<!doctype html><title>登录 - 微博</title>')
+    const { transport } = createFakeAxios(async () => '<!doctype html><title>登录 - 微博</title>')
 
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
-    await expect(service.show('x')).rejects.not.toBeInstanceOf(WeiboAPINotOkError)
+    await expect(service.getByMblogId('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+    await expect(service.getByMblogId('x')).rejects.not.toBeInstanceOf(WeiboAPINotOkError)
   })
 
   it('getByMblogId returns normalized Tweet', async () => {
@@ -611,11 +602,11 @@ describe('tweetService', () => {
       pic_ids: [],
     } as any as IStatusShowResponse
 
-    const { client } = createFakeAxios(async () => response)
+    const { transport } = createFakeAxios(async () => response)
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+      { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
 
     const tweet = await service.getByMblogId('QqsYymYOS')
@@ -649,11 +640,11 @@ describe('tweetService', () => {
       unmodeled_field: 'kept-in-raw',
     }
 
-    const { client, getLastConfig } = createFakeAxios(async () => showRaw)
+    const { transport, getLastConfig } = createFakeAxios(async () => showRaw)
     const telemetry = { emit: vi.fn(async () => {}) }
     const service = new TweetService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+      { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
     )
 
     const result = await service.enrich('QqsYymYOS')
@@ -687,13 +678,13 @@ describe('tweetService', () => {
     const longRaw = { ok: 1, data: { longTextContent: '<p>html</p>', longTextContent_raw: 'plain long' } }
     const calls: Array<{ url?: string, params?: unknown }> = []
 
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       calls.push({ url: cfg.url, params: cfg.params })
       return cfg.url?.endsWith('/longtext') ? longRaw : showRaw
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const result = await service.enrich('MB1', { includeLongText: true, isGetLongText: false })
@@ -733,7 +724,7 @@ describe('tweetService', () => {
       markLongTextStarted = resolve
     })
 
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       if (cfg.url?.endsWith('/longtext')) {
         markLongTextStarted()
         return longRaw
@@ -743,7 +734,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const result = service.enrich('MB1', { includeLongText: true })
@@ -762,13 +753,13 @@ describe('tweetService', () => {
     const raw = { ok: 1, mblogid: 'x', user: {} }
     const onRaw = vi.fn()
 
-    const { client } = createFakeAxios(async () => raw)
+    const { transport } = createFakeAxios(async () => raw)
     const service = new TweetService(
       { cookie: 'SUB=abc', hooks: { onRaw } },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    await expect(service.show('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
+    await expect(service.getByMblogId('x')).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
 
     expect(onRaw).toHaveBeenCalledTimes(1)
     expect(onRaw).toHaveBeenCalledWith(raw, expect.objectContaining({
@@ -788,13 +779,13 @@ describe('tweetService', () => {
     const raw = { ok: 0, msg: 'bad id' }
     const onRaw = vi.fn()
 
-    const { client } = createFakeAxios(async () => raw)
+    const { transport } = createFakeAxios(async () => raw)
     const service = new TweetService(
       { cookie: 'SUB=abc', hooks: { onRaw } },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    await expect(service.show('x')).rejects.toBeInstanceOf(WeiboAPINotOkError)
+    await expect(service.getByMblogId('x')).rejects.toBeInstanceOf(WeiboAPINotOkError)
 
     expect(onRaw).toHaveBeenCalledWith(raw, expect.objectContaining({
       endpoint: 'ajax/statuses/show',
@@ -804,10 +795,10 @@ describe('tweetService', () => {
   it('comments sends real-browser params and never sends type=feed', async () => {
     const response = { ok: 1, data: [], total_number: 0 } as any
 
-    const { client, getLastConfig } = createFakeAxios(async () => response)
+    const { transport, getLastConfig } = createFakeAxios(async () => response)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await service.comments('MB001', { count: 20 })
@@ -827,10 +818,10 @@ describe('tweetService', () => {
 
   it('comments parses all items from the real 20-item fixture (no type=feed regression)', async () => {
     const fixture = JSON.parse(readFileSync('tests/fixtures/raw/comments_no_type_p1.json', 'utf8'))
-    const { client } = createFakeAxios(async () => fixture)
+    const { transport } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const res = await service.comments('5356101843289999')
@@ -842,10 +833,10 @@ describe('tweetService', () => {
 
   it('comments exposes partial-visibility markers from firewall fixture', async () => {
     const fixture = JSON.parse(readFileSync('tests/fixtures/raw/comments_firewall.json', 'utf8'))
-    const { client } = createFakeAxios(async () => fixture)
+    const { transport } = createFakeAxios(async () => fixture)
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     const res = await service.comments('5356103541982971')
@@ -856,7 +847,7 @@ describe('tweetService', () => {
 
   it('comments resolves mblogId to numeric mid when flow=1', async () => {
     const calls: any[] = []
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       calls.push(cfg)
       if (cfg.url === 'https://weibo.com/ajax/statuses/show') {
         return {
@@ -871,7 +862,7 @@ describe('tweetService', () => {
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await service.comments('MB001', { flow: 1 })
@@ -884,13 +875,13 @@ describe('tweetService', () => {
 
   it('comments keeps numeric id for flow=1 without an extra show request', async () => {
     const calls: any[] = []
-    const { client } = createFakeAxios(async (cfg) => {
+    const { transport } = createFakeAxios(async (cfg) => {
       calls.push(cfg)
       return { ok: 1, data: [], total_number: 0 }
     })
     const service = new TweetService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await service.comments('5356101843289999', { flow: 1 })

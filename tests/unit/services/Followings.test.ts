@@ -34,13 +34,13 @@ describe('followings/friends', () => {
   }
 
   it('calls friendships/friends with correct params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/friendships/friends')
       return fixture
     })
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.getFollowings('111', 0)
     expect(data.ok).toBe(1)
@@ -50,10 +50,10 @@ describe('followings/friends', () => {
   })
 
   it('works without optional page', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.getFollowings('222')
     expect(getLastConfig()?.params).toEqual({ uid: '222' })
@@ -94,13 +94,13 @@ describe('followContent', () => {
   }
 
   it('calls followContent with correct params', async () => {
-    const { client, getLastConfig } = createFakeAxios(async (cfg) => {
+    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/followContent')
       return fixture
     })
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     const data = await service.getMyFollowings(0)
     expect(data.ok).toBe(1)
@@ -110,10 +110,10 @@ describe('followContent', () => {
   })
 
   it('works without optional page', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => fixture)
+    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
     const service = new FollowingsService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
     await service.getMyFollowings()
     expect(getLastConfig()?.params).toEqual({})

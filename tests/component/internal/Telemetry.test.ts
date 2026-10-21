@@ -15,12 +15,12 @@ class TestFetcherService extends FetcherService {
 describe('telemetry (wide events)', () => {
   it('emits request_start/request_success with shared trace_id', async () => {
     const telemetry = new TelemetryCollector()
-    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const { transport } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
     const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
 
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: rateLimit, telemetry },
+      { transport, rateLimitService: rateLimit, telemetry },
     )
 
     await fetcher.call('1')
@@ -39,13 +39,13 @@ describe('telemetry (wide events)', () => {
 
   it('emits rate_limit_wait when tokens are exhausted', async () => {
     const telemetry = new TelemetryCollector()
-    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const { transport } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
     const clock = new FakeClock()
     const rateLimit = new RateLimitService(1, 1000, clock, telemetry)
 
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: rateLimit, telemetry },
+      { transport, rateLimitService: rateLimit, telemetry },
     )
 
     await fetcher.call('1')
@@ -63,12 +63,12 @@ describe('telemetry (wide events)', () => {
 
   it('emits request_error for ok!=1 responses with structured error fields', async () => {
     const telemetry = new TelemetryCollector()
-    const { client } = createFakeAxios(async () => ({ ok: 0, msg: 'bad', data: {} }))
+    const { transport } = createFakeAxios(async () => ({ ok: 0, msg: 'bad', data: {} }))
     const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
 
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: rateLimit, telemetry },
+      { transport, rateLimitService: rateLimit, telemetry },
     )
 
     await expect(fetcher.call('1')).rejects.toBeInstanceOf(WeiboAPINotOkError)
@@ -87,14 +87,14 @@ describe('telemetry (wide events)', () => {
 
   it('emits request_error for preflight failures', async () => {
     const telemetry = new TelemetryCollector()
-    const { client } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
+    const { transport } = createFakeAxios(async () => ({ ok: 1, data: { user: { id: 1 } } }))
     const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
 
     const preflightError = new Error('preflight failed')
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', telemetry },
       {
-        client,
+        transport,
         rateLimitService: rateLimit,
         telemetry,
         preflight: async () => { throw preflightError },
@@ -113,12 +113,12 @@ describe('telemetry (wide events)', () => {
 
   it('emits request_error for parse (schema validation) failures', async () => {
     const telemetry = new TelemetryCollector()
-    const { client } = createFakeAxios(async () => ({ ok: 1 }))
+    const { transport } = createFakeAxios(async () => ({ ok: 1 }))
     const rateLimit = new RateLimitService(1, 1000, new FakeClock(), telemetry)
 
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', telemetry },
-      { client, rateLimitService: rateLimit, telemetry },
+      { transport, rateLimitService: rateLimit, telemetry },
     )
 
     await expect(fetcher.call('1')).rejects.toThrow()

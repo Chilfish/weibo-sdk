@@ -16,13 +16,13 @@ function createService(handler: (config: AxiosRequestConfig) => unknown): {
 } {
   const requests: AxiosRequestConfig[] = []
   const telemetry = new TelemetryCollector()
-  const { client } = createFakeAxios(async (config) => {
+  const { transport } = createFakeAxios(async (config) => {
     requests.push(config)
     return handler(config)
   })
   const service = new TopicService(
     { cookie: 'SUB=abc', telemetry },
-    { client, rateLimitService: new NoopRateLimitService() as any, telemetry },
+    { transport, rateLimitService: new NoopRateLimitService() as any, telemetry },
   )
   return { service, telemetry, requests }
 }

@@ -36,14 +36,14 @@ const AUTHOR = {
 
 function createService(handler: (config: AxiosRequestConfig) => unknown) {
   const requests: AxiosRequestConfig[] = []
-  const { client } = createFakeAxios(async (config) => {
+  const { transport } = createFakeAxios(async (config) => {
     requests.push(config)
     return handler(config)
   })
   const authorProfile = vi.fn(async () => AUTHOR)
   const service = new TweetService(
     { cookie: 'SUB=abc' },
-    { client, rateLimitService: new NoopRateLimitService() as any },
+    { transport, rateLimitService: new NoopRateLimitService() as any },
     { authorProfile },
   )
   return { service, requests, authorProfile }

@@ -19,7 +19,7 @@ class TestFetcherService extends FetcherService {
 
 describe('fetcherService', () => {
   it('injects cookie and xsrf token headers', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const { transport, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
     const rateLimit = new NoopRateLimitService()
 
     const fetcher = new TestFetcherService(
@@ -28,7 +28,7 @@ describe('fetcherService', () => {
         xsrfToken: 'token_explicit',
       },
       {
-        client,
+        transport,
         rateLimitService: rateLimit as any,
       },
     )
@@ -45,10 +45,10 @@ describe('fetcherService', () => {
   })
 
   it('derives host header from request URL for cross-host endpoints', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const { transport, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc' },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     // weibo.com 端点 → Host: weibo.com
@@ -61,7 +61,7 @@ describe('fetcherService', () => {
   })
 
   it('runs preflight before request and emits hook on failure', async () => {
-    const { client, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
+    const { transport, getLastConfig } = createFakeAxios(async () => ({ ok: 1 }))
     const rateLimit = new NoopRateLimitService()
 
     const onError = vi.fn()
@@ -70,7 +70,7 @@ describe('fetcherService', () => {
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', hooks: { onError } },
       {
-        client,
+        transport,
         rateLimitService: rateLimit as any,
         preflight: async () => {
           throw preflightError
@@ -95,7 +95,7 @@ describe('fetcherService', () => {
   })
 
   it('maps timeout errors to ConnectionTimeoutError', async () => {
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       const err = new Error('timeout') as any
       err.isAxiosError = true
       err.code = 'ECONNABORTED'
@@ -105,7 +105,7 @@ describe('fetcherService', () => {
     const fetcher = new TestFetcherService(
       // 关闭重试：断言首次失败的错误映射（重试行为见 FetcherRetry.test.ts）
       { cookie: 'SUB=abc', retry: { retries: 0 } },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/test' }))
@@ -114,7 +114,7 @@ describe('fetcherService', () => {
   })
 
   it('maps request failures to NetworkRequestError with response metadata', async () => {
-    const { client } = createFakeAxios(async () => {
+    const { transport } = createFakeAxios(async () => {
       const err = new Error('bad response') as any
       err.isAxiosError = true
       err.code = 'ERR_BAD_RESPONSE'
@@ -124,7 +124,7 @@ describe('fetcherService', () => {
 
     const fetcher = new TestFetcherService(
       { cookie: 'SUB=abc', retry: { retries: 0 } },
-      { client, rateLimitService: new NoopRateLimitService() as any },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
     await expect(fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/test' }))
@@ -134,7 +134,7 @@ describe('fetcherService', () => {
 
   it('maps HTTP 432 / 429 to RateLimitError with status and attempt context', async () => {
     for (const status of [432, 429]) {
-      const { client } = createFakeAxios(async () => {
+      const { transport } = createFakeAxios(async () => {
         const err = new Error('rate limited') as any
         err.isAxiosError = true
         err.response = { status, data: { ok: 0, message: 'frequent request' }, headers: {} }
@@ -143,7 +143,7 @@ describe('fetcherService', () => {
 
       const fetcher = new TestFetcherService(
         { cookie: 'SUB=abc', retry: { retries: 0 } },
-        { client, rateLimitService: new NoopRateLimitService() as any },
+        { transport, rateLimitService: new NoopRateLimitService() as any },
       )
 
       const error = await fetcher.get({ method: 'GET', url: 'https://weibo.com/ajax/test' })
