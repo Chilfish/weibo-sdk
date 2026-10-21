@@ -122,3 +122,62 @@
 - **背景**: 媒体 URL 约 1 小时过期，下游归档需要及时落盘；P0-2 原裁定「SDK 不下载」导致每个消费方重复实现防盗链、重试与失败记录。
 - **理由**: 把「临时 URL」与「可选下载辅助」拆开：不改变 `ITweet`/`ArchiveItem` 契约，也不把下载耦合进归档流；下载器只处理单条微博，范围可控。
 - **后果**: 下游可直接下载或继续自抓；`ArchiveItem` 仍无 `mediaFiles`；下载器为 Node-only，浏览器入口保持可加载。
+
+## ADR-014: 三层扩展架构（Ports / Core / Plugins）
+
+- **日期**: 2026-10-21
+- **状态**: accepted（实施中，见 [todo-plugin-architecture.md](./todo-plugin-architecture.md)）
+- **决策**: 把扩展面拆成三层：
+  1. **Ports**：`WeiboTransport`（axios / fetch / 自定义）、`CredentialResolver`、`Clock`、telemetry / logger sink，构造注入。
+  2. **Core 状态机**：端点鉴权要求、retry、rate-limit、auth-refresh、okPolicy、Zod 校验，保持不可插件化。
+  3. **Plugins**：`beforeRequest` / `afterResponse` / `beforeRetry` / `onError` 生命周期钩子、`transport` 中间件、只读 `observe` 事件流；按 `pre → normal → post` 排序，构造期组装。
+- **背景**: `FetcherService` 直接依赖 axios，换 fetch / Worker / Edge 需要改核心；日志与遥测分散；下游希望「开箱即用」又希望有可组合的扩展点。
+- **理由**:
+  - 环境适配（fetch / Worker / 测试替身）与行为扩展（缓存 / mock / 日志）是两类问题，混在一个插件数组里会让基础能力依赖插件顺序。
+  - retry / rate-limit / auth-refresh 的先后顺序是正确性的一部分，不能交给用户配置。
+  - 观察者失败必须隔离，生命周期钩子失败应当 fatal；两者语义不同，不能合并。
+  - 无插件时走 identity 快路径，避免热路径分配。
+- **后果**:
+  - 新增 `transport` / `plugins` 配置，全部 optional；`new WeiboSDK({})` 行为不变。
+  - `config.hooks` / `config.telemetry` 降为内置兼容插件；`logging` 死配置删除。
+  - `FetcherService` 不再直接依赖 axios；`deps.client` 通过 `AxiosTransport` 保留。
+  - 插件 API 必须显式传入，禁止模块级自动注册（影响 tree-shaking）。
+  - 需要 transport contract tests（axios vs fetch）与插件顺序 / 错误语义测试。
+
+## ADR-015: 不采用多账号 token 池轮换
+
+- **日期**: 2026-10-21
+- **状态**: accepted
+- **决策**: 不实现多账号 cookie / guest token 池；保留 `CredentialResolver` 端口与 `credential_id` 观测字段。若未来确有需求，池以外置插件实现，并强制 `accountScoped` 端点 pin 主凭证。
+- **背景**: 需要评估「在账号 token 无关的端点轮换 token」是否能提升吞吐、降低 432。
+- **理由**:
+  - 真正的「token 无关」端点是 `auth: 'guest'`；换 guest token 不改变数据，而 432 主要打在 IP / 行为维度，池化收益低且额外发 token 请求。
+  - 账号级端点（收藏 / 历史评论 / 通知 / @我 / 首页 / 归档）轮换会直接改变数据；非账号级 cookie 端点也会因可见范围不同而改变结果集，违反契约稳定原则。
+  - `RateLimitService` 是客户端礼貌限流；不放开并发 / 间隔，换 token 不会提高吞吐；真正需要的是代理池，`config.proxy` 已支持动态 Provider。
+  - 项目边界与 `AGENTS.md` 要求只使用自己的账号 Cookie；多账号引入合规与隐私风险。
+  - `backlog.md` 已于 2026-10-20 将「多账号登录态隔离」列为不再推进。
+- **后果**:
+  - 不新增池化代码与状态；`getSession()` / 归档仍按主凭证工作。
+  - `CredentialResolver` 保持单实现，telemetry 增加 `credential_id` 为未来留观测基础。
+  - 如果未来要恢复，必须新增 ADR，并重新评估 `accountScoped` 标记完整性（`likes.list` 当前未标记）。
+
+## ADR-016: 下游包产物契约与完整性门禁
+
+- **日期**: 2026-10-21
+- **状态**: accepted（实施中，见 [todo-plugin-architecture.md](./todo-plugin-architecture.md) 与 [package-integrity.md](../engineering/package-integrity.md)）
+- **决策**:
+  1. 保持 **ESM-only**，不新增 CJS 构建。
+  2. `exports` 全部使用条件对象，`types` 条件优先；新增子路径必须同时有 `types` 与 `default`。
+  3. `sideEffects` 必须与真实入口一致：拆分 CLI 命令树与 bin 入口，或使用精确 allowlist。
+  4. 补 `engines.node`，与 `process.getBuiltinModule` 的实际要求对齐。
+  5. 公共 `.d.mts` 不得引用 `axios` / `zod` 类型。
+  6. 发布门禁必须基于真实 tarball：`publint` + `attw` + 临时安装 + Node import + `tsc` + Vite/esbuild + tree-shaking。
+- **背景**: 包已发布并被 SPA / 用户脚本 / CLI 消费；当前导出测试只检查字段形状，无法发现类型解析、副作用声明、Node 版本、真实打包失败等问题。
+- **理由**:
+  - 下游最常见的故障不是运行时报错，而是「类型解析不到」「bundler 把入口摇掉」「Edge 里出现 Node builtin」「CJS 误判」。
+  - `npm pack` 与源码目录的行为不同（`catalog:`、`files`、条件导出），必须用 tarball 验证。
+  - 双包（ESM + CJS）会带来双份类型与状态，收益不足。
+- **后果**:
+  - 新增 `lint:package` / `verify:package` / `test:bundle` 三个 CI 门禁。
+  - `schemas/` 是否随包发布需要明确决策；`$schema` 不能只指向可变的 `main` 分支。
+  - 任何新增公共导出 / 子路径 / 运行时依赖，都要同步更新导出测试与产物门禁。

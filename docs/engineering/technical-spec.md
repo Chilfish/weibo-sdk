@@ -66,6 +66,8 @@ request(spec, args)
 
 `request()` 外面还包了一层 guest 刷新循环：本次逻辑请求已捕获可归因于鉴权的失败（`redirect_to_login` / `visitor_entry` / `ok_minus_100` / `forbidden` / `empty_object` / `html`），且 `auth: 'guest'`、端点不是 `auth: 'none'`、`config.guest.autoRefresh !== false` 时，刷新一次访客 token 后重跑整个请求。**每个逻辑请求最多刷新一次**（`guest_refresh_count` 取 0/1），刷新失败保留旧 token 并抛出原始错误；432/429 不参与刷新判定。
 
+> **实施中（2026-10-21）**：图中的 `axios 请求` 改为 `WeiboTransport.send()` 端口（AxiosTransport / FetchTransport / 自定义）；HTTP 状态语义（432 / 429 / 403 / 3xx / 登录页）仍留在 `FetcherService`，transport 只抛网络 / 超时错误。`AuthProvider` 提升为 `CredentialResolver`，默认单凭证，不做 token 池。插件管线只在构造期组装，retry / rate-limit / auth-refresh 顺序不插件化。详见 [todo-plugin-architecture.md](../planning/todo-plugin-architecture.md)。
+
 ---
 
 ## 2. Entity Contracts

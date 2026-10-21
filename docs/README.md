@@ -37,11 +37,13 @@
 
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
-| [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~012），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
+| [architecture.md](planning/architecture.md) | 架构决策记录（ADR-001~016），含 NOT ADOPTED / SUPERSEDED | 任何架构级变更前 |
 | [roadmap.md](planning/roadmap.md) | 开发路线图（Phase 1-6）、真实数据获取操作手册、Fixture 清单 | 规划端点/测试/数据 |
 | [research-weibo-ecosystem-2026-10-19.md](planning/research-weibo-ecosystem-2026-10-19.md) | 同类活跃项目调研（API 逆向 / CLI / 归档），含可借鉴设计与差距映射 | 规划 P1/P2 顺序、评估功能边界 |
 | [research-guest-mode-2026-10-20.md](planning/research-guest-mode-2026-10-20.md) | 无登录访客模式（guest mode）调研：token 发放、真实端点矩阵、匿名翻页边界、SDK 接入方案与 P0/P1/P2 行动计划 | 规划 guest mode / 评估匿名读取能力 |
 | [research-agent-view-2026-10-20.md](planning/research-agent-view-2026-10-20.md) | Agent 视角的单条微博上下文（`ITweetContext`）：理解所需维度、真实数据缺口、媒体归属/下载、`tweet context` CLI 设计与非目标 | 设计/修改 Agent 视图、媒体描述或上下文预算 |
+| [research-plugin-architecture-2026-10-21.md](planning/research-plugin-architecture-2026-10-21.md) | 插件化架构调研：token 池结论、Ports / Core / Plugins 三层设计、自定义 fetch、下游零配置与产物准确性、PF1–PF7 行动计划 | 评估扩展点、替换传输、调整默认配置或发布产物 |
+| [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
 
@@ -61,6 +63,7 @@
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |
+| [package-integrity.md](engineering/package-integrity.md) | 包完整性与下游打包指南：exports / types / sideEffects / engines、tarball 核验矩阵、publint / attw / Vite / tree-shaking 门禁 | 修改发布配置、新增子路径/依赖、排查下游打包问题 |
 | [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty，二进制 `weibo-cli`） | 添加/修改 CLI 子命令 |
 | [endpoint-authoring.md](engineering/endpoint-authoring.md) | 端点开发指南：抓包 → schema → spec → service → CLI → 测试 → 文档；含分页约定与高频雷区 | 新增/修改任何 endpoint |
 | [media-download.md](engineering/media-download.md) | 单条微博媒体下载：命名、安全、重试、失败清单 | 修改下载行为 / 排障 |
