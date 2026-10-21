@@ -243,11 +243,13 @@ async function runNodeChecks() {
     }
   }
 
-  push('package.json#exports["."] -> ./dist/index.mjs', () => pkg.exports['.'] === './dist/index.mjs')
-  push('package.json#exports["./cli"] -> ./dist/cli.mjs', () => pkg.exports['./cli'] === './dist/cli.mjs')
+  const defaultTarget = entry => typeof entry === 'string' ? entry : entry?.default
+
+  push('package.json#exports["."] -> ./dist/index.mjs', () => defaultTarget(pkg.exports['.']) === './dist/index.mjs')
+  push('package.json#exports["./cli"] -> ./dist/cli.mjs', () => defaultTarget(pkg.exports['./cli']) === './dist/cli.mjs')
   push('package.json#exports["./browser"] -> ./dist/browser.mjs', () => {
     const entry = pkg.exports['./browser']
-    return Boolean(entry) && entry.default === './dist/browser.mjs' && entry.types === './dist/index.d.mts'
+    return defaultTarget(entry) === './dist/browser.mjs' && entry.types === './dist/index.d.mts'
   })
 
   await import(pathToFileURL(NODE_ENTRY).href).then((mod) => {
