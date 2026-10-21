@@ -27,10 +27,10 @@
 ## 包身份核验
 
 - [x] `package.json#name` = `@chilfish/weibo-sdk`（2026-10-20）
-- [x] `package.json#bin` = `{ "weibo-cli": "./dist/cli.mjs" }`（2026-10-20）
+- [x] `package.json#bin` = `{ "weibo-cli": "./dist/cli-bin.mjs" }`（2026-10-21；CLI 拆分为命令树 + bin 入口）
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
-- [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `citty ^0.2.2` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-20）
+- [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
 - [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.3.0`，2026-10-20）
 
 ## 公共导出面核验
@@ -38,7 +38,7 @@
 - [x] `src/index.ts` 导出面与规格书 §3.7 一致（无内部实现泄漏；2026-10-20）
 - [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20）
 - [x] 新增响应类型已用 `z.infer` 推导并导出（2026-10-20）
-- [ ] 下游产物完整性门禁（规划，见 [package-integrity.md](./package-integrity.md) §5）：`publint` / `attw` / tarball 安装 / Vite / tree-shaking / Worker smoke
+- [x] 下游产物完整性门禁（见 [package-integrity.md](./package-integrity.md) §5）：`publint` / `attw` / tarball 安装 / Vite / tree-shaking / Worker smoke（2026-10-21；`lint:package` / `verify:package` / `test:bundle` 均通过）
 
 ## 功能冒烟（真实环境，`WEIBO_E2E=1`）
 

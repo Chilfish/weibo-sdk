@@ -15,6 +15,7 @@
 5. 公开 `.d.mts` 不得引用 `axios` / `zod` 类型；公共契约继续使用 `z.infer` 的输出。
 6. `./browser` 保持自包含（用户脚本 / 无打包器）；SPA 走根入口，由宿主 bundler 去重依赖。
 7. 发布门禁从「读 package.json 字段」升级为「真实 tarball 核验」：`pnpm pack` → `publint` → `attw` → 临时安装 → Node import → `tsc` → Vite/esbuild → tree-shaking 断言。
+8. **CLI-only 依赖构建期内联**：`citty` 打进 `dist/cli*.mjs`，tarball 的 `dependencies` 只保留 SDK 运行时依赖（`axios` / `zod`）；`pnpm dlx` 与 SDK-only 安装不再下载 CLI 专用包。
 
 ---
 
@@ -35,7 +36,7 @@
 | `sideEffects` | `false` | 与 `dist/cli.mjs` 顶层 `runMain()` 不一致 |
 | `files` | `["dist"]` | **`schemas/` 不会随包发布** |
 | `engines` | 缺失 | 无 Node 版本约束 |
-| dependencies | `axios` / `citty` / `zod` | node 构建 external；browser 构建内联 axios + zod |
+| dependencies | `axios` / `zod`（`citty` 已内联，devDependency） | node 构建把 CLI-only 的 `citty` 打进 CLI chunk；SDK 入口 external axios/zod |
 | 构建 | `tsdown` node + browser 两个 target | browser 复用 node 的 d.ts |
 
 ---
@@ -130,11 +131,13 @@
 - 随包发布 `schemas/`，加 `exports["./schemas/weibo-user-archive/v1.json"]`，`$schema` 可用 `https://unpkg.com/@chilfish/weibo-sdk@<version>/schemas/...`。
 - 明确不随包发布，但把 `$schema` 改为 tag / release 固定 URL（如 `.../v0.3.0/schemas/...`），并写入文档。
 
-### R11. `citty` 对所有用户都是 dependency（低）
+### R11. `citty` 对所有用户都是 dependency（低，已修复）
 
-只用 SDK 的下游也会安装 `citty`。npm 磁盘成本小，且 CLI 与 SDK 同包；拆包会带来版本同步成本。
+只用 SDK 的下游也会安装 `citty`。npm 磁盘成本小，但 `pnpm dlx` 与 SDK-only 安装会多下载一个包。
 
-**修复**：本轮不拆；如果未来 CLI 依赖继续增长，再评估独立包或 optional dependency。
+**修复**：`tsdown.config.ts` 的 node 目标加 `deps.alwaysBundle: ['citty']`，把零运行时依赖的 `citty` 内联进 `dist/cli*.mjs`；`citty` 从 `dependencies` 移到 `devDependencies`。不拆独立包（避免版本同步成本），但运行时依赖面收敛为 `axios` / `zod`。`verify:package` 增加两条门禁：tarball 的 `dependencies` 不含 `citty`；`dist/*.mjs` 的外部 import 必须全部声明在 `dependencies`。
+
+**状态**：已实现（2026-10-21）。
 
 ### R12. 插件 API 可能破坏 tree-shaking（未来，需约束）
 
@@ -206,7 +209,7 @@
 |---|---|---|
 | `axios` | node external / browser inline | Phase 1 后由 `AxiosTransport` 封装；是否降为 optional peer 另议 |
 | `zod` | node external / browser inline | 保持 dependency；公共类型不泄漏 |
-| `citty` | dependency，仅 CLI 使用 | 本轮不拆；后续若 CLI 增长再评估独立包 |
+| `citty` | devDependency，仅 CLI 使用 | 构建期内联进 `dist/cli*.mjs`，不随包安装 |
 | 新增运行时依赖 | — | 先评估 tree-shaking / bundle / Edge 兼容；能内联的小依赖优先内联 |
 
 ---
@@ -225,8 +228,9 @@ pnpm pack --pack-destination .tmp-pack
 检查：
 
 - tarball 只包含 `dist/`、`schemas/`（若启用）、`README.md`、`LICENSE.md`、`package.json`。
-- tarball 的 `dependencies` 已由 pnpm 重写，没有 `catalog:` / `workspace:`。
+- tarball 的 `dependencies` 已由 pnpm 重写，没有 `catalog:` / `workspace:`；只保留 `axios` / `zod`，CLI-only 的 `citty` 已内联。
 - `dist/index.mjs`、`dist/index.d.mts`、`dist/browser.mjs`、`dist/cli.mjs`（或拆分后的两个文件）都存在。
+- `dist/*.mjs` 的 bare import 只有 `dependencies` 里的包与 Node builtin；`dist/index.mjs` 的静态闭包不含 `dist/cli*.mjs`。
 
 ### 5.2 包规范与类型解析
 
@@ -263,7 +267,7 @@ npm i ../.tmp-pack/chilfish-weibo-sdk-<version>.tgz
 - `node node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version` 输出正确版本。
 - `require('@chilfish/weibo-sdk')` 以 `ERR_REQUIRE_ESM` 失败（预期行为，写入文档）。
 - 如果发布 schema：`require.resolve('@chilfish/weibo-sdk/schemas/weibo-user-archive/v1.json')` 可解析，Ajv 能加载。
-- `npm ls axios zod citty` 无重复版本 / 无缺失。
+- `npm ls axios zod` 无重复版本 / 无缺失；`npm ls citty` 应为空（CLI-only 依赖已内联）。
 
 ### 5.4 TypeScript 消费者
 
@@ -359,7 +363,7 @@ CI 约束：
 4. **不新增 CJS**：需要 CJS 的消费者用动态 `import()`。
 5. **browser 入口**：不得静态 import `node:*`；Node-only 能力通过 `process.getBuiltinModule` 或动态 `import()` 按需取用。
 6. **插件注册**：显式传入 `plugins` 数组；禁止模块加载时自动注册；插件包也必须 `sideEffects: false` 安全。
-7. **新增运行时依赖**：先评估 bundle 体积、Edge / Worker 兼容、tree-shaking；不要把仅 CLI 使用的依赖带进根入口。
+7. **新增运行时依赖**：先评估 bundle 体积、Edge / Worker 兼容、tree-shaking；不要把仅 CLI 使用的依赖带进根入口。仅 CLI 使用的依赖应通过 `deps.alwaysBundle` 内联进 CLI 产物，并放在 `devDependencies`（参见 `citty`）。
 8. **导出面变更**：同步更新 `exports.test.ts`、`docs/README.md`、`technical-spec.md`、`CHANGELOG.md`。
 9. **schema / 静态资源**：如果下游需要本地文件，必须进 `files` + `exports`，不能只依赖 GitHub raw。
 
@@ -373,6 +377,8 @@ CI 约束：
 - [ ] `pnpm run verify:package` 通过（tarball 安装 + Node import + CLI 版本）
 - [ ] `pnpm run test:bundle` 通过（Vite + esbuild + tree-shaking + Worker）
 - [ ] `dist/*.d.mts` 无 axios 类型引用（zod 引用允许）
+- [ ] tarball `dependencies` 只含 SDK 运行时依赖；CLI-only 依赖已内联（`dist/*.mjs` 无对应 bare import）
+- [ ] `dist/index.mjs` 的静态 import 闭包不含 CLI chunk
 - [ ] `dist/*.mjs` 无未处理的 Node-only 静态导入
 - [ ] `engines.node` 与 CI 矩阵一致
 - [ ] 如发布 schema：tarball 内 `schemas/` 与子路径可解析
