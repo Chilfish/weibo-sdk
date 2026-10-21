@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.3.1 (2026-10-21)
+
 ### 新增
 
 - 插件与传输端口：`IWeiboConfig` 新增 `transport` 和 `plugins`。`WeiboTransport` 可以替换默认 axios（`fetchTransport({ fetch })` 适用于 Worker / Edge / Deno / Bun / 测试替身）；插件在构造期组装，支持 `transport` 中间件、`beforeRequest` / `afterResponse` / `beforeRetry` / `onError` 生命周期钩子和只读 `observe`。默认路径不变，`new WeiboSDK({})` 仍然是 axios + 访客身份。公共导出新增 `fetchTransport`、`TransportFailure`、`WeiboPlugin`、`WeiboTransport`、`Credential` / `CredentialResolver` 及相关上下文类型；`credentialId` 只暴露非敏感标识，不做 token 池。
