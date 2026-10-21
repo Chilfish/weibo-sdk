@@ -191,6 +191,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - 整页和上一页完全相同，视为到底，通常是微博忽略了翻页参数。
 - 游标不前进时立即停止，避免死循环。
 - 自动翻页都要有 `maxPages` 上限，测试和演示时可以调小。
+- `searchProfile` 的 `page > 1` 依赖同一会话里最近一次 `page=1` 的检索窗口（`starttime` / `endtime` 被忽略）。多个窗口的翻页序列必须串行、不能交错；并发会让 `page > 1` 返回别的窗口或空页。跨窗口归档只能串行切片（2026-10-21 实测）。
 
 ---
 
@@ -199,6 +200,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] `since_id` 真实类型不固定：可能是 `number`，也可能是带后缀的 `string`（如 `"5348185968740754kp2"`）；schema 用 `z.union([z.string(), z.number()])`，禁止 `Number()` 强转（2026-10-20 复测）
 - [ ] `total` 可能为 `-1`（防爬），也可能为真实总数（2026-10-20 mymblog 实测恢复）；不能无条件当真实总数，也不能无条件当无效值
 - [ ] `searchProfile` 的 `starttime` / `endtime` 是 unix 秒；日期字符串会被静默忽略（`TweetService.searchByDate` 已在边界把 `YYYY-MM-DD` / `YYYYMMDD` 换算为秒；直接发请求时仍需传秒）
+- [ ] `searchProfile` 的 `page > 1` 是会话态，不是无状态查询：上游记住最近一次 `page=1` 的窗口，`page > 1` 时 `starttime` / `endtime` 不生效。串行实验 `A p1 → B p1 → A p2` 返回的是 B 的第 2 页；并发时可能直接返回空页。分页序列必须独占会话（2026-10-21 实测）
 - [ ] `favorites` 的 `data` 是 `{ status, total_number }`，不是数组；顶层另有 `count` / `total_page`
 - [ ] `favorites/all_fav` 的 `page` 从 1 开始，`page=0` 会返回 HTTP 400；非法页码应按第一页处理
 - [ ] `favorites/all_fav` 的 `tag_id` / `tag` 参数会被上游忽略（2026-10-20 实测），标签过滤只能客户端做
