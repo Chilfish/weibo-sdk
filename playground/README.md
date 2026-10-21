@@ -21,6 +21,7 @@ pnpm play
 # 3. 运行 SDK 场景
 pnpm play whoami
 pnpm play tweet-comments QqsYymYOS --max-pages 1
+pnpm play plugins                               # 离线：插件 / 自定义 transport
 
 # 4. 运行 CLI 场景，第一次需要先构建 dist
 pnpm build
@@ -81,6 +82,7 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 | `archive-batch` | [`sdk/archive-batch.ts`](./sdk/archive-batch.ts) | `streamUsersArchive`、每用户 checkpoint、失败隔离 |
 | `telemetry` | [`sdk/telemetry.ts`](./sdk/telemetry.ts) | `createJsonlTelemetry` 和进度摘要（离线） |
 | `diagnose` | [`sdk/diagnose.ts`](./sdk/diagnose.ts) | 能力清单和结构化错误（离线，加 `--probe` 会请求真实接口） |
+| `plugins` | [`sdk/plugins.ts`](./sdk/plugins.ts) | `fetchTransport`、transport 缓存中间件、生命周期 hooks、observer、`onError` 替换（离线） |
 | `raw-enrich` | [`sdk/raw-enrich.ts`](./sdk/raw-enrich.ts) | `tweets.enrich`、长文、`hooks.onRaw` |
 
 所有 tweet id 参数都接受 mblogId、数字 mid 或微博状态 URL，例如 `https://m.weibo.cn/status/5356120103455672`。涉及 `tweet-comments`、`download-media`，以及 CLI 的 `tweet` 和 `media download`。
@@ -94,6 +96,54 @@ pnpm play archive 1111681197 --resume --max-pages 1
 pnpm play archive-batch --uid-file playground/uids.example.txt
 pnpm play download-media QqsYymYOS --include pic,video --write
 ```
+
+## 扩展：自定义 transport 与插件
+
+先跑离线示例，不需要 Cookie：
+
+```bash
+pnpm play plugins
+```
+
+它演示了四件事：
+
+1. 用 `fetchTransport({ fetch })` 替换默认 axios（同一套代码可跑在 Worker / Edge / 测试替身里）。
+2. `transport` 中间件做缓存：第二次请求直接命中，不再调用 fetch。
+3. 生命周期钩子：`beforeRequest` 加请求头、`afterResponse` 看 raw、`beforeRetry` 改延迟（或返回 `{ retry: false }` 停止重试）。
+4. `observe` 收到 `request_start` / `request_retry` / `request_success`，`onError` 把上游 500 替换成业务错误。
+
+最小用法：
+
+```ts
+import { fetchTransport, WeiboSDK } from '@chilfish/weibo-sdk'
+
+const sdk = new WeiboSDK({
+  cookie,
+  transport: fetchTransport({ fetch: myFetch }),
+  plugins: [
+    {
+      name: 'headers',
+      apiVersion: 1,
+      enforce: 'pre',
+      hooks: {
+        beforeRequest(ctx) {
+          ctx.headers['x-client'] = 'my-app'
+        },
+      },
+    },
+    {
+      name: 'metrics',
+      apiVersion: 1,
+      enforce: 'post',
+      observe(event) {
+        metrics.push(event)
+      },
+    },
+  ],
+})
+```
+
+约束：插件只在 `new WeiboSDK()` 时组装（不支持 `sdk.use()` 热插拔）；同名插件或 `apiVersion !== 1` 会抛 `CONFIG_INVALID`；`observe` 是只读观察者，抛错不会影响请求。完整契约见 [插件与传输适配](../docs/engineering/plugins.md)。
 
 ## CLI 场景
 

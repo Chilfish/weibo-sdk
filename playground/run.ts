@@ -14,6 +14,7 @@ import { scenario as favoritesLikes } from './sdk/favorites-likes'
 import { scenario as homeFeed } from './sdk/home-feed'
 import { scenario as mediaGallery } from './sdk/media-gallery'
 import { scenario as notifications } from './sdk/notifications'
+import { scenario as plugins } from './sdk/plugins'
 import { scenario as rawEnrich } from './sdk/raw-enrich'
 import { scenario as socialGraph } from './sdk/social-graph'
 import { scenario as telemetry } from './sdk/telemetry'
@@ -37,6 +38,7 @@ const SDK_SCENARIOS: SdkScenario[] = [
   archiveBatch,
   telemetry,
   diagnose,
+  plugins,
   rawEnrich,
 ]
 

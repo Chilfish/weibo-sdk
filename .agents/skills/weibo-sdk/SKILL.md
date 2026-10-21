@@ -133,6 +133,28 @@ ctx.unknowns
 bun /path/to/script.ts
 ```
 
+#### 自定义 transport 与插件
+
+需要换 HTTP 实现（Worker / Edge / 测试替身）或加缓存、日志、指标时，用构造配置，不要改核心：
+
+```ts
+import { fetchTransport, WeiboSDK } from '@chilfish/weibo-sdk'
+
+const sdk = new WeiboSDK({
+  cookie,
+  transport: fetchTransport({ fetch: myFetch }),
+  plugins: [
+    { name: 'metrics', apiVersion: 1, enforce: 'post', observe: event => metrics.push(event) },
+    { name: 'headers', apiVersion: 1, hooks: { beforeRequest: ctx => { ctx.headers['x-client'] = 'app' } } },
+  ],
+})
+```
+
+- 插件在构造期组装，按 `pre → normal → post` 排序；同名或 `apiVersion !== 1` 直接 `CONFIG_INVALID`。
+- `transport` 中间件可缓存 / mock / 熔断 / 签名；`beforeRequest` / `afterResponse` / `beforeRetry` / `onError` 可改请求、重试延迟或终态错误；`observe` 只读且吞异常。
+- 默认仍是 axios；`new WeiboSDK({})` 零配置行为不变。
+- 完整契约：`docs/engineering/plugins.md`；离线示例：`pnpm play plugins`。
+
 ### 6. 新增或修正端点
 
 1. 先验证真实行为。优先复用已登录的 Chrome（OpenCLI browser bridge，见 `docs/engineering/opencli-browser-bridge.md`）或项目的 `capture/`，在页面内用 `fetch(..., { credentials: 'include' })` 复放接口。
@@ -224,4 +246,4 @@ weibo tweet home --max-id <maxId>            # 往旧翻
 
 - `references/cli.md` — 完整命令树、分组、常用 flag、输出形态。
 - `references/sdk.md` — SDK 服务与方法、模型字段（`ITweet` / `IUser` / `ITweetContext`）、归档产物结构。
-- 仓库文档：`docs/engineering/cli.md`、`docs/engineering/technical-spec.md`、`docs/engineering/endpoint-authoring.md`、`docs/engineering/error-diagnostics.md`、`docs/postmortem/README.md`（写码前必读高频雷区）。
+- 仓库文档：`docs/engineering/cli.md`、`docs/engineering/technical-spec.md`、`docs/engineering/plugins.md`、`docs/engineering/endpoint-authoring.md`、`docs/engineering/error-diagnostics.md`、`docs/postmortem/README.md`（写码前必读高频雷区）。

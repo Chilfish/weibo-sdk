@@ -1,6 +1,6 @@
 # 行动计划：插件化、传输适配与包完整性（PF1–PF6）
 
-> **状态**：PF1–PF5 已完成（2026-10-21）；PF6 文档部分已落地，playground / SKILL 示例待补。验收结果见 [development-log/2026-10-21.md](../development-log/2026-10-21.md)。
+> **状态**：PF1–PF6 已完成（2026-10-21）。验收结果见 [development-log/2026-10-21.md](../development-log/2026-10-21.md)；后续扩展点见 [plugins.md](../engineering/plugins.md) §9 与 backlog EX1–EX9。
 
 **来源**：[research-plugin-architecture-2026-10-21.md](./research-plugin-architecture-2026-10-21.md)、[package-integrity.md](../engineering/package-integrity.md)、[ADR-014 / ADR-015 / ADR-016](./architecture.md)。
 **目标**：在不改变默认路径（`new WeiboSDK({})`）行为的前提下，抽出可替换的传输端口、凭证解析端口与插件管线，并把发布产物核验升级为真实 tarball 门禁。

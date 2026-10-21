@@ -56,8 +56,25 @@
 | PF3 | `CredentialResolver` + `credential_id` | ✅ 已完成 | P1 | 默认单凭证包装 `AuthService` / `GuestTokenService`；不做池；`likes.list` 按目标 uid 读取，不标记 `accountScoped` | research §5.3 / ADR-015 |
 | PF4 | 插件管线 + 兼容层 | ✅ 已完成 | P1 | `plugins` 数组、`pre/normal/post` 排序、transport 中间件、只读 observer；`hooks` / `telemetry` 保留语义；删除 `logging` 死配置 | research §5.4 |
 | PF5 | 包完整性门禁 | ✅ 已完成 | P1 | `publint` + `attw` + `pnpm pack` 临时安装 + Vite/esbuild + tree-shaking + Worker smoke；修 `exports#types` / `sideEffects` / `engines` | ADR-016 / [package-integrity.md](../engineering/package-integrity.md) |
-| PF6 | 零配置 DX 收口 | 🟢 文档已落地 | P2 | 默认值表、README / playground / SKILL 示例；确保 `new WeiboSDK({})` 零配置可用；新增插件能力同步 capabilities | research §6 |
+| PF6 | 零配置 DX 收口 | ✅ 已完成 | P2 | 默认值表、README / playground / SKILL 示例；`pnpm play plugins` 离线演示；`new WeiboSDK({})` 零配置可用 | research §6 |
 | PF7 | 凭证池外置插件 | ⏸️ | P3 | 仅在「多账号 + 多代理 + 高吞吐归档」明确需求时启动；强制 `accountScoped` pin 主账号 | research §3.4 |
+
+### 扩展点候选（2026-10-21）
+
+> 依据：[plugins.md](../engineering/plugins.md) §8 当前能力矩阵 / §9 后续候选。原则：只加可选端口与钩子，不改默认路径；不开放 retry / rate-limit / auth-refresh 顺序。
+
+| # | 任务 | 状态 | 优先级 | 说明 |
+|---|---|---|---|---|
+| EX1 | 端点级插件作用域（`endpoints` / `when`） | 🟢 | P2 | 缓存 / mock / 签名只对部分端点生效，避免用户在每个 hook 里手写 `if` |
+| EX2 | `credentialResolver` 配置化 | 🟢 | P1 | 暴露已有 `CredentialResolver` 端口；默认单凭证；`accountScoped` 必须 pin 主凭证 |
+| EX3 | 内置缓存 / single-flight 插件 | 🟢 | P2 | `cachePlugin({ ttlMs, key })` 参考实现，不默认启用；缓存键含 query 与凭证维度 |
+| EX4 | `ArchiveStore` 端口 | 🟢 | P2 | `loadCheckpoint` / `saveCheckpoint` / `saveItem`，接 SQLite / S3 / IndexedDB |
+| EX5 | `MediaStore` / 下载器端口公开配置 | 🟢 | P2 | 把 `MediaServiceDownloadDeps` 的 `http` / `fileStore` 提升为公开配置 |
+| EX6 | `RateLimiter` 端口 | ⏸️ | P3 | 多实例 / 分布式共享令牌桶；432 全局暂停语义必须保留 |
+| EX7 | `afterValidate` 只读钩子 | ⏸️ | P3 | Zod 成功后的指标 / 采样；**不提供** `transformResponse`，避免掩盖 schema 漂移 |
+| EX8 | 插件 `onInit` | ⏸️ | P3 | 构造期末尾校验 / 预热；仍不提供 `sdk.use()` 热插拔 |
+| EX9 | 请求上下文透传（`traceId` / `tenantId`） | ⏸️ | P3 | 让 `beforeRequest` 拿到调用方标识；telemetry 仍保持扁平 KV |
+| — | 运行时注册新端点 / 绕过 Zod / 写操作插件 | ❌ | — | 与「契约稳定 + 只读」边界冲突，不做 |
 
 ### 访客模式（Guest Mode，可承接）
 
