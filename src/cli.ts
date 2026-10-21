@@ -5,7 +5,7 @@ import type {
 } from './services/public/ArchiveService'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { defineCommand, runMain } from 'citty'
+import { defineCommand } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
 import { listCapabilities } from './capabilities'
 import { commentMine, commentStream } from './cli/commands/comment'
@@ -531,7 +531,7 @@ const capabilities = defineCommand({
   },
 })
 
-const main = defineCommand({
+export const main = defineCommand({
   meta: {
     name: 'weibo-cli',
     version: pkg.version,
@@ -641,7 +641,7 @@ const main = defineCommand({
 })
 
 /** 递归包装所有命令的 run：未捕获错误统一输出 JSON 错误信封。 */
-function withErrorEnvelope<
+export function withErrorEnvelope<
   T extends {
     run?: (...args: any[]) => any
     subCommands?: Record<string, any>
@@ -663,5 +663,3 @@ function withErrorEnvelope<
     withErrorEnvelope(sub)
   return command
 }
-
-runMain(withErrorEnvelope(main))

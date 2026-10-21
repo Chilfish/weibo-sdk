@@ -3,8 +3,8 @@ import { defineConfig } from 'tsdown'
 /**
  * 两个构建目标：
  *
- * 1. `node`：库入口 + CLI（`dist/index.mjs` / `dist/cli.mjs`），保持 Node 平台语义，
- *    依赖（axios/zod）保持 external，由包管理器解析。
+ * 1. `node`：库入口 + CLI 命令树 + bin 入口（`dist/index.mjs` / `dist/cli.mjs` / `dist/cli-bin.mjs`），
+ *    保持 Node 平台语义，依赖（axios/zod）保持 external，由包管理器解析。
  * 2. `browser`：浏览器安全入口（`dist/browser.mjs`），平台切到 `browser`，
  *    并把 axios/zod 内联进产物，使 web-v3（Vite SPA）与 monkey（userscript）
  *    在无打包器/受限环境下也能直接以 ESM 方式引入，不会触发 Node-only 模块解析。
@@ -12,7 +12,7 @@ import { defineConfig } from 'tsdown'
 export default defineConfig([
   {
     name: 'node',
-    entry: ['src/index.ts', 'src/cli.ts'],
+    entry: ['src/index.ts', 'src/cli.ts', 'src/cli-bin.ts'],
     format: 'esm',
     dts: true,
     clean: true,
@@ -20,13 +20,27 @@ export default defineConfig([
     target: 'esnext',
     nodeProtocol: 'strip',
     exports: {
-      // 浏览器入口不是 node 构建的 chunk，这里显式声明其子路径导出。
-      customExports: {
-        './browser': {
+      // bin 由 package.json 手工维护（指向 ./dist/cli-bin.mjs），避免 tsdown 写入绝对路径。
+      bin: false,
+      // 所有公开子路径统一改成 `types` 优先的条件对象；bin 入口不暴露为子路径。
+      customExports(exports) {
+        for (const name of ['.', './cli']) {
+          const target = exports[name]
+          if (typeof target !== 'string')
+            continue
+          exports[name] = {
+            types: target.replace(/\.mjs$/, '.d.mts'),
+            default: target,
+          }
+        }
+        delete exports['./cli-bin']
+        // 浏览器入口不是 node 构建的 chunk，这里显式声明其子路径导出。
+        exports['./browser'] = {
           // 与 "." 完全相同的 API，复用 node 构建产出的类型声明。
           types: './dist/index.d.mts',
           default: './dist/browser.mjs',
-        },
+        }
+        return exports
       },
     },
   },
