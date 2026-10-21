@@ -1,4 +1,7 @@
 import { defineCommand } from 'citty'
+import { paginationNotes } from '~/models/view/format'
+import { renderCommentListMarkdown } from '~/models/view/TweetList'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamRangeArg, streamRangeFromArgs } from '../shared'
 
@@ -7,14 +10,21 @@ export const commentMine = defineCommand({
   args: {
     'max-id': { type: 'string', description: '游标（上一页返回的 cursor；与 --page 等价）' },
     'page': { type: 'string', description: '页码（可选，从 1 开始；未给 --max-id 时生效）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).commentHistory.listMine({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderCommentListMarkdown(value.comments, {
+        title: '历史评论',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 

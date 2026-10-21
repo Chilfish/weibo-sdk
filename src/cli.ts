@@ -64,6 +64,7 @@ import {
   userTimeline,
   userTimelineStream,
 } from './cli/commands/user'
+import { createPrinter, outputFormatArg } from './cli/output'
 import {
   cookieArg,
   createSDK,
@@ -71,6 +72,9 @@ import {
   resolveArchiveIncludeFlags,
 } from './cli/shared'
 import { WeiboSessionExpiredError } from './models/errors/BusinessError'
+import { renderTrendListMarkdown } from './models/view/Collections'
+import { renderGuestSessionMarkdown } from './models/view/Session'
+import { renderUserMarkdown } from './models/view/User'
 import {
   incrementalOptionsFromState,
   parseArchiveState,
@@ -85,12 +89,18 @@ const trends = defineCommand({
       type: 'string',
       description: '榜单类型：hot/topic/entertainment（默认 hot）',
     },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const type = args.type as 'hot' | 'topic' | 'entertainment' | undefined
     const raw = await createSDK(args).trends.hotBand(type)
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: value => renderTrendListMarkdown(value.data.realtime ?? [], {
+        title: `热搜榜（${type ?? 'hot'}）`,
+      }),
+    })
   },
 })
 
@@ -100,25 +110,24 @@ const whoami = defineCommand({
     description:
       '查看当前登录用户信息（无 Cookie 时自动走访客身份，输出访客 token 状态；--guest 强制访客）',
   },
-  args: { ...cookieArg },
+  args: { ...outputFormatArg, ...cookieArg },
   async run({ args }) {
+    const print = createPrinter(args)
     const sdk = createSDK(args)
     // 失败（Cookie 过期 / 访客 token 发放失败）由统一错误信封输出。
     const session = await sdk.getSession()
 
     if (sdk.authMode === 'guest') {
       // 只输出 token 元信息（issuedAt / scope / source），永远不打印 token 明文。
-      console.log(
-        JSON.stringify(
-          {
-            auth: 'guest',
-            login: false,
-            tokenIssuedAt: session.guestTokenIssuedAt ?? null,
-            token: await sdk.getGuestTokenStatus(),
-          },
-          null,
-          2,
-        ),
+      const token = await sdk.getGuestTokenStatus()
+      print(
+        {
+          auth: 'guest',
+          login: false,
+          tokenIssuedAt: session.guestTokenIssuedAt ?? null,
+          token,
+        },
+        { markdown: () => renderGuestSessionMarkdown(token) },
       )
       return
     }
@@ -133,11 +142,14 @@ const whoami = defineCommand({
     // uid 由 SDK 会话解析（`data.verified_url` 的 `uid=`），避免 CLI 重复解析。
     if (session.uid) {
       const user = await sdk.users.getById(session.uid)
-      console.log(JSON.stringify(user, null, 2))
+      print(user, { markdown: renderUserMarkdown })
       return
     }
 
-    console.log(JSON.stringify(details, null, 2))
+    // 极少数会话无法解析 uid：没有 User 模型可渲染，把 raw 详情放进代码块。
+    print(details, {
+      markdown: value => `# 当前登录账号\n\n无法从会话解析 uid，原始详情：\n\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``,
+    })
   },
 })
 

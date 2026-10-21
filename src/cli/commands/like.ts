@@ -1,4 +1,7 @@
 import { defineCommand } from 'citty'
+import { paginationNotes } from '~/models/view/format'
+import { renderTweetListMarkdown } from '~/models/view/TweetList'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg, streamRangeFromArgs } from '../shared'
 
@@ -7,13 +10,20 @@ export const likeList = defineCommand({
   args: {
     id: { type: 'positional', description: '用户 UID', required: true },
     page: { type: 'string', description: '页码（可选，从 1 开始）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).likes.listByUserId(args.id, {
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
+        title: '我赞过的微博',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 

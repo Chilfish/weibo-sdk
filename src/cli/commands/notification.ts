@@ -1,4 +1,10 @@
 import { defineCommand } from 'citty'
+import { paginationNotes } from '~/models/view/format'
+import {
+  renderCommentNotificationListMarkdown,
+  renderLikeNotificationListMarkdown,
+} from '~/models/view/TweetList'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamRangeArg, streamRangeFromArgs } from '../shared'
 
@@ -7,14 +13,21 @@ export const notificationComments = defineCommand({
   args: {
     'max-id': { type: 'string', description: '游标（上一页返回的 cursor；与 --page 等价）' },
     'page': { type: 'string', description: '页码（可选，从 1 开始；未给 --max-id 时生效）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).notifications.listComments({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderCommentNotificationListMarkdown(value.items, {
+        title: '评论通知',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 
@@ -50,14 +63,21 @@ export const notificationLikes = defineCommand({
   args: {
     'max-id': { type: 'string', description: '游标（上一页返回的 cursor；与 --page 等价）' },
     'page': { type: 'string', description: '页码（可选，从 1 开始；未给 --max-id 时生效）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).notifications.listLikes({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderLikeNotificationListMarkdown(value.items, {
+        title: '点赞通知',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 

@@ -3,7 +3,9 @@ import { isAbsolute, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
+import { renderAlbumListMarkdown } from '~/models/view/Collections'
 import { MediaType } from '~/types/domain/ITweet'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg } from '../shared'
 
@@ -212,11 +214,13 @@ export const mediaAlbums = defineCommand({
   meta: { name: 'albums', description: '获取用户相册列表（相册 tab 的 getImageWall?has_album=true）' },
   args: {
     uid: { type: 'positional', description: '用户 UID', required: true },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).media.listAlbums(args.uid)
-    console.log(JSON.stringify(result, null, 2))
+    print(result, { markdown: value => renderAlbumListMarkdown(value.albums) })
   },
 })
 

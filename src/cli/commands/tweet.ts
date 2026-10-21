@@ -1,7 +1,21 @@
 import { isAbsolute, join } from 'node:path'
 import { defineCommand } from 'citty'
+import { normalizeComment, normalizeTweet } from '~/models/data'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
-import { attachMediaDownloads, collectMediaOwners, renderTweetContextMarkdown } from '~/models/view/TweetContext'
+import { formatCount, paginationNotes } from '~/models/view/format'
+import { renderTweetCardMarkdown } from '~/models/view/TweetCard'
+import {
+  attachMediaDownloads,
+  cleanTweetText,
+  collectMediaOwners,
+  renderTweetContextMarkdown,
+} from '~/models/view/TweetContext'
+import {
+  renderCommentListMarkdown,
+  renderLikerListMarkdown,
+  renderTweetListMarkdown,
+} from '~/models/view/TweetList'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg, streamRangeArg, streamRangeFromArgs } from '../shared'
 
@@ -19,6 +33,22 @@ function parseContextFormat(value: unknown): 'markdown' | 'json' {
   })
 }
 
+/** 评论页的说明行：`total_number` 含楼中楼，不能当作剩余条数。 */
+function commentPageNotes(page: {
+  total_number?: number
+  max_id?: number
+  trendsText?: string
+}): string[] {
+  const notes: string[] = []
+  if (page.total_number !== undefined)
+    notes.push(`总数（含楼中楼）：${formatCount(page.total_number)}`)
+  if (page.max_id !== undefined)
+    notes.push(`下一页游标（max_id）：${page.max_id}`)
+  if (page.trendsText)
+    notes.push(page.trendsText)
+  return notes
+}
+
 /** `--comment-flow` 只接受 hot / time。 */
 function parseCommentFlow(value: unknown): 'hot' | 'time' {
   if (value === undefined || value === '' || value === 'hot' || value === '0')
@@ -32,11 +62,16 @@ function parseCommentFlow(value: unknown): 'hot' | 'time' {
 }
 
 export const tweetDetail = defineCommand({
-  meta: { name: 'detail', description: '获取微博详情' },
-  args: { id: { type: 'positional', description: '微博 mblogId', required: true }, ...cookieArg },
+  meta: { name: 'detail', description: '获取微博详情（默认 JSON；--format markdown 输出上下文卡片）' },
+  args: {
+    id: { type: 'positional', description: '微博 mblogId', required: true },
+    ...outputFormatArg,
+    ...cookieArg,
+  },
   async run({ args }) {
+    const print = createPrinter(args)
     const tweet = await createSDK(args).tweets.getByMblogId(args.id)
-    console.log(JSON.stringify(tweet, null, 2))
+    print(tweet, { markdown: value => renderTweetCardMarkdown(value) })
   },
 })
 
@@ -151,14 +186,23 @@ export const tweetEnrich = defineCommand({
     'id': { type: 'positional', description: '微博 mblogId', required: true },
     'longtext': { type: 'boolean', description: '额外补拉长微博全文' },
     'no-longtext': { type: 'boolean', description: 'statuses/show 不请求长微博全文' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).tweets.enrich(args.id, {
       includeLongText: args.longtext,
       isGetLongText: !args['no-longtext'],
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: (value) => {
+        const card = renderTweetCardMarkdown(value.tweet, value.longText
+          ? { longText: value.longText, longTextFetched: true }
+          : {})
+        return `${card}\n\n> 原始响应（raw）只在 \`--format json\` 中输出。`
+      },
+    })
   },
 })
 
@@ -169,15 +213,22 @@ export const tweetComments = defineCommand({
     'max-id': { type: 'string', description: '分页游标（上一页响应顶层的 max_id；可选）' },
     'count': { type: 'string', description: '每页条数（上游忽略，固定 20）' },
     'flow': { type: 'string', description: '排序：0=热度 1=时间（时间序需数字 mid，SDK 自动解析）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const raw = await createSDK(args).tweets.comments(args.id, {
       max_id: parsePositiveInt(args['max-id']),
       count: args.count ? Number(args.count) : undefined,
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: value => renderCommentListMarkdown(value.data.map(normalizeComment), {
+        title: '微博评论',
+        notes: commentPageNotes(value),
+      }),
+    })
   },
 })
 
@@ -247,15 +298,22 @@ export const tweetReplies = defineCommand({
     'max-id': { type: 'string', description: '分页游标（上一页 max_id；可选）' },
     'count': { type: 'string', description: '每页条数' },
     'flow': { type: 'string', description: '排序：0=热度 1=时间' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const raw = await createSDK(args).tweets.replies(args.id, args['root-id'], {
       max_id: parsePositiveInt(args['max-id']),
       count: parsePositiveInt(args.count),
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: value => renderCommentListMarkdown(value.data.map(normalizeComment), {
+        title: '二级评论',
+        notes: commentPageNotes(value),
+      }),
+    })
   },
 })
 
@@ -299,9 +357,11 @@ export const tweetTimeline = defineCommand({
     'fid': { type: 'string', description: '分组过滤参数（可选，通常与 list-id 相同）' },
     'refresh': { type: 'string', description: '刷新标记（可选，实测不影响结果）' },
     'count': { type: 'string', description: '每页条数（上游实测忽略，固定 25）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const page = await createSDK(args).tweets.listFriendTimeline({
       max_id: args['max-id'],
       since_id: args['since-id'],
@@ -310,7 +370,12 @@ export const tweetTimeline = defineCommand({
       refresh: args.refresh ? Number(args.refresh) : undefined,
       count: parsePositiveInt(args.count),
     })
-    console.log(JSON.stringify(page, null, 2))
+    print(page, {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
+        title: '首页关注时间线',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 
@@ -347,10 +412,20 @@ export const tweetHomeStream = defineCommand({
 
 export const tweetLongtext = defineCommand({
   meta: { name: 'longtext', description: '获取长微博全文' },
-  args: { id: { type: 'positional', description: '微博 mblogId', required: true }, ...cookieArg },
+  args: {
+    id: { type: 'positional', description: '微博 mblogId', required: true },
+    ...outputFormatArg,
+    ...cookieArg,
+  },
   async run({ args }) {
+    const print = createPrinter(args)
     const raw = await createSDK(args).tweets.longText(args.id)
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: (value) => {
+        const text = value.data.longTextContent_raw || value.data.longTextContent || ''
+        return cleanTweetText(text) || '（长文为空）'
+      },
+    })
   },
 })
 
@@ -359,13 +434,23 @@ export const tweetReposts = defineCommand({
   args: {
     id: { type: 'positional', description: '微博 mblogId', required: true },
     page: { type: 'string', description: '分页（可选）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const raw = await createSDK(args).tweets.getReposts(args.id, {
       page: args.page ? Number(args.page) : undefined,
     })
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: value => renderTweetListMarkdown(value.data.map(item => normalizeTweet(item)), {
+        title: '转发列表',
+        notes: [
+          ...(value.total_number !== undefined ? [`总数：${formatCount(value.total_number)}`] : []),
+          ...(value.max_page !== undefined ? [`总页数：${value.max_page}`] : []),
+        ],
+      }),
+    })
   },
 })
 
@@ -374,13 +459,20 @@ export const tweetLikers = defineCommand({
   args: {
     id: { type: 'positional', description: '微博数字 mid（不是字母 mblogid）', required: true },
     page: { type: 'string', description: '页码（可选，从 1 开始）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).tweets.likers(args.id, {
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderLikerListMarkdown(value.likers, {
+        title: '点赞者',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 
@@ -424,9 +516,11 @@ export const tweetSearchProfile = defineCommand({
     haspic: { type: 'string', description: '是否含图：0/1（可选）' },
     hasvideo: { type: 'string', description: '是否含视频：0/1（可选）' },
     hasmusic: { type: 'string', description: '是否含音乐：0/1（可选）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const raw = await createSDK(args).tweets.searchByDate(args.id, {
       page: args.page ? Number(args.page) : undefined,
       q: args.q,
@@ -439,6 +533,11 @@ export const tweetSearchProfile = defineCommand({
       hasvideo: args.hasvideo ? Number(args.hasvideo) : undefined,
       hasmusic: args.hasmusic ? Number(args.hasmusic) : undefined,
     })
-    console.log(JSON.stringify(raw, null, 2))
+    print(raw, {
+      markdown: value => renderTweetListMarkdown(value.data.list.map(item => normalizeTweet(item)), {
+        title: '微博搜索结果',
+        notes: [`总计：${value.data.total}`],
+      }),
+    })
   },
 })

@@ -1,16 +1,26 @@
 import { defineCommand } from 'citty'
+import {
+  renderMblogGroupListMarkdown,
+  renderUserGroupListMarkdown,
+} from '~/models/view/Collections'
+import { paginationNotes } from '~/models/view/format'
+import { renderTweetListMarkdown } from '~/models/view/TweetList'
+import { renderUserMarkdown } from '~/models/view/User'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamRangeArg, streamRangeFromArgs } from '../shared'
 
 export const userInfo = defineCommand({
-  meta: { name: 'info', description: '获取用户信息' },
+  meta: { name: 'info', description: '获取用户信息（默认 JSON；--format markdown 输出可读卡片）' },
   args: {
     id: { type: 'positional', description: '用户 UID', required: true },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const user = await createSDK(args).users.getById(args.id)
-    console.log(JSON.stringify(user, null, 2))
+    print(user, { markdown: renderUserMarkdown })
   },
 })
 
@@ -20,14 +30,21 @@ export const userTimeline = defineCommand({
     id: { type: 'positional', description: '用户 UID', required: true },
     page: { type: 'string', description: '页码（从 1 开始）', alias: 'p' },
     count: { type: 'string', description: '每页条数' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const page = await createSDK(args).tweets.listByUserId(args.id, {
       page: args.page ? Number(args.page) : undefined,
       count: args.count ? Number(args.count) : undefined,
     })
-    console.log(JSON.stringify(page, null, 2))
+    print(page, {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
+        title: '用户时间线',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 
@@ -61,14 +78,21 @@ export const userMentions = defineCommand({
   args: {
     'max-id': { type: 'string', description: '游标（上一页返回的 cursor；与 --page 等价）' },
     'page': { type: 'string', description: '页码（可选，从 1 开始；未给 --max-id 时生效）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).users.listMentions({
       maxId: parsePositiveInt(args['max-id']),
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
+        title: '@我的微博',
+        notes: paginationNotes(value),
+      }),
+    })
   },
 })
 
@@ -101,18 +125,20 @@ export const userMentionsStream = defineCommand({
 
 export const userGroups = defineCommand({
   meta: { name: 'groups', description: '获取关注分组（feed/allGroups）' },
-  args: { ...cookieArg },
+  args: { ...outputFormatArg, ...cookieArg },
   async run({ args }) {
+    const print = createPrinter(args)
     const groups = await createSDK(args).users.groups()
-    console.log(JSON.stringify(groups, null, 2))
+    print(groups, { markdown: value => renderUserGroupListMarkdown(value) })
   },
 })
 
 export const userMblogGroups = defineCommand({
   meta: { name: 'mblog-groups', description: '获取微博分组（mblog/querygroup）' },
-  args: { ...cookieArg },
+  args: { ...outputFormatArg, ...cookieArg },
   async run({ args }) {
+    const print = createPrinter(args)
     const groups = await createSDK(args).users.mblogGroups()
-    console.log(JSON.stringify(groups, null, 2))
+    print(groups, { markdown: value => renderMblogGroupListMarkdown(value) })
   },
 })

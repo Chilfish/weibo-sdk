@@ -1,13 +1,19 @@
 import { defineCommand } from 'citty'
+import {
+  renderSuperTopicCategoryListMarkdown,
+  renderSuperTopicListMarkdown,
+} from '~/models/view/Collections'
+import { createPrinter, outputFormatArg } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg, streamRangeFromArgs } from '../shared'
 
 export const topicCates = defineCommand({
   meta: { name: 'cates', description: '获取超话分类（sort_id 来源）' },
-  args: { ...cookieArg },
+  args: { ...outputFormatArg, ...cookieArg },
   async run({ args }) {
+    const print = createPrinter(args)
     const categories = await createSDK(args).topics.cates()
-    console.log(JSON.stringify(categories, null, 2))
+    print(categories, { markdown: value => renderSuperTopicCategoryListMarkdown(value) })
   },
 })
 
@@ -17,15 +23,26 @@ export const topicList = defineCommand({
     'sort-id': { type: 'string', description: '分类 id（来自 topic cates）' },
     'keyword': { type: 'string', description: '关键词（非空时按关键词搜索）' },
     'page': { type: 'string', description: '页码（可选，从 1 开始）' },
+    ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
+    const print = createPrinter(args)
     const result = await createSDK(args).topics.list({
       sortId: parsePositiveInt(args['sort-id']),
       keyword: args.keyword,
       page: parsePositiveInt(args.page),
     })
-    console.log(JSON.stringify(result, null, 2))
+    print(result, {
+      markdown: value => renderSuperTopicListMarkdown(value.topics, {
+        title: args.keyword ? `超话搜索：${args.keyword}` : '超话列表',
+        notes: [
+          `下一页页码：${value.page}`,
+          `还有更多：${value.hasMore ? '是' : '否'}`,
+          ...(value.totalPages !== undefined ? [`总页数：${value.totalPages}`] : []),
+        ],
+      }),
+    })
   },
 })
 
