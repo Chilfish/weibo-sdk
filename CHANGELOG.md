@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### 新增
+
+- CLI 查询命令新增 `--format`（默认 `json`，可选 `markdown` / `md`），覆盖 `user`、`tweet`、`follow`、`favorite list`、`like list`、`comment mine`、`notification`、`media albums`、`topic`、`trends`、`whoami`，直接输出可读的用户卡片、微博列表、评论、关注列表、热搜等。默认 JSON 与 NDJSON 行为不变；流式命令、`archive` 和 `media download` 不提供该参数。
+
 ### 变更
 
 - **BREAKING CHANGE**：`ITweet` / `ITweetComment` 删除 `textHtml`，`TWEET_CONTRACT_VERSION` 升为 `2`；归档记录的 `longText` / `quotedLongText` 一并删除。`statuses/show` 默认带 `isGetLongText=true`，长微博全文已经在 `tweet.text`，无需单独补拉。

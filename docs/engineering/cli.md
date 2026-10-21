@@ -1,6 +1,6 @@
 # Weibo CLI（`weibo-cli`）
 
-`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令输出 JSON，流式命令输出 NDJSON，方便直接交给脚本、`jq` 或 Agent 处理。
+`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令默认输出 JSON，流式命令输出 NDJSON，方便直接交给脚本、`jq` 或 Agent 处理；需要给人或 Agent 直接阅读时，可用 `--format markdown` 换成可读卡片。
 
 ## 安装
 
@@ -90,6 +90,43 @@ weibo-cli user timeline 1111681197 --guest
 
 访客 token 由 `visitor.passport.weibo.cn` 发放，按进程缓存；被上游拒绝时 SDK 会自动刷新一次再重试。遇到 432 / 429 只会退避重试，不会刷新 token。
 
+## 输出格式（`--format`）
+
+查询命令默认输出 2 空格缩进的 JSON，保持脚本与 `jq` 兼容；需要直接阅读时加 `--format markdown`（`md` 同义）：
+
+```bash
+weibo-cli user info 1111681197 --format markdown
+weibo-cli user info 1111681197 -f json          # 显式指定默认值
+```
+
+| 取值 | 输出 |
+|---|---|
+| `json`（默认） | `JSON.stringify(data, null, 2)` |
+| `markdown` / `md` | 该命令的 Markdown 卡片（确定性投影，不含总结） |
+
+- 未知取值报 `CONFIG_INVALID`（`context.field = 'format'`），不会静默回退到 JSON；格式在发请求前校验。
+- 列表类 Markdown 只截取正文摘要（默认 200 字符），完整字段仍需 `--format json`；分页游标、总数、`partial` 采样会写在标题下。
+- 标注「原始响应」的命令（如 `tweet enrich`）在 Markdown 视图里会显式说明 raw 只在 JSON 中输出。
+
+已接入的查询命令：
+
+| 分组 | 命令 |
+|---|---|
+| `user` | `info` / `timeline` / `mentions` / `groups` / `mblog-groups` |
+| `tweet` | `detail` / `enrich` / `comments` / `replies` / `home` / `reposts` / `likers` / `longtext` / `search-profile` |
+| `follow` | `list` / `fans` / `my` |
+| `favorite` | `list` |
+| `like` | `list` |
+| `comment` | `mine` |
+| `notification` | `comments` / `likes` |
+| `media` | `albums` |
+| `topic` | `cates` / `list` |
+| 其他 | `trends` / `whoami`（含 `--guest`） |
+
+未接入：`*-stream` / `archive` / `media download` 的 NDJSON 是逐行协议；`favorite tags` 的标签元素结构尚未抓包；`search users` / `search tweets` 上游不可用；`capabilities` / `schema diff` 是诊断输出。`tweet context` 保留自己的 `--format`（默认 `markdown`）。
+
+渲染器与数据模型同层（`src/models/view/`），是纯函数：新增格式 = 一个渲染函数 + 在命令里注册。
+
 ## 命令参考
 
 > 所有 `<mblogId>` / `<mid>` 参数都接受 mblogId、数字 mid 或微博状态 URL
@@ -100,7 +137,8 @@ weibo-cli user timeline 1111681197 --guest
 
 ```bash
 # 获取用户信息（info + details 归一化为 User 模型）
-weibo-cli user info <uid>
+weibo-cli user info <uid> [--format json|markdown]
+weibo-cli user info 1111681197 --format markdown   # 可读用户卡片
 
 # 获取用户微博时间线（归一化为 TweetPageResult）
 weibo-cli user timeline <uid> [--page/-p <n>] [--count <n>]
@@ -391,9 +429,11 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 
 ## 输出形态速查
 
+下表是默认 JSON 形态；上方「输出格式」章节列出的查询命令都可以再加 `--format markdown`。
+
 | 子命令 | 底层 Service 方法 | 输出 |
 |---|---|---|
-| `user info` | `users.getById()` | `User` 领域模型 |
+| `user info` | `users.getById()` | `User` 领域模型；`--format markdown` 输出可读用户卡片 |
 | `user timeline` | `tweets.listByUserId()` | `TweetPageResult`（`page`/`hasMore`/`tweets[]`）；guest 模式为 m 站第一页（`partial: true`、`hasMore: false`、无 `page`） |
 | `user mentions` | `users.listMentions()` | `UserMentionsPageResult`（`cursor`/`hasMore`/`total?`/`tweets[]`） |
 | `user mentions-stream` | `users.streamMentions()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', count }` |

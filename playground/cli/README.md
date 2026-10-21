@@ -2,7 +2,7 @@
 
 这里收集了日常使用中最常见的命令，可以直接复制运行。`playground` 的 `cli:*` 场景会自动把 `.env` 作为 `--env-file` 注入。
 
-CLI 默认从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。普通命令输出 JSON，`*-stream`、`archive` 和 `media download` 输出 NDJSON。
+CLI 默认从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。查询命令默认输出 JSON，多数命令可加 `--format markdown` 换成可读卡片 / 列表；`*-stream`、`archive` 和 `media download` 输出 NDJSON。
 
 没有 Cookie 时可以用 `--guest` 走访客身份，它不会读 `.env`。访客只能读公开数据：用户时间线、点赞、关注、粉丝只有第一页（`--page 2` 报 `CONFIG_INVALID`），收藏、通知、@ 我、历史评论、首页关注时间线和归档都不可用。
 
@@ -83,7 +83,7 @@ weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjs
 
 | 命令 | 输出 |
 |---|---|
-| 普通查询 | JSON（`JSON.stringify(data, null, 2)`） |
+| 普通查询 | JSON（`JSON.stringify(data, null, 2)`）；`--format markdown` 为可读卡片 / 列表 |
 | `*-stream` | NDJSON：`progress` / `item` / `done` |
 | `archive` | NDJSON：`progress` / `item` / `item-error` / `done` / `user-*` |
 | `media download` | NDJSON：`progress` / `item` / `item-error` / `done` |

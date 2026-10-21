@@ -77,6 +77,7 @@ weibo tweet home --since-id <数字id>                     # 首页增量，需�
 
 `<mblogId>` 参数接受 mblogId、数字 mid 或微博状态 URL（`https://weibo.com/<uid>/<mblogid>`、`https://m.weibo.cn/status/<mid>`），SDK 统一归一化。
 普通命令输出格式化 JSON，`-stream` 命令输出 NDJSON（每行 `progress` / `item` / `done`），都能直接接 `jq`。
+需要直接读给人看时，多数查询命令支持 `--format markdown`（`user info` / `user timeline` / `tweet detail` / `tweet comments` / `follow list|fans|my` / `like list` / `favorite list` / `notification` / `topic` / `trends` / `whoami` 等；默认仍是 JSON，管道行为不变）。流式命令仍输出 NDJSON。
 
 ### 3. 理解一条微博（给 Agent 用）
 

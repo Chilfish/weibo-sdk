@@ -21,6 +21,10 @@
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
 | `unit/models/User.test.ts` | `User` 构造器 | avatar fallback 链（avatar_hd > avatar_large > profile_image_url）、IP属地前缀裁剪、stats映射、扩展属性（company/creditLevel/externalLinks/school） |
+| `unit/models/UserView.test.ts` | `renderUserMarkdown` / `renderGuestSessionMarkdown` | 真实 fixture 用户卡片（认证/简介/所在地/统计/会员/标签/信用/注册时间/主页）、可选字段缺省时整行省略、认证说明与多行简介、链接文本转义与含括号 URL；访客 token 元信息（不含明文）与 token 缺失 |
+| `unit/models/TweetList.test.ts` | `renderTweetListMarkdown` / 评论 / 点赞者 / 通知 | 标题与分页说明、计数字段、永久链接、转发链取当前作者正文、无正文时回退原微博并标注归属、摘要截断、空列表占位、`partial` 提示；真实 fixture 的评论（含图片评论）、点赞者、评论/点赞通知 |
+| `unit/models/UserList.test.ts` | `renderFollowingUserListMarkdown` | 真实关注列表 fixture（认证/粉丝/所在地/主页）、互相关注 / 已关注 / 关注了你 / 无关系标签、空列表占位 |
+| `unit/models/Collections.test.ts` | 分组 / 超话 / 相册 / 热搜渲染器 | 真实 fixture 的关注分组、微博分组、超话分类与列表、相册列表、热搜榜（热度千分位与标签） |
 | `unit/models/Tweet.test.ts` | `Tweet` 构造器（mymblog 来源） | 核心字段映射、media 提取（pic_infos）、regionName、visible、stats、geo 坐标兼容（lon/lat 顺序）、retweeted_status 递归构造 |
 | `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
 | `unit/models/Media.test.ts` | `normalizeImageWallItem` / `normalizeWaterfallVideo` | 图片墙 pic/livephoto/gif/unknown（URL 由 pid 构造）、视频瀑布 `page_info.media_info` 提取、`normalizeTweet` 的 page_info 视频映射 |
@@ -81,6 +85,7 @@
 | `unit/cli/archiveFlags.test.ts` | `resolveArchiveIncludeFlags` | 单账号默认全开；批量模式默认关闭收藏（账号级数据）；citty `--no-reposts/--no-favorites/--no-date-slices` 映射为 `false`；单项关闭不影响其他阶段 |
 | `unit/cli/parsePositiveInt.test.ts` | `parsePositiveInt` | 正整数字符串解析、小数取整；`0` / 负数 / 非数字 / 空串返回 undefined |
 | `unit/cli/guestArgs.test.ts` | `createSDK` 的 `--guest` | `--guest` 解析为 guest 且完全不读 `.env`（spy 断言零调用）、`--guest` + `--cookie` 仍为 guest、有 Cookie 且无 `--guest` 为 cookie、无 Cookie 时 auto 回落 guest |
+| `unit/cli/outputFormat.test.ts` | `parseOutputFormat` / `renderOutput` / `createPrinter` | 缺省与空串为 `json`、`markdown` / `md` 别名、大小写与空白、未知值抛 `CONFIG_INVALID`（发请求前）、JSON 两空格缩进、Markdown 委托给命令渲染器 |
 | `unit/cli/tweetCommentsArgs.test.ts` | `tweet comments` 参数 | `--max-id` 已声明并作为 `max_id` 透传（缺省 undefined） |
 | `unit/cli/streamRangeArgs.test.ts` | 流式范围 CLI 参数 | `--max-items/--since/--until` 解析；时间序命令声明日期边界、非时间序命令只声明条数上限 |
 | `unit/utils/streamRange.test.ts` | `createStreamRange` | `maxItems` 上限、`since` 早停、`until` 跳过、日期窗口、不可解析时间保留、非法日期 `CONFIG_INVALID`、缺 `getTime` 报错 |

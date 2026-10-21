@@ -149,7 +149,7 @@ WeiboSDK（门面）
 
 1. 新增公开 Service 方法时，必须在 CLI 中添加对应子命令。
 2. Cookie 只从 `.env` 文件读取（默认 `<pwd>/.env`，可用 `--env-file` 指定）；**不读取环境变量**（可能早已过期）；`--cookie`/`-c` 为显式覆盖。取值可以是 Cookie header 串，也可以是 Cookie 文件路径（Netscape / header 串内容），统一由 `src/utils/cookieInput.ts` 解析。没有 Cookie 时默认使用访客身份；`--guest` 显式指定访客且不读 `.env`。
-3. 所有命令输出必须为 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理。
+3. 查询命令默认输出 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理；`--format markdown` 是可选的阅读视图，机器可读的默认值不能变。流式命令仍是 NDJSON。
 4. 错误必须输出到 stderr 并以非零退出码退出。
 
 基于 [citty](https://github.com/unjs/citty)。详细命令参考见 `docs/engineering/cli.md`。

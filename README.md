@@ -13,7 +13,7 @@
 - 读取关注与粉丝、收藏、点赞、历史评论、图片墙、相册、视频瀑布、超话和热搜
 - 流式分页，支持 `maxPages`、`maxItems`；时间倒序的接口还支持 `since` / `until` 日期边界
 - 归档流带 checkpoint，可以在中断后继续；支持增量、多账号、仅原创和媒体
-- SDK 与 CLI 共用同一套能力；CLI 默认输出 JSON 或 NDJSON，方便 `jq` 和脚本消费
+- SDK 与 CLI 共用同一套能力；CLI 默认输出 JSON 或 NDJSON，方便 `jq` 和脚本消费，查询命令还可以用 `--format markdown` 换成可读视图
 - 结构化错误、令牌桶限流和自动重试；默认测试离线运行，不依赖微博网络
 
 ## 安装
@@ -207,8 +207,11 @@ weibo-cli media download QqsYymYOS --out ./media --include pic,video
 
 ```bash
 weibo-cli whoami
-weibo-cli user timeline <uid>
-weibo-cli tweet detail <mblogId>
+weibo-cli user info <uid> --format markdown     # 用户资料卡片（默认 JSON）
+weibo-cli user timeline <uid> --format markdown # 时间线列表
+weibo-cli tweet detail <mblogId> --format markdown
+weibo-cli tweet comments <mblogId> --format markdown
+weibo-cli follow fans <uid> --format markdown
 weibo-cli tweet comments-stream <mblogId> --max-pages 3
 weibo-cli tweet home --max-id <上一页 maxId>
 weibo-cli tweet home --since-id <微博数字 id>
@@ -217,7 +220,7 @@ weibo-cli media images <uid> --max-pages 1
 weibo-cli notification comments-stream --max-pages 1
 ```
 
-普通命令输出 JSON；`*-stream`、`archive` 和 `media download` 输出 NDJSON，每行一个事件：
+查询命令默认输出 JSON，需要用眼睛读时加 `--format markdown`（用户、微博、评论、关注、点赞、收藏、通知、超话、热搜等）；`*-stream`、`archive` 和 `media download` 输出 NDJSON，每行一个事件：
 
 ```json
 {"event":"progress","page":1,"processed":25}

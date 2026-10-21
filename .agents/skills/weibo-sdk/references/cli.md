@@ -10,7 +10,7 @@
 | 通用 flag | `-c/--cookie <串或文件>`、`--env-file <path>`、`--guest`（三者互斥语义：`--guest` 忽略前两者） |
 | 默认 Cookie | `<pwd>/.env` 的 `WEIBO_COOKIE`；不读 shell 环境变量 |
 | `<ID>` 格式 | mblogId（`QqsYymYOS`）、数字 mid、或状态 URL；SDK 统一归一化，`tweet likers` 也会自动解析 |
-| 普通命令输出 | 格式化 JSON 到 stdout |
+| 普通命令输出 | 默认格式化 JSON 到 stdout；多数查询命令可用 `--format markdown`（`md` 同义）换成可读卡片 / 列表 |
 | `-stream` 命令输出 | NDJSON，每行一个 `progress` / `item` / `done` 事件 |
 | 错误输出 | 单行 JSON 到 stderr，字段 `code` / `level` / `retryable` / `message` / `endpoint` / `context` |
 | 退出码 | 0 成功；非 0 表示失败（脚本层环境错误是 64 / 78） |
@@ -114,6 +114,12 @@
 # JSON，接 jq
 weibo user info 1111681197 --guest | jq '.name, .stats'
 weibo tweet context Rnzctqb28 --guest
+
+# Markdown，直接读（user / tweet / follow / like / favorite / notification / topic / trends / whoami）
+weibo user info 1111681197 --guest --format markdown
+weibo user timeline 1111681197 --guest --format markdown
+weibo tweet comments Rnzctqb28 --guest --format markdown
+weibo follow fans 1111681197 --guest --format markdown
 
 # NDJSON，逐条处理
 weibo media images 1111681197 --guest --max-items 20 | jq -c 'select(.event=="item") | .asset.url'
