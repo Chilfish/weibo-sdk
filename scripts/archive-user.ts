@@ -603,7 +603,7 @@ async function run(): Promise<void> {
   if (journal) {
     assertResumeConfig(journal.meta.config, uid, provided, values)
     config = journal.meta.config
-    console.error(
+    console.log(
       `[archive] resume journal=${journalPath} tweets=${journal.tweets.length}`
       + `${journal.lastCheckpoint === undefined ? '' : ` phase=${journal.lastCheckpoint.phase}`}`,
     )
@@ -668,7 +668,7 @@ async function run(): Promise<void> {
           catch (error) {
             if (rawWriteError === undefined) {
               rawWriteError = error instanceof Error ? error.message : String(error)
-              console.error(`[archive] raw write failed: ${rawWriteError}`)
+              console.log(`[archive] raw write failed: ${rawWriteError}`)
             }
           }
         },
@@ -703,10 +703,10 @@ async function run(): Promise<void> {
     ...(rawHooks === undefined ? {} : { hooks: rawHooks }),
   })
 
-  console.error(`[archive] uid=${uid} since=${new Date(sinceUnix * 1000).toISOString()} until=${new Date(untilUnix * 1000).toISOString()}`)
-  console.error(`[archive] out=${outPath}`)
+  console.log(`[archive] uid=${uid} since=${new Date(sinceUnix * 1000).toISOString()} until=${new Date(untilUnix * 1000).toISOString()}`)
+  console.log(`[archive] out=${outPath}`)
   if (rawOutPath !== undefined)
-    console.error(`[archive] raw=${rawOutPath}`)
+    console.log(`[archive] raw=${rawOutPath}`)
 
   let user: IUser
   if (journal) {
@@ -715,7 +715,7 @@ async function run(): Promise<void> {
     }
     catch (error) {
       user = journal.meta.user
-      console.error(`[archive] user refresh failed, using journal meta: ${error instanceof Error ? error.message : String(error)}`)
+      console.log(`[archive] user refresh failed, using journal meta: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   else {
@@ -728,9 +728,9 @@ async function run(): Promise<void> {
       user,
     }
     writeFileAtomic(journalPath, `${JSON.stringify(meta)}\n`)
-    console.error(`[archive] journal=${journalPath}`)
+    console.log(`[archive] journal=${journalPath}`)
   }
-  console.error(`[archive] user=${user.name} (${user.id}) statuses=${user.stats.statuses}`)
+  console.log(`[archive] user=${user.name} (${user.id}) statuses=${user.stats.statuses}`)
 
   const journalTweets: JournalTweetEntry[] = journal?.tweets.slice() ?? []
   const bestBefore = dedupeJournalTweets(journalTweets)
@@ -764,7 +764,7 @@ async function run(): Promise<void> {
       includeDateSlices: true,
       checkpoint: lastCheckpoint?.uid === uid ? lastCheckpoint : undefined,
       onProgress: (progress) => {
-        console.error(
+        console.log(
           `[archive] phase=${progress.phase} source=${progress.source ?? '-'} page=${progress.page ?? '-'} processed=${progress.processed}`,
         )
       },
@@ -777,7 +777,7 @@ async function run(): Promise<void> {
         })
         enumIssues.push(issue)
         appendJournal(journalPath, { type: 'error', issue })
-        console.error(
+        console.log(
           `[archive] error stage=${context.stage} source=${context.source} mblogId=${context.mblogId ?? '-'}: ${error instanceof Error ? error.message : String(error)}`,
         )
         // 枚举阶段失败默认中止，避免把缺页当成完整归档。
@@ -820,7 +820,7 @@ async function run(): Promise<void> {
       processed += 1
 
       const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
-      console.error(
+      console.log(
         `[${processed}] ${tweet.mblogId} comments=${tweet.comments.length} replies=${replyCount}`
         + `${issues.length === 0 ? '' : ` errors=${issues.length}`}`,
       )
@@ -846,7 +846,7 @@ async function run(): Promise<void> {
     journalTweets.push(line)
     appendJournal(journalPath, line)
     const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
-    console.error(
+    console.log(
       `[retry] ${mblogId} comments=${tweet.comments.length} replies=${replyCount}`
       + `${issues.length === 0 ? ' OK' : ` errors=${issues.length}`}`,
     )
@@ -895,23 +895,23 @@ async function run(): Promise<void> {
 
   writeFileAtomic(outPath, `${JSON.stringify(output, null, 2)}\n`)
 
-  console.error(
+  console.log(
     `[archive] done tweets=${output.stats.tweets} comments=${output.stats.comments} replies=${output.stats.replies} errors=${output.stats.errors}`,
   )
-  console.error(`[archive] wrote ${outPath}`)
+  console.log(`[archive] wrote ${outPath}`)
   if (rawOutPath !== undefined) {
     if (rawWriteError !== undefined)
-      console.error(`[archive] raw incomplete: ${rawOutPath} lines=${rawLineCount}: ${rawWriteError}`)
+      console.log(`[archive] raw incomplete: ${rawOutPath} lines=${rawLineCount}: ${rawWriteError}`)
     else
-      console.error(`[archive] raw=${rawOutPath} lines=${rawLineCount}`)
+      console.log(`[archive] raw=${rawOutPath} lines=${rawLineCount}`)
   }
 
   if (complete) {
     rmSync(journalPath, { force: true })
-    console.error(`[archive] journal removed`)
+    console.log(`[archive] journal removed`)
   }
   else {
-    console.error(`[archive] journal kept for resume: ${journalPath}`)
+    console.log(`[archive] journal kept for resume: ${journalPath}`)
   }
 
   if (fatalError !== undefined)
@@ -921,6 +921,6 @@ async function run(): Promise<void> {
 }
 
 run().catch((error) => {
-  console.error(`❌ ${error instanceof Error ? error.message : String(error)}`)
+  console.log(`❌ ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1
 })
