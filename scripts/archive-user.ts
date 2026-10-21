@@ -1,12 +1,15 @@
 // 存档指定用户、指定时间范围内的微博，输出单个 JSON 文件。
 //
-// 枚举：sdk.archive.streamArchive({ timelineSource: 'search', since, until }) 按日期切片遍历；
-// 补全：每条微博重新走 statuses/show（含长文），再按需拉取全部一级评论 + 楼中楼。
+// 枚举：把 [since, until] 按 --slice-days 拆成互不重叠的日期切片，每个切片独立调用
+// sdk.archive.streamArchive({ timelineSource: 'search', since, until })，按 --slice-concurrency 并发。
+// 补全：每条微博重新走 statuses/show（含长文），再按需拉取全部一级评论 + 楼中楼；
+// 多条微博按 --concurrency 全局窗口并发补全。
 //
-// 断点续传：每完成一条微博就追加一行 JSONL（<out>.journal.jsonl），第一行是 meta
-// （uid / 时间范围 / 选项 / 用户信息），后续行带 record、issues 和 archive checkpoint。
-// 进程中断后重跑同一命令会自动从 journal 续跑；参数不一致会拒绝，--fresh 丢弃重来。
-// 最后按 mblogId 去重（同 id 优先保留 issues 更少、更新的那一条），整理成单个 JSON。
+// 断点续传：每个切片独立写 <out>.slices/<sliceKey>.journal.jsonl（文件名唯一），
+// <out>.slices/meta.json 记录 uid / 时间范围 / 切片计划 / 选项 / 用户信息；
+// 每条 tweet / checkpoint 记录带 slice key，slice-done 表示该切片枚举完成。
+// 进程中断后重跑同一命令会按切片续跑；参数不一致会拒绝，--fresh 丢弃重来。
+// 最后把所有切片 journal 按 mblogId 去重（同 id 优先保留 issues 更少、更新的那一条），整理成单个 JSON。
 // 归档 JSON 不含 raw（直接给下游用）；需要原始响应时用 --raw / --raw-out 单独写 JSONL。
 //
 // 用法：
@@ -24,7 +27,7 @@ import type { ITweet, ITweetComment } from '../src/types/domain/ITweet'
 import type { IUser } from '../src/types/domain/IUser'
 import type { WeiboSDKRawMeta } from '../src/types/hooks'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { parseArgs } from 'node:util'
 import { WeiboSDKError } from '../src/models/errors/WeiboSDKError'
 import { ARCHIVE_SCHEMA_ID, ARCHIVE_SCHEMA_URL } from '../src/types/archive/IArchiveFile'
@@ -34,7 +37,17 @@ import { resolveTimeInput } from '../src/utils/timeInput'
 import { WeiboSDK } from '../src/WeiboSDK'
 
 const WEIBO_EPOCH = '2009-08-14'
-const JOURNAL_SCHEMA = 'weibo-user-archive-journal/v1'
+const JOURNAL_SCHEMA = 'weibo-user-archive-journal/v2'
+const DEFAULT_CONCURRENCY = 6
+const MAX_CONCURRENCY = 16
+const DEFAULT_SLICE_DAYS = 30
+const DEFAULT_SLICE_CONCURRENCY = 6
+const MAX_SLICE_CONCURRENCY = 8
+const DEFAULT_DELAY_MS = 1000
+const DEFAULT_BURST = 3
+const MAX_BURST = 32
+const DAY_SECONDS = 24 * 60 * 60
+const FATAL_CODES = new Set(['AUTH_SESSION_EXPIRED', 'CONFIG_INVALID', 'RATE_LIMITED'])
 
 interface RunOptions {
   includeComments: boolean
@@ -55,7 +68,17 @@ interface RunConfig {
     since: { input: string, unix: number }
     until: { input: string, unix: number }
   }
+  /** 每 n 天拆一个独立枚举子任务；0 = 不拆分。 */
+  sliceDays: number
   options: RunOptions
+}
+
+interface SliceDescriptor {
+  index: number
+  /** journal 中标识切片；由序号与区间组成，同一配置下稳定。 */
+  key: string
+  since: number
+  until: number
 }
 
 interface JournalMeta {
@@ -63,11 +86,13 @@ interface JournalMeta {
   schema: typeof JOURNAL_SCHEMA
   createdAt: string
   config: RunConfig
+  slices: SliceDescriptor[]
   user: IUser
 }
 
 interface JournalTweetEntry {
   type: 'tweet'
+  slice: string
   mblogId: string
   record: ArchivedTweet
   issues: ArchiveIssue[]
@@ -76,23 +101,25 @@ interface JournalTweetEntry {
 
 interface JournalCheckpointEntry {
   type: 'checkpoint'
+  slice: string
   checkpoint: ArchiveCheckpoint
+}
+
+interface JournalSliceDoneEntry {
+  type: 'slice-done'
+  slice: string
 }
 
 interface JournalErrorEntry {
   type: 'error'
+  slice?: string
   issue: ArchiveIssue
 }
 
-type JournalEntry = JournalMeta | JournalTweetEntry | JournalCheckpointEntry | JournalErrorEntry
+type JournalEntry = JournalMeta | JournalTweetEntry | JournalCheckpointEntry | JournalSliceDoneEntry | JournalErrorEntry
 
-interface LoadedJournal {
-  meta: JournalMeta
-  tweets: JournalTweetEntry[]
-  errors: ArchiveIssue[]
-  lastCheckpoint?: ArchiveCheckpoint
-  repaired: boolean
-}
+/** 切片 journal 里不会出现 meta（meta 单独放 <out>.slices/meta.json）。 */
+type SliceJournalEntry = Exclude<JournalEntry, JournalMeta>
 
 const HELP = `存档指定用户、指定时间范围内的微博详情（含评论区），输出单个 JSON 文件。
 
@@ -123,9 +150,19 @@ const HELP = `存档指定用户、指定时间范围内的微博详情（含评
   --max-reposts <n>            每条微博最多转发数（默认不限）
   --max-repost-pages <n>       每条微博最多转发页数（默认不限）
 
+并发：
+  --slice-days <n>             每 n 天拆一个独立枚举子任务（默认 ${DEFAULT_SLICE_DAYS}；0 = 不拆分）
+  --slice-concurrency <n>      同时枚举的切片数（默认 ${DEFAULT_SLICE_CONCURRENCY}，范围 1–${MAX_SLICE_CONCURRENCY}）
+  --concurrency <n>            全局同时补全的微博数（默认 ${DEFAULT_CONCURRENCY}，范围 1–${MAX_CONCURRENCY}）
+
+限速（默认约 1 req/s；调低 delay 会更快，也更容易触发 432）：
+  --delay <ms>                 令牌补充间隔（默认 ${DEFAULT_DELAY_MS}ms）
+  --burst <n>                  令牌桶容量 / 突发请求数（默认 ${DEFAULT_BURST}，上限 ${MAX_BURST}）
+
 断点续传：
-  每完成一条微博会追加到 <out>.journal.jsonl；重跑同一命令会自动续跑。
-  --fresh                      丢弃已有 journal，从头开始
+  每个切片独立 journal：<out>.slices/<sliceKey>.journal.jsonl，meta 在 <out>.slices/meta.json。
+  重跑同一命令会按切片续跑，已完成的切片直接跳过。
+  --fresh                      丢弃已有切片进度，从头开始
 
 Cookie：
   --dotenv <path>              环境文件（默认 <pwd>/.env；pnpm 会拦截 --env-file，故用此名）
@@ -139,8 +176,10 @@ Cookie：
   - 每条微博都会重新拉取 statuses/show，长文会补拉全文。
   - 归档 JSON 不含 raw；--raw 走 SDK hooks.onRaw，记录当前进程发出的每次上游响应（可能很大）。
   - 中途中断不会丢已完成的微博；最终 JSON 按 mblogId 去重后写出。
+  - 切片并发只并行「枚举」；实际 HTTP 速率仍受 SDK 令牌桶限制（默认约 1 req/s）。
+  - 想真正提速时再调小 --delay / 调大 --burst；命中 432 会全局暂停并重试。
   - 退出码 0 表示完整；1 表示枚举中止或存在补全失败（输出文件仍会写入）。
-  - 完整结束时 journal 会被删除；存在错误时保留，方便再次续跑。
+  - 完整结束时 <out>.slices/ 会被删除；存在错误时保留，方便再次续跑。
 `
 
 function positiveInt(value: unknown, name: string): number | undefined {
@@ -150,6 +189,129 @@ function positiveInt(value: unknown, name: string): number | undefined {
   if (!Number.isInteger(parsed) || parsed < 0)
     throw new Error(`--${name} 需要非负整数，收到 ${JSON.stringify(value)}`)
   return parsed === 0 ? undefined : parsed
+}
+
+function resolveConcurrency(value: unknown): number {
+  if (typeof value !== 'string' || value.trim() === '')
+    return DEFAULT_CONCURRENCY
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1)
+    throw new Error(`--concurrency 需要正整数，收到 ${JSON.stringify(value)}`)
+  return Math.min(MAX_CONCURRENCY, parsed)
+}
+
+function resolveSliceDays(value: unknown): number {
+  if (typeof value !== 'string' || value.trim() === '')
+    return DEFAULT_SLICE_DAYS
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 3660)
+    throw new Error(`--slice-days 需要 0–3660 的整数，收到 ${JSON.stringify(value)}`)
+  return parsed
+}
+
+function resolveSliceConcurrency(value: unknown): number {
+  if (typeof value !== 'string' || value.trim() === '')
+    return DEFAULT_SLICE_CONCURRENCY
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1)
+    throw new Error(`--slice-concurrency 需要正整数，收到 ${JSON.stringify(value)}`)
+  return Math.min(MAX_SLICE_CONCURRENCY, parsed)
+}
+
+function resolveDelay(value: unknown): number {
+  if (typeof value !== 'string' || value.trim() === '')
+    return DEFAULT_DELAY_MS
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1)
+    throw new Error(`--delay 需要正整数毫秒，收到 ${JSON.stringify(value)}`)
+  return parsed
+}
+
+function resolveBurst(value: unknown): number {
+  if (typeof value !== 'string' || value.trim() === '')
+    return DEFAULT_BURST
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1)
+    throw new Error(`--burst 需要正整数，收到 ${JSON.stringify(value)}`)
+  return Math.min(MAX_BURST, parsed)
+}
+
+/** 把 [since, until] 切成连续、无重叠、无空洞的固定窗口；0 表示不拆分。 */
+function planSlices(since: number, until: number, sliceDays: number): SliceDescriptor[] {
+  const chunk = sliceDays * DAY_SECONDS
+  if (sliceDays <= 0 || until - since + 1 <= chunk)
+    return [{ index: 0, key: `s000-${since}-${until}`, since, until }]
+
+  const slices: SliceDescriptor[] = []
+  for (let start = since; start <= until; start += chunk) {
+    const end = Math.min(until, start + chunk - 1)
+    const index = slices.length
+    slices.push({
+      index,
+      key: `s${String(index).padStart(3, '0')}-${start}-${end}`,
+      since: start,
+      until: end,
+    })
+  }
+  return slices
+}
+
+/** 简单信号量：限制跨切片的补全请求并发，避免「切片数 × 窗口」叠加放大。 */
+function createLimiter(limit: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let active = 0
+  const waiting: Array<() => void> = []
+
+  const acquire = (): Promise<void> => new Promise<void>((resolve) => {
+    if (active < limit) {
+      active += 1
+      resolve()
+      return
+    }
+    waiting.push(() => {
+      active += 1
+      resolve()
+    })
+  })
+
+  const release = (): void => {
+    active -= 1
+    waiting.shift()?.()
+  }
+
+  return async <T>(task: () => Promise<T>): Promise<T> => {
+    await acquire()
+    try {
+      return await task()
+    }
+    finally {
+      release()
+    }
+  }
+}
+
+/** 固定 worker 数的任务池；单个任务抛错会结束该 worker，由调用方自行 catch。 */
+async function runPool<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+  shouldStop: () => boolean = () => false,
+): Promise<void> {
+  let next = 0
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (!shouldStop()) {
+      const index = next
+      next += 1
+      if (index >= items.length)
+        return
+      await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+}
+
+/** Cookie / 配置 / 持续限流错误继续跑其他切片没有意义，直接停止派发。 */
+function isFatalError(error: unknown): boolean {
+  return error instanceof WeiboSDKError && FATAL_CODES.has(error.code)
 }
 
 function normalizeUid(input: string): string {
@@ -218,14 +380,17 @@ function dedupeIssues(issues: ArchiveIssue[]): ArchiveIssue[] {
   })
 }
 
+let tempFileSeq = 0
+
 function writeFileAtomic(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true })
-  const tempPath = `${path}.${process.pid}.tmp`
+  tempFileSeq += 1
+  const tempPath = `${path}.${process.pid}.${tempFileSeq}.tmp`
   writeFileSync(tempPath, content, 'utf8')
   renameSync(tempPath, path)
 }
 
-function appendJournal(path: string, entry: JournalEntry): void {
+function appendJournal(path: string, entry: SliceJournalEntry): void {
   appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8')
 }
 
@@ -242,19 +407,56 @@ function stripRaw(record: ArchivedTweet): ArchivedTweet {
   return copy
 }
 
-/**
- * 读取并校验 journal；最后一行可能因进程被杀而截断，解析失败的行会被丢弃，
- * 并把修好的内容原子写回，避免后续 append 拼到半行后面。
- */
-function readJournal(path: string): LoadedJournal | undefined {
+/** 读取并校验 <out>.slices/meta.json；缺失表示全新运行。 */
+function readMeta(path: string): JournalMeta | undefined {
   if (!existsSync(path))
     return undefined
 
-  const content = readFileSync(path, 'utf8')
-  const entries: JournalEntry[] = []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  }
+  catch {
+    throw new Error(`meta 无法解析：${path}（加 --fresh 重新开始）`)
+  }
+
+  if (
+    !isRecord(parsed)
+    || parsed.schema !== JOURNAL_SCHEMA
+    || !isRecord(parsed.config)
+    || typeof parsed.config.sliceDays !== 'number'
+    || !isRecord(parsed.user)
+    || !Array.isArray(parsed.slices)
+    || !parsed.slices.every(slice => isRecord(slice)
+      && typeof slice.key === 'string'
+      && typeof slice.since === 'number'
+      && typeof slice.until === 'number')
+  ) {
+    throw new Error(`meta 不兼容：${path}（旧版归档进度请加 --fresh 重新开始）`)
+  }
+  return parsed as unknown as JournalMeta
+}
+
+interface LoadedSliceJournal {
+  tweets: JournalTweetEntry[]
+  errors: ArchiveIssue[]
+  checkpoint?: ArchiveCheckpoint
+  done: boolean
+  repaired: boolean
+}
+
+/**
+ * 读取单个切片的 journal；最后一行可能因进程被杀而截断，解析失败的行会被丢弃，
+ * 并把修好的内容原子写回，避免后续 append 拼到半行后面。
+ */
+function readSliceJournal(path: string): LoadedSliceJournal {
+  if (!existsSync(path))
+    return { tweets: [], errors: [], done: false, repaired: false }
+
+  const entries: SliceJournalEntry[] = []
   let repaired = false
 
-  for (const rawLine of content.split('\n')) {
+  for (const rawLine of readFileSync(path, 'utf8').split('\n')) {
     const line = rawLine.trim()
     if (!line)
       continue
@@ -273,14 +475,13 @@ function readJournal(path: string): LoadedJournal | undefined {
       continue
     }
 
-    if (parsed.type === 'meta') {
-      if (parsed.schema !== JOURNAL_SCHEMA || !isRecord(parsed.config) || !isRecord(parsed.user))
-        throw new Error(`journal 的 meta 不兼容：${path}（加 --fresh 重新开始）`)
-      entries.push(parsed as unknown as JournalMeta)
-      continue
-    }
     if (parsed.type === 'tweet') {
-      if (typeof parsed.mblogId !== 'string' || !isRecord(parsed.record) || !Array.isArray(parsed.issues)) {
+      if (
+        typeof parsed.slice !== 'string'
+        || typeof parsed.mblogId !== 'string'
+        || !isRecord(parsed.record)
+        || !Array.isArray(parsed.issues)
+      ) {
         repaired = true
         continue
       }
@@ -289,15 +490,23 @@ function readJournal(path: string): LoadedJournal | undefined {
       continue
     }
     if (parsed.type === 'checkpoint') {
-      if (!isRecord(parsed.checkpoint)) {
+      if (typeof parsed.slice !== 'string' || !isRecord(parsed.checkpoint)) {
         repaired = true
         continue
       }
       entries.push(parsed as unknown as JournalCheckpointEntry)
       continue
     }
+    if (parsed.type === 'slice-done') {
+      if (typeof parsed.slice !== 'string') {
+        repaired = true
+        continue
+      }
+      entries.push(parsed as unknown as JournalSliceDoneEntry)
+      continue
+    }
     if (parsed.type === 'error') {
-      if (!isRecord(parsed.issue)) {
+      if (!isRecord(parsed.issue) || (parsed.slice !== undefined && typeof parsed.slice !== 'string')) {
         repaired = true
         continue
       }
@@ -311,24 +520,23 @@ function readJournal(path: string): LoadedJournal | undefined {
   if (repaired)
     writeFileAtomic(path, entries.map(entry => `${JSON.stringify(entry)}\n`).join(''))
 
-  const meta = entries.find((entry): entry is JournalMeta => entry.type === 'meta')
-  if (!meta)
-    throw new Error(`journal 缺少 meta：${path}（加 --fresh 重新开始）`)
-
   const tweets = entries.filter((entry): entry is JournalTweetEntry => entry.type === 'tweet')
   const errors = entries
     .filter((entry): entry is JournalErrorEntry => entry.type === 'error')
     .map(entry => entry.issue)
 
-  let lastCheckpoint: ArchiveCheckpoint | undefined
+  let checkpoint: ArchiveCheckpoint | undefined
+  let done = false
   for (const entry of entries) {
     if (entry.type === 'tweet' && entry.checkpoint)
-      lastCheckpoint = entry.checkpoint
+      checkpoint = entry.checkpoint
     else if (entry.type === 'checkpoint')
-      lastCheckpoint = entry.checkpoint
+      checkpoint = entry.checkpoint
+    else if (entry.type === 'slice-done')
+      done = true
   }
 
-  return { meta, tweets, errors, lastCheckpoint, repaired }
+  return { tweets, errors, checkpoint, done, repaired }
 }
 
 /** 同一个 mblogId 出现多次时，优先保留 issues 更少的一条；相同则保留更晚写入的。 */
@@ -481,6 +689,7 @@ function buildConfig(uid: string, values: Record<string, unknown>): RunConfig {
       since: { input: sinceInput, unix: sinceUnix },
       until: { input: untilInput, unix: untilUnix },
     },
+    sliceDays: resolveSliceDays(values['slice-days']),
     options,
   }
 }
@@ -512,6 +721,8 @@ function assertResumeConfig(
     const until = resolveTimeInput(values.until as string, { boundary: 'end', field: 'until' })
     assertSameOption('until', until, config.range.until.unix)
   }
+  if (provided.has('slice-days'))
+    assertSameOption('slice-days', resolveSliceDays(values['slice-days']), config.sliceDays)
   if (provided.has('comment-order'))
     assertSameOption('comment-order', values['comment-order'], config.options.commentOrder)
   if (provided.has('no-comments') && config.options.includeComments)
@@ -568,6 +779,11 @@ async function run(): Promise<void> {
       'reposts': { type: 'boolean', default: false },
       'max-reposts': { type: 'string' },
       'max-repost-pages': { type: 'string' },
+      'slice-days': { type: 'string' },
+      'slice-concurrency': { type: 'string' },
+      'concurrency': { type: 'string' },
+      'delay': { type: 'string' },
+      'burst': { type: 'string' },
     },
   })
 
@@ -588,27 +804,34 @@ async function run(): Promise<void> {
     process.cwd(),
     typeof values.out === 'string' && values.out.trim() !== '' ? values.out : `weibo-archive-${uid}.json`,
   )
-  const journalPath = `${outPath}.journal.jsonl`
+  /** 切片进度目录：每个切片一个唯一命名的 journal，最后合并成单个归档 JSON。 */
+  const partsDir = `${outPath}.slices`
+  const metaPath = join(partsDir, 'meta.json')
+  const legacyJournalPath = `${outPath}.journal.jsonl`
+  const sliceJournalPath = (key: string): string => join(partsDir, `${key}.journal.jsonl`)
 
-  let journal: LoadedJournal | undefined
   if (values.fresh) {
-    if (existsSync(journalPath))
-      rmSync(journalPath, { force: true })
+    rmSync(partsDir, { recursive: true, force: true })
+    rmSync(legacyJournalPath, { force: true })
   }
-  else {
-    journal = readJournal(journalPath)
-  }
+
+  const storedMeta = values.fresh ? undefined : readMeta(metaPath)
 
   let config: RunConfig
-  if (journal) {
-    assertResumeConfig(journal.meta.config, uid, provided, values)
-    config = journal.meta.config
+  if (storedMeta) {
+    assertResumeConfig(storedMeta.config, uid, provided, values)
+    config = storedMeta.config
     console.log(
-      `[archive] resume journal=${journalPath} tweets=${journal.tweets.length}`
-      + `${journal.lastCheckpoint === undefined ? '' : ` phase=${journal.lastCheckpoint.phase}`}`,
+      `[archive] resume parts=${partsDir} slices=${storedMeta.slices.length}`,
     )
   }
   else {
+    if (!values.fresh && existsSync(legacyJournalPath)) {
+      throw new Error(
+        `检测到旧版单文件 journal：${legacyJournalPath}\n`
+        + `切片进度现在按 ${partsDir}/<slice>.journal.jsonl 存放。加 --fresh 重新开始（旧进度不会自动迁移）。`,
+      )
+    }
     config = buildConfig(uid, values)
   }
 
@@ -617,9 +840,30 @@ async function run(): Promise<void> {
     untilUnix: config.range.until.unix,
   }
   const options = config.options
+  const concurrency = resolveConcurrency(values.concurrency)
+  const sliceConcurrency = resolveSliceConcurrency(values['slice-concurrency'])
+  const delay = resolveDelay(values.delay)
+  const burst = resolveBurst(values.burst)
+  const requestedConcurrency = typeof values.concurrency === 'string' ? Number(values.concurrency) : undefined
+  if (requestedConcurrency !== undefined && requestedConcurrency > concurrency)
+    console.log(`[archive] --concurrency ${requestedConcurrency} 超过上限 ${MAX_CONCURRENCY}，使用 ${concurrency}`)
+  const requestedSliceConcurrency = typeof values['slice-concurrency'] === 'string'
+    ? Number(values['slice-concurrency'])
+    : undefined
+  if (requestedSliceConcurrency !== undefined && requestedSliceConcurrency > sliceConcurrency)
+    console.log(`[archive] --slice-concurrency ${requestedSliceConcurrency} 超过上限 ${MAX_SLICE_CONCURRENCY}，使用 ${sliceConcurrency}`)
+  const slices = planSlices(sinceUnix, untilUnix, config.sliceDays)
 
-  if (existsSync(outPath) && !values.force && journal === undefined)
-    throw new Error(`输出文件已存在：${outPath}（加 --force 覆盖，或保留 journal 续跑）`)
+  if (storedMeta) {
+    const stored = storedMeta.slices
+    const samePlan = stored.length === slices.length
+      && stored.every((slice, index) => slice.key === slices[index].key)
+    if (!samePlan)
+      throw new Error(`切片计划与 ${metaPath} 不一致（加 --fresh 重新开始）`)
+  }
+
+  if (existsSync(outPath) && !values.force && storedMeta === undefined)
+    throw new Error(`输出文件已存在：${outPath}（加 --force 覆盖，或保留切片进度续跑）`)
 
   const rawOutPath = (() => {
     if (typeof values['raw-out'] === 'string' && values['raw-out'].trim() !== '')
@@ -629,9 +873,15 @@ async function run(): Promise<void> {
     return undefined
   })()
   if (rawOutPath !== undefined) {
-    if (rawOutPath === outPath || rawOutPath === journalPath)
-      throw new Error('raw 路径不能与归档 JSON / journal 相同')
-    if (journal === undefined) {
+    if (
+      rawOutPath === outPath
+      || rawOutPath === legacyJournalPath
+      || rawOutPath === metaPath
+      || rawOutPath.startsWith(`${partsDir}${sep}`)
+    ) {
+      throw new Error('raw 路径不能与归档 JSON / 切片进度目录相同')
+    }
+    if (storedMeta === undefined) {
       if (existsSync(rawOutPath) && !values.force)
         throw new Error(`raw 文件已存在：${rawOutPath}（加 --force 覆盖）`)
       mkdirSync(dirname(rawOutPath), { recursive: true })
@@ -700,22 +950,29 @@ async function run(): Promise<void> {
     auth: 'cookie',
     cookie,
     selfCheck: { mode: 'lazy' },
+    delay,
+    maxConcurrent: burst,
     ...(rawHooks === undefined ? {} : { hooks: rawHooks }),
   })
 
   console.log(`[archive] uid=${uid} since=${new Date(sinceUnix * 1000).toISOString()} until=${new Date(untilUnix * 1000).toISOString()}`)
   console.log(`[archive] out=${outPath}`)
+  console.log(
+    `[archive] slices=${slices.length} sliceDays=${config.sliceDays}`
+    + ` sliceConcurrency=${sliceConcurrency} concurrency=${concurrency}`
+    + ` delay=${delay}ms burst=${burst}`,
+  )
   if (rawOutPath !== undefined)
     console.log(`[archive] raw=${rawOutPath}`)
 
   let user: IUser
-  if (journal) {
+  if (storedMeta) {
     try {
       user = await sdk.users.getById(uid)
     }
     catch (error) {
-      user = journal.meta.user
-      console.log(`[archive] user refresh failed, using journal meta: ${error instanceof Error ? error.message : String(error)}`)
+      user = storedMeta.user
+      console.log(`[archive] user refresh failed, using meta: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   else {
@@ -725,132 +982,252 @@ async function run(): Promise<void> {
       schema: JOURNAL_SCHEMA,
       createdAt: new Date().toISOString(),
       config,
+      slices,
       user,
     }
-    writeFileAtomic(journalPath, `${JSON.stringify(meta)}\n`)
-    console.log(`[archive] journal=${journalPath}`)
+    writeFileAtomic(metaPath, `${JSON.stringify(meta, null, 2)}\n`)
+    console.log(`[archive] parts=${partsDir}`)
   }
   console.log(`[archive] user=${user.name} (${user.id}) statuses=${user.stats.statuses}`)
 
-  const journalTweets: JournalTweetEntry[] = journal?.tweets.slice() ?? []
+  interface SliceState {
+    descriptor: SliceDescriptor
+    path: string
+    checkpoint?: ArchiveCheckpoint
+    done: boolean
+    tweets: JournalTweetEntry[]
+  }
+
+  const sliceStates: SliceState[] = slices.map((descriptor) => {
+    const path = sliceJournalPath(descriptor.key)
+    const loaded = readSliceJournal(path)
+    return {
+      descriptor,
+      path,
+      checkpoint: loaded.checkpoint,
+      done: loaded.done,
+      tweets: loaded.tweets,
+    }
+  })
+
+  const activeSliceCount = Math.max(
+    1,
+    Math.min(sliceConcurrency, sliceStates.filter(state => !state.done).length),
+  )
+  /**
+   * 每切片预取窗口 = 全局并发 / 活跃切片数。
+   *
+   * 如果每切片都用整个全局并发，先枚举完的切片会一次性占满 FIFO 信号量，
+   * 后面的切片看起来像没在跑；均分后各切片才会真正交错。
+   */
+  const perSliceWindow = Math.max(1, Math.ceil(concurrency / activeSliceCount))
+  console.log(`[archive] activeSlices=${activeSliceCount} perSliceWindow=${perSliceWindow}`)
+
+  const journalTweets: JournalTweetEntry[] = sliceStates.flatMap(state => state.tweets)
   const bestBefore = dedupeJournalTweets(journalTweets)
   const completed = new Set(bestBefore.filter(entry => entry.issues.length === 0).map(entry => entry.mblogId))
-  const retryTargets = new Map(
+  const retryTargets = new Map<string, JournalTweetEntry>(
     bestBefore
       .filter(entry => entry.issues.length > 0)
       .map(entry => [entry.mblogId, entry] as const),
   )
   const attempted = new Set<string>()
   const enumIssues: ArchiveIssue[] = []
-  let lastCheckpoint = journal?.lastCheckpoint
   let fatalError: unknown
   let processed = 0
 
-  const persistCheckpoint = (checkpoint: ArchiveCheckpoint | undefined): void => {
-    if (!checkpoint || checkpoint.uid !== uid)
-      return
-    lastCheckpoint = checkpoint
-    appendJournal(journalPath, { type: 'checkpoint', checkpoint })
+  /** 补全请求的全局并发上限，不随切片数放大。 */
+  const limitArchive = createLimiter(concurrency)
+
+  interface PendingArchive {
+    mblogId: string
+    slice: string
+    checkpoint?: ArchiveCheckpoint
+    task: Promise<{ tweet: ArchivedTweet, issues: ArchiveIssue[], elapsedMs: number }>
   }
 
-  try {
-    for await (const item of sdk.archive.streamArchive(uid, {
-      timelineSource: 'search',
-      since: sinceUnix,
-      until: untilUnix,
-      includeReposts: false,
-      includeFavorites: false,
-      includeComments: false,
-      includeDateSlices: true,
-      checkpoint: lastCheckpoint?.uid === uid ? lastCheckpoint : undefined,
-      onProgress: (progress) => {
-        console.log(
-          `[archive] phase=${progress.phase} source=${progress.source ?? '-'} page=${progress.page ?? '-'} processed=${progress.processed}`,
-        )
-      },
-      onItemError: (error, context) => {
-        const stage: ArchiveIssueStage = context.stage === 'comments'
-          ? 'comments'
-          : context.stage === 'reposts' ? 'reposts' : 'timeline'
-        const issue = toIssue(stage, error, {
-          mblogId: context.mblogId ?? context.parentMblogId,
+  /**
+   * 按枚举顺序落盘一条补全结果。并发只发生在请求阶段，
+   * 同一切片内 journal 追加顺序与 checkpoint 推进顺序保持和串行时一致，续跑语义不变。
+   */
+  const commitPending = async (pending: PendingArchive): Promise<void> => {
+    const { tweet, issues, elapsedMs } = await pending.task
+    const entry: JournalTweetEntry = {
+      type: 'tweet',
+      slice: pending.slice,
+      mblogId: pending.mblogId,
+      record: tweet,
+      issues,
+      ...(pending.checkpoint === undefined ? {} : { checkpoint: pending.checkpoint }),
+    }
+    journalTweets.push(entry)
+    appendJournal(sliceJournalPath(pending.slice), entry)
+
+    if (issues.length === 0) {
+      completed.add(pending.mblogId)
+      retryTargets.delete(pending.mblogId)
+    }
+    processed += 1
+
+    const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
+    console.log(
+      `[${processed}] ${pending.slice} ${tweet.mblogId} comments=${tweet.comments.length} replies=${replyCount}`
+      + ` took=${(elapsedMs / 1000).toFixed(1)}s`
+      + `${issues.length === 0 ? '' : ` errors=${issues.length}`}`,
+    )
+  }
+
+  /** 单个切片的独立枚举 + 补全；checkpoint 只在该切片的 journal 记录里推进。 */
+  const runSlice = async (state: SliceState): Promise<void> => {
+    const { descriptor } = state
+    if (state.done) {
+      console.log(`[archive] slice ${descriptor.key} already done`)
+      return
+    }
+
+    const persistCheckpoint = (checkpoint: ArchiveCheckpoint | undefined): void => {
+      if (!checkpoint || checkpoint.uid !== uid)
+        return
+      state.checkpoint = checkpoint
+      appendJournal(state.path, { type: 'checkpoint', slice: descriptor.key, checkpoint })
+    }
+
+    console.log(
+      `[archive] slice ${descriptor.key} start since=${new Date(descriptor.since * 1000).toISOString()}`
+      + ` until=${new Date(descriptor.until * 1000).toISOString()}`
+      + `${state.checkpoint === undefined ? '' : ' resume'}`,
+    )
+
+    const pending: PendingArchive[] = []
+    try {
+      for await (const item of sdk.archive.streamArchive(uid, {
+        timelineSource: 'search',
+        since: descriptor.since,
+        until: descriptor.until,
+        // 固定为切片跨度，避免 SDK 的自适应窗口跨到相邻切片。
+        ...(config.sliceDays <= 0 ? {} : { sliceWindow: descriptor.until - descriptor.since + 1 }),
+        includeReposts: false,
+        includeFavorites: false,
+        includeComments: false,
+        ...(state.checkpoint === undefined ? {} : { checkpoint: state.checkpoint }),
+        onProgress: (progress) => {
+          console.log(
+            `[archive] slice=${descriptor.key} phase=${progress.phase} source=${progress.source ?? '-'} page=${progress.page ?? '-'} processed=${progress.processed}`,
+          )
+        },
+        onItemError: (error, context) => {
+          const stage: ArchiveIssueStage = context.stage === 'comments'
+            ? 'comments'
+            : context.stage === 'reposts' ? 'reposts' : 'timeline'
+          const issue = toIssue(stage, error, {
+            mblogId: context.mblogId ?? context.parentMblogId,
+          })
+          enumIssues.push(issue)
+          appendJournal(state.path, { type: 'error', slice: descriptor.key, issue })
+          console.log(
+            `[archive] slice=${descriptor.key} error stage=${context.stage} source=${context.source} mblogId=${context.mblogId ?? '-'}: ${error instanceof Error ? error.message : String(error)}`,
+          )
+          // 枚举阶段失败默认中止当前切片，避免把缺页当成完整归档。
+          return undefined
+        },
+      })) {
+        if (item.source !== 'timeline' || !item.tweet || !item.mblogId)
+          continue
+
+        const tweet = item.tweet
+        // 已完整处理过：只推进 checkpoint，不重复请求。
+        if (completed.has(item.mblogId)) {
+          persistCheckpoint(item.checkpoint)
+          continue
+        }
+        if (attempted.has(item.mblogId))
+          continue
+        if (!withinRange(tweet, sinceUnix, untilUnix)) {
+          persistCheckpoint(item.checkpoint)
+          continue
+        }
+
+        attempted.add(item.mblogId)
+        pending.push({
+          mblogId: item.mblogId,
+          slice: descriptor.key,
+          ...(item.checkpoint === undefined ? {} : { checkpoint: item.checkpoint }),
+          task: limitArchive(async () => {
+            const startedAt = Date.now()
+            console.log(`[start] ${descriptor.key} ${tweet.mblogId}`)
+            const result = await archiveOne(sdk, tweet, options)
+            return { ...result, elapsedMs: Date.now() - startedAt }
+          }),
         })
-        enumIssues.push(issue)
-        appendJournal(journalPath, { type: 'error', issue })
-        console.log(
-          `[archive] error stage=${context.stage} source=${context.source} mblogId=${context.mblogId ?? '-'}: ${error instanceof Error ? error.message : String(error)}`,
-        )
-        // 枚举阶段失败默认中止，避免把缺页当成完整归档。
-        return undefined
-      },
-    })) {
-      if (item.source !== 'timeline' || !item.tweet || !item.mblogId)
-        continue
 
-      // 已完整处理过：只推进 checkpoint，不重复请求。
-      if (completed.has(item.mblogId)) {
-        persistCheckpoint(item.checkpoint)
-        continue
+        // 窗口满了就先落盘最早发起的一条，保证 journal / checkpoint 顺序与串行时一致。
+        if (pending.length >= perSliceWindow)
+          await commitPending(pending.shift()!)
       }
-      if (attempted.has(item.mblogId))
-        continue
-      if (!withinRange(item.tweet, sinceUnix, untilUnix)) {
-        persistCheckpoint(item.checkpoint)
-        continue
+    }
+    finally {
+      // 枚举中止 / 提前退出时，窗口内已发出的补全仍要收尾落盘。
+      while (pending.length > 0) {
+        try {
+          await commitPending(pending.shift()!)
+        }
+        catch (error) {
+          fatalError ??= error
+        }
       }
+    }
 
-      attempted.add(item.mblogId)
-      const { tweet, issues } = await archiveOne(sdk, item.tweet, options)
-      const entry: JournalTweetEntry = {
-        type: 'tweet',
-        mblogId: item.mblogId,
-        record: tweet,
-        issues,
-        ...(item.checkpoint === undefined ? {} : { checkpoint: item.checkpoint }),
-      }
-      journalTweets.push(entry)
-      appendJournal(journalPath, entry)
-      if (item.checkpoint && item.checkpoint.uid === uid)
-        lastCheckpoint = item.checkpoint
-
-      if (issues.length === 0) {
-        completed.add(item.mblogId)
-        retryTargets.delete(item.mblogId)
-      }
-      processed += 1
-
-      const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
-      console.log(
-        `[${processed}] ${tweet.mblogId} comments=${tweet.comments.length} replies=${replyCount}`
-        + `${issues.length === 0 ? '' : ` errors=${issues.length}`}`,
-      )
+    if (fatalError === undefined) {
+      appendJournal(state.path, { type: 'slice-done', slice: descriptor.key })
+      state.done = true
+      console.log(`[archive] slice ${descriptor.key} done`)
     }
   }
-  catch (error) {
-    fatalError = error
-  }
+
+  await runPool(sliceStates, sliceConcurrency, async (state) => {
+    try {
+      await runSlice(state)
+    }
+    catch (error) {
+      // 认证 / 配置 / 持续限流继续跑其他切片没有意义，停止派发。
+      if (isFatalError(error)) {
+        fatalError ??= error
+        console.log(`[archive] slice ${state.descriptor.key} fatal: ${error instanceof Error ? error.message : String(error)}`)
+        return
+      }
+      const issue = toIssue('timeline', error)
+      enumIssues.push(issue)
+      appendJournal(state.path, { type: 'error', slice: state.descriptor.key, issue })
+      console.log(`[archive] slice ${state.descriptor.key} failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }, () => fatalError !== undefined)
 
   // 断点之前已经失败过的微博：本次枚举不一定会再遇到，补一轮重试。
-  for (const [mblogId, entry] of retryTargets) {
-    if (attempted.has(mblogId))
-      continue
-    attempted.add(mblogId)
+  const retries = [...retryTargets.values()].filter(entry => !attempted.has(entry.mblogId))
+  await runPool(retries, concurrency, async (entry) => {
+    if (attempted.has(entry.mblogId))
+      return
+    attempted.add(entry.mblogId)
     const { tweet, issues } = await archiveOne(sdk, entry.record.tweet, options)
     const line: JournalTweetEntry = {
       type: 'tweet',
-      mblogId,
+      slice: entry.slice,
+      mblogId: entry.mblogId,
       record: tweet,
       issues,
-      ...(lastCheckpoint === undefined ? {} : { checkpoint: lastCheckpoint }),
     }
     journalTweets.push(line)
-    appendJournal(journalPath, line)
+    appendJournal(sliceJournalPath(entry.slice), line)
+    if (issues.length === 0) {
+      completed.add(entry.mblogId)
+      retryTargets.delete(entry.mblogId)
+    }
     const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
     console.log(
-      `[retry] ${mblogId} comments=${tweet.comments.length} replies=${replyCount}`
+      `[retry] ${entry.slice} ${entry.mblogId} comments=${tweet.comments.length} replies=${replyCount}`
       + `${issues.length === 0 ? ' OK' : ` errors=${issues.length}`}`,
     )
-  }
+  }, () => fatalError !== undefined)
 
   const bestAfter = dedupeJournalTweets(journalTweets)
   const tweets = bestAfter.map(entry => stripRaw(entry.record))
@@ -907,11 +1284,11 @@ async function run(): Promise<void> {
   }
 
   if (complete) {
-    rmSync(journalPath, { force: true })
-    console.log(`[archive] journal removed`)
+    rmSync(partsDir, { recursive: true, force: true })
+    console.log(`[archive] parts removed`)
   }
   else {
-    console.log(`[archive] journal kept for resume: ${journalPath}`)
+    console.log(`[archive] parts kept for resume: ${partsDir}`)
   }
 
   if (fatalError !== undefined)
