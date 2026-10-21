@@ -158,6 +158,8 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 
 续跑是 **at-least-once**：`checkpoint` 记录最后一条已完整处理的项，中断后重跑可能重复边界 1 条；图片墙和视频瀑布的游标按整页写回，续跑会重放整页。请按 `mblogId`（媒体按 `asset.id`）幂等去重。
 
+页内请求默认并发预取（评论链 / 转发首页，`concurrency: 3`，范围 1–8）；分页与产出顺序仍严格串行，`concurrency: 1` 回到完全串行。
+
 `includeFavorites` 和 `includeCommentHistory` 是**账号级**数据，只能读取 Cookie 对应的登录账号；归档其他 uid 时会抛 `CONFIG_INVALID`。`includeLikes` 按目标 uid 读取。
 
 归档也支持增量、多账号和状态文件：

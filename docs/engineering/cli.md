@@ -342,7 +342,7 @@ weibo-cli whoami --guest
 weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-history] \
   [--images] [--videos] [--original-only] [--no-date-slices] \
   [--source mymblog|search] [--since <unix-seconds>] [--comments] [--comment-pages <n>] \
-  [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
+  [--concurrency <n>] [--max-retries <n>] [--repost-policy abort|skip|retry] [--comments-policy abort|skip|retry] \
   [--checkpoint <file>] [--max-pages <n>]
 
 # 增量同步（状态文件记录每个 uid 的 lastMblogId / lastCreatedAt）
@@ -365,6 +365,8 @@ weibo-cli schema diff before.json after.json
 > 直接切片；`--no-date-slices` 关闭回填；`--since` 设置切片下界（unix 秒）。
 >
 > `--comments` 会把评论挂到 `tweet.comments`（favorite 项不拉取）；`--comment-pages` 限制每条微博评论页数。
+> `--concurrency` 只并发同一页内条目之间互不依赖的子请求（评论链 / 转发首页），
+> 分页与产出顺序仍严格串行；默认 3，`1` 为完全串行，上限 8。实际并发仍受令牌桶与 432 暂停约束。
 > `--likes` / `--comment-history` 把「我赞过的微博」与「当前用户历史评论」接入归档：
 > `source='like'`（微博本体为 `item.tweet`）与 `source='comment'`（评论在 `item.comment`，`item.tweet` 为被评论微博）。
 > `--images` / `--videos` 把图片墙 / 视频瀑布接入归档：`source='image'`（资产在 `item.asset`，可能没有 `item.tweet`）与
