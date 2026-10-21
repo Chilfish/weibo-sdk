@@ -68,6 +68,17 @@ request(spec, args)
 
 > **实施中（2026-10-21）**：图中的 `axios 请求` 改为 `WeiboTransport.send()` 端口（AxiosTransport / FetchTransport / 自定义）；HTTP 状态语义（432 / 429 / 403 / 3xx / 登录页）仍留在 `FetcherService`，transport 只抛网络 / 超时错误。`AuthProvider` 提升为 `CredentialResolver`，默认单凭证，不做 token 池。插件管线只在构造期组装，retry / rate-limit / auth-refresh 顺序不插件化。详见 [todo-plugin-architecture.md](../planning/todo-plugin-architecture.md)。
 
+### 1.1 扩展端口（2026-10-21）
+
+| 端口 | 默认实现 | 契约 |
+|---|---|---|
+| `WeiboTransport` | `axiosTransport()` | 所有 HTTP 状态码正常返回；仅网络 / 超时抛 `TransportFailure`；`redirect: 'manual'` 原样返回 3xx |
+| `FetchTransport` | `fetchTransport({ fetch? })` | 与 axios 语义一致；`config.fetch` 同时供 `GuestTokenService` 使用 |
+| `CredentialResolver` | `SingleCredentialResolver` | `Credential.id` 为 Cookie 指纹 / `guest-primary` / `none`，不含明文；不做池化 |
+| `PluginPipeline` | identity（无插件） | 构造期按 `pre → normal → post` 编译；生命周期钩子串行、抛错 fatal；`observe` 只读、吞异常 |
+
+请求链路新增两步：`beforeRequest`（鉴权头注入后）与 `afterResponse`（收到响应、okPolicy 前）。`beforeRetry` 可改延迟 / 阻止重试；`onError` 可替换终态错误。无插件时走共享 identity 管线，不构造插件上下文。
+
 ---
 
 ## 2. Entity Contracts
@@ -243,7 +254,7 @@ interface IWeiboConfig {
 
 #### 3.2.1 鉴权模式（`auth`）
 
-鉴权模式在构造时解析一次（`src/services/internal/AuthProvider.ts` 的 `resolveAuthMode`），之后不再变化：
+鉴权模式在构造时解析一次（`src/services/internal/CredentialResolver.ts` 的 `resolveAuthMode`），之后不再变化：
 
 | 配置 | 有效模式 | 说明 |
 |---|---|---|
@@ -254,7 +265,7 @@ interface IWeiboConfig {
 | 无 `cookie` + `auth: 'cookie'` | — | 构造时抛 `CONFIG_INVALID`（`context.field = 'cookie'`） |
 
 - `auth: 'auto'` **不会在 Cookie 失效后降级到 guest**。访客能读到的数据范围比登录态小，静默降级会让调用方在不知情的情况下拿到不完整的数据；Cookie 失效照常抛 `AUTH_SESSION_EXPIRED`，由调用方决定是否改用 guest。
-- guest 模式要求运行环境有全局 `fetch`（Node 18+），没有时抛 `AUTH_SESSION_EXPIRED`（`context.reason = 'fetch_unavailable'`）。
+- guest 模式要求运行环境有全局 `fetch`（Node 20.16+ 自带；更旧环境或非 Node 运行时通过 `config.fetch` 注入），没有时抛 `AUTH_SESSION_EXPIRED`（`context.reason = 'fetch_unavailable'`）。
 
 #### 3.2.2 访客 token 生命周期（`GuestTokenService`）
 
@@ -613,7 +624,8 @@ src/
   capabilities.ts           # 能力清单（auth / guestPagination / guestNote / accountScoped）
   utils/telemetryJsonl.ts   # P2-3 JSONL telemetry 消费端
   utils/cookieInput.ts      # Cookie header / Netscape / header 文件解析
-  cli.ts                    # CLI 入口（citty）
+  cli.ts                    # CLI 命令树导出（无顶层副作用）
+  cli-bin.ts                # bin 入口（runMain，唯一允许顶层副作用）
   cli/commands/*.ts         # user / tweet / follow / favorite / like / comment / media / notification / search
   types/
     config.ts hooks.ts telemetry.ts resources.ts index.ts session.ts
@@ -621,7 +633,9 @@ src/
     raw/{user,tweet,side,search}/**   # 原始响应类型（z.infer 替代中）
   services/
     public/{User,Tweet,Followings,Favorite,Like,CommentHistory,Media,Notification,Topic,Trends,Search}Service.ts
-    internal/{FetcherService,AuthService,AuthProvider,GuestTokenService,RateLimitService,RetryPolicy,EndpointSpec}.ts
+    internal/{FetcherService,AuthService,CredentialResolver,GuestTokenService,RateLimitService,RetryPolicy,EndpointSpec}.ts
+    internal/transport/{types,AxiosTransport,FetchTransport,index}.ts
+    internal/plugins/{types,pipeline,index}.ts
     endpoints/{user,tweet,search,side,follow,favorite,like,commentHistory,media,likers,mentions,notifications,groups,topic,mobile}.ts
   models/
     data/{User,Tweet,Media,Group,Notification}.ts    # 领域模型归一化（纯函数）

@@ -51,12 +51,12 @@
 
 | # | 任务 | 状态 | 优先级 | 说明 | 来源 |
 |---|---|---|---|---|---|
-| PF1 | Transport 端口（`WeiboTransport` + `AxiosTransport`） | 🟢 已承接 | P0 | 抽出 `send()` 契约；HTTP 状态正常返回，仅网络/超时抛错；`sendAttempt` 不再改写 `resource.headers`；现有测试零行为变化 | research §5.2 / §8 |
-| PF2 | `FetchTransport` + `GuestFetch` 合并 | 🟢 已承接 | P1 | 可注入 fetch，覆盖 Worker / Edge / Deno / Bun；guest token 发放复用同一 fetch；补 transport contract tests | research §5.2 |
-| PF3 | `CredentialResolver` + `credential_id` | 🟢 已承接 | P1 | 默认单凭证包装 `AuthService` / `GuestTokenService`；不做池；补齐 `likes.list` 的 `accountScoped` 标记 | research §5.3 / ADR-015 |
-| PF4 | 插件管线 + 兼容层 | 🟢 已承接 | P1 | `plugins` 数组、`pre/normal/post` 排序、transport 中间件、只读 observer；`hooks` / `telemetry` 保留语义；删除 `logging` 死配置 | research §5.4 |
-| PF5 | 包完整性门禁 | 🟢 已承接 | P1 | `publint` + `attw` + `pnpm pack` 临时安装 + Vite/esbuild + tree-shaking + Worker smoke；修 `exports#types` / `sideEffects` / `engines` | ADR-016 / [package-integrity.md](../engineering/package-integrity.md) |
-| PF6 | 零配置 DX 收口 | 🟢 已承接 | P2 | 默认值表、README / playground / SKILL 示例；确保 `new WeiboSDK({})` 零配置可用；新增插件能力同步 capabilities | research §6 |
+| PF1 | Transport 端口（`WeiboTransport` + `AxiosTransport`） | ✅ 已完成 | P0 | 抽出 `send()` 契约；HTTP 状态正常返回，仅网络/超时抛错；`sendAttempt` 不再改写 `resource.headers`；现有测试零行为变化 | research §5.2 / §8 |
+| PF2 | `FetchTransport` + `GuestFetch` 合并 | ✅ 已完成 | P1 | 可注入 fetch，覆盖 Worker / Edge / Deno / Bun；guest token 发放复用同一 fetch；补 transport contract tests | research §5.2 |
+| PF3 | `CredentialResolver` + `credential_id` | ✅ 已完成 | P1 | 默认单凭证包装 `AuthService` / `GuestTokenService`；不做池；`likes.list` 按目标 uid 读取，不标记 `accountScoped` | research §5.3 / ADR-015 |
+| PF4 | 插件管线 + 兼容层 | ✅ 已完成 | P1 | `plugins` 数组、`pre/normal/post` 排序、transport 中间件、只读 observer；`hooks` / `telemetry` 保留语义；删除 `logging` 死配置 | research §5.4 |
+| PF5 | 包完整性门禁 | ✅ 已完成 | P1 | `publint` + `attw` + `pnpm pack` 临时安装 + Vite/esbuild + tree-shaking + Worker smoke；修 `exports#types` / `sideEffects` / `engines` | ADR-016 / [package-integrity.md](../engineering/package-integrity.md) |
+| PF6 | 零配置 DX 收口 | 🟢 文档已落地 | P2 | 默认值表、README / playground / SKILL 示例；确保 `new WeiboSDK({})` 零配置可用；新增插件能力同步 capabilities | research §6 |
 | PF7 | 凭证池外置插件 | ⏸️ | P3 | 仅在「多账号 + 多代理 + 高吞吐归档」明确需求时启动；强制 `accountScoped` pin 主账号 | research §3.4 |
 
 ### 访客模式（Guest Mode，可承接）

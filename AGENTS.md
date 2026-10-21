@@ -164,7 +164,7 @@ WeiboSDK（门面）
 pnpm add @chilfish/weibo-sdk      # 或 npm install
 ```
 
-Node 环境使用 `import { WeiboSDK } from '@chilfish/weibo-sdk'`。浏览器或用户脚本使用 `@chilfish/weibo-sdk/browser`。
+Node 20.16+ 环境使用 `import { WeiboSDK } from '@chilfish/weibo-sdk'`（ESM-only；CJS 用动态 `import()`）。浏览器或用户脚本使用 `@chilfish/weibo-sdk/browser`。
 
 ### 登录
 
@@ -225,6 +225,25 @@ for await (const item of sdk.archive.streamArchive(uid, {
 ```
 
 `ArchiveItem.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image` 或 `video`。媒体资产在 `item.asset`，图片项可能没有 `item.tweet` 或 `item.mblogId`。
+
+### 扩展（transport / plugins）
+
+```ts
+import { WeiboSDK, fetchTransport } from '@chilfish/weibo-sdk'
+
+// 换传输：Worker / Edge / 测试替身
+const sdk = new WeiboSDK({ transport: fetchTransport({ fetch: myFetch }) })
+
+// 插件：构造期组装，pre → normal → post；同名 / apiVersion 不兼容直接 CONFIG_INVALID
+const sdk2 = new WeiboSDK({
+  plugins: [
+    { name: 'metrics', apiVersion: 1, enforce: 'post', observe: event => metrics.push(event) },
+    { name: 'headers', apiVersion: 1, hooks: { beforeRequest: ctx => { ctx.headers['x-client'] = 'app' } } },
+  ],
+})
+```
+
+`observe` 是只读观察者（不 await、吞异常）；transport 中间件可短路 / 缓存。默认仍是 `axiosTransport`，零配置行为不变。完整契约见 `docs/engineering/plugins.md`。
 
 ### CLI
 

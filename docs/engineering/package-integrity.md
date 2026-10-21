@@ -20,6 +20,8 @@
 
 ## 1. 当前发布形态
 
+> **注**：下表是 PF5 实施前的审计快照。`engines`、`exports` 的 `types` 条件、CLI 拆分与 `bin`（指向 `./dist/cli-bin.mjs`）已在 PF5 落地，见 R1–R3 的状态行与 §4.1；`schemas/` 仍未随包发布（R10）。
+
 | 字段 | 当前值 | 观察 |
 |---|---|---|
 | `name` | `@chilfish/weibo-sdk` | scoped 包，`publishConfig.access = public` |
@@ -55,23 +57,29 @@
 
 ## 3. 风险清单
 
-### R1. `exports["."]` 缺少 `types` 条件（中）
+### R1. `exports["."]` 缺少 `types` 条件（中，已修复）
 
 `package.json` 有顶层 `types`，但 `exports["."]` 是裸字符串。TypeScript 的 `node16` / `nodenext` / `bundler` 优先读 `exports` 条件；缺少 `types` 时行为依赖 TS 版本的兜底逻辑，`attw` 会把这类包标为类型解析问题。
 
 **修复**：改为条件对象，`types` 放在第一项。
 
-### R2. `sideEffects: false` 与 CLI 顶层副作用冲突（中）
+**状态**：已实现（PF5，2026-10-21）。`./`、`./cli`、`./browser` 均为 `types` 优先的条件对象，由 `tsdown.config.ts` 的 `exports.customExports` 生成；类型解析门禁由 `pnpm run lint:package`（`attw --pack`）承担。
+
+### R2. `sideEffects: false` 与 CLI 顶层副作用冲突（中，已修复）
 
 `src/cli.ts` 末尾直接执行 `runMain(withErrorEnvelope(main))`。bin 执行不受影响，但如果下游 `import '@chilfish/weibo-sdk/cli'`，bundler 可能认为该模块无副作用而删除它。
 
 **修复（推荐）**：拆分 `src/cli.ts` 为命令树导出 + `src/cli-bin.ts` 执行 `runMain()`；`bin` 指向后者。否则至少设置 `"sideEffects": ["./dist/cli.mjs"]`。
 
-### R3. 没有 `engines`，Node 版本要求写错（中）
+**状态**：已实现（PF5，2026-10-21）。`src/cli.ts` 只导出 `main` / `withErrorEnvelope`，`src/cli-bin.ts` 是唯一允许顶层副作用的模块且不通过 `exports` 暴露；`bin.weibo-cli = ./dist/cli-bin.mjs`，`sideEffects: false` 因此成立。
+
+### R3. 没有 `engines`，Node 版本要求写错（中，已修复）
 
 `src/utils/cookieInput.ts` 通过 `process.getBuiltinModule('node:fs')` 读取 Cookie 文件。该 API 在 Node 20.16 / 22.3 才引入；在更旧版本上会退化为「只接受 header 串」，文件路径静默失效。当前文档却写 Node 18+。
 
 **修复**：`package.json` 增加 `"engines": { "node": ">=22" }`（或 `>=20.16`），README / AGENTS 同步；如果确实要支持 Node 18，改为静态 `import('node:fs')` 的动态兜底。
+
+**状态**：已实现（PF5，2026-10-21）。`engines.node = ">=20.16"`（与 `process.getBuiltinModule` 对齐）；README 与 `technical-spec.md` 已同步 Node 版本与 ESM-only 表述。
 
 ### R4. browser 入口内联 axios + zod（中）
 
@@ -87,9 +95,11 @@
 
 ### R6. 公开类型泄漏 axios / zod（低，需持续守卫）
 
-`src/types/index.ts` 导出的是 `z.infer` 的结果类型和业务接口，不导出 schema 本身；`IWeiboConfig` 也没有 axios 类型。但这是当前事实，不是机制保证。未来把 `EndpointSpec` 或 `ZodType` 暴露到公共入口，就会把 zod 类型带进下游。
+`src/types/index.ts` 导出的是 `z.infer` 的结果类型和业务接口，不导出 schema 本身；`IWeiboConfig` 也没有 axios 类型。但这是当前事实，不是机制保证。
 
-**修复**：加一条发布检查：`dist/*.d.mts` 中不得出现 `from "axios"` / `from "zod"` / `import("axios")`。公开 `EndpointSpec` 若要做，必须用 `import type` 且评估类型兼容。
+实测（2026-10-21）：dts bundler 会保留 `z.infer` 别名所需的 zod 引用，以及内部模块的裸 `import "axios"` side-effect 行。zod 与 axios 都是运行时 dependency，下游可解析，因此门禁只禁止 **axios 类型泄漏**（`from "axios"` / `import("axios")`），允许 zod 类型引用与裸 side-effect import。未来若公开 `EndpointSpec` 或 schema 值，必须单独 ADR 并评估 zod 版本兼容成本。
+
+**修复**：发布检查扫描 `dist/*.d.mts` 中的 axios 类型引用；公开 `EndpointSpec` 若要做，必须用 `import type` 且评估类型兼容。
 
 ### R7. tree-shaking 依赖 `sideEffects` 与入口纯度（中）
 
@@ -103,11 +113,13 @@
 
 **修复**：保持；发布核验继续用 `pnpm pack`，不要用 `npm pack` 检查依赖。
 
-### R9. 导出测试太浅（中）
+### R9. 导出测试太浅（中，已修复）
 
 `tests/unit/entry/exports.test.ts` 只断言字段形状与 `sideEffects === false`，不验证真实 tarball、条件解析、类型解析、打包结果。
 
 **修复**：保留现有单测作为快速回归；新增 `verify:package` / `lint:package` / `test:bundle` 三个脚本，见 §5。
+
+**状态**：已实现（PF5，2026-10-21）。三个脚本落地为 `scripts/lint-package.mjs` / `scripts/verify-package.mjs` / `scripts/test-bundle.mjs`；单测仍保持离线快速（只读 `package.json`，不 spawn、不构建），并补上条件 `exports` / `bin` / `engines` / `sideEffects` 断言。
 
 ### R10. `schemas/` 不随包发布（中）
 
@@ -139,9 +151,12 @@
 ```jsonc
 {
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=20.16" },
   "sideEffects": false,
   "files": ["dist", "schemas"],
+  "bin": {
+    "weibo-cli": "./dist/cli-bin.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
@@ -165,9 +180,9 @@
 
 - **ESM-only**：不提供 `require` 条件。
 - **`types` 条件放在首位**，其余用 `default`。
-- **`./cli`**：如果拆分命令树与 bin 入口，`./cli` 指向纯命令树；`bin` 指向 `dist/cli-bin.mjs`。如果暂不拆分，则 `sideEffects` 改为 `["./dist/cli.mjs"]`。
+- **`./cli`**：已拆分（PF5）——`./cli` 指向纯命令树，`bin` 指向 `dist/cli-bin.mjs`，`sideEffects` 保持 `false`。
 - **schema 子路径**：是否随包发布见 R10；若发布，`files` 加 `schemas` 并登记子路径。
-- **`engines`**：至少 `>=20.16`，推荐 `>=22`；与 `process.getBuiltinModule` 对齐。
+- **`engines`**：已落定为 `>=20.16`（与 `process.getBuiltinModule` 对齐；CI 矩阵 24 / 26 均满足）。
 
 ### 4.2 入口纯度
 
@@ -178,7 +193,7 @@
 
 ### 4.3 公共类型纯度
 
-- `dist/*.d.mts` 不得出现 `from "axios"` / `from "zod"` / `import("axios")` / `import("zod")`。
+- `dist/*.d.mts` 不得出现 axios 类型引用（`from "axios"` / `import("axios")`）。zod 类型引用来自 `z.infer` 别名，zod 是运行时 dependency，允许；裸 `import "axios"` side-effect 行允许（不泄漏类型）。
 - 如果未来公开 `EndpointSpec` 或 schema，必须单独 ADR，并接受 zod 版本兼容成本。
 - 新增公共导出时同步更新：
   - `tests/unit/entry/exports.test.ts` 的导出面断言；
@@ -357,7 +372,7 @@ CI 约束：
 - [ ] `pnpm run lint:package` 通过（`publint` + `attw`）
 - [ ] `pnpm run verify:package` 通过（tarball 安装 + Node import + CLI 版本）
 - [ ] `pnpm run test:bundle` 通过（Vite + esbuild + tree-shaking + Worker）
-- [ ] `dist/*.d.mts` 无 `axios` / `zod` 类型引用
+- [ ] `dist/*.d.mts` 无 axios 类型引用（zod 引用允许）
 - [ ] `dist/*.mjs` 无未处理的 Node-only 静态导入
 - [ ] `engines.node` 与 CI 矩阵一致
 - [ ] 如发布 schema：tarball 内 `schemas/` 与子路径可解析

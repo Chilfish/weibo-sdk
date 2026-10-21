@@ -170,7 +170,7 @@
   2. `exports` 全部使用条件对象，`types` 条件优先；新增子路径必须同时有 `types` 与 `default`。
   3. `sideEffects` 必须与真实入口一致：拆分 CLI 命令树与 bin 入口，或使用精确 allowlist。
   4. 补 `engines.node`，与 `process.getBuiltinModule` 的实际要求对齐。
-  5. 公共 `.d.mts` 不得引用 `axios` / `zod` 类型。
+  5. 公共 `.d.mts` 不得引用 axios 类型；zod 类型可由 `z.infer` 别名带出（zod 是运行时 dependency）。
   6. 发布门禁必须基于真实 tarball：`publint` + `attw` + 临时安装 + Node import + `tsc` + Vite/esbuild + tree-shaking。
 - **背景**: 包已发布并被 SPA / 用户脚本 / CLI 消费；当前导出测试只检查字段形状，无法发现类型解析、副作用声明、Node 版本、真实打包失败等问题。
 - **理由**:

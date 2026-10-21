@@ -1,5 +1,7 @@
 # 行动计划：插件化、传输适配与包完整性（PF1–PF6）
 
+> **状态**：PF1–PF5 已完成（2026-10-21）；PF6 文档部分已落地，playground / SKILL 示例待补。验收结果见 [development-log/2026-10-21.md](../development-log/2026-10-21.md)。
+
 **来源**：[research-plugin-architecture-2026-10-21.md](./research-plugin-architecture-2026-10-21.md)、[package-integrity.md](../engineering/package-integrity.md)、[ADR-014 / ADR-015 / ADR-016](./architecture.md)。
 **目标**：在不改变默认路径（`new WeiboSDK({})`）行为的前提下，抽出可替换的传输端口、凭证解析端口与插件管线，并把发布产物核验升级为真实 tarball 门禁。
 
@@ -53,7 +55,7 @@
   - 默认 `SingleCredentialResolver`，内部仍包装 `AuthService` / `GuestTokenService`。
 - `AuthContext` 暴露 `getCredential(auth, ctx)`；cookie / guest / none 三态行为不变。
 - telemetry / 错误 context 增加 `credential_id`（不含 Cookie 明文）。
-- 补齐 `likes.list` 的 `accountScoped: true`。
+- `likes.list` **不标记** `accountScoped`：它按目标 uid 读取（受可见范围影响），不是只读登录账号自身的数据；凭证池若未来启用，需要单独声明“可见范围相关”维度。
 
 ### PF4 插件管线（P1）
 
@@ -61,8 +63,8 @@
 
 - `types.ts`：`WeiboPlugin` / `RequestContext` / `ResponseContext` / `RetryContext` / `ErrorContext` / `WeiboEvent`。
 - `pipeline.ts`：排序 + 编译；无插件时 identity 快路径；重名 / `apiVersion` 不兼容直接 `CONFIG_INVALID`。
-- `builtin/hooks.ts`：把 `WeiboSDKHooks.onRaw` / `onError` 映射到 `afterResponse` / `onError`；`onFetched` / `onLifecycle` 保持原调用点。
-- `builtin/logger.ts`：可选日志观察者示例，不在库入口自动注册。
+- `index.ts`：公开插件类型。
+- **兼容层策略调整**：`WeiboSDKHooks.onRaw` / `onFetched` / `onLifecycle` 保持在原调用点（时序与抛错语义完全不变），`onError` 由 `FetcherService.emitError` 调用；插件 `onError` 先执行，可替换错误，然后再交给 legacy hooks。这样避免 `onRaw` 在可重试失败上多触发一次。
 
 `FetcherService` 集成点：
 
@@ -70,7 +72,7 @@
 |---|---|---|
 | `transport` 中间件 | 每次 `send()` 外层 | fatal，可短路 |
 | `beforeRequest` | 鉴权头注入后、发送前 | fatal，可改 headers / query / body |
-| `afterResponse` | 收到响应、okPolicy 前 | fatal，v1 只读 |
+| `afterResponse` | 收到响应、okPolicy 前（`headers` 是请求头，`responseHeaders` 是响应头） | fatal，v1 只读 |
 | `beforeRetry` | 已决定重试、sleep 前 | fatal，可改延迟 / 阻止重试 |
 | `onError` | 终态错误抛出前 | fatal，可替换错误 |
 | `observe` | 事件发出时 | 吞掉，不影响请求 |
@@ -105,8 +107,7 @@ src/services/internal/transport/
 src/services/internal/plugins/
   types.ts
   pipeline.ts
-  builtin/hooks.ts
-  builtin/logger.ts
+  index.ts
 src/services/internal/CredentialResolver.ts   # 由 AuthProvider.ts 提升
 src/cli.ts                                    # 命令树导出（无副作用）
 src/cli-bin.ts                                # runMain（bin 入口）
@@ -144,19 +145,19 @@ scripts/test-bundle.mjs
 
 ## DoD
 
-- [ ] `pnpm run typecheck` 通过
-- [ ] `pnpm test --run` 离线全绿（E2E 保持门控）
-- [ ] `pnpm run lint` 无新增问题
-- [ ] `pnpm build` 通过；`dist/index.mjs`、`dist/index.d.mts`、`dist/browser.mjs`、`dist/cli.mjs`、`dist/cli-bin.mjs` 均存在
-- [ ] `new WeiboSDK({})` 仍为访客身份；Cookie 模式行为不变
-- [ ] axios / fetch transport contract tests 全绿
-- [ ] 无插件时请求行为与改造前一致（断言 hooks / telemetry 事件序列）
-- [ ] 同名插件 / 不兼容 `apiVersion` 抛 `CONFIG_INVALID`
-- [ ] observer 抛错不影响请求；生命周期钩子抛错 fatal
-- [ ] `config.hooks` / `config.telemetry` 现有用法不破坏
-- [ ] `exports` 使用 `types` 条件；`engines` 与 `process.getBuiltinModule` 要求一致
-- [ ] CLI 拆分后 `import '@chilfish/weibo-sdk/cli'` 无顶层副作用
-- [ ] 文档与代码一致（technical-spec / architecture / backlog / development-log）
+- [x] `pnpm run typecheck` 通过
+- [x] `pnpm test --run` 离线全绿（771 passed / 23 skipped，E2E 保持门控）
+- [x] `pnpm run lint` 无新增问题
+- [x] `pnpm build` 通过；`dist/index.mjs`、`dist/index.d.mts`、`dist/browser.mjs`、`dist/cli.mjs`、`dist/cli-bin.mjs` 均存在
+- [x] `new WeiboSDK({})` 仍为访客身份；Cookie 模式行为不变
+- [x] axios / fetch transport contract tests 全绿
+- [x] 无插件时请求行为与改造前一致（`FetcherPlugins` 无插件对照 + 既有 hooks / telemetry 测试）
+- [x] 同名插件 / 不兼容 `apiVersion` 抛 `CONFIG_INVALID`
+- [x] observer 抛错不影响请求；生命周期钩子抛错 fatal
+- [x] `config.hooks` / `config.telemetry` 现有用法不破坏
+- [x] `exports` 使用 `types` 条件；`engines` 与 `process.getBuiltinModule` 要求一致
+- [x] CLI 拆分后 `import '@chilfish/weibo-sdk/cli'` 无顶层副作用
+- [x] 文档与代码一致（technical-spec / architecture / backlog / development-log）
 
 ## 风险与回滚
 

@@ -24,6 +24,8 @@ pnpm add @chilfish/weibo-sdk
 npm install @chilfish/weibo-sdk
 ```
 
+需要 Node.js 20.16+（与 `process.getBuiltinModule` 对齐）。包是 ESM-only；CommonJS 调用方请使用 `await import('@chilfish/weibo-sdk')`。
+
 安装后可以用 `npx weibo-cli` 调用命令行工具，也可以全局安装：`npm i -g @chilfish/weibo-sdk`。
 
 浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口会把 axios 和 zod 一起打包，不需要额外的模块解析。
@@ -302,6 +304,37 @@ const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', {
 ```
 
 请求、限流、重试和归一化过程会产生结构化遥测事件。可以接入自己的 `telemetry.emit()`，也可以使用 `createJsonlTelemetry()` 直接写到 JSONL 文件。
+
+## 扩展：自定义传输与插件
+
+默认使用 axios。Worker / Edge / Deno / Bun / 测试替身可以换成原生 fetch，`config.fetch` 也会复用于访客 token 发放：
+
+```ts
+import { WeiboSDK, fetchTransport } from '@chilfish/weibo-sdk'
+
+const sdk = new WeiboSDK({ transport: fetchTransport() })
+const sdkWithCustomFetch = new WeiboSDK({
+  fetch: myFetch,
+  transport: fetchTransport({ fetch: myFetch }),
+})
+```
+
+插件在 `new WeiboSDK()` 时组装，按 `pre → normal → post` 排序；`observe` 是只读观察者，抛错不会影响请求：
+
+```ts
+const sdk = new WeiboSDK({
+  plugins: [
+    { name: 'metrics', apiVersion: 1, enforce: 'post', observe: event => metrics.push(event) },
+    {
+      name: 'headers',
+      apiVersion: 1,
+      hooks: { beforeRequest: ctx => { ctx.headers['x-client'] = 'my-app' } },
+    },
+  ],
+})
+```
+
+transport 中间件可以短路、缓存或 mock；生命周期钩子可改请求 / 重试延迟 / 终态错误。完整契约见 [插件与传输适配](./docs/engineering/plugins.md)。
 
 ## 开发
 
