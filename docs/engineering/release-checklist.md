@@ -1,6 +1,6 @@
 # Release Checklist
 
-**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-20
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-21
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（`pnpm release` 打 tag → CI 发布 npm → 手写 GitHub Release）时的完整清单。
@@ -38,6 +38,7 @@
 - [x] `src/index.ts` 导出面与规格书 §3.7 一致（无内部实现泄漏；2026-10-20）
 - [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20）
 - [x] 新增响应类型已用 `z.infer` 推导并导出（2026-10-20）
+- [ ] 下游产物完整性门禁（规划，见 [package-integrity.md](./package-integrity.md) §5）：`publint` / `attw` / tarball 安装 / Vite / tree-shaking / Worker smoke
 
 ## 功能冒烟（真实环境，`WEIBO_E2E=1`）
 

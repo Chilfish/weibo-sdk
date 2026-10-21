@@ -216,7 +216,13 @@ pnpm pack --pack-destination .tmp-pack
 ### 5.2 包规范与类型解析
 
 ```bash
-npx publint .tmp-pack/chilfish-weibo-sdk-<version>.tgz
+# 本地包目录（读取 package.json 与 files/exports）
+npx publint
+
+# 安装后的真实包目录（推荐，覆盖 tarball 解包结果）
+npx publint .tmp-consumer/node_modules/@chilfish/weibo-sdk
+
+# 类型解析：attw 会自行 pack 当前包
 npx @arethetypeswrong/cli --pack .
 ```
 
