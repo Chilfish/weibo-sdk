@@ -18,6 +18,7 @@
 | [008](008-marathon-session-lessons.md) | 马拉松会话元教训 | 多 Agent 协作 | 并行 Agent 需互不重叠 + 对齐最新范式；脱敏破坏关联 |
 | [009](009-cookie-env-shadowing.md) | Cookie 环境变量遮蔽 `.env` | 工具反馈 / 流程缺失 | 配置来源必须单一显式；`process.loadEnvFile()` 不覆盖已有变量 |
 | [010](010-npm-publish-catalog-protocol.md) | npm publish 打包 `catalog:` 依赖 | 工具反馈 / 流程缺失 | 发布只能用 `pnpm publish`；门禁必须检查产物而非源码 |
+| [011](011-release-gate-conditional-exports.md) | 发布门禁未同步条件 exports | 流程缺失 / 工具反馈 | 本地发版门禁必须与 CI 跑同一组检查；`exports` 断言要兼容条件对象 |
 
 ## 高频雷区（写码前自查）
 
@@ -49,6 +50,7 @@
 - **脱敏保留关联**：短字符串（≤40 字符，如 `pic_ids`）必须保留，否则破坏 `pic_ids` ↔ `pic_infos` 键匹配。
 - **配置来源单一显式**（2026-10-19 复发）：Cookie 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 指定），不回退到环境变量；`process.loadEnvFile()` 不覆盖已存在的环境变量，旧值会静默遮蔽新值。
 - **发布只用项目包管理器**（2026-10-20）：项目使用 pnpm catalog，`npm publish` 会把 `"catalog:"` 原样打进产物，消费者安装报 `EUNSUPPORTEDPROTOCOL`。发布必须 `pnpm publish`；发布后解包 tarball 检查 `dependencies` 与 `bin`，不要只看 `npm view`。
+- **门禁与 CI 同源**（2026-10-21）：`scripts/release.mjs` 必须跑 CI 执行的同一组检查。改动 `exports` 形状后，所有读取 `package.json` 的脚本（`browser-smoke` / `verify-package` / 单测）都要一起更新；条件 `exports` 用 `default` 目标比较，不要和字符串比。
 
 ### 4. 流程（非代码）
 
