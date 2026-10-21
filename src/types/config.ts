@@ -1,5 +1,6 @@
 // src/types/config.ts
 import type { WeiboSDKHooks, WeiboSDKSelfCheckMode } from './hooks'
+import type { WeiboLogger } from './logging'
 import type { WeiboSDKTelemetry } from './telemetry'
 import type { WeiboPlugin } from '~/services/internal/plugins/types'
 import type { FetchLike, WeiboTransport } from '~/services/internal/transport'
@@ -173,6 +174,17 @@ export interface IWeiboConfig {
    * 与 hooks 不同，telemetry 只承载“可序列化的扁平 KV”，用于生产可观测性/诊断。
    */
   telemetry?: WeiboSDKTelemetry
+
+  /**
+   * 结构化日志出口（默认关闭）。
+   *
+   * 未配置时不创建 sink，库入口不产生 IO / console。配置后 SDK 把已有的
+   * Wide Events 与生命周期事件映射成带级别的日志记录；不会额外埋点。
+   *
+   * 内置实现：`createConsoleLogger()` / `createJsonlLogger()` / `createMultiLogger()`；
+   * 也可以直接实现 `WeiboLogger`。详见 `docs/engineering/logging.md`。
+   */
+  logger?: WeiboLogger
 
   /**
    * 构造后会话自检策略。

@@ -24,6 +24,7 @@ import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
 import { UserService } from './services/public/UserService'
 import { resolveCookieInput } from './utils/cookieInput'
+import { combineTelemetry, createLoggerBridge } from './utils/logger'
 import { parseSessionUid } from './utils/sessionUid'
 
 let sdkTraceSeq = 0
@@ -75,6 +76,7 @@ export class WeiboSDK {
   public readonly archive: ArchiveService
   private readonly authContext: AuthContext
   private readonly pipeline: ReturnType<typeof createPluginPipeline>
+  private readonly loggerBridge?: ReturnType<typeof createLoggerBridge>
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
   private readyError?: unknown
@@ -90,8 +92,14 @@ export class WeiboSDK {
    * @throws `InvalidConfigError`（code `CONFIG_INVALID`）`auth: 'cookie'` 但没有 Cookie 时抛出
    */
   constructor(private readonly config: IWeiboConfig) {
+    // logger 只消费已有事件：组合成 telemetry sink，不新增埋点。
+    this.loggerBridge = createLoggerBridge(config.logger)
     // Cookie 支持 header 串或文件路径：在这里解析一次，避免每个 Service 各读一次文件。
-    this.config = { ...config, cookie: resolveCookieInput(config.cookie ?? '') }
+    this.config = {
+      ...config,
+      cookie: resolveCookieInput(config.cookie ?? ''),
+      telemetry: combineTelemetry(config.telemetry, this.loggerBridge?.telemetry),
+    }
     this.validateConfig(this.config)
     this.pipeline = createPluginPipeline(this.config.plugins)
     this.authContext = createAuthContext(this.config, {
@@ -217,6 +225,7 @@ export class WeiboSDK {
   }
 
   private async emitLifecycle(event: WeiboSDKLifecycleEvent): Promise<void> {
+    this.loggerBridge?.lifecycle(event)
     this.pipeline.observe(event)
     await this.config.hooks?.onLifecycle?.(event)
   }
