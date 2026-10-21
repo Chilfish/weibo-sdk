@@ -1,7 +1,8 @@
 // 存档指定用户、指定时间范围内的微博，输出单个 JSON 文件。
 //
 // 枚举：把 [since, until] 按 --slice-days 拆成互不重叠的日期切片，每个切片独立调用
-// sdk.archive.streamArchive({ timelineSource: 'search', since, until })，按 --slice-concurrency 并发。
+// sdk.archive.streamArchive({ timelineSource: 'search', since, until })；切片必须串行——
+// searchProfile 的 page>1 复用会话里最近一次 page=1 的窗口，并发会互相覆盖并丢数据。
 // 补全：每条微博重新走 statuses/show（含长文），再按需拉取全部一级评论 + 楼中楼；
 // 多条微博按 --concurrency 全局窗口并发补全。
 //
@@ -41,8 +42,6 @@ const JOURNAL_SCHEMA = 'weibo-user-archive-journal/v2'
 const DEFAULT_CONCURRENCY = 6
 const MAX_CONCURRENCY = 16
 const DEFAULT_SLICE_DAYS = 30
-const DEFAULT_SLICE_CONCURRENCY = 6
-const MAX_SLICE_CONCURRENCY = 8
 const DEFAULT_DELAY_MS = 1000
 const DEFAULT_BURST = 3
 const MAX_BURST = 32
@@ -150,10 +149,12 @@ const HELP = `存档指定用户、指定时间范围内的微博详情（含评
   --max-reposts <n>            每条微博最多转发数（默认不限）
   --max-repost-pages <n>       每条微博最多转发页数（默认不限）
 
-并发：
+枚举与补全：
   --slice-days <n>             每 n 天拆一个独立枚举子任务（默认 ${DEFAULT_SLICE_DAYS}；0 = 不拆分）
-  --slice-concurrency <n>      同时枚举的切片数（默认 ${DEFAULT_SLICE_CONCURRENCY}，范围 1–${MAX_SLICE_CONCURRENCY}）
   --concurrency <n>            全局同时补全的微博数（默认 ${DEFAULT_CONCURRENCY}，范围 1–${MAX_CONCURRENCY}）
+
+  切片枚举始终串行：searchProfile 的 page>1 复用会话里最近一次 page=1 的窗口，
+  并发切片会互相覆盖，导致每个切片只拿到第一页。
 
 限速（默认约 1 req/s；调低 delay 会更快，也更容易触发 432）：
   --delay <ms>                 令牌补充间隔（默认 ${DEFAULT_DELAY_MS}ms）
@@ -176,7 +177,7 @@ Cookie：
   - 每条微博都会重新拉取 statuses/show，长文会补拉全文。
   - 归档 JSON 不含 raw；--raw 走 SDK hooks.onRaw，记录当前进程发出的每次上游响应（可能很大）。
   - 中途中断不会丢已完成的微博；最终 JSON 按 mblogId 去重后写出。
-  - 切片并发只并行「枚举」；实际 HTTP 速率仍受 SDK 令牌桶限制（默认约 1 req/s）。
+  - 切片枚举串行；补全并发由 --concurrency 控制，实际 HTTP 速率仍受 SDK 令牌桶限制（默认约 1 req/s）。
   - 想真正提速时再调小 --delay / 调大 --burst；命中 432 会全局暂停并重试。
   - 退出码 0 表示完整；1 表示枚举中止或存在补全失败（输出文件仍会写入）。
   - 完整结束时 <out>.slices/ 会被删除；存在错误时保留，方便再次续跑。
@@ -207,15 +208,6 @@ function resolveSliceDays(value: unknown): number {
   if (!Number.isInteger(parsed) || parsed < 0 || parsed > 3660)
     throw new Error(`--slice-days 需要 0–3660 的整数，收到 ${JSON.stringify(value)}`)
   return parsed
-}
-
-function resolveSliceConcurrency(value: unknown): number {
-  if (typeof value !== 'string' || value.trim() === '')
-    return DEFAULT_SLICE_CONCURRENCY
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < 1)
-    throw new Error(`--slice-concurrency 需要正整数，收到 ${JSON.stringify(value)}`)
-  return Math.min(MAX_SLICE_CONCURRENCY, parsed)
 }
 
 function resolveDelay(value: unknown): number {
@@ -780,7 +772,6 @@ async function run(): Promise<void> {
       'max-reposts': { type: 'string' },
       'max-repost-pages': { type: 'string' },
       'slice-days': { type: 'string' },
-      'slice-concurrency': { type: 'string' },
       'concurrency': { type: 'string' },
       'delay': { type: 'string' },
       'burst': { type: 'string' },
@@ -841,17 +832,11 @@ async function run(): Promise<void> {
   }
   const options = config.options
   const concurrency = resolveConcurrency(values.concurrency)
-  const sliceConcurrency = resolveSliceConcurrency(values['slice-concurrency'])
   const delay = resolveDelay(values.delay)
   const burst = resolveBurst(values.burst)
   const requestedConcurrency = typeof values.concurrency === 'string' ? Number(values.concurrency) : undefined
   if (requestedConcurrency !== undefined && requestedConcurrency > concurrency)
     console.log(`[archive] --concurrency ${requestedConcurrency} 超过上限 ${MAX_CONCURRENCY}，使用 ${concurrency}`)
-  const requestedSliceConcurrency = typeof values['slice-concurrency'] === 'string'
-    ? Number(values['slice-concurrency'])
-    : undefined
-  if (requestedSliceConcurrency !== undefined && requestedSliceConcurrency > sliceConcurrency)
-    console.log(`[archive] --slice-concurrency ${requestedSliceConcurrency} 超过上限 ${MAX_SLICE_CONCURRENCY}，使用 ${sliceConcurrency}`)
   const slices = planSlices(sinceUnix, untilUnix, config.sliceDays)
 
   if (storedMeta) {
@@ -959,7 +944,7 @@ async function run(): Promise<void> {
   console.log(`[archive] out=${outPath}`)
   console.log(
     `[archive] slices=${slices.length} sliceDays=${config.sliceDays}`
-    + ` sliceConcurrency=${sliceConcurrency} concurrency=${concurrency}`
+    + ` concurrency=${concurrency}`
     + ` delay=${delay}ms burst=${burst}`,
   )
   if (rawOutPath !== undefined)
@@ -1010,18 +995,8 @@ async function run(): Promise<void> {
     }
   })
 
-  const activeSliceCount = Math.max(
-    1,
-    Math.min(sliceConcurrency, sliceStates.filter(state => !state.done).length),
-  )
-  /**
-   * 每切片预取窗口 = 全局并发 / 活跃切片数。
-   *
-   * 如果每切片都用整个全局并发，先枚举完的切片会一次性占满 FIFO 信号量，
-   * 后面的切片看起来像没在跑；均分后各切片才会真正交错。
-   */
-  const perSliceWindow = Math.max(1, Math.ceil(concurrency / activeSliceCount))
-  console.log(`[archive] activeSlices=${activeSliceCount} perSliceWindow=${perSliceWindow}`)
+  /** 切片串行执行，单个切片的补全窗口可以直接用满全局并发。 */
+  const perSliceWindow = concurrency
 
   const journalTweets: JournalTweetEntry[] = sliceStates.flatMap(state => state.tweets)
   const bestBefore = dedupeJournalTweets(journalTweets)
@@ -1184,23 +1159,26 @@ async function run(): Promise<void> {
     }
   }
 
-  await runPool(sliceStates, sliceConcurrency, async (state) => {
+  // searchProfile 的 page>1 复用会话里最近一次 page=1 的窗口，切片必须逐个枚举。
+  for (const state of sliceStates) {
+    if (fatalError !== undefined)
+      break
     try {
       await runSlice(state)
     }
     catch (error) {
-      // 认证 / 配置 / 持续限流继续跑其他切片没有意义，停止派发。
+      // 认证 / 配置 / 持续限流继续跑其他切片没有意义，停止枚举。
       if (isFatalError(error)) {
         fatalError ??= error
         console.log(`[archive] slice ${state.descriptor.key} fatal: ${error instanceof Error ? error.message : String(error)}`)
-        return
+        break
       }
       const issue = toIssue('timeline', error)
       enumIssues.push(issue)
       appendJournal(state.path, { type: 'error', slice: state.descriptor.key, issue })
       console.log(`[archive] slice ${state.descriptor.key} failed: ${error instanceof Error ? error.message : String(error)}`)
     }
-  }, () => fatalError !== undefined)
+  }
 
   // 断点之前已经失败过的微博：本次枚举不一定会再遇到，补一轮重试。
   const retries = [...retryTargets.values()].filter(entry => !attempted.has(entry.mblogId))
