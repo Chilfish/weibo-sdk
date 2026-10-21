@@ -124,11 +124,11 @@
 
 ### R10. `schemas/` 不随包发布（中）
 
-`files: ["dist"]` 意味着 `schemas/weibo-user-archive/v1.json` 不在 tarball 里。归档文件的 `$schema` 指向 GitHub raw `main`，是可变分支，不是版本化产物。
+`files: ["dist"]` 意味着 `schemas/weibo-user-archive/v2.json`（以及历史的 `v1.json`）不在 tarball 里。归档文件的 `$schema` 指向 GitHub raw `main`，是可变分支，不是版本化产物。
 
 **修复（二选一）**：
 
-- 随包发布 `schemas/`，加 `exports["./schemas/weibo-user-archive/v1.json"]`，`$schema` 可用 `https://unpkg.com/@chilfish/weibo-sdk@<version>/schemas/...`。
+- 随包发布 `schemas/`，加 `exports["./schemas/weibo-user-archive/v2.json"]`，`$schema` 可用 `https://unpkg.com/@chilfish/weibo-sdk@<version>/schemas/...`。
 - 明确不随包发布，但把 `$schema` 改为 tag / release 固定 URL（如 `.../v0.3.0/schemas/...`），并写入文档。
 
 ### R11. `citty` 对所有用户都是 dependency（低，已修复）
@@ -173,7 +173,7 @@
       "types": "./dist/cli.d.mts",
       "default": "./dist/cli.mjs"
     },
-    "./schemas/weibo-user-archive/v1.json": "./schemas/weibo-user-archive/v1.json",
+    "./schemas/weibo-user-archive/v2.json": "./schemas/weibo-user-archive/v2.json",
     "./package.json": "./package.json"
   }
 }
@@ -266,7 +266,7 @@ npm i ../.tmp-pack/chilfish-weibo-sdk-<version>.tgz
 - `node --input-type=module -e "import('@chilfish/weibo-sdk').then(m => console.log(typeof m.WeiboSDK))"` 输出 `function`。
 - `node node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version` 输出正确版本。
 - `require('@chilfish/weibo-sdk')` 以 `ERR_REQUIRE_ESM` 失败（预期行为，写入文档）。
-- 如果发布 schema：`require.resolve('@chilfish/weibo-sdk/schemas/weibo-user-archive/v1.json')` 可解析，Ajv 能加载。
+- 如果发布 schema：`require.resolve('@chilfish/weibo-sdk/schemas/weibo-user-archive/v2.json')` 可解析，Ajv 能加载。
 - `npm ls axios zod` 无重复版本 / 无缺失；`npm ls citty` 应为空（CLI-only 依赖已内联）。
 
 ### 5.4 TypeScript 消费者

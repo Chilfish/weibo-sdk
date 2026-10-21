@@ -1,7 +1,7 @@
 # 媒体下载（单条微博）
 
 > 适用范围：Node 环境；`sdk.media.downloadTweetMedia` / `downloadByMblogId` 与 `weibo-cli media download <mblogId>`。
-> 契约关系：不改变 `ITweet` / `ArchiveItem`；归档流仍不自动下载媒体（见 [contract-itweet-v1.md](./contract-itweet-v1.md) §4.2）。
+> 契约关系：不改变 `ITweet` / `ArchiveItem`；归档流仍不自动下载媒体（见 [contract-itweet-v2.md](./contract-itweet-v2.md) §7）。
 
 ## 1. 行为
 

@@ -34,7 +34,6 @@ describe('tweet model normalization (mymblog)', () => {
     expect(tweet.mblogId).toBe('QqsYymYOS')
     expect(tweet.createdAt).toBe('now')
     expect(tweet.text).toBe('plain')
-    expect(tweet.textHtml).toBe('<span>html</span>')
     expect(tweet.regionName).toBe('上海')
     expect(tweet.source).toBe('微博网页版')
     expect(tweet.visible).toBe(TweetVisible.PUBLIC)
@@ -90,7 +89,6 @@ describe('tweet model normalization (mymblog)', () => {
 
     const tweet = new Tweet(raw)
     expect(tweet.text).toBe('//@u:转发微博')
-    expect(tweet.textHtml).toBe('//<a href=\'/n/u\'>@u</a>:转发微博')
   })
 
   it('decodes text HTML when neither text_raw nor raw_text is present', () => {

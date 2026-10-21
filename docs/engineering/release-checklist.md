@@ -8,8 +8,8 @@
 ## 版本纪律
 
 - **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
-- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v1.md](./contract-itweet-v1.md)
-- **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v2 + major）
+- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v2.md](./contract-itweet-v2.md)
+- **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v3 + major；v1 → v2 已于 2026-10-21 完成）
 - 仅在验证门禁全绿后打 tag：统一走 `pnpm release <type>`（脚本会先跑门禁，再 bump + tag + push）
 - 每次发布 version 单调递增，禁止回退
 - `CHANGELOG.md` 的 Unreleased 节在发布前迁移到版本节

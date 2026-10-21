@@ -378,19 +378,16 @@ function makeLongTextRaw(overrides: Record<string, unknown> = {}): RawTweet {
 }
 
 describe('variant 3: long-form text (continue_tag / isLongText)', () => {
-  it('keeps the truncated raw text (text = text_raw, textHtml = text) and does not map continue_tag', () => {
+  it('keeps the truncated raw text (text = text_raw) and does not map continue_tag', () => {
     const raw = makeLongTextRaw() as any
     const tweet = normalizeTweet(raw)
 
     expect(tweet.text).toBe(raw.text_raw)
-    expect(tweet.textHtml).toBe(raw.text)
     // 正文仍是截断态：以「…」结尾且远短于 textLength
     expect(tweet.text.endsWith('…')).toBe(true)
     expect(tweet.text.length).toBeLessThan(raw.textLength)
-    // textHtml 保留「全文」链接
-    expect(tweet.textHtml).toContain('全文')
 
-    // continue_tag（全文入口）不属于 ITweet v1 契约，normalizeTweet 不解析、不臆造字段：
+    // continue_tag（全文入口）不属于 ITweet v2 契约，normalizeTweet 不解析、不臆造字段：
     // 完整正文需另行请求 /ajax/statuses/longtext（TweetService 的 longtext / enrich 路径）。
     expect(tweet).not.toHaveProperty('continue_tag')
     expect(tweet).not.toHaveProperty('continueTag')
@@ -401,17 +398,15 @@ describe('variant 3: long-form text (continue_tag / isLongText)', () => {
     const raw = makeLongTextRaw({ text_raw: undefined }) as any
     const tweet = normalizeTweet(raw)
 
-    // m 站 / HTML fallback：标签被去掉，保留可读文案；textHtml 仍保留原始 HTML
+    // m 站 / HTML fallback：标签被去掉，保留可读文案
     expect(tweet.text).toContain('写了 2400 字')
     expect(tweet.text).not.toContain('<a')
-    expect(tweet.textHtml).toBe(raw.text)
   })
 
-  it('falls back to empty strings when both text fields are missing', () => {
+  it('falls back to an empty string when both text fields are missing', () => {
     const tweet = normalizeTweet(makeLongTextRaw({ text: undefined, text_raw: undefined }))
 
     expect(tweet.text).toBe('')
-    expect(tweet.textHtml).toBe('')
   })
 
   it('handles the real long-form fixture item (continue_tag present) without altering the text mapping', async () => {
@@ -423,7 +418,6 @@ describe('variant 3: long-form text (continue_tag / isLongText)', () => {
     const tweet = normalizeTweet(item)
 
     expect(tweet.text).toBe(item.text_raw)
-    expect(tweet.textHtml).toBe(item.text)
     expect(tweet).not.toHaveProperty('continue_tag')
   })
 })
@@ -664,7 +658,7 @@ describe('repost chain (reppic images in url_struct)', () => {
     })
   })
 
-  it('falls back to textHtml when text_raw is missing (anchors are stripped before splitting)', () => {
+  it('falls back to HTML text when text_raw is missing (anchors are stripped before splitting)', () => {
     const raw = makeRawTweet({
       text_raw: undefined,
       text: '龙焰算 http://t.cn/A1 //<a href=/n/A usercard="name=@A">@A</a>:龙吼算不算',

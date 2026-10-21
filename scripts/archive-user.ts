@@ -342,11 +342,6 @@ function dedupeJournalTweets(tweets: JournalTweetEntry[]): JournalTweetEntry[] {
   return [...byId.values()]
 }
 
-async function fetchLongText(sdk: WeiboSDK, mblogId: string): Promise<string | undefined> {
-  const response = await sdk.tweets.longText(mblogId)
-  return response.data.longTextContent_raw ?? response.data.longTextContent
-}
-
 /** 拉取一条微博的全部一级评论，并按需展开每条评论的楼中楼。 */
 async function collectComments(
   sdk: WeiboSDK,
@@ -419,31 +414,9 @@ async function archiveOne(
   }
 
   try {
+    // statuses/show 默认带 isGetLongText=true，长微博全文已在 tweet.text。
     const detail = await sdk.tweets.enrich(base.mblogId)
     record.tweet = detail.tweet
-
-    if (detail.raw.isLongText === true) {
-      try {
-        const longText = await fetchLongText(sdk, detail.tweet.mblogId)
-        if (longText !== undefined)
-          record.longText = longText
-      }
-      catch (error) {
-        issues.push(toIssue('longtext', error, { mblogId: base.mblogId }))
-      }
-    }
-
-    const quoted = detail.raw.retweeted_status
-    if (quoted && quoted.isLongText === true) {
-      try {
-        const longText = await fetchLongText(sdk, quoted.mblogid)
-        if (longText !== undefined)
-          record.quotedLongText = longText
-      }
-      catch (error) {
-        issues.push(toIssue('quoted-longtext', error, { mblogId: base.mblogId }))
-      }
-    }
   }
   catch (error) {
     issues.push(toIssue('detail', error, { mblogId: base.mblogId }))
@@ -849,7 +822,6 @@ async function run(): Promise<void> {
       const replyCount = tweet.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
       console.error(
         `[${processed}] ${tweet.mblogId} comments=${tweet.comments.length} replies=${replyCount}`
-        + `${tweet.longText === undefined ? '' : ' longtext'}`
         + `${issues.length === 0 ? '' : ` errors=${issues.length}`}`,
       )
     }

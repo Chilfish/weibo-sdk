@@ -93,7 +93,7 @@ describe('archiveService', () => {
     expect(items.map(i => i.source)).toEqual(['timeline', 'repost', 'timeline', 'repost', 'favorite'])
     expect(items.map(i => i.mblogId)).toEqual(['A', 'R1', 'B', 'R1', 'F1'])
     // 每条归档 item 自带契约版本（K1 / P0-1 信封层，磁盘条目自描述）
-    expect(items.map(i => i.schemaVersion)).toEqual([1, 1, 1, 1, 1])
+    expect(items.map(i => i.schemaVersion)).toEqual([2, 2, 2, 2, 2])
 
     // P1-1：checkpoint 恒定大小，不再携带 visitedMblogIds
     expect(Object.keys(items[0].checkpoint).sort()).toEqual([
@@ -619,7 +619,6 @@ describe('archiveService', () => {
     expect(tweet.comments[0]).toMatchObject({
       id: 'c1',
       text: 'hello',
-      textHtml: '<b>hello</b>',
       likes: 7,
       source: '来自 北京',
       user: { id: '9', name: 'commenter', verified: false },

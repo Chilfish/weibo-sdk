@@ -1,5 +1,6 @@
 export { normalizeMblogGroups, normalizeUserGroups } from './Group'
 export { normalizeAlbum, normalizeImageWallItem, normalizeWaterfallVideo } from './Media'
+export { migrateTweetV1toV2 } from './migrateTweet'
 export { normalizeCommentNotification, normalizeLikeNotification } from './Notification'
 export { normalizeSuperTopic, normalizeSuperTopicCategory } from './SuperTopic'
 export { normalizeComment, normalizeLiker, normalizeTweet, normalizeTweetUser, Tweet } from './Tweet'

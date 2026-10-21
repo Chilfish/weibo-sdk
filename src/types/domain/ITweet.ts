@@ -1,17 +1,19 @@
 import type { VerificationType } from './IUser'
 
 /**
- * ITweet 存档契约版本（K1 / P0-1，2026-09-04 冻结 v1）。
+ * ITweet 存档契约版本（v2，2026-10-21）。
  *
  * `ITweet` 是下游（Weibo-archiver web-v3 / monkey / CLI）的 UI 展示与磁盘存档终局契约
- * （ADR-007/008）。版本规则（与包版本解耦，见 docs/engineering/contract-itweet-v1.md）：
- * - **v1 内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
- * - **v2**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
+ * （ADR-007/008）。版本规则（与包版本解耦，见 docs/engineering/contract-itweet-v2.md）：
+ * - **v2 内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
+ * - **v3**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
+ *
+ * v2 相对 v1 的破坏性变更：删除 `ITweet.textHtml` / `ITweetComment.textHtml`。
  */
-export const TWEET_CONTRACT_VERSION = 1 as const
+export const TWEET_CONTRACT_VERSION = 2 as const
 
 /**
- * `TWEET_CONTRACT_VERSION` 的字面量类型（当前仅 `1`）。
+ * `TWEET_CONTRACT_VERSION` 的字面量类型（当前仅 `2`）。
  */
 export type TweetContractVersion = typeof TWEET_CONTRACT_VERSION
 
@@ -28,10 +30,13 @@ export interface ITweet {
   mblogId: string
   /** 发布时间（上游 `created_at` 原样字符串，含时区） */
   createdAt: string
-  /** 纯文本正文（长文按上游返回值截断，完整正文需 `enrich({ includeLongText: true })`） */
+  /**
+   * 纯文本正文。
+   *
+   * `statuses/show` 默认带 `isGetLongText=true`，长微博已是全文；
+   * 若调用方显式关闭长文，可再经 `enrich({ includeLongText: true })` 补拉。
+   */
   text: string
-  /** HTML 片段正文（用于富文本渲染；只读展示，勿直接 innerHTML 未净化内容） */
-  textHtml: string
   /** 发布地（地区名，如「北京」；未提供时缺省） */
   regionName?: string
   /** 来源（如「微博网页版」） */
@@ -132,8 +137,6 @@ export interface ITweetComment {
   createdAt: string
   /** 纯文本内容 */
   text: string
-  /** HTML 片段内容（可能含表情 `img`，展示前需净化） */
-  textHtml: string
   /** 来源（如「微博网页版」） */
   source: string
   /** 点赞数 */
@@ -174,7 +177,7 @@ export interface ITweetComment {
  * 评论配图（图片评论）。
  *
  * 上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；
- * `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。
+ * `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v2.md §5）。
  */
 export interface TweetCommentPic {
   /** 图片 id（`pic_infos` 键 / `pic_id`） */
@@ -296,7 +299,7 @@ export enum MediaType {
  * 【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：
  * 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。
  * SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，
- * 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。
+ * 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v2.md。
  */
 export interface TweetMedia {
   /** 媒体 id（上游 `pid` / 视频 id） */

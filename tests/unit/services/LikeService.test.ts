@@ -128,7 +128,6 @@ describe('likeService.listByUserId', () => {
     const tweet = result.tweets[0]
     expect(tweet.id).toBe('1')
     expect(tweet.text).toBe('text-A')
-    expect(tweet.textHtml).toBe('<a>html-A</a>')
     expect(tweet.user.name).toBe('author')
     expect(tweet.stats).toEqual({ likes: 2, comments: 3, reposts: 4 })
 

@@ -376,7 +376,7 @@ pnpm play cli:home
 - [CLI 参考](./docs/engineering/cli.md)
 - [错误排障](./docs/engineering/error-diagnostics.md)
 - [端点开发](./docs/engineering/endpoint-authoring.md)
-- [数据模型说明](./docs/engineering/contract-itweet-v1.md)
+- [数据模型说明](./docs/engineering/contract-itweet-v2.md)
 
 ## 边界
 

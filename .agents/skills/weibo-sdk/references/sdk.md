@@ -40,15 +40,15 @@ new WeiboSDK({ proxy: 'http://127.0.0.1:7890' })   // 或 { getProxy: ctx => ...
 
 ## 模型字段
 
-### `ITweet`（存档契约 v1，只增不改）
-必填：`id`（数字串）、`mblogId`、`createdAt`（上游原样字符串，含时区）、`text`、`textHtml`、`source`、`user`（`TweetUser` 简版）、`stats{likes,comments,reposts}`、`visible`、`media[]`。
+### `ITweet`（存档契约 v2，只增不改）
+必填：`id`（数字串）、`mblogId`、`createdAt`（上游原样字符串，含时区）、`text`、`source`、`user`（`TweetUser` 简版）、`stats{likes,comments,reposts}`、`visible`、`media[]`。`text` 默认已是长微博全文。
 可选：`regionName`、`retweetedStatus`（同构递归）、`repostChain[]`、`pageInfo`、`geo`、`topics[]`、`linkCards[]`、`readCount`、`editCount`、`title`、`permanentVideoUrl`、`isOriginal`、`sourceUrl`、`atUsers[]`、`playCount`、`isTop`、`audio[]`、`comments[]`（仅归档 `includeComments` 时填充）。
 
 `media[]` 元素：`{ id, type: 'pic'|'video'|'gif'|'livephoto'|..., imageUrl, videoUrl?, duration?, width?, height? }`。
 **媒体 URL 是短期签名地址**，带 `Expires` / `ssig`，归档要立即下载。
 
 ### `ITweetComment`
-`id`、`createdAt`、`text`、`textHtml`、`source`、`likes`、`user`，以及楼中楼 `replies[]`、图片评论 `pics[]`、`rootId`、`replyTo`、`floorNumber`、`totalReplies`、`liked`、`parentMblogId`。
+`id`、`createdAt`、`text`、`source`、`likes`、`user`，以及楼中楼 `replies[]`、图片评论 `pics[]`、`rootId`、`replyTo`、`floorNumber`、`totalReplies`、`liked`、`parentMblogId`。
 `replies` 是「谁回复了这条」，`replyTo` 是「我回复了谁」，两者独立。
 
 ### `ITweetContext`（`weibo.tweet-context/v1`）
@@ -65,7 +65,7 @@ new WeiboSDK({ proxy: 'http://127.0.0.1:7890' })   // 或 { getProxy: ctx => ...
 - `source` ∈ `timeline` / `repost` / `favorite` / `like` / `comment` / `image` / `video`
 - `asset` 为 `IUserMediaAsset`（`id` / `type` / `url` / `coverUrl` / `sourceTweetId` / `createdAt` / `objectId`），图片项可能没有 `tweet`
 - `checkpoint` 记录最后一条完整处理的项；续跑 at-least-once，按 `mblogId`（媒体按 `asset.id`）幂等去重
-- 归档文件的 JSON Schema 在仓库 `schemas/weibo-user-archive/v1.json`，由 `pnpm schema:archive` 生成；`pnpm schema:check` 检查漂移
+- 归档文件的 JSON Schema 在仓库 `schemas/weibo-user-archive/v2.json`，由 `pnpm schema:archive` 生成；`pnpm schema:check` 检查漂移
 
 ## 示例
 

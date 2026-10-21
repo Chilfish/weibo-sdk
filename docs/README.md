@@ -59,7 +59,8 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [technical-spec.md](engineering/technical-spec.md) | 架构与契约规格（分层、实体契约、接口定义、错误体系、可测试性） | 任何实现/契约变更 |
-| [archive-schema.md](engineering/archive-schema.md) | 归档 JSON Schema（`weibo-user-archive/v1`）：`$schema` 约定、类型生成、版本规则、Ajv 校验 | 修改归档格式 / 下游接入归档文件 |
+| [contract-itweet-v2.md](engineering/contract-itweet-v2.md) | `ITweet` 存档契约 v2：版本机制、字段冻结表、媒体 URL 契约、v1 → v2 迁移 | 修改数据模型 / 下游接入存档 |
+| [archive-schema.md](engineering/archive-schema.md) | 归档 JSON Schema（`weibo-user-archive/v2`）：`$schema` 约定、类型生成、版本规则、Ajv 校验 | 修改归档格式 / 下游接入归档文件 |
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |

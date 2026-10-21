@@ -387,7 +387,7 @@ weibo-cli schema diff before.json after.json
 > `archive` 不支持访客身份：`--guest`（或不带 Cookie）会在产出任何 item 之前报 `CONFIG_INVALID`。
 > 访客只有首屏数据，归档无法保证完整；需要归档请提供 Cookie。
 
-CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v1.md §4.1](../engineering/contract-itweet-v1.md)。
+CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
 
 ## 输出形态速查
 

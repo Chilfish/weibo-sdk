@@ -19,7 +19,6 @@ function makeTweet(media: TweetMedia[]): ITweet {
     mblogId: 'M1',
     createdAt: '2025-10-20 09:14:17',
     text: '',
-    textHtml: '',
     source: '',
     user: {
       id: '1',

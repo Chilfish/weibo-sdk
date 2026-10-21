@@ -772,7 +772,6 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     createdAt: raw.created_at,
     // m 站（guest 时间线 / 点赞 / 媒体）没有 `text_raw`，只有 `raw_text` 或 HTML `text`。
     text: getString(raw.text_raw) ?? getString(rawRecord.raw_text) ?? decodeHtmlText(raw.text || ''),
-    textHtml: raw.text || '',
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),
     user,
@@ -901,7 +900,6 @@ function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComm
     id: String(record.idstr || record.id || ''),
     createdAt: String(record.created_at || ''),
     text: String(record.text_raw ?? record.text ?? ''),
-    textHtml: String(record.text ?? record.text_raw ?? ''),
     source: String(record.source || ''),
     likes: getNumber(record.like_counts ?? record.like_count) ?? 0,
     user: normalizeUser(record.user),
@@ -954,7 +952,7 @@ function normalizeCommentNode(raw: unknown, includeReplies: boolean): ITweetComm
  * - 图片评论：`pics` 取 `url_struct[].pic_infos`（最大尺寸 URL），按 `pic_id` 去重。
  * - `status` / `reply_comment` 缺失时不抛错，只是对应 optional 字段不出现。
  *
- * 保持向后兼容：`id` / `createdAt` / `text` / `textHtml` / `source` / `likes` / `user` 语义不变。
+ * 保持向后兼容：`id` / `createdAt` / `text` / `source` / `likes` / `user` 语义不变。
  */
 export function normalizeComment(raw: unknown): ITweetComment {
   return normalizeCommentNode(raw, true)
@@ -983,7 +981,6 @@ export class Tweet implements ITweet {
   public source!: string
   public stats!: { likes: number, comments: number, reposts: number }
   public text!: string
-  public textHtml!: string
   public user!: TweetUser
   public visible!: TweetVisible
   public regionName?: string

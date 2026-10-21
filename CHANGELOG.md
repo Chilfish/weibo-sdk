@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 变更
+
+- **BREAKING CHANGE**：`ITweet` / `ITweetComment` 删除 `textHtml`，`TWEET_CONTRACT_VERSION` 升为 `2`；归档记录的 `longText` / `quotedLongText` 一并删除。`statuses/show` 默认带 `isGetLongText=true`，长微博全文已经在 `tweet.text`，无需单独补拉。
+  迁移：旧存档记录调用 `migrateTweetV1toV2(record)`（递归删除 `textHtml`）；渲染层用 `text` 配合 `linkCards` / `topics` / `atUsers` / `media` 重建富文本。
+- 归档格式升级为 `weibo-user-archive/v2`，`$schema` 指向 `schemas/weibo-user-archive/v2.json`；v1 文件继续用 `schemas/weibo-user-archive/v1.json` 校验。
+
 ## 0.3.2 (2026-10-21)
 
 ### 新增

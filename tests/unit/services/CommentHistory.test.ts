@@ -153,7 +153,6 @@ describe('normalizeComment (D2)', () => {
     expect(comment.id).toBe(String(item.idstr))
     expect(comment.createdAt).toBe(item.created_at)
     expect(comment.text).toBe(item.text_raw ?? item.text)
-    expect(comment.textHtml).toBe(item.text)
     expect(comment.source).toBe(item.source ?? '')
     expect(comment.likes).toBe(item.like_counts ?? 0)
     expect(comment.user.id).toBe(String(item.user.idstr))
@@ -240,7 +239,7 @@ describe('normalizeComment (D2)', () => {
     expect(normalizeComment({ liked: 'true' }).liked).toBeUndefined()
   })
 
-  it('keeps buildComments behavior (text/textHtml/source/likes/replies)', () => {
+  it('keeps buildComments behavior (text/source/likes/replies)', () => {
     const comment = normalizeComment({
       idstr: 'c1',
       created_at: 'Mon Oct 19 12:00:00 +0800 2026',
@@ -255,7 +254,6 @@ describe('normalizeComment (D2)', () => {
     expect(comment).toMatchObject({
       id: 'c1',
       text: 'hello',
-      textHtml: '<b>hello</b>',
       source: '来自 北京',
       likes: 7,
       user: { id: '9', name: 'commenter' },

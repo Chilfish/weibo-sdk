@@ -124,7 +124,7 @@ export interface ArchiveCheckpoint {
  * 归档流产出项（磁盘条目信封，K1 / P0-1）。
  *
  * `schemaVersion` 为 ITweet 存档契约版本（与包版本解耦），落盘条目据此自描述、
- * 下游可按版本迁移（规则与迁移策略见 docs/engineering/contract-itweet-v1.md）；
+ * 下游可按版本迁移（规则与迁移策略见 docs/engineering/contract-itweet-v2.md）；
  * `tweet` 为归一化模型；`schemaDigest` 为 raw 项的结构快照（A7，`stripVolatileKeys`），
  * 用于检测上游字段漂移（同一源同一时期 digest 应稳定）——注意与契约版本用途不同。
  */
