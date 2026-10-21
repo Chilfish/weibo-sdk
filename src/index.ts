@@ -7,6 +7,32 @@ export * from './capabilities'
 export * from './models/data'
 export * from './models/errors'
 export * from './models/view/TweetContext'
+export type {
+  Credential,
+  CredentialResolveContext,
+  CredentialResolver,
+} from './services/internal/CredentialResolver'
+export type {
+  BeforeRetryResult,
+  ErrorContext,
+  PluginRequestInfo,
+  RequestContext,
+  ResponseContext,
+  RetryContext,
+  WeiboEvent,
+  WeiboPlugin,
+} from './services/internal/plugins'
+export { fetchTransport, TransportFailure } from './services/internal/transport'
+export type {
+  FetchLike,
+  FetchResponseLike,
+  TransportFailureKind,
+  TransportMethod,
+  TransportRequest,
+  TransportRequestMeta,
+  TransportResponse,
+  WeiboTransport,
+} from './services/internal/transport'
 export * from './types'
 export * from './utils/schemaDrift'
 export * from './utils/telemetryJsonl'

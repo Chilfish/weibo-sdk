@@ -1,5 +1,5 @@
 import type { CapabilityFilter, WeiboCapability } from './capabilities'
-import type { AuthContext } from './services/internal/AuthProvider'
+import type { AuthContext } from './services/internal/CredentialResolver'
 // src/WeiboSDK.ts
 import type { IWeiboConfig } from './types/config'
 import type {
@@ -9,7 +9,8 @@ import type {
 import type { WeiboSessionContext } from './types/session'
 import { listCapabilities } from './capabilities'
 import { WeiboSessionExpiredError } from './models/errors/BusinessError'
-import { createAuthContext, resolveAuthMode } from './services/internal/AuthProvider'
+import { createAuthContext, resolveAuthMode } from './services/internal/CredentialResolver'
+import { createPluginPipeline } from './services/internal/plugins'
 import { ArchiveService } from './services/public/ArchiveService'
 import { CommentHistoryService } from './services/public/CommentHistoryService'
 import { FavoriteService } from './services/public/FavoriteService'
@@ -73,6 +74,7 @@ export class WeiboSDK {
   /** 归档服务：把 timeline + favorites 串成可恢复的 AsyncIterator。 */
   public readonly archive: ArchiveService
   private readonly authContext: AuthContext
+  private readonly pipeline: ReturnType<typeof createPluginPipeline>
   private readonly selfCheckMode: WeiboSDKSelfCheckMode
   private readyPromise?: Promise<void>
   private readyError?: unknown
@@ -91,6 +93,7 @@ export class WeiboSDK {
     // Cookie 支持 header 串或文件路径：在这里解析一次，避免每个 Service 各读一次文件。
     this.config = { ...config, cookie: resolveCookieInput(config.cookie ?? '') }
     this.validateConfig(this.config)
+    this.pipeline = createPluginPipeline(this.config.plugins)
     this.authContext = createAuthContext(this.config, {
       telemetry: this.config.telemetry,
     })
@@ -100,6 +103,7 @@ export class WeiboSDK {
       hooks: this.config.hooks,
       preflight: () => this.ensureReady(),
       auth: this.authContext,
+      pipeline: this.pipeline,
     }
 
     this.users = new UserService(this.config, deps)
@@ -213,6 +217,7 @@ export class WeiboSDK {
   }
 
   private async emitLifecycle(event: WeiboSDKLifecycleEvent): Promise<void> {
+    this.pipeline.observe(event)
     await this.config.hooks?.onLifecycle?.(event)
   }
 

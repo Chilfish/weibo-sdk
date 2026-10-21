@@ -1,7 +1,7 @@
 import type { GuestFetch, GuestFetchResponse } from '~/services/internal/GuestTokenService'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
-import { createAuthContext, isAuthFailureReason, resolveAuthMode } from '~/services/internal/AuthProvider'
+import { createAuthContext, isAuthFailureReason, resolveAuthMode } from '~/services/internal/CredentialResolver'
 
 const GEN_VISITOR_URL = 'https://visitor.passport.weibo.cn/visitor/genvisitor'
 const INCARNATE_URL = 'https://visitor.passport.weibo.cn/visitor/visitor'
@@ -12,7 +12,7 @@ interface FakeResponseInit {
   setCookies?: string[]
 }
 
-/** 构造符合 `GuestFetchResponse` 契约的假响应（不触碰真实网络）。 */
+/** 构造符�?`GuestFetchResponse` 契约的假响应（不触碰真实网络）�? */
 function fakeResponse(init: FakeResponseInit = {}): GuestFetchResponse {
   const status = init.status ?? 200
   const setCookies = init.setCookies ?? []
@@ -27,7 +27,7 @@ function fakeResponse(init: FakeResponseInit = {}): GuestFetchResponse {
   }
 }
 
-/** 只应答 genvisitor → incarnate 的假 fetch，并记录所有调用 URL。 */
+/** 只应�?genvisitor �?incarnate 的假 fetch，并记录所有调�?URL�? */
 function createGuestFetchStub(): { fetch: GuestFetch, calls: string[] } {
   const calls: string[] = []
   const fetchImpl: GuestFetch = async (url) => {
@@ -48,7 +48,7 @@ function createGuestFetchStub(): { fetch: GuestFetch, calls: string[] } {
   return { fetch: fetchImpl, calls }
 }
 
-/** 断言同步调用抛错并返回错误（没有抛错时让测试失败，而不是跳过）。 */
+/** 断言同步调用抛错并返回错误（没有抛错时让测试失败，而不是跳过）�? */
 function captureError(fn: () => unknown): unknown {
   try {
     fn()
@@ -104,7 +104,7 @@ describe('createAuthContext: cookie mode', () => {
     expect(context.mode).toBe('cookie')
     expect(context.guestTokens).toBeUndefined()
 
-    const provider = context.getProvider('cookie')
+    const provider = await context.getCredential('cookie')
     expect(provider.mode).toBe('cookie')
     await expect(provider.getHeaders()).resolves.toEqual({ Cookie: 'SUB=abc; SUBP=def' })
   })
@@ -112,7 +112,7 @@ describe('createAuthContext: cookie mode', () => {
   it('returns no headers and no Cookie for none endpoints', async () => {
     const context = createAuthContext({ auth: 'auto', cookie: 'SUB=abc; SUBP=def' })
 
-    const provider = context.getProvider('none')
+    const provider = await context.getCredential('none')
 
     expect(provider.mode).toBe('none')
     await expect(provider.getHeaders()).resolves.toEqual({})
@@ -125,7 +125,7 @@ describe('createAuthContext: guest mode', () => {
     vi.stubGlobal('fetch', stub.fetch)
 
     const context = createAuthContext({ auth: 'guest' })
-    const provider = context.getProvider('guest')
+    const provider = await context.getCredential('guest')
 
     expect(context.mode).toBe('guest')
     expect(context.guestTokens).toBeDefined()
@@ -144,7 +144,7 @@ describe('createAuthContext: guest mode', () => {
     vi.stubGlobal('fetch', stub.fetch)
 
     const context = createAuthContext({ auth: 'guest' })
-    const provider = context.getProvider('none')
+    const provider = await context.getCredential('none')
 
     expect(provider.mode).toBe('none')
     await expect(provider.getHeaders()).resolves.toEqual({})
@@ -164,7 +164,7 @@ describe('createAuthContext: guest mode', () => {
       guest: { token: 'SUB=preset_sub; SUBP=preset_subp' },
     })
 
-    const headers = await context.getProvider('guest').getHeaders()
+    const headers = await (await context.getCredential('guest')).getHeaders()
 
     expect(headers.Cookie).toBe('SUB=preset_sub; SUBP=preset_subp')
     expect(calls).toHaveLength(0)

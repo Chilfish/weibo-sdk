@@ -1,5 +1,5 @@
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
-import type { AuthContext, AuthProvider } from '~/services/internal/AuthProvider'
+import type { AuthContext, Credential } from '~/services/internal/CredentialResolver'
 import type { IRequestResource } from '~/services/internal/FetcherService'
 import type { IWeiboConfig } from '~/types/config'
 import { TelemetryCollector } from 'tests/testkit'
@@ -60,7 +60,8 @@ function axiosError(status: number, data: unknown = { ok: 0 }): Error {
 function guestAuth(options: { refresh?: boolean } = {}) {
   let token = 'SUB=guest_1'
   let refreshCalls = 0
-  const provider: AuthProvider = {
+  const provider: Credential = {
+    id: 'guest-primary',
     mode: 'guest',
     async getHeaders() {
       return { Cookie: token }
@@ -73,7 +74,8 @@ function guestAuth(options: { refresh?: boolean } = {}) {
       return true
     },
   }
-  const none: AuthProvider = {
+  const none: Credential = {
+    id: 'none',
     mode: 'none',
     async getHeaders() {
       return {}
@@ -81,7 +83,10 @@ function guestAuth(options: { refresh?: boolean } = {}) {
   }
   const auth: AuthContext = {
     mode: 'guest',
-    getProvider: endpointAuth => (endpointAuth === 'none' ? none : provider),
+    resolver: {
+      resolve: context => (context.auth === 'none' ? none : provider),
+    },
+    getCredential: endpointAuth => (endpointAuth === 'none' ? none : provider),
   }
   return {
     auth,
@@ -141,10 +146,10 @@ describe('fetcherService guest auth', () => {
     })
 
     await fetcher.callUser('1')
-    expect(axios.getLastConfig()?.headers?.Cookie).toBe(getToken())
+    expect(axios.getLastConfig()?.headers?.cookie).toBe(getToken())
 
     await fetcher.callGroups()
-    expect(axios.getLastConfig()?.headers?.Cookie).toBeUndefined()
+    expect(axios.getLastConfig()?.headers?.cookie).toBeUndefined()
   })
 
   it('refreshes once and retries on a login redirect', async () => {

@@ -39,6 +39,8 @@ export type TelemetryEvent
     auth_mode?: 'cookie' | 'guest'
     /** guest token 在本次逻辑请求内的刷新次数（0/1） */
     guest_refresh_count?: number
+    /** 非敏感凭证标识（不含 Cookie 明文） */
+    credential_id?: string
   })
   | (TelemetryEventBase & {
     /** 请求成功（已通过 `ok` 检查与 schema 校验） */
@@ -51,6 +53,7 @@ export type TelemetryEvent
     ok?: number
     auth_mode?: 'cookie' | 'guest'
     guest_refresh_count?: number
+    credential_id?: string
   })
   | (TelemetryEventBase & {
     /** 任一失败路径（自检 / 网络 / 业务码 / 解析），错误摘要已扁平化 */
@@ -72,6 +75,7 @@ export type TelemetryEvent
     error_retryable?: boolean
     auth_mode?: 'cookie' | 'guest'
     guest_refresh_count?: number
+    credential_id?: string
     /** 鉴权失败原因（guest 刷新决策） */
     auth_failure_reason?: 'redirect_to_login' | 'visitor_entry' | 'ok_minus_100' | 'forbidden' | 'empty_object' | 'html'
   })
@@ -99,6 +103,7 @@ export type TelemetryEvent
     error_retryable?: boolean
     auth_mode?: 'cookie' | 'guest'
     guest_refresh_count?: number
+    credential_id?: string
   })
   | (TelemetryEventBase & {
     /** 访客 token 发放成功（由 `GuestTokenService` 发出，不含 token 明文） */

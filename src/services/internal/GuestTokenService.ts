@@ -1,7 +1,9 @@
+import type { FetchLike, FetchResponseLike } from './transport/types'
 import type { TelemetryEvent, TelemetryPrimitive, WeiboSDKTelemetry } from '~/types/telemetry'
 import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { RateLimitError } from '~/models/errors/TransportError'
+import { getGlobalFetch } from './transport/types'
 
 /** 访客 token 的发放来源。 */
 export type GuestTokenSource = 'preset' | 'mobile' | 'desktop'
@@ -31,31 +33,15 @@ export interface GuestTokenClock {
   now: () => number
 }
 
-/** 最小 fetch 响应契约（避免依赖 DOM lib）。 */
-export interface GuestFetchResponse {
-  status: number
-  ok: boolean
-  headers: {
-    get: (name: string) => string | null
-    getSetCookie?: () => string[]
-  }
-  text: () => Promise<string>
-}
+/** 最小 fetch 响应契约（与 transport 共用，避免依赖 DOM lib）。 */
+export type GuestFetchResponse = FetchResponseLike
 
-/** 最小 fetch 契约（可注入 fake）。 */
-export type GuestFetch = (
-  url: string,
-  init?: {
-    method?: string
-    headers?: Record<string, string>
-    body?: string
-    redirect?: 'follow' | 'error' | 'manual'
-  },
-) => Promise<GuestFetchResponse>
+/** 最小 fetch 契约（可注入 fake）；与 `FetchTransport` 共用同一注入点。 */
+export type GuestFetch = FetchLike
 
 export interface GuestTokenServiceDeps {
-  /** 注入 fetch（测试用）；默认使用 `globalThis.fetch`。 */
-  fetch?: GuestFetch
+  /** 注入 fetch（测试 / Worker / Edge）；默认使用 `globalThis.fetch`。 */
+  fetch?: FetchLike
   /** 注入时钟（测试用）；默认 `Date.now`。 */
   clock?: GuestTokenClock
   /** 发放方式（默认 `mobile`）。 */
@@ -134,14 +120,14 @@ function hasSub(cookie: string): boolean {
 }
 
 function defaultGuestFetch(): GuestFetch {
-  const fetchImpl = (globalThis as typeof globalThis & { fetch?: unknown }).fetch
-  if (typeof fetchImpl !== 'function') {
+  const fetchImpl = getGlobalFetch()
+  if (!fetchImpl) {
     throw new WeiboSessionExpiredError(
-      'Guest mode requires a runtime with global fetch (Node.js 18+).',
+      'Guest mode requires a runtime with global fetch; inject one via config.fetch.',
       { auth_mode: 'guest', reason: 'fetch_unavailable' },
     )
   }
-  return fetchImpl as GuestFetch
+  return fetchImpl
 }
 
 function responseError(status: number, url: string, body: string): WeiboSessionExpiredError {

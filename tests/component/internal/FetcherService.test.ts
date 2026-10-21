@@ -39,8 +39,8 @@ describe('fetcherService', () => {
     expect(rateLimit.acquireCalls).toBe(1)
 
     const cfg = getLastConfig()
-    expect(cfg?.headers?.Cookie).toContain('SUB=abc')
-    expect(cfg?.headers?.['X-XSRF-TOKEN']).toBe('token_explicit')
+    expect(cfg?.headers?.cookie).toContain('SUB=abc')
+    expect(cfg?.headers?.['x-xsrf-token']).toBe('token_explicit')
     expect(cfg?.params).toEqual({ uid: '1' })
   })
 

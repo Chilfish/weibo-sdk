@@ -1,5 +1,5 @@
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
-import type { AuthContext, AuthProvider } from '~/services/internal/AuthProvider'
+import type { AuthContext, Credential } from '~/services/internal/CredentialResolver'
 import type { ArchiveServiceDeps } from '~/services/public/ArchiveService'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -29,7 +29,8 @@ function createAxios(handler: (config: AxiosRequestConfig) => unknown): AxiosIns
   } as unknown as AxiosInstance
 }
 
-const guestProvider: AuthProvider = {
+const guestCredential: Credential = {
+  id: 'guest-primary',
   mode: 'guest',
   async getHeaders() {
     return { Cookie: 'SUB=guest; SUBP=guest' }
@@ -41,7 +42,8 @@ const guestProvider: AuthProvider = {
 
 const guestAuth: AuthContext = {
   mode: 'guest',
-  getProvider: () => guestProvider,
+  resolver: { resolve: () => guestCredential },
+  getCredential: () => guestCredential,
 }
 
 const deps = {

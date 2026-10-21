@@ -49,6 +49,8 @@ export interface WeiboSDKFetchMeta extends WeiboSDKHookBaseMeta {
 export interface WeiboSDKErrorMeta extends WeiboSDKHookBaseMeta {
   /** 失败阶段：`preflight` 自检 / `request` 网络 / `response` 业务码 / `parse` schema 校验 */
   phase: 'preflight' | 'request' | 'response' | 'parse'
+  /** 失败发生在第几次尝试（1 = 首次请求）；响应 / 解析阶段缺省 */
+  attempt?: number
   /** 端点标识 */
   endpoint?: string
   /** 请求元信息 */

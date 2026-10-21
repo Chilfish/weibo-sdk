@@ -1,6 +1,8 @@
 // src/types/config.ts
 import type { WeiboSDKHooks, WeiboSDKSelfCheckMode } from './hooks'
 import type { WeiboSDKTelemetry } from './telemetry'
+import type { WeiboPlugin } from '~/services/internal/plugins/types'
+import type { FetchLike, WeiboTransport } from '~/services/internal/transport'
 
 /**
  * 可重试失败类别（`config.retry.retryOn` 的取值）。
@@ -138,8 +140,21 @@ export interface IWeiboConfig {
   proxyUrl?: string
   /** 单请求超时毫秒数（默认 30000） */
   timeout?: number
-  /** 是否输出调试日志（默认关闭；库入口不产生副作用日志） */
-  logging?: boolean
+  /**
+   * 自定义传输实现（默认 `axiosTransport()`）。
+   *
+   * 显式替换才改变行为；Worker / Edge / 测试替身使用 `fetchTransport()`。
+   */
+  transport?: WeiboTransport
+  /**
+   * 共享 fetch 注入点（默认 `globalThis.fetch`）。
+   *
+   * 当前用于访客 token 发放（`GuestTokenService`）；主 transport 仍默认 axios。
+   * 想用原生 fetch 发请求时显式传 `transport: fetchTransport({ fetch })`。
+   */
+  fetch?: FetchLike
+  /** 构造期组装的插件（可选；无插件时走 identity 快路径）。 */
+  plugins?: WeiboPlugin[]
   /** 令牌桶最大并发数（默认 3） */
   maxConcurrent?: number
   /** 请求间隔毫秒数，或按重试次数返回间隔的函数（默认 1000） */
