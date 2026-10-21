@@ -308,6 +308,23 @@ const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', {
 
 请求、限流、重试和归一化过程会产生结构化遥测事件。可以接入自己的 `telemetry.emit()`，也可以使用 `createJsonlTelemetry()` 直接写到 JSONL 文件。
 
+需要分级、格式化或落盘时，显式接入 logger（默认关闭，SDK 不产生 console / 文件 IO）：
+
+```ts
+import { appendFileSync } from 'node:fs'
+import { createConsoleLogger, createJsonlLogger, createMultiLogger, WeiboSDK } from '@chilfish/weibo-sdk'
+
+const sdk = new WeiboSDK({
+  cookie,
+  logger: createMultiLogger([
+    createConsoleLogger({ level: 'warn' }), // 默认 stderr + 单行 JSON
+    createJsonlLogger({ level: 'debug', write: line => appendFileSync('weibo.log', line) }),
+  ]),
+})
+```
+
+日志来自已有的 Wide Events 与 `sdk_init` / `self_check_*`，不会额外埋点；内置 sink 默认替换 Cookie / token 等敏感字段。详见 [日志](./docs/engineering/logging.md)。
+
 ## 扩展：自定义传输与插件
 
 默认使用 axios。Worker / Edge / Deno / Bun / 测试替身可以换成原生 fetch，`config.fetch` 也会复用于访客 token 发放：

@@ -6,6 +6,7 @@
 
 ### 新增
 
+- 新增结构化日志出口 `config.logger`（默认关闭）。SDK 把已有的 Wide Events 与 `sdk_init` / `self_check_*` 映射为带级别的日志记录，不新增埋点；`WeiboLogger.log()` 抛错或 reject 不影响业务。公共导出新增 `createConsoleLogger` / `createJsonlLogger` / `createMultiLogger` / `createLoggerPlugin`、`WeiboLogger` / `WeiboLogRecord` / `WeiboLogLevel`，内置 sink 默认替换 Cookie / token 等敏感字段。`weibo-cli` 的 stdout 数据与 NDJSON 协议不经过 logger。
 - CLI 查询命令新增 `--format`（默认 `json`，可选 `markdown` / `md`），覆盖 `user`、`tweet`、`follow`、`favorite list`、`like list`、`comment mine`、`notification`、`media albums`、`topic`、`trends`、`whoami`，直接输出可读的用户卡片、微博列表、评论、关注列表、热搜等。默认 JSON 与 NDJSON 行为不变；流式命令、`archive` 和 `media download` 不提供该参数。
 
 ### 变更

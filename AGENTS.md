@@ -80,7 +80,7 @@ WeiboSDK（门面）
 - TypeScript `strict` 模式；尽量避免 `any`（无法避免时在边界层集中，并加测试保护）。
 - 公共 API：先写类型/接口契约（Contract First），再实现。
 - 核心逻辑尽量纯函数；IO 通过依赖注入或可替换适配器隔离。
-- 禁止在库入口产生副作用（例如 `console.log`）；日志/调试必须走 Wide Events 通道。
+- 禁止在库入口产生副作用（例如 `console.log`）；日志/调试必须走 Wide Events 通道。需要分级 / 格式化 / 落盘时，通过显式的 `config.logger`（默认关闭）消费同一批事件，不在核心新增文本日志。
 
 ## 测试策略
 

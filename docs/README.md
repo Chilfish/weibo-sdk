@@ -66,6 +66,7 @@
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |
 | [package-integrity.md](engineering/package-integrity.md) | 包完整性与下游打包指南：exports / types / sideEffects / engines、tarball 核验矩阵、publint / attw / Vite / tree-shaking 门禁 | 修改发布配置、新增子路径/依赖、排查下游打包问题 |
 | [plugins.md](engineering/plugins.md) | 插件与传输适配：`WeiboTransport` / `CredentialResolver` / 插件生命周期、顺序、错误语义与示例 | 替换 fetch、编写插件、排查扩展点 |
+| [logging.md](engineering/logging.md) | 日志出口：Wide Events → logger bridge、级别映射、内置 console / JSONL sink、脱敏与默认静默 | 接入日志、落盘、排查输出边界 |
 | [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty，二进制 `weibo-cli`） | 添加/修改 CLI 子命令 |
 | [endpoint-authoring.md](engineering/endpoint-authoring.md) | 端点开发指南：抓包 → schema → spec → service → CLI → 测试 → 文档；含分页约定与高频雷区 | 新增/修改任何 endpoint |
 | [media-download.md](engineering/media-download.md) | 单条微博媒体下载：命名、安全、重试、失败清单 | 修改下载行为 / 排障 |

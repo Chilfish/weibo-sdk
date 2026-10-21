@@ -171,7 +171,7 @@ const logger: WeiboPlugin = {
 }
 ```
 
-`observe` 会收到 Wide Events（`request_start` / `request_success` / `request_error` / `request_retry` / `rate_limit_wait` 等）与生命周期事件（`sdk_init` / `self_check_*`）。
+`observe` 会收到 Wide Events（`request_start` / `request_success` / `request_error` / `request_retry` / `rate_limit_wait` 等）与生命周期事件（`sdk_init` / `self_check_*`）。需要分级、格式化或落盘时，优先用 `config.logger` 或 `createLoggerPlugin()`，见 [logging.md](logging.md)。
 
 ---
 
