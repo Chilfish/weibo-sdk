@@ -304,6 +304,10 @@ const archive = defineCommand({
       type: 'string',
       description: '每条微博最多评论页数（默认不限）',
     },
+    'concurrency': {
+      type: 'string',
+      description: '页内并发预取窗口（默认 3，范围 1–8；1 为完全串行）',
+    },
     'max-retries': {
       type: 'string',
       description: '可重试错误的最大重试次数（默认 1）',
@@ -391,6 +395,7 @@ const archive = defineCommand({
       maxCommentPagesPerTweet: args['comment-pages']
         ? Number(args['comment-pages'])
         : undefined,
+      concurrency: args.concurrency ? Number(args.concurrency) : undefined,
       maxRetries: args['max-retries'] ? Number(args['max-retries']) : undefined,
       repostErrorPolicy: errorAction(args['repost-policy']),
       commentsErrorPolicy: errorAction(args['comments-policy']),

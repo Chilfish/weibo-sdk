@@ -303,6 +303,15 @@ export interface ArchiveStreamOptions {
   count?: number
   /** 每阶段最多翻页数（测试/演示限制，默认不限） */
   maxPagesPerPhase?: number
+  /**
+   * 页内并发预取窗口（默认 3，范围 1–8）。
+   *
+   * 只并发同一页内条目之间互不依赖的子请求（评论链、转发首页），
+   * 产出顺序、`onRaw` 顺序与 checkpoint 语义不变；分页本身仍严格串行。
+   * 实际 HTTP 并发仍受 `RateLimitService` 令牌桶与 432 全局暂停约束，
+   * 设为 `1` 可回到完全串行。
+   */
+  concurrency?: number
   /** 断点续传：传入上次保存的 checkpoint */
   checkpoint?: ArchiveCheckpoint
   /**
@@ -407,8 +416,17 @@ const DEFAULT_SLICE_WINDOW = 30 * 24 * 60 * 60
 const MIN_SLICE_WINDOW = 60
 const MAX_SLICE_WINDOW = 5 * 365 * 24 * 60 * 60
 const DEFAULT_MAX_SLICE_ITEMS = 800
+const DEFAULT_ARCHIVE_CONCURRENCY = 3
+const MAX_ARCHIVE_CONCURRENCY = 8
 
 type TimelineRawItem = MyMblogResponse['data']['list'][number]
+
+/** 页内并发窗口：非有限值回退默认，其余夹到 `[1, 8]`。 */
+function resolveConcurrency(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value))
+    return DEFAULT_ARCHIVE_CONCURRENCY
+  return Math.min(MAX_ARCHIVE_CONCURRENCY, Math.max(1, Math.floor(value)))
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -577,6 +595,7 @@ export class ArchiveService {
     const includeVideos = options.includeVideos ?? false
     const maxPages = options.maxPagesPerPhase ?? Number.POSITIVE_INFINITY
     const count = options.count ?? 20
+    const concurrency = resolveConcurrency(options.concurrency)
     const timelineSource = options.timelineSource ?? 'mymblog'
     const includeDateSlices = options.includeDateSlices ?? true
     const since = options.since ?? WEIBO_EPOCH_SECONDS
@@ -909,6 +928,26 @@ export class ArchiveService {
       return out
     }
 
+    /**
+     * 只预取单条微博的评论网络请求；归一化（`new Tweet`）仍由调用方在
+     * `onRaw` 之后执行，保证 raw 回调先于归一化的契约。
+     */
+    const fetchItemComments = async (
+      raw: TimelineRawItem,
+      source: ArchiveItem['source'],
+      page?: number,
+      parentMblogId?: string,
+    ): Promise<ITweetComment[]> => {
+      // 评论只挂到 timeline / repost 项；收藏、点赞、历史评论不额外拉评论。
+      if (!includeComments || (source !== 'timeline' && source !== 'repost'))
+        return []
+      return await fetchComments(raw.mblogid, {
+        source,
+        page,
+        parentMblogId,
+      })
+    }
+
     const prepareTweet = async (
       raw: TimelineRawItem,
       source: ArchiveItem['source'],
@@ -916,15 +955,7 @@ export class ArchiveService {
       parentMblogId?: string,
     ): Promise<Tweet> => {
       const tweet = new Tweet(raw)
-      // 评论只挂到 timeline / repost 项；收藏、点赞、历史评论不额外拉评论。
-      if (!includeComments || (source !== 'timeline' && source !== 'repost'))
-        return tweet
-
-      const comments = await fetchComments(raw.mblogid, {
-        source,
-        page,
-        parentMblogId,
-      })
+      const comments = await fetchItemComments(raw, source, page, parentMblogId)
       if (comments.length > 0)
         tweet.comments = comments
       return tweet
@@ -935,6 +966,36 @@ export class ArchiveService {
       { stage: 'reposts', source: 'repost', parentMblogId, page: repostPage },
       repostErrorPolicy,
     )
+
+    interface PreparedTimelineItem {
+      comments: Promise<ITweetComment[]>
+      firstRepostPage?: Promise<RepostTimelineResponse | undefined>
+    }
+
+    /**
+     * 启动单条 timeline 项的独立子请求：评论链与转发首页互不依赖，一起发。
+     *
+     * 预取窗口内的任务可能因早停 / 消费端中断而永远不被 await，先挂空 catch
+     * 避免 unhandled rejection；调用方在 `finally` 用 `Promise.allSettled` 收敛。
+     */
+    const startTimelineItem = (item: TimelineRawItem, itemPage: number): PreparedTimelineItem => {
+      const comments = fetchItemComments(item, 'timeline', itemPage)
+      const firstRepostPage = includeReposts ? fetchRepostPage(item.mblogid, 1) : undefined
+      void comments.catch(() => {})
+      void firstRepostPage?.catch(() => {})
+      return { comments, firstRepostPage }
+    }
+
+    /** 预取窗口任务收敛，避免提前退出时留下浮动 Promise。 */
+    const settlePrepared = async (prepared: Map<number, PreparedTimelineItem>): Promise<void> => {
+      const pending: Promise<unknown>[] = []
+      for (const task of prepared.values()) {
+        pending.push(task.comments)
+        if (task.firstRepostPage)
+          pending.push(task.firstRepostPage)
+      }
+      await Promise.allSettled(pending)
+    }
 
     // 增量 / 原创过滤：timeline 阶段逐条判断「产出 / 跳过 / 停止」。
     let incrementalReached = false
@@ -1000,50 +1061,76 @@ export class ArchiveService {
         // 恢复：跳过上次已完整处理（含转发）的项；找不到则整页重跑（重复但不会漏）。
         const resumeAt = lastTimelineMblogId ? ids.indexOf(lastTimelineMblogId) : -1
         const pending = resumeAt >= 0 ? list.slice(resumeAt + 1) : list
-
-        for (const item of pending) {
-          const action = incrementalAction(item)
-          if (action === 'stop') {
-            incrementalReached = true
-            break
+        // skip / stop 是纯判定，先算出可预取范围，避免提前推进 checkpoint。
+        const actions = pending.map(item => incrementalAction(item))
+        const stopAt = actions.indexOf('stop')
+        const limit = stopAt >= 0 ? stopAt : pending.length
+        const prepared = new Map<number, PreparedTimelineItem>()
+        /** 滑窗预取：当前项开始等待时，后 N-1 项的独立子请求已经在路上。 */
+        const prefetch = (index: number): void => {
+          const end = Math.min(limit, index + concurrency)
+          for (let offset = index; offset < end; offset++) {
+            if (actions[offset] !== 'emit' || prepared.has(offset))
+              continue
+            prepared.set(offset, startTimelineItem(pending[offset], currentPage))
           }
-          if (action === 'skip') {
-            // 跳过但推进断点，避免下次从头重复扫描。
+        }
+
+        try {
+          for (let index = 0; index < pending.length; index++) {
+            if (index >= limit) {
+              incrementalReached = true
+              break
+            }
+            const item = pending[index]
+            if (actions[index] === 'skip') {
+              // 跳过但推进断点，避免下次从头重复扫描。
+              cp.phase = 'timeline'
+              cp.page = currentPage
+              cp.lastTimelineMblogId = item.mblogid
+              lastTimelineMblogId = item.mblogid
+              continue
+            }
+
+            await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page: currentPage })
+
+            prefetch(index)
+
             cp.phase = 'timeline'
             cp.page = currentPage
-            cp.lastTimelineMblogId = item.mblogid
+            cp.favoritesPage = undefined
+            delete cp.sliceEnd
+            delete cp.slicePage
+            delete cp.sliceWindow
+            // 转发完成前仍指向上一条已完成项；中断会重跑当前项（重复但不会漏）。
+            cp.lastTimelineMblogId = includeReposts ? lastTimelineMblogId : item.mblogid
+            const task = prepared.get(index)!
+            const tweet = new Tweet(item)
+            const comments = await task.comments
+            if (comments.length > 0)
+              tweet.comments = comments
+            progressState.processed += 1
+            yield this.buildItem(item, 'timeline', cp, tweet)
+
+            if (includeReposts) {
+              yield* this.streamReposts(item, {
+                uid,
+                cp,
+                maxPages,
+                concurrency,
+                onRaw: options.onRaw,
+                progressState,
+                fetchRepostPage,
+                fetchItemComments,
+              }, task.firstRepostPage)
+            }
+
             lastTimelineMblogId = item.mblogid
-            continue
+            cp.lastTimelineMblogId = lastTimelineMblogId
           }
-
-          await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page: currentPage })
-
-          cp.phase = 'timeline'
-          cp.page = currentPage
-          cp.favoritesPage = undefined
-          delete cp.sliceEnd
-          delete cp.slicePage
-          delete cp.sliceWindow
-          // 转发完成前仍指向上一条已完成项；中断会重跑当前项（重复但不会漏）。
-          cp.lastTimelineMblogId = includeReposts ? lastTimelineMblogId : item.mblogid
-          const tweet = await prepareTweet(item, 'timeline', currentPage)
-          progressState.processed += 1
-          yield this.buildItem(item, 'timeline', cp, tweet)
-
-          if (includeReposts) {
-            yield* this.streamReposts(item, {
-              uid,
-              cp,
-              maxPages,
-              onRaw: options.onRaw,
-              progressState,
-              fetchRepostPage,
-              prepareTweet,
-            })
-          }
-
-          lastTimelineMblogId = item.mblogid
-          cp.lastTimelineMblogId = lastTimelineMblogId
+        }
+        finally {
+          await settlePrepared(prepared)
         }
 
         if (incrementalReached)
@@ -1157,50 +1244,74 @@ export class ArchiveService {
           // 恢复：只在进入续跑页时按 lastTimelineMblogId 跳过已处理项。
           const resumeAt = currentLastId && currentPage === resumePage ? ids.indexOf(currentLastId) : -1
           const pending = resumeAt >= 0 ? list.slice(resumeAt + 1) : list
-
-          for (const item of pending) {
-            const action = incrementalAction(item)
-            if (action === 'stop') {
-              incrementalReached = true
-              break
+          const actions = pending.map(item => incrementalAction(item))
+          const stopAt = actions.indexOf('stop')
+          const limit = stopAt >= 0 ? stopAt : pending.length
+          const prepared = new Map<number, PreparedTimelineItem>()
+          const prefetch = (index: number): void => {
+            const end = Math.min(limit, index + concurrency)
+            for (let offset = index; offset < end; offset++) {
+              if (actions[offset] !== 'emit' || prepared.has(offset))
+                continue
+              prepared.set(offset, startTimelineItem(pending[offset], currentPage))
             }
-            if (action === 'skip') {
+          }
+
+          try {
+            for (let index = 0; index < pending.length; index++) {
+              if (index >= limit) {
+                incrementalReached = true
+                break
+              }
+              const item = pending[index]
+              if (actions[index] === 'skip') {
+                cp.phase = 'timeline'
+                cp.sliceEnd = sliceEnd
+                cp.slicePage = currentPage
+                cp.sliceWindow = sliceWindow
+                cp.lastTimelineMblogId = item.mblogid
+                currentLastId = item.mblogid
+                continue
+              }
+
+              await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page: currentPage })
+
+              prefetch(index)
+
               cp.phase = 'timeline'
+              cp.page = undefined
+              cp.favoritesPage = undefined
               cp.sliceEnd = sliceEnd
               cp.slicePage = currentPage
               cp.sliceWindow = sliceWindow
-              cp.lastTimelineMblogId = item.mblogid
+              cp.lastTimelineMblogId = includeReposts ? currentLastId : item.mblogid
+              const task = prepared.get(index)!
+              const tweet = new Tweet(item)
+              const comments = await task.comments
+              if (comments.length > 0)
+                tweet.comments = comments
+              progressState.processed += 1
+              yield this.buildItem(item, 'timeline', cp, tweet)
+
+              if (includeReposts) {
+                yield* this.streamReposts(item, {
+                  uid,
+                  cp,
+                  maxPages,
+                  concurrency,
+                  onRaw: options.onRaw,
+                  progressState,
+                  fetchRepostPage,
+                  fetchItemComments,
+                }, task.firstRepostPage)
+              }
+
               currentLastId = item.mblogid
-              continue
+              cp.lastTimelineMblogId = currentLastId
             }
-
-            await options.onRaw?.(item, { uid, source: 'timeline', mblogId: item.mblogid, page: currentPage })
-
-            cp.phase = 'timeline'
-            cp.page = undefined
-            cp.favoritesPage = undefined
-            cp.sliceEnd = sliceEnd
-            cp.slicePage = currentPage
-            cp.sliceWindow = sliceWindow
-            cp.lastTimelineMblogId = includeReposts ? currentLastId : item.mblogid
-            const tweet = await prepareTweet(item, 'timeline', currentPage)
-            progressState.processed += 1
-            yield this.buildItem(item, 'timeline', cp, tweet)
-
-            if (includeReposts) {
-              yield* this.streamReposts(item, {
-                uid,
-                cp,
-                maxPages,
-                onRaw: options.onRaw,
-                progressState,
-                fetchRepostPage,
-                prepareTweet,
-              })
-            }
-
-            currentLastId = item.mblogid
-            cp.lastTimelineMblogId = currentLastId
+          }
+          finally {
+            await settlePrepared(prepared)
           }
 
           if (incrementalReached)
@@ -1715,31 +1826,40 @@ export class ArchiveService {
     }
   }
 
-  /** 内联某条微博的转发页（P1-2），转发本身不改变 timeline 游标语义。 */
+  /**
+   * 内联某条微博的转发页（P1-2），转发本身不改变 timeline 游标语义。
+   *
+   * 第一页可由调用方预取（与父微博的评论链并行）；页内各条转发的评论
+   * 也按 `concurrency` 窗口预取，产出顺序不变。
+   */
   private async* streamReposts(
     parent: TimelineRawItem,
     context: {
       uid: string
       cp: ArchiveCheckpoint
       maxPages: number
+      concurrency: number
       onRaw?: ArchiveStreamOptions['onRaw']
       progressState: { processed: number }
       fetchRepostPage: (parentMblogId: string, page: number) => Promise<RepostTimelineResponse | undefined>
-      prepareTweet: (
+      fetchItemComments: (
         raw: TimelineRawItem,
         source: ArchiveItem['source'],
         page?: number,
         parentMblogId?: string,
-      ) => Promise<Tweet>
+      ) => Promise<ITweetComment[]>
     },
+    prefetchedFirstPage?: Promise<RepostTimelineResponse | undefined>,
   ): AsyncIterableIterator<ArchiveItem> {
-    const { uid, cp, maxPages, onRaw, progressState, fetchRepostPage, prepareTweet } = context
+    const { uid, cp, maxPages, concurrency, onRaw, progressState, fetchRepostPage, fetchItemComments } = context
     let repostPage = 1
     let repostPages = 0
     let previousRepostIds = new Set<string>()
 
     while (repostPages < maxPages) {
-      const reposts = await fetchRepostPage(parent.mblogid, repostPage)
+      const reposts = repostPage === 1 && prefetchedFirstPage !== undefined
+        ? await prefetchedFirstPage
+        : await fetchRepostPage(parent.mblogid, repostPage)
       if (!reposts)
         break // P1-4：转发页失败按策略 skip，继续下一条 timeline item
       const rawReposts = reposts.data || []
@@ -1750,17 +1870,34 @@ export class ArchiveService {
       if (isRepeatedPage(repostIds, previousRepostIds))
         break
 
-      for (const repost of repostList) {
-        await onRaw?.(repost, {
-          uid,
-          source: 'repost',
-          mblogId: repost.mblogid,
-          page: repostPage,
-          parentMblogId: parent.mblogid,
+      for (let offset = 0; offset < repostList.length; offset += concurrency) {
+        const chunk = repostList.slice(offset, offset + concurrency)
+        const commentsList = chunk.map((repost) => {
+          const comments = fetchItemComments(repost, 'repost', repostPage, parent.mblogid)
+          void comments.catch(() => {})
+          return comments
         })
-        const tweet = await prepareTweet(repost, 'repost', repostPage, parent.mblogid)
-        progressState.processed += 1
-        yield this.buildItem(repost, 'repost', cp, tweet)
+        try {
+          for (let index = 0; index < chunk.length; index++) {
+            const repost = chunk[index]
+            await onRaw?.(repost, {
+              uid,
+              source: 'repost',
+              mblogId: repost.mblogid,
+              page: repostPage,
+              parentMblogId: parent.mblogid,
+            })
+            const tweet = new Tweet(repost)
+            const comments = await commentsList[index]
+            if (comments.length > 0)
+              tweet.comments = comments
+            progressState.processed += 1
+            yield this.buildItem(repost, 'repost', cp, tweet)
+          }
+        }
+        finally {
+          await Promise.allSettled(commentsList)
+        }
       }
 
       previousRepostIds = new Set(repostIds)

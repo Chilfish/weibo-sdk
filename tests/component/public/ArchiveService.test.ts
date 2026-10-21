@@ -653,6 +653,122 @@ describe('archiveService', () => {
     expect(items[1].tweet.comments).toBeUndefined()
   })
 
+  it('prefetches per-item requests within a page without reordering output', async () => {
+    const { deps, myMblog, getReposts, getFavorites, comments } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B'), mkRaw('C')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const started: string[] = []
+    const releases = new Map<string, () => void>()
+    comments.mockImplementation((id: string) => {
+      started.push(id)
+      return new Promise((resolve) => {
+        releases.set(id, () => resolve({
+          ok: 1,
+          data: [mkComment(`c-${id}`)],
+          total_number: 1,
+          max_id: 0,
+        }))
+      })
+    })
+
+    const service = new ArchiveService(deps)
+    const iterator = service.streamArchive('111', {
+      includeComments: true,
+      concurrency: 3,
+    })[Symbol.asyncIterator]()
+
+    const first = iterator.next()
+    // A 还在等评论时，窗口内 B / C 的评论请求已经发出。
+    await vi.waitFor(() => expect(started).toEqual(['A', 'B', 'C']))
+
+    releases.get('A')!()
+    const itemA = await first
+    expect(itemA.value.mblogId).toBe('A')
+    expect(itemA.value.tweet.comments).toHaveLength(1)
+
+    releases.get('B')!()
+    const itemB = await iterator.next()
+    expect(itemB.value.mblogId).toBe('B')
+    // checkpoint 仍按完成顺序推进：B 的断点指向 A。
+    expect(itemB.value.checkpoint.lastTimelineMblogId).toBe('A')
+
+    releases.get('C')!()
+    const itemC = await iterator.next()
+    expect(itemC.value.mblogId).toBe('C')
+    expect(itemC.value.checkpoint.lastTimelineMblogId).toBe('B')
+    expect(started).toEqual(['A', 'B', 'C'])
+
+    await iterator.next()
+  })
+
+  it('does not look ahead when concurrency is 1', async () => {
+    const { deps, myMblog, getReposts, getFavorites, comments } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A'), mkRaw('B')])
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    const started: string[] = []
+    const releases = new Map<string, () => void>()
+    comments.mockImplementation((id: string) => {
+      started.push(id)
+      return new Promise((resolve) => {
+        releases.set(id, () => resolve({
+          ok: 1,
+          data: [mkComment(`c-${id}`)],
+          total_number: 1,
+          max_id: 0,
+        }))
+      })
+    })
+
+    const service = new ArchiveService(deps)
+    const iterator = service.streamArchive('111', {
+      includeComments: true,
+      concurrency: 1,
+    })[Symbol.asyncIterator]()
+
+    const first = iterator.next()
+    await vi.waitFor(() => expect(started).toEqual(['A']))
+
+    releases.get('A')!()
+    await first
+
+    const second = iterator.next()
+    await vi.waitFor(() => expect(started).toEqual(['A', 'B']))
+    expect(started).toEqual(['A', 'B'])
+
+    releases.get('B')!()
+    await second
+    await iterator.next()
+  })
+
+  it('starts the first repost page together with the parent comments', async () => {
+    const { deps, myMblog, getReposts, getFavorites, comments } = createDeps()
+    mockTimelinePages(myMblog, [mkRaw('A')])
+    getFavorites.mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+
+    let releaseComments!: () => void
+    comments.mockImplementation(() => new Promise((resolve) => {
+      releaseComments = () => resolve({ ok: 1, data: [mkComment('c1')], total_number: 1, max_id: 0 })
+    }))
+    getReposts.mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+
+    const service = new ArchiveService(deps)
+    const iterator = service.streamArchive('111', { includeComments: true })[Symbol.asyncIterator]()
+    const first = iterator.next()
+
+    await vi.waitFor(() => {
+      expect(comments).toHaveBeenCalledTimes(1)
+      expect(getReposts).toHaveBeenCalledWith('A', { page: 1 })
+    })
+
+    releaseComments()
+    await first
+    await iterator.next()
+  })
+
   it('continues without comments when comment fetch fails (P1-6/P1-4)', async () => {
     const { deps, myMblog, getReposts, getFavorites, comments } = createDeps()
     mockTimelinePages(myMblog, [mkRaw('A')])
