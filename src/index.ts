@@ -34,6 +34,21 @@ export type {
   WeiboTransport,
 } from './services/internal/transport'
 export * from './types'
+export {
+  createConsoleLogger,
+  createJsonlLogger,
+  createLoggerPlugin,
+  createMultiLogger,
+  isLogLevelEnabled,
+  levelForEvent,
+  redactLogRecord,
+} from './utils/logger'
+export type {
+  ConsoleLoggerOptions,
+  JsonlLogger,
+  JsonlLoggerOptions,
+  LogWriteStream,
+} from './utils/logger'
 export * from './utils/schemaDrift'
 export * from './utils/telemetryJsonl'
 export * from './utils/tweetId'

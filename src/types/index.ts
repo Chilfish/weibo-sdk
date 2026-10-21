@@ -175,6 +175,7 @@ export * from './domain/ITweetContext'
 export * from './domain/IUser'
 export * from './domain/IUserMediaAsset'
 export * from './hooks'
+export * from './logging'
 export * from './media'
 
 // 历史 raw 接口（保留向后兼容；新代码优先使用上述 endpoint 响应类型）
