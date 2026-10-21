@@ -9,15 +9,19 @@
  * 3. 解包后的 `dist/index.mjs` 可被 Node 直接 import，且 `WeiboSDK` 是函数。
  * 4. `dist/cli-bin.mjs --version` 输出 `package.json#version`。
  * 5. `dist/*.d.mts` 不泄漏 `axios` / `zod` 类型（公共契约纯度）。
+ * 6. `dist/*.mjs` 的外部 import 全部声明在 tarball 的 `dependencies`（CLI-only 依赖必须内联）。
+ * 7. `dist/index.mjs` 的静态 import 闭包不含 CLI chunk（SDK 与 CLI 产物解耦）。
  *
  * 解包目录落在仓库内（`.tmp-verify/package`），因此 Node 仍能从仓库根 node_modules
- * 解析 axios / zod / citty，不需要联网安装。
+ * 解析 axios / zod，不需要联网安装。注意：这也意味着 CLI 检查会用到仓库内的 devDependency，
+ * 所以第 6 条必须靠静态 import 扫描而不是「能跑起来」来证明依赖已内联。
  *
  * 用法：pnpm run verify:package（需先 pnpm build）
  */
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { builtinModules } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -32,6 +36,11 @@ const FORBIDDEN_TYPE_REFS = [
   /from\s+["']axios["']/,
   /import\(\s*["']axios["']\s*\)/,
 ]
+const BUILTIN_SPECIFIERS = new Set(builtinModules.map(name => name.replace(/^node:/, '')))
+// rolldown 产物的 import 语句都在行首；限制行首可避免把字符串内容误判成 import。
+const STATIC_FROM_RE = /^\s*(?:import|export)\s+(?:[^\s;][^\n;]*?)??from\s*["']([^"']+)["']/gm
+const SIDE_EFFECT_IMPORT_RE = /^\s*import\s*["']([^"']+)["']/gm
+const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g
 
 const failures = []
 
@@ -91,7 +100,88 @@ function verifyManifest(packed) {
     packed.bin?.['weibo-cli'] === './dist/cli-bin.mjs',
     `tarball package.json#bin.weibo-cli = ${packed.bin?.['weibo-cli'] ?? '缺失'}`,
   )
+  check(
+    !Object.hasOwn(packed.dependencies ?? {}, 'citty'),
+    'tarball dependencies 不含 citty（CLI-only 依赖已内联）',
+  )
   return packed.version
+}
+
+/** 收集一个 ESM 文件里的所有 import specifier（静态 / side-effect / 动态）。 */
+function collectSpecifiers(code) {
+  const specifiers = new Set()
+  for (const pattern of [STATIC_FROM_RE, SIDE_EFFECT_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+    pattern.lastIndex = 0
+    for (const match of code.matchAll(pattern))
+      specifiers.add(match[1])
+  }
+  return [...specifiers]
+}
+
+function isExternalBareSpecifier(specifier) {
+  return !specifier.startsWith('.')
+    && !specifier.startsWith('/')
+    && !/^[a-z]+:/i.test(specifier)
+    && !BUILTIN_SPECIFIERS.has(specifier.replace(/^node:/, ''))
+}
+
+/**
+ * 产物外部依赖必须与 `dependencies` 完全对齐：内联的 CLI-only 依赖不能留下 bare import，
+ * 也不能出现未声明的运行时依赖（后者在消费者机器上会直接解析失败）。
+ */
+function verifyRuntimeDependencies(packed) {
+  const distDir = path.join(PACK_DIR, 'dist')
+  const declared = new Set(Object.keys(packed.dependencies ?? {}))
+  const files = readdirSync(distDir).filter(file => file.endsWith('.mjs'))
+  const undeclared = []
+
+  for (const file of files) {
+    const code = readFileSync(path.join(distDir, file), 'utf8')
+    for (const specifier of collectSpecifiers(code)) {
+      if (isExternalBareSpecifier(specifier) && !declared.has(specifier))
+        undeclared.push(`${file}: ${specifier}`)
+    }
+  }
+
+  check(
+    undeclared.length === 0,
+    `dist/*.mjs 的外部 import 全部声明在 dependencies（${[...declared].join(', ') || '空'}）${undeclared.length > 0 ? `\n  ${undeclared.join('\n  ')}` : ''}`,
+  )
+}
+
+/** 根入口的静态 import 闭包只能包含 SDK chunk，不能把 CLI 产物带进下游 bundle。 */
+function verifyEntryClosure() {
+  const distDir = path.join(PACK_DIR, 'dist')
+  const entry = 'index.mjs'
+  if (!check(existsSync(path.join(distDir, entry)), `dist/${entry} 存在（入口闭包检查）`))
+    return
+
+  const contents = new Map()
+  const seen = new Set()
+  const queue = [entry]
+  while (queue.length > 0) {
+    const file = queue.pop()
+    if (seen.has(file) || !existsSync(path.join(distDir, file)))
+      continue
+    seen.add(file)
+    const code = readFileSync(path.join(distDir, file), 'utf8')
+    contents.set(file, code)
+    for (const specifier of collectSpecifiers(code)) {
+      if (!specifier.startsWith('.'))
+        continue
+      queue.push(path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier)))
+    }
+  }
+
+  const cliFiles = [...seen].filter(file => /^cli(?:-|\.)/.test(file))
+  check(
+    cliFiles.length === 0,
+    `dist/${entry} 的静态 import 闭包不含 CLI chunk${cliFiles.length > 0 ? `；命中：${cliFiles.join(', ')}` : ''}`,
+  )
+  check(
+    [...contents.values()].some(code => code.includes('WeiboSDK')),
+    `dist/${entry} 的闭包包含 SDK 实现（断言不是空入口）`,
+  )
 }
 
 function verifyNodeImport() {
@@ -165,6 +255,8 @@ function main() {
 
     const packed = JSON.parse(readFileSync(path.join(PACK_DIR, 'package.json'), 'utf8'))
     const version = verifyManifest(packed)
+    verifyRuntimeDependencies(packed)
+    verifyEntryClosure()
     verifyNodeImport()
     verifyCliVersion(version)
     verifyPublicTypes()

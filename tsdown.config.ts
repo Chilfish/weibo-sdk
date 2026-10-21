@@ -19,6 +19,11 @@ export default defineConfig([
     platform: 'node',
     target: 'esnext',
     nodeProtocol: 'strip',
+    // citty 只被 CLI 使用且零运行时依赖：内联进 dist/cli*.mjs 后可以从 dependencies
+    // 移除，SDK-only 安装与 `pnpm dlx` 都不再下载它。SDK 入口不 import citty。
+    deps: {
+      alwaysBundle: ['citty'],
+    },
     exports: {
       // bin 由 package.json 手工维护（指向 ./dist/cli-bin.mjs），避免 tsdown 写入绝对路径。
       bin: false,
@@ -54,7 +59,9 @@ export default defineConfig([
     clean: false,
     platform: 'browser',
     target: 'esnext',
-    nodeProtocol: 'preserve',
+    // browser 产物不做 node: 前缀变换：`false` 才是「不处理」，
+    // 其他非 'strip' 值会被 tsdown 当成 `true`（反而加前缀）。
+    nodeProtocol: false,
     // browser 平台默认输出 .js；统一用 .mjs 与 node 构建保持一致。
     outExtensions: () => ({ js: '.mjs' }),
     // 自包含产物：浏览器/用户脚本场景可直接 import，无需额外解析 bare specifier。

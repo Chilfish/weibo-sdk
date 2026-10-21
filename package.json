@@ -73,7 +73,6 @@
   },
   "dependencies": {
     "axios": "catalog:",
-    "citty": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -82,6 +81,7 @@
     "@types/node": "catalog:types",
     "ajv": "catalog:utils",
     "bumpp": "catalog:cli",
+    "citty": "catalog:",
     "dotenv": "catalog:cli",
     "eslint": "catalog:cli",
     "lint-staged": "catalog:cli",
@@ -101,5 +101,8 @@
   },
   "lint-staged": {
     "*": "eslint --fix"
+  },
+  "inlinedDependencies": {
+    "citty": "0.2.2"
   }
 }
