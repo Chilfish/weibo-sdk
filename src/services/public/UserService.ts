@@ -116,8 +116,8 @@ function buildMentionArgs(options: UserMentionsListOptions): MentionsViewArgs {
 /**
  * 用户领域服务。
  *
- * 同时提供 raw 路径（`info` / `details`，已 deprecated）与归一化路径（`getById`）；
- * 归一化路径会并行拉取 info + detail 两份 raw，再交给 `User` 归一化。
+ * 公开面走归一化路径 `getById`；`fetchRawInfo` / `fetchRawDetails` 是低层 raw 数据源，
+ * 供 hooks、归档与 schema 快照使用。
  *
  * 继承 `FetcherService`：自动处理 Cookie 注入、限流、hooks 与 Wide Events，
  * 失败时抛出 `WeiboSDKError` 子类（`WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误）。
@@ -132,21 +132,19 @@ export class UserService extends FetcherService {
   }
 
   /**
-   * 获取用户信息（raw 响应）
+   * 拉取用户信息原始响应（低层数据源，公开使用请走 `getById`）
    * @param id 用户ID (uid)
-   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getById`
    */
-  public async info(id: string): Promise<UserInfoResponse> {
+  public async fetchRawInfo(id: string): Promise<UserInfoResponse> {
     return await this.request(userInfoSpec, { uid: id })
   }
 
   /**
-   * 获取用户详情（raw 响应）
+   * 拉取用户详情原始响应（低层数据源，公开使用请走 `getById`）
    * @param id 用户ID (uid)
    * @returns 未校验（passthrough）的 `ajax/profile/detail` 响应，含上游新增字段
-   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getById`
    */
-  public async details(id: string): Promise<UserDetailsResponse> {
+  public async fetchRawDetails(id: string): Promise<UserDetailsResponse> {
     return await this.request(userDetailsSpec, { uid: id })
   }
 
@@ -166,7 +164,7 @@ export class UserService extends FetcherService {
   /**
    * 获取用户详情信息，返回解析后的 User 类
    *
-   * 实现：并行请求 `info` 与 `details`，两者都成功后按 fallback 链归一化，
+   * 实现：并行请求 `fetchRawInfo` 与 `fetchRawDetails`，两者都成功后按 fallback 链归一化，
    * 并发出 `normalize_done` Wide Event（`model: 'User'`）。
    *
    * @param id 用户 UID（数字串或 `idstr`）
@@ -176,8 +174,8 @@ export class UserService extends FetcherService {
   public async getById(id: string): Promise<User> {
     const traceId = `${Date.now()}-getById-${++normalizeSeq}`
     const [info, details] = await Promise.all([
-      this.info(id),
-      this.details(id),
+      this.fetchRawInfo(id),
+      this.fetchRawDetails(id),
     ])
 
     const startAt = Date.now()

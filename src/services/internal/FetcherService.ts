@@ -5,7 +5,7 @@ import type { EndpointArgsFromSchema, EndpointAuth, EndpointSpec } from './Endpo
 import type { PluginPipeline, PluginRequestInfo } from './plugins'
 import type { IRateLimitClock } from './RateLimitService'
 import type { TransportRequest, TransportResponse, WeiboTransport } from './transport'
-import type { WeiboSDKErrorMeta, WeiboSDKFetchMeta, WeiboSDKHooks, WeiboSDKRawMeta } from '~/types/hooks'
+import type { WeiboSDKErrorMeta, WeiboSDKHooks, WeiboSDKRawMeta } from '~/types/hooks'
 import type { IResource, IResourceType } from '~/types/resources'
 import type { TelemetryEvent, WeiboSDKTelemetry } from '~/types/telemetry'
 import { WeiboAPINotOkError, WeiboSessionExpiredError } from '~/models/errors/BusinessError'
@@ -146,16 +146,9 @@ export class FetcherService {
   /** 重试退避 / `Retry-After` HTTP date 解析用的时钟（可注入 FakeClock，保证离线测试确定性） */
   private clock: IRateLimitClock
 
-  /**
-   * @deprecated 请使用 `config.telemetry`（Wide Events）替代。
-   */
-  public onFetched: (resource: IResourceType, data: IResource[typeof resource]) => void | Promise<void> = async () => {}
-
   constructor(
     private config: IWeiboConfig,
     deps?: {
-      /** @deprecated 使用 `transport: axiosTransport({ client })` 替代。 */
-      client?: unknown
       /** 自定义传输；缺省 `config.transport`，再缺省 axios。 */
       transport?: WeiboTransport
       /** 鉴权运行时（由门面共享；缺省时按 config 创建） */
@@ -175,7 +168,6 @@ export class FetcherService {
     const baseTransport = deps?.transport
       ?? config.transport
       ?? axiosTransport({
-        client: deps?.client as NonNullable<Parameters<typeof axiosTransport>[0]>['client'],
         timeoutMs: config.timeout,
       })
     this.transport = this.pipeline.wrapTransport(baseTransport)
@@ -582,7 +574,7 @@ export class FetcherService {
     if (isBrowserRuntime())
       return undefined
 
-    const input = this.config.proxy ?? this.config.proxyUrl
+    const input = this.config.proxy
     if (input === undefined || input === false)
       return false
 
@@ -889,7 +881,6 @@ export class FetcherService {
     }
 
     const data = parsed.data
-    await this.emitFetched(spec.resourceType, data, { endpoint: spec.endpoint, request, args: argsRecord })
 
     await this.emitTelemetry({
       event_name: 'request_success',
@@ -904,21 +895,6 @@ export class FetcherService {
       ...authFields,
     })
     return data
-  }
-
-  protected async emitFetched<T extends IResourceType>(
-    resourceType: T,
-    data: IResource[T],
-    meta?: Omit<WeiboSDKFetchMeta, 'timestamp' | 'trace_id'>,
-  ): Promise<void> {
-    await this.onFetched(resourceType, data)
-    await this.hooks?.onFetched?.(resourceType, data, {
-      request: meta?.request,
-      args: meta?.args,
-      endpoint: meta?.endpoint,
-      trace_id: createTraceId(),
-      timestamp: Date.now(),
-    })
   }
 
   protected async emitRaw(raw: unknown, meta: WeiboSDKRawMeta): Promise<void> {

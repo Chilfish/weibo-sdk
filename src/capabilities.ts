@@ -201,7 +201,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
   {
     id: 'tweets.friendTimeline',
     service: 'tweets',
-    methods: ['friendTimeline', 'listFriendTimeline', 'streamFriendTimeline'],
+    methods: ['listFriendTimeline', 'streamFriendTimeline'],
     description: '首页「最新微博」关注时间线（max_id 翻旧页；since_id 仅增量）',
     auth: 'cookie',
     pagination: 'max_id',

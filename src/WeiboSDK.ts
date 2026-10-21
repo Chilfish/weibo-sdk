@@ -109,7 +109,7 @@ export class WeiboSDK {
     this.users = new UserService(this.config, deps)
     this.tweets = new TweetService(this.config, deps, {
       // context() 只补 author 的简版资料（1 次 profile/info），不拉完整 User 详情。
-      authorProfile: async uid => (await this.users.info(uid)).data.user,
+      authorProfile: async uid => (await this.users.fetchRawInfo(uid)).data.user,
     })
     this.followings = new FollowingsService(this.config, deps)
     this.favorites = new FavoriteService(this.config, deps)

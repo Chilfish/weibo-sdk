@@ -45,6 +45,8 @@ export interface MediaHttpTransport {
 export interface AxiosMediaHttpClientDeps {
   transport?: MediaHttpTransport
   proxyUrl?: string
+  /** 按媒体 URL 解析代理（动态 Provider）；优先于 `proxyUrl`。返回 `false` 表示直连。 */
+  proxy?: (url: string) => string | null | undefined | false | Promise<string | null | undefined | false>
 }
 
 /** 媒体 CDN 默认主机后缀白名单。 */
@@ -71,7 +73,7 @@ function createAbortError(signal?: AbortSignal): Error {
   return error
 }
 
-function parseProxy(proxyUrl?: string): AxiosRequestConfig['proxy'] {
+function parseProxy(proxyUrl?: string | null | false): AxiosRequestConfig['proxy'] {
   if (!proxyUrl)
     return false
   try {
@@ -230,6 +232,9 @@ export function createAxiosMediaHttpClient(deps: AxiosMediaHttpClientDeps = {}):
 
         let response: MediaHttpTransportResponse
         try {
+          const proxy = deps.proxy === undefined
+            ? undefined
+            : parseProxy(await deps.proxy(currentUrl))
           response = await transport.request({
             method: 'GET',
             url: currentUrl,
@@ -238,6 +243,7 @@ export function createAxiosMediaHttpClient(deps: AxiosMediaHttpClientDeps = {}):
             validateStatus: () => true,
             timeout: request.timeoutMs,
             signal: request.signal,
+            ...(proxy === undefined ? {} : { proxy }),
             headers: {
               'referer': request.referer,
               'user-agent': MEDIA_USER_AGENT,

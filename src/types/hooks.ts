@@ -1,4 +1,4 @@
-import type { IResource, IResourceType } from './resources'
+import type { IResourceType } from './resources'
 
 /**
  * 会话自检策略。
@@ -29,18 +29,6 @@ export interface WeiboSDKHookBaseMeta {
   timestamp: number
   /** 追踪 id，用于串联同一次请求的 hooks 与 telemetry */
   trace_id: string
-}
-
-/**
- * `onFetched`（已 deprecated）的元数据：请求成功且通过 schema 校验后触发。
- */
-export interface WeiboSDKFetchMeta extends WeiboSDKHookBaseMeta {
-  /** 端点标识（如 `statuses/show`） */
-  endpoint?: string
-  /** 请求元信息 */
-  request?: WeiboSDKRequestMeta
-  /** 调用方传入的端点参数 */
-  args?: Record<string, unknown>
 }
 
 /**
@@ -103,10 +91,6 @@ export interface WeiboSDKHooks {
    * 用于需要自行保存 raw 的下游（`ArchiveItem` 不携带 raw）。
    */
   onRaw?: (raw: unknown, meta: WeiboSDKRawMeta) => void | Promise<void>
-  /**
-   * @deprecated 使用 `onRaw`（原始响应）或 `config.telemetry`（Wide Events）替代。
-   */
-  onFetched?: <T extends IResourceType>(resource: T, data: IResource[T], meta: WeiboSDKFetchMeta) => void | Promise<void>
   /** 失败回调（自检 / 网络 / 业务码 / 解析），与结构化错误同一时机触发 */
   onError?: (error: unknown, meta: WeiboSDKErrorMeta) => void | Promise<void>
 }

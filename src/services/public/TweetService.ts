@@ -196,8 +196,6 @@ export interface TweetPageResult {
   page?: number
   /** 下一页游标（max_id 游标端点，如 friendstimeline；缺省 = 无更多） */
   maxId?: string
-  /** @deprecated 历史 since_id 游标字段，friendstimeline 已改用 `maxId`；保留以兼容旧调用方 */
-  sinceId?: string
   /** 是否可能还有下一页（`false` 时调用方可以停止翻页） */
   hasMore: boolean
   /** 上游 `total_number`（可用时；friendstimeline 实测恒为 2000 上限值，不代表剩余条数） */
@@ -306,11 +304,13 @@ function normalizeContextAuthor(raw: unknown, fallback: TweetUser): TweetContext
  * 微博领域服务。
  *
  * 覆盖时间线（mymblog / friendstimeline）、单条详情、长文、评论、转发与按日期检索；
- * 每类能力都尽量提供「raw 方法 + 归一化方法」两个入口：
+ * 公开面以归一化方法为主：
  *
- * - raw（`myMblog` / `show` / `friendTimeline` / `comments` …）：直接返回校验后的上游响应，已 deprecated
- * - 归一化（`listByUserId` / `streamByUserId` / `getByMblogId` / `listFriendTimeline` / `enrich`）：返回 `Tweet` / `TweetPageResult`
+ * - 时间线：`listByUserId` / `streamByUserId` / `listFriendTimeline` / `streamFriendTimeline`
+ * - 单条：`getByMblogId` / `enrich` / `context`
+ * - 评论与转发：`comments` / `streamComments` / `replies` / `streamReplies` / `getReposts` / `streamReposts`
  *
+ * `fetchRawUserTimelinePage` 是归档层使用的低层 raw 数据源。
  * 归一化方法会发出 `normalize_done` Wide Event，并在内部过滤广告等无效项。
  */
 export class TweetService extends FetcherService {
@@ -328,20 +328,20 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取用户微博列表（mymblog，raw 响应）
+   * 拉取一页用户微博原始响应（mymblog，低层数据源）
    *
    * 说明：mymblog 曾在 2026-08 把分页从 `since_id` 漂移为 `page`（`since_id` 恒空串、`total` 恒 -1）；
    * 2026-10-20 实测两种游标均可用且等价（`since_id` 为 number 或带后缀的 string，`total` 为真实值）。
    * 归一化分页仍以 `page` 为主，避免大 ID 在后缀形态下丢失。翻到底时 `data.list` 为空数组。
    *
+   * 归档层依赖该原始页生成 `schemaDigest`；普通读取请用 `listByUserId` / `streamByUserId`。
+   *
    * @param uid 用户 UID
    * @param page 页码（从 1 开始；缺省 = 第一页）
    * @param count 每页条数
    * @returns mymblog 原始响应（`data.list` 含广告等需过滤项）
-   * @deprecated F2 生熟双 API 收窄：raw 方法仅为 `listByUserId` / `streamByUserId` 的
-   * 数据源保留，公开使用请走归一化路径（`listByUserId` / `streamByUserId`）
    */
-  public async myMblog(uid: string, page?: number, count?: number): Promise<MyMblogResponse> {
+  public async fetchRawUserTimelinePage(uid: string, page?: number, count?: number): Promise<MyMblogResponse> {
     const args: { uid: string, page?: number, count?: number } = { uid }
     if (page !== undefined)
       args.page = page
@@ -407,7 +407,7 @@ export class TweetService extends FetcherService {
       }
     }
 
-    const raw = await this.myMblog(uid, page, count)
+    const raw = await this.fetchRawUserTimelinePage(uid, page, count)
     const filtered = this.filterTweets(raw.data.list || [])
     const hasMore = filtered.length > 0
     const startAt = Date.now()
@@ -478,16 +478,14 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取单条微博详情（raw 响应）
+   * 拉取单条微博原始响应（低层数据源，供归一化 / enrich / context 使用）
    *
    * `GET https://weibo.com/ajax/statuses/show?id=${mblogid}&isGetLongText=true`
    *
    * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
    * @param isGetLongText 是否请求长文（默认 true，仅影响上游返回的长文标记，不额外发请求）
-   * @returns 校验后的 `statuses/show` 响应（passthrough 保留未映射字段）
-   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `getByMblogId`
    */
-  public async show(mblogId: string, isGetLongText: boolean = true): Promise<StatusShowResponse> {
+  private async fetchRawStatus(mblogId: string, isGetLongText: boolean = true): Promise<StatusShowResponse> {
     return await this.request(statusShowSpec, { id: normalizeTweetIdInput(mblogId), isGetLongText })
   }
 
@@ -501,7 +499,7 @@ export class TweetService extends FetcherService {
    */
   public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<Tweet> {
     const traceId = `${Date.now()}-getByMblogId-${++normalizeSeq}`
-    const raw = await this.show(mblogId, isGetLongText)
+    const raw = await this.fetchRawStatus(mblogId, isGetLongText)
     const startAt = Date.now()
     const tweet = new Tweet(raw)
     await this.emitTelemetry({
@@ -533,7 +531,7 @@ export class TweetService extends FetcherService {
     const id = normalizeTweetIdInput(mblogId)
     // 长文与详情互不依赖，同时发出；两者都只依赖归一化后的 id。
     const [raw, longTextResponse] = await Promise.all([
-      this.show(id, options.isGetLongText ?? true),
+      this.fetchRawStatus(id, options.isGetLongText ?? true),
       options.includeLongText ? this.longText(id) : undefined,
     ])
     const startAt = Date.now()
@@ -583,7 +581,7 @@ export class TweetService extends FetcherService {
    */
   public async context(mblogId: string, options: TweetContextOptions = {}): Promise<ITweetContext> {
     const id = normalizeTweetIdInput(mblogId)
-    const raw = await this.show(id, true)
+    const raw = await this.fetchRawStatus(id, true)
     const tweet = new Tweet(raw)
     const rawRecord = raw as unknown as Record<string, unknown>
 
@@ -670,7 +668,7 @@ export class TweetService extends FetcherService {
     if (/^\d+$/.test(normalized))
       return normalized
 
-    const raw = await this.request(statusShowSpec, { id: normalized, isGetLongText: false })
+    const raw = await this.fetchRawStatus(normalized, false)
     const mid = raw.idstr ?? (raw.id === undefined ? undefined : String(raw.id))
     if (!mid) {
       throw new UnexpectedAPIResponseError('statuses/show did not return a numeric mid.', {
@@ -863,7 +861,7 @@ export class TweetService extends FetcherService {
   }
 
   /**
-   * 获取首页「最新微博」关注时间线（raw 响应）
+   * 拉取首页「最新微博」关注时间线原始响应（低层数据源）
    *
    * `GET https://weibo.com/ajax/feed/friendstimeline`
    *
@@ -883,9 +881,8 @@ export class TweetService extends FetcherService {
    * @param options.count 每页条数（上游实测忽略）
    * @param options.refresh 刷新标记（透传上游；实测不影响结果）
    * @returns 校验后的 friendstimeline 响应（`statuses` + `max_id` + `total_number`）
-   * @deprecated F2 生熟双 API 收窄：公开使用请走归一化路径 `listFriendTimeline`
    */
-  public async friendTimeline(options?: {
+  private async fetchRawFriendTimeline(options?: {
     list_id?: string | number
     fid?: string | number
     max_id?: string | number
@@ -934,7 +931,7 @@ export class TweetService extends FetcherService {
     refresh?: number
   }): Promise<TweetPageResult> {
     const traceId = `${Date.now()}-friendTimeline-${++normalizeSeq}`
-    const raw = await this.friendTimeline(options)
+    const raw = await this.fetchRawFriendTimeline(options)
     const filtered = this.filterTweets(raw.statuses || [])
     const lastId = raw.statuses?.[raw.statuses.length - 1]?.id
     // 明确下发 max_id=0 / '' 表示到底，不能再用最后一条 status id 兜底（否则会多翻一页并重复）。

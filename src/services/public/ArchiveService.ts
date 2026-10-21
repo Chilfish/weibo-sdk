@@ -20,10 +20,8 @@ import { resolveTimeInput } from '~/utils/timeInput'
  * `timeline`（用户微博 + 内联转发；mymblog 翻到底后可继续用 searchProfile 日期切片）
  * → `likes`（我赞过的微博，page）→ `comments`（当前用户历史评论，max_id）
  * → `favorites`（收藏，page）→ `done`
- *
- * `reposts` 仅用于兼容 P1-2 之前的旧 checkpoint；新流程不再产生该阶段。
  */
-export type ArchivePhase = 'timeline' | 'reposts' | 'likes' | 'comments' | 'favorites' | 'images' | 'videos' | 'done'
+export type ArchivePhase = 'timeline' | 'likes' | 'comments' | 'favorites' | 'images' | 'videos' | 'done'
 
 /**
  * timeline 阶段的数据源（P1-5）。
@@ -69,8 +67,8 @@ export interface ArchiveProgress {
   total?: number
   /** 预估剩余条数（不可用时省略） */
   remaining?: number
-  /** 当前进度数据源：mymblog / search / reposts / likes / comments / favorites / images / videos / done */
-  source?: 'mymblog' | 'search' | 'reposts' | 'likes' | 'comments' | 'favorites' | 'images' | 'videos' | 'done'
+  /** 当前进度数据源：mymblog / search / likes / comments / favorites / images / videos / done */
+  source?: 'mymblog' | 'search' | 'likes' | 'comments' | 'favorites' | 'images' | 'videos' | 'done'
   /** 当前页码（mymblog / searchProfile / favorites） */
   page?: number
 }
@@ -84,7 +82,6 @@ export interface ArchiveProgress {
  * - `lastTimelineMblogId`：已完整处理（含其转发）的最后一条微博。
  * - `sliceEnd` / `slicePage` / `sliceWindow`：P1-5 日期切片游标（unix 秒）。
  *   `sliceEnd` 存在即表示当前处于日期切片阶段，恢复时跳过 mymblog。
- * - `lastMblogId`：仅兼容旧 `phase:'reposts'` checkpoint，新流程不产生。
  */
 export interface ArchiveCheckpoint {
   uid: string
@@ -121,10 +118,6 @@ export interface ArchiveCheckpoint {
   slicePage?: number
   /** P1-5 日期切片：自适应窗口大小（秒） */
   sliceWindow?: number
-  /**
-   * @deprecated P1-2 之前的 reposts 阶段断点字段；仅用于兼容旧 checkpoint。
-   */
-  lastMblogId?: string
 }
 
 /**
@@ -177,7 +170,7 @@ export interface ArchiveRawMeta {
  */
 export interface ArchiveServiceDeps {
   tweets: {
-    myMblog: (uid: string, page?: number, count?: number) => Promise<MyMblogResponse>
+    fetchRawUserTimelinePage: (uid: string, page?: number, count?: number) => Promise<MyMblogResponse>
     getReposts: (mblogId: string, options?: { page?: number }) => Promise<RepostTimelineResponse>
     /**
      * P1-5 日期切片数据源。`starttime` / `endtime` 为 unix 秒。
@@ -630,13 +623,6 @@ export class ArchiveService {
     if (legacyVisited !== undefined && phase === 'timeline' && page !== undefined)
       page = Math.max(1, page - 1)
 
-    // P1-2 兼容：旧 reposts 阶段等价于「timeline 已处理到 lastMblogId」，新流程内联转发。
-    if (phase === 'reposts') {
-      phase = 'timeline'
-      page = 1
-      lastTimelineMblogId = input?.lastMblogId ?? lastTimelineMblogId
-    }
-
     const cp: ArchiveCheckpoint = { uid, phase, page, lastTimelineMblogId, favoritesPage }
     // 仅在续跑对应阶段时带上该阶段的游标，避免把无关字段写回其它阶段（checkpoint 保持恒定大小）。
     if (phase === 'likes' && input?.likesPage !== undefined)
@@ -1035,7 +1021,7 @@ export class ArchiveService {
 
       while (pages < maxPages) {
         const raw = await runWithPolicy(
-          () => this.deps.tweets.myMblog(uid, currentPage, count),
+          () => this.deps.tweets.fetchRawUserTimelinePage(uid, currentPage, count),
           { stage: 'timeline', source: 'timeline', page: currentPage },
           'abort',
         )

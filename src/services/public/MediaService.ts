@@ -707,9 +707,7 @@ export class MediaService extends FetcherService {
 
     resolved.dir = store.resolve(resolved.dir)
 
-    const http = this.downloadDeps.http ?? createAxiosMediaHttpClient({
-      proxyUrl: this.mediaConfig.proxyUrl,
-    })
+    const http = this.downloadDeps.http ?? this.createMediaHttpClient()
     const traceId = this.newTraceId()
     const userOnItemError = resolved.onItemError
     let refreshed = 0
@@ -797,6 +795,24 @@ export class MediaService extends FetcherService {
     const id = normalizeTweetIdInput(mblogId)
     const tweet = await this.getTweetForMedia(id)
     return this.downloadTweetMedia(tweet, options)
+  }
+
+  private createMediaHttpClient(): MediaHttpClient {
+    const proxy = this.mediaConfig.proxy
+    if (proxy === undefined)
+      return createAxiosMediaHttpClient()
+    if (proxy === false)
+      return createAxiosMediaHttpClient({ proxy: () => false })
+    if (typeof proxy === 'string')
+      return createAxiosMediaHttpClient({ proxyUrl: proxy })
+    return createAxiosMediaHttpClient({
+      proxy: url => proxy.getProxy({
+        url,
+        method: 'GET',
+        attempt: 1,
+        traceId: this.newTraceId(),
+      }),
+    })
   }
 
   private async getTweetForMedia(mblogId: string): Promise<Tweet> {

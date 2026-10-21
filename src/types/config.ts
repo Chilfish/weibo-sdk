@@ -128,16 +128,10 @@ export interface IWeiboConfig {
    * 上游代理：静态 URL、动态 Provider，或 `false` 显式直连（仅 Node 生效）。
    *
    * - `'http://127.0.0.1:7890'`：固定代理
-   * - `{ getProxy: ctx => ... }`：按请求 / 重试动态选择代理（可返回 Promise）
+   * - `{ getProxy: ctx => ... }`：按请求 / 重试动态选择代理（可返回 Promise）；媒体下载同样按 URL 调用
    * - `false`：忽略环境变量代理，强制直连
    */
   proxy?: WeiboProxyInput
-  /**
-   * 上游代理地址（如 `http://127.0.0.1:7890`）；仅 Node 生效，浏览器运行时忽略。
-   *
-   * @deprecated 请使用 `proxy`（支持动态 Provider）。
-   */
-  proxyUrl?: string
   /** 单请求超时毫秒数（默认 30000） */
   timeout?: number
   /**
@@ -169,7 +163,7 @@ export interface IWeiboConfig {
   retry?: IWeiboRetryConfig
 
   /**
-   * SDK 级别 hooks（全局 onFetched/onError/生命周期事件）
+   * SDK 级别 hooks（全局 onRaw/onError/生命周期事件）
    */
   hooks?: WeiboSDKHooks
 

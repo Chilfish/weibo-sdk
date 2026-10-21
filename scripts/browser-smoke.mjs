@@ -7,7 +7,7 @@
  * 2. Node 构建（`dist/index.mjs`）仍可导入并构造 SDK（回归，不发请求）。
  * 3. `dist/browser.mjs` 在真实 Chromium 中可以直接 `import`（无 bare specifier、无 Node-only 模块），
  *    并断言 `new WeiboSDK({ cookie: 'x' })` 构造不抛错、不产生网络请求。
- * 4. 浏览器环境下 `proxyUrl` 不会注入 axios `proxy`（构造不抛错，退化为直连）。
+ * 4. 浏览器环境下 `proxy` 不会注入 axios `proxy`（构造不抛错，退化为直连）。
  *
  * 用法：
  *   node scripts/browser-smoke.mjs               # 起临时静态服务器 + agent-browser 跑真实 Chromium
@@ -87,9 +87,9 @@ const HTML = `<!doctype html>
       ))
       expect('selfCheck() is available', () => typeof sdk.selfCheck === 'function')
 
-      // 浏览器里 proxyUrl 必须被忽略（不注入 axios proxy），且构造不得因 URL 解析 / Node-only 逻辑抛错。
-      expect('new WeiboSDK({ cookie, proxyUrl }) does not throw in browser', () => {
-        const scoped = new mod.WeiboSDK({ cookie: 'x', proxyUrl: 'http://127.0.0.1:7890' })
+      // 浏览器里 proxy 必须被忽略（不注入 axios proxy），且构造不得因 URL 解析 / Node-only 逻辑抛错。
+      expect('new WeiboSDK({ cookie, proxy }) does not throw in browser', () => {
+        const scoped = new mod.WeiboSDK({ cookie: 'x', proxy: 'http://127.0.0.1:7890' })
         return scoped instanceof mod.WeiboSDK
       })
 
@@ -256,9 +256,9 @@ async function runNodeChecks() {
       const sdk = new mod.WeiboSDK({ cookie: 'x' })
       return sdk instanceof mod.WeiboSDK && Boolean(sdk.tweets)
     })
-    // Node 下 proxyUrl 必须仍然被接受（构造不抛错），代理行为保持原样。
-    push('node build: new WeiboSDK({ cookie, proxyUrl }) does not throw', () => {
-      const sdk = new mod.WeiboSDK({ cookie: 'x', proxyUrl: 'http://127.0.0.1:7890' })
+    // Node 下 proxy 必须仍然被接受（构造不抛错），代理行为保持原样。
+    push('node build: new WeiboSDK({ cookie, proxy }) does not throw', () => {
+      const sdk = new mod.WeiboSDK({ cookie: 'x', proxy: 'http://127.0.0.1:7890' })
       return sdk instanceof mod.WeiboSDK
     })
   }).catch((error) => {
