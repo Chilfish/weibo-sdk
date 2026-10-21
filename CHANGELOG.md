@@ -6,6 +6,9 @@
 
 ### 新增
 
+- 插件与传输端口：`IWeiboConfig` 新增 `transport` 和 `plugins`。`WeiboTransport` 可以替换默认 axios（`fetchTransport({ fetch })` 适用于 Worker / Edge / Deno / Bun / 测试替身）；插件在构造期组装，支持 `transport` 中间件、`beforeRequest` / `afterResponse` / `beforeRetry` / `onError` 生命周期钩子和只读 `observe`。默认路径不变，`new WeiboSDK({})` 仍然是 axios + 访客身份。公共导出新增 `fetchTransport`、`TransportFailure`、`WeiboPlugin`、`WeiboTransport`、`Credential` / `CredentialResolver` 及相关上下文类型；`credentialId` 只暴露非敏感标识，不做 token 池。
+- 归档页内并发预取：`streamArchive({ concurrency })` 与 `weibo-cli archive --concurrency <n>`（默认 3，范围 1–8；`1` 为完全串行）。同一页内并行预取后续条目的评论链和转发首页，分页、产出顺序、`onRaw` 顺序与 checkpoint 语义保持不变；实际 HTTP 并发仍受令牌桶和 432 全局暂停约束。
+- `tweets.context()` 在 `statuses/show` 之后并行获取长文、作者资料和评论抽样；`tweets.enrich()` 在需要长文时并行 `statuses/show` 与 `longtext`。评论自身分页仍是串行游标。
 - 归档 JSON 增加 `$schema`，指向 `schemas/weibo-user-archive/v1.json`（JSON Schema draft-07）。schema 由 `src/types/archive/IArchiveFile.ts` 生成，可用 `pnpm schema:archive` 重建，`pnpm schema:check` 检查漂移。
 
 ### 修复
@@ -14,6 +17,8 @@
 
 ### 变更
 
+- 包形态与发布门禁：`exports` 补 `types` 条件，新增 `engines.node >= 20.16`；`src/cli.ts` 只导出命令树，新增 `cli-bin.ts` 作为唯一带顶层副作用的 bin 入口，`weibo-cli` 指向 `dist/cli-bin.mjs`。`citty` 构建期内联进 CLI 产物并移到 `devDependencies`，运行时依赖收敛为 `axios` / `zod`。
+- 新增 `lint:package`（publint + attw）、`verify:package`（真实 tarball 安装 / Node import / CLI 版本）和 `test:bundle`（Vite + esbuild + tree-shaking + Worker）三个下游产物门禁。
 - 移除所有带 `@deprecated` 的兼容 API（0.x 阶段直接 breaking，不再保留旧别名）：
   - `users.info` / `users.details` → `users.fetchRawInfo` / `users.fetchRawDetails`；日常读取用 `users.getById`。
   - `tweets.myMblog` → `tweets.fetchRawUserTimelinePage`（归档层数据源）；日常读取用 `listByUserId` / `streamByUserId`。
@@ -23,7 +28,12 @@
   - `hooks.onFetched` 删除 → 用 `hooks.onRaw` 获取原始响应，或 `telemetry` 消费 Wide Events。
   - `TweetPageResult.sinceId` 删除 → 用户时间线用 `page`，首页 Feed 用 `maxId`。
   - `ArchiveCheckpoint.lastMblogId` 删除，`ArchivePhase` 不再包含 `'reposts'`；旧 checkpoint 需要重新开始。
-  - 内部测试注入 `deps.client` 删除 → 用 `transport: axiosTransport({ client })`。
+  - 内部测试注入 `deps.client` 删除 → 用 `transport: axiosTransport({ client })`（测试内部使用，不在公共导出面）。
+
+### 文档
+
+- Agent 使用方式改为仓库内 `scripts/weibo.sh`，用 bun 直接运行 `src/cli.ts`，不需要构建或安装 npm 包；技能文档补充 CLI 命令树和 SDK 方法参考。
+- 浏览器抓包文档收敛为手动 OpenCLI 与 CDP 两条通道，并以 OpenCLI 手册作为选择入口；新增插件扩展与包完整性指南。
 
 ## 0.3.0 (2026-10-21)
 
