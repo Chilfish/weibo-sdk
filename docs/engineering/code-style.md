@@ -97,7 +97,7 @@ Given-When-Then：
 ```ts
 it('listByUserId_emptySinceId_hasMoreFalse', () => {
   // Given
-  const sdk = createSDK({ client: fakeAxios({ list: [], since_id: '', total: 0 }) })
+  const sdk = createSDK({ transport: axiosTransport({ client: fakeAxios({ list: [], since_id: '', total: 0 }) }) })
   // When
   const result = await sdk.tweets.listByUserId('123')
   // Then

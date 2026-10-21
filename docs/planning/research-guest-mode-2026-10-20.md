@@ -318,7 +318,7 @@ async function issueGuestToken(): Promise<GuestToken> {
 | 能力 | 现有端点 | guest 结论 |
 |---|---|---|
 | `users.myDetails` | `ajax/profile/detail`（无 uid） | ❌ 访客自身 / 无意义 |
-| `users.info` / `getById` | `ajax/profile/info` + `detail` | ✅ |
+| `users.fetchRawInfo` / `getById` | `ajax/profile/info` + `detail` | ✅ |
 | `users.timeline` | `ajax/statuses/mymblog` | ❌ 403；只能改用 m 站第一页 |
 | `users.listMentions` / `streamMentions` | `ajax/statuses/mentions` | ❌ 访客自身 |
 | `users.groups` | `ajax/feed/allGroups` | ✅ |
@@ -327,7 +327,7 @@ async function issueGuestToken(): Promise<GuestToken> {
 | `tweets.comments` / `streamComments` | `ajax/statuses/buildComments` | ✅ 含翻页 |
 | `tweets.getReposts` / `streamReposts` | `ajax/statuses/repostTimeline` | ✅ 含翻页 |
 | `tweets.likers` / `streamLikers` | `m.weibo.cn/api/attitudes/show` | ✅ 含翻页 |
-| `tweets.friendTimeline` | `ajax/feed/friendstimeline` | ❌ 403 |
+| `tweets.listFriendTimeline` | `ajax/feed/friendstimeline` | ❌ 403 |
 | `tweets.searchByDate` | `ajax/statuses/searchProfile` | ❌ `{}` |
 | `followings.getFollowings` / `getFans` | `ajax/friendships/friends` | ❌ `{}`；m 站第一页可用 |
 | `favorites.*` | `ajax/favorites/*` | ❌ 访客自身 / 不可信 |
@@ -581,7 +581,7 @@ interface WeiboCapability {
 | tweets.comments | guest | full | `max_id` |
 | tweets.reposts | guest | full | `page` |
 | tweets.likers | guest | full | |
-| tweets.friendTimeline | cookie | — | |
+| tweets.listFriendTimeline | cookie | — | |
 | tweets.searchProfile | cookie | — | |
 | followings.* | cookie | — | guest 仅 m 站第一页 |
 | likes.list | cookie | — | guest 仅 m 站第一页 |

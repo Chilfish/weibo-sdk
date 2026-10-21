@@ -129,12 +129,12 @@ export const scenario: SdkScenario = {
     })
 
     log.heading('第 1 次请求：432 → 插件改延迟 → 重试成功')
-    const first = await sdk.users.info(UID)
-    log.kv('user', first.data.user.screen_name)
+    const first = await sdk.users.getById(UID)
+    log.kv('user', first.name)
 
     log.heading('第 2 次请求：命中 transport 缓存，不再调用 fetch')
-    const second = await sdk.users.info(UID)
-    log.kv('sameUser', second.data.user.screen_name)
+    const second = await sdk.users.getById(UID)
+    log.kv('sameUser', second.name)
 
     log.heading('插件观测结果')
     log.kv('fetchCalls', scripted.calls.length)
@@ -168,7 +168,7 @@ export const scenario: SdkScenario = {
     })
 
     try {
-      await failingSdk.users.info(UID)
+      await failingSdk.users.getById(UID)
       log.warn('预期失败，但请求成功了；请检查上游行为。')
     }
     catch (error) {

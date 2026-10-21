@@ -35,9 +35,8 @@
 - `FetchTransport.ts`：`fetchTransport({ fetch? })`；支持注入 fetch、超时、manual redirect、JSON / 文本响应。
 - `index.ts`：公开导出。
 
-`FetcherService` 改造：
-
-- 只依赖 `WeiboTransport`；`deps.client` 内部包装为 `AxiosTransport`。
+- `FetcherService` 改造：
+- 只依赖 `WeiboTransport`；测试通过 `transport: axiosTransport({ client })` 注入自定义 axios 实例（`deps.client` 已于 2026-10-21 移除）。
 - `sendAttempt` 每次构造新 `TransportRequest`，不再改写 `resource.headers`。
 - HTTP 语义（432 / 429 / 403 / 3xx / 登录页 / `Retry-After`）留在 `FetcherService`；transport 只抛 `TransportFailure`（timeout / network）。
 - `IWeiboConfig.transport?: WeiboTransport`、`IWeiboConfig.fetch?: FetchLike`。
@@ -64,7 +63,7 @@
 - `types.ts`：`WeiboPlugin` / `RequestContext` / `ResponseContext` / `RetryContext` / `ErrorContext` / `WeiboEvent`。
 - `pipeline.ts`：排序 + 编译；无插件时 identity 快路径；重名 / `apiVersion` 不兼容直接 `CONFIG_INVALID`。
 - `index.ts`：公开插件类型。
-- **兼容层策略调整**：`WeiboSDKHooks.onRaw` / `onFetched` / `onLifecycle` 保持在原调用点（时序与抛错语义完全不变），`onError` 由 `FetcherService.emitError` 调用；插件 `onError` 先执行，可替换错误，然后再交给 legacy hooks。这样避免 `onRaw` 在可重试失败上多触发一次。
+- **兼容层策略调整**：`WeiboSDKHooks.onRaw` / `onLifecycle` 保持在原调用点（时序与抛错语义完全不变），`onFetched` 已移除；`onError` 由 `FetcherService.emitError` 调用；插件 `onError` 先执行，可替换错误，然后再交给 legacy hooks。这样避免 `onRaw` 在可重试失败上多触发一次。
 
 `FetcherService` 集成点：
 

@@ -12,6 +12,19 @@
 
 - `VerificationType` 按真实 `verified_type` 修正：新增 `Unverified = -1`、`Personal = 0`，并补齐政府 / 校园 / 网站 / 应用 / 机构 / 达人等取值；原 `Personal = 1`、`Celebrity = 7` 的映射有误。注意 `Personal` 的数值从 `1` 改为 `0`，`Celebrity` 改名为 `Organization`，依赖旧枚举的代码需要同步。
 
+### 变更
+
+- 移除所有带 `@deprecated` 的兼容 API（0.x 阶段直接 breaking，不再保留旧别名）：
+  - `users.info` / `users.details` → `users.fetchRawInfo` / `users.fetchRawDetails`；日常读取用 `users.getById`。
+  - `tweets.myMblog` → `tweets.fetchRawUserTimelinePage`（归档层数据源）；日常读取用 `listByUserId` / `streamByUserId`。
+  - `tweets.show` 删除 → 归一化用 `getByMblogId`，需要 raw 用 `enrich`。
+  - `tweets.friendTimeline` 删除 → `listFriendTimeline` / `streamFriendTimeline`。
+  - `config.proxyUrl` 删除 → 统一用 `config.proxy`（静态 URL / 动态 Provider / `false`）。
+  - `hooks.onFetched` 删除 → 用 `hooks.onRaw` 获取原始响应，或 `telemetry` 消费 Wide Events。
+  - `TweetPageResult.sinceId` 删除 → 用户时间线用 `page`，首页 Feed 用 `maxId`。
+  - `ArchiveCheckpoint.lastMblogId` 删除，`ArchivePhase` 不再包含 `'reposts'`；旧 checkpoint 需要重新开始。
+  - 内部测试注入 `deps.client` 删除 → 用 `transport: axiosTransport({ client })`。
+
 ## 0.3.0 (2026-10-21)
 
 ### 新增

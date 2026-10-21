@@ -49,7 +49,7 @@
 - **决策**: 以 `WeiboSDKTelemetry.emit(event)` 输出扁平 KV 宽事件（必含 `event_name/timestamp/trace_id`，其余 primitive），事件集：`sdk_init` / `self_check_*` / `request_start|success|error` / `rate_limit_wait` / `normalize_done`。
 - **背景**: `onFetched` 只覆盖成功路径且无标准事件结构，难以断言与索引。
 - **理由**: Wide Events 是「生产可观测性 + 测试可断言」的统一通道；`emit` 失败 MUST NOT 影响 SDK 功能（try/catch 包裹）。
-- **后果**: `FetcherService.onFetched` 标 `@deprecated`；测试可用 `TelemetryCollector` 断言事件序列与字段完整性。
+- **后果**: `FetcherService.onFetched` 已于 2026-10-21 移除；成功路径统一用 `onRaw` + telemetry，测试可用 `TelemetryCollector` 断言事件序列与字段完整性。
 
 ## ADR-006: 离线测试分层
 
@@ -140,7 +140,7 @@
 - **后果**:
   - 新增 `transport` / `plugins` 配置，全部 optional；`new WeiboSDK({})` 行为不变。
   - `config.hooks` / `config.telemetry` 降为内置兼容插件；`logging` 死配置删除。
-  - `FetcherService` 不再直接依赖 axios；`deps.client` 通过 `AxiosTransport` 保留。
+  - `FetcherService` 不再直接依赖 axios；`deps.client` 已于 2026-10-21 移除，测试通过 `transport: axiosTransport({ client })` 注入。
   - 插件 API 必须显式传入，禁止模块级自动注册（影响 tree-shaking）。
   - 需要 transport contract tests（axios vs fetch）与插件顺序 / 错误语义测试。
 

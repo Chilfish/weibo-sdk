@@ -61,7 +61,7 @@ request(spec, args)
  │   └─ ok !== 1 → API_NOT_OK（或 myDetails 的 AUTH_SESSION_EXPIRED）
  ├─ Zod safeParse（不重试）
  │   └─ 失败 → API_BAD_RESPONSE（context.zodIssues）
- └─ emit request_success + hooks.onFetched
+ └─ emit request_success（raw 已在 okPolicy / Zod 前通过 hooks.onRaw 交付）
 ```
 
 `request()` 外面还包了一层 guest 刷新循环：本次逻辑请求已捕获可归因于鉴权的失败（`redirect_to_login` / `visitor_entry` / `ok_minus_100` / `forbidden` / `empty_object` / `html`），且 `auth: 'guest'`、端点不是 `auth: 'none'`、`config.guest.autoRefresh !== false` 时，刷新一次访客 token 后重跑整个请求。**每个逻辑请求最多刷新一次**（`guest_refresh_count` 取 0/1），刷新失败保留旧 token 并抛出原始错误；432/429 不参与刷新判定。
@@ -231,9 +231,8 @@ interface IWeiboConfig {
     autoRefresh?: boolean                     // 默认 true；每个请求最多刷新一次
   }
   xsrfToken?: string                          // 可选，X-XSRF-TOKEN
-  proxyUrl?: string                           // 可选，axios proxy
+  proxy?: string | false | { getProxy: (ctx) => string | null | undefined | false | Promise<string | null | undefined | false> }  // 静态 URL / 动态 Provider / false 直连；媒体下载同样生效
   timeout?: number                            // 默认 30000ms
-  logging?: boolean
   maxConcurrent?: number                      // 默认 3（令牌桶容量）
   delay?: number | ((retryCount: number) => number)   // 默认 1000ms
   retry?: {                                   // 请求级重试（P1 可靠性），全部可选
@@ -242,7 +241,7 @@ interface IWeiboConfig {
     maxDelayMs?: number                       // 默认 8000（单次延迟上限，也截断 Retry-After）
     retryOn?: ('rate_limit' | 'server_error' | 'timeout' | 'network_error')[]  // 默认全部
   }
-  hooks?: WeiboSDKHooks                       // onLifecycle / onRaw / onFetched(deprecated) / onError
+  hooks?: WeiboSDKHooks                       // onLifecycle / onRaw / onError
   telemetry?: WeiboSDKTelemetry               // Wide Events（扁平 KV）
   selfCheck?: { mode?: 'none' | 'lazy' | 'eager' }    // 默认 lazy
 }
@@ -278,15 +277,15 @@ interface IWeiboConfig {
 
 ### 3.3 服务接口
 
-> **生熟双 API 收窄（F2，2026-09-04）**：raw 响应方法仅作为归一化路径与编排层（`ArchiveService`）的数据源保留，公开面默认走归一化方法；raw 方法在 `.d.ts` 中带 `@deprecated`。无归一化对应的 raw 方法（`comments` / `longText` / `getReposts` / `searchByDate` / `getFavorites` / `getFollowings` 等）不标弃用。
+> **raw 数据源（2026-10-21）**：公开面默认走归一化方法。需要原始响应的场景用 `tweets.enrich`、`hooks.onRaw` 或归档层专用的 `fetchRaw*` 方法；不再保留带 `@deprecated` 的生熟双 API。无归一化对应的 raw 方法（`comments` / `longText` / `getReposts` / `searchByDate` / `getFavorites` / `getFollowings` 等）继续作为公开 API。
 
 **UserService**（`sdk.users`）
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `info` | `(id: string) => Promise<UserInfoResponse>` | 用户信息（raw；**@deprecated**：用 `getById`） |
-| `details` | `(id: string) => Promise<UserDetailsResponse>` | 用户详情（raw；**@deprecated**：用 `getById`） |
-| `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`；会话自检原语，不标弃用） |
+| `fetchRawInfo` | `(id: string) => Promise<UserInfoResponse>` | 用户信息（低层 raw 数据源；公开使用请走 `getById`） |
+| `fetchRawDetails` | `(id: string) => Promise<UserDetailsResponse>` | 用户详情（低层 raw 数据源；公开使用请走 `getById`） |
+| `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`；会话自检原语） |
 | `getById` | `(id: string) => Promise<User>` | info + details 归一化为 `User` |
 | `listMentions` | `({ maxId?, page? }?) => Promise<UserMentionsPageResult>` | `@我的微博` 单页（`max_id` / `page` 等价；`since_id` 被忽略） |
 | `streamMentions` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 游标翻页 + 跨页 `mblogid` 去重；`next_cursor === 0` / 空页 / 游标不前进 / 范围边界停止；时间倒序，支持日期早停 |
@@ -300,24 +299,22 @@ interface IWeiboConfig {
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `myMblog` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博列表（raw，page 游标；**@deprecated**：用 `listByUserId` / `streamByUserId`） |
+| `fetchRawUserTimelinePage` | `(uid, page?, count?) => Promise<MyMblogResponse>` | 用户微博原始页（归档层数据源；公开使用请走 `listByUserId` / `streamByUserId`） |
 | `listByUserId` | `(uid, { page?, count? }?) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
 | `streamByUserId` | `(uid, { page?, count?, maxPages?, maxItems?, since?, until? }?) => AsyncIterableIterator<Tweet>` | 自动翻页流式；时间倒序，支持条数 / 日期边界 |
-| `show` | `(mblogId, isGetLongText?) => Promise<StatusShowResponse>` | 微博详情（raw；**@deprecated**：用 `getByMblogId`） |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
 | `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v1 |
 | `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
 | `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
 | `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
 | `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒，日期取本地时区） |
-| `friendTimeline` | `(options?) => Promise<FriendstimelineResponse>` | 首页「最新微博」关注时间线（raw；**@deprecated**：用 `listFriendTimeline`） |
 | `listFriendTimeline` | `({ max_id?, since_id?, list_id?, fid?, count?, refresh? }?) => Promise<TweetPageResult>` | 首页「最新微博」（归一化）；`max_id` 翻旧页，`since_id` 只做增量过滤 |
 | `streamFriendTimeline` | `({ maxId?, sinceId?, listId?, fid?, refresh?, count?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | `max_id` 自动翻页 + 跨页 `mblogId` 去重；`sinceId` 只请求一页增量；支持条数 / 日期边界 |
 | `likers` | `(mid, { page? }?) => Promise<TweetLikersPageResult>` | 微博点赞者单页（m 站 `api/attitudes/show`；数字 mid / mblogId / URL 均可，非数字会自动解析） |
 | `streamLikers` | `(mid, { page?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<TweetLiker>` | page 翻页 + 跨页用户 id 去重；空页 / 整页重复 / 达到 total 停止 |
 
 > `TweetEnrichResult = { tweet: Tweet, raw: StatusShowResponse, longText?: string }`：`raw` 为 passthrough 的 `statuses/show` 原始响应，调用方自行落盘；`longText` 仅在 `includeLongText: true` 时请求。
-> `TweetPageResult = { page?: number, maxId?: string, sinceId?: string, hasMore: boolean, total?: number, partial?: boolean, tweets: Tweet[] }`（`partial: true` 表示 guest 模式下的 m 站第一页，见 §3.3.2）。
+> `TweetPageResult = { page?: number, maxId?: string, hasMore: boolean, total?: number, partial?: boolean, tweets: Tweet[] }`（`partial: true` 表示 guest 模式下的 m 站第一页，见 §3.3.2）。
 > 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码；2026-08 曾弃用 `since_id`，2026-10-20 复测 `since_id` 与 `page` 均可用且等价，归一化仍以 `page` 为主）；
 > `friendstimeline`（`listFriendTimeline`/`streamFriendTimeline`）用 `maxId` 翻旧页（响应 `max_id`；`0` = 到底），`since_id` 只做增量过滤；`total_number` 实测恒为 2000 上限值，不能当作剩余条数。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
 
@@ -490,7 +487,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 ### 3.6 Hooks 与 Telemetry
 
-**Hooks**（`WeiboSDKHooks`）：`onLifecycle(event)` / `onRaw(raw, meta)` / `onFetched(resource, data, meta)`（**@deprecated**，用 `onRaw` + telemetry）/ `onError(error, meta)`。`onRaw` 在 Zod 校验前触发（raw 为端点原始响应，未校验），meta 含 `trace_id`、`timestamp`、`endpoint`、`resourceType`、`request`、`args`。其余 hook meta 含 `phase`（`preflight|request|response|parse`）、`ok`、`message`。
+**Hooks**（`WeiboSDKHooks`）：`onLifecycle(event)` / `onRaw(raw, meta)` / `onError(error, meta)`。`onRaw` 在 okPolicy / Zod 校验前触发（raw 为端点原始响应，未校验），meta 含 `trace_id`、`timestamp`、`endpoint`、`resourceType`、`request`、`args`。`onError` meta 含 `phase`（`preflight|request|response|parse`）、`ok`、`message`。
 
 **Telemetry**（`WeiboSDKTelemetry.emit(event)`）：Wide Events，扁平 KV，必含 `event_name/timestamp/trace_id`，其余字段 MUST 为 primitive。事件集：
 
@@ -520,7 +517,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 - Telemetry JSONL 消费端（P2-3）：`createJsonlTelemetry` / `serializeTelemetryEvent` / `formatArchiveProgress` / `isArchiveProgress`
 - 结构化错误类：`WeiboSDKError` 基类与全部 7 个子类（见 §4）
 
-**构建产物**（P2-1）：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxyUrl` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
+**构建产物**（P2-1）：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli-bin.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxy` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 
 **规则**：
 - 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。

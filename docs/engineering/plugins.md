@@ -239,7 +239,7 @@ const slowRetry: WeiboPlugin = {
 | `transport` | `AxiosTransport` | 显式替换才改变行为 |
 | `plugins` | `[]` | 无插件时走 identity 快路径 |
 | `fetch` | `globalThis.fetch` | guest token 发放使用；主 transport 需显式 `fetchTransport({ fetch })` |
-| `hooks` | — | 语义不变；`onRaw` / `onFetched` / `onError` / `onLifecycle` 保留原调用点 |
+| `hooks` | — | 语义不变；`onRaw` / `onError` / `onLifecycle` 保留原调用点 |
 | `telemetry` | 关闭 | 失败不影响业务 |
 | `logging` | **已删除** | 用 `observe` 或 logger 插件替代 |
 

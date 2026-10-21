@@ -84,8 +84,8 @@ void new WeiboSDK({
 含义：微博 API 返回了 `ok ≠ 1`（通常是 `0`），表示请求参数错误或资源不可访问。
 
 触发场景：
-- 对不存在的用户 ID 调用 `users.info()` / `users.details()`
-- 对不存在的微博 ID 调用 `tweets.show()`
+- 对不存在的用户 ID 调用 `users.getById()`（底层 `ajax/profile/info` / `detail`）
+- 对不存在的微博 ID 调用 `tweets.getByMblogId()` 或 `tweets.enrich()`
 - 不满足 endpoint 特定条件（如需要特殊 Cookie 权限）
 
 诊断步骤：

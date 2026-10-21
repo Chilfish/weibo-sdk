@@ -62,7 +62,7 @@
 
 - SemVer + `CHANGELOG.md`；契约破坏性变更随包 major。
 - `TWEET_CONTRACT_VERSION` 冻结表、形状测试、迁移策略。
-- `@deprecated` 标注与迁移说明。
+- 破坏性变更直接移除旧 API（2026-10-21 起不再保留 `@deprecated` 方法）；迁移说明写进 `CHANGELOG.md`。
 - 发布门禁：`pnpm test` / `pnpm run typecheck` / `pnpm run lint` / `pnpm run validate:fixtures` / `pnpm run build`。
 
 ### 砍掉（内部仪式）

@@ -67,7 +67,7 @@ Service.request(spec, args)
 | 限流 | `RateLimitService` 构造注入 `clock` | 实例级令牌桶，支持 432 全局暂停 |
 | 时间 | `IRateLimitClock` | 测试可注入 FakeClock |
 | 遥测 | `WeiboSDKTelemetry.emit` | 已包裹 try/catch，失败不影响业务 |
-| 回调 | `WeiboSDKHooks`（onRaw / onFetched / onError / onLifecycle） | 抛错会向上传播；与 telemetry 语义不同 |
+| 回调 | `WeiboSDKHooks`（onRaw / onError / onLifecycle） | 抛错会向上传播；与 telemetry 语义不同 |
 
 ### 2.3 主要耦合点
 
@@ -109,7 +109,7 @@ Service.request(spec, args)
 
 ### 3.3 cookie 账号池的收益为什么更低
 
-- 账号级端点绝对不能轮换：`favorites`、`commentHistory`、`notifications`、`mentions`、`friendTimeline`、`archive` 换了账号就是另一份数据。
+- 账号级端点绝对不能轮换：`favorites`、`commentHistory`、`notifications`、`mentions`、首页 Feed（`listFriendTimeline` / `streamFriendTimeline`）、`archive` 换了账号就是另一份数据。
 - 非账号级 cookie 端点也会变：粉丝可见、好友圈、隐私账号、拉黑关系都会影响结果集。静默轮换会破坏「契约稳定」这一项目目标，性质和「Cookie 失效不静默降级 guest」相同。
 - 多账号与项目边界冲突：`AGENTS.md` 明确「只使用自己的账号 Cookie」「尊重微博条款与隐私」。池化会引入合规与账号安全风险。
 - `backlog.md` 已在 2026-10-20 将「多账号登录态隔离」列为不再推进。
@@ -309,7 +309,7 @@ export interface WeiboPlugin {
 
 `config.hooks` 与 `config.telemetry` 的兼容策略：
 
-- `hooks` 实现为内置 `hooksPlugin`，映射到 `onRaw` / `onFetched` / `onError` / `onLifecycle`。
+- `hooks` 实现为内置 `hooksPlugin`，映射到 `onRaw` / `onError` / `onLifecycle`。
 - `telemetry` 实现为内置 `telemetryPlugin`（observer）。
 - `logging` 是死配置，直接并入 `loggerPlugin` 的文档说明，不再保留布尔开关。
 
@@ -317,14 +317,14 @@ export interface WeiboPlugin {
 
 | 现有能力 | 目标位置 | 说明 |
 |---|---|---|
-| `deps.client`（AxiosInstance） | `transport` | 仍可注入 axios 实例，但通过 `AxiosTransport` 包装 |
+| `deps.client`（AxiosInstance） | `transport` | 已移除；测试通过 `axiosTransport({ client })` 注入 |
 | `GuestFetch` | `transport` 的 fetch 实现 | 统一一个 fetch 注入点 |
 | `AuthService` / `GuestTokenService` | `CredentialResolver` 内部 | 默认实现不变 |
 | `RateLimitService` / `RetryPolicy` / `resolveProvider` | Core | 不插件化 |
-| `hooks.onRaw` / `onFetched` / `onError` / `onLifecycle` | lifecycle hooks | 兼容插件 |
+| `hooks.onRaw` / `onError` / `onLifecycle` | lifecycle hooks | 兼容插件 |
 | `telemetry` | observer | 语义不变（失败不影响业务） |
 | `logging`（当前未使用） | logger observer | 删除死配置 |
-| `proxy` / `proxyUrl` | transport 配置 | 默认 transport 继续支持动态 Provider |
+| `proxy` | transport 配置 | 默认 transport 继续支持动态 Provider |
 | 未来缓存 / mock / 熔断 | transport 中间件 | 拿 raw，不碰 schema |
 | 未来 token 池 | `CredentialResolver` 插件 | 默认不启用 |
 

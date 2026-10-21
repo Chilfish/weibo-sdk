@@ -25,14 +25,14 @@
 
 | 端点 | Service 方法 | 说明 |
 |---|---|---|
-| `ajax/profile/info` | `UserService.info()` / `getById()` | 用户信息 |
-| `ajax/profile/detail` | `UserService.details()` / `myDetails()` / `getById()` | 用户详情（`myDetails` 无 uid，自检用） |
-| `ajax/statuses/mymblog` | `TweetService.myMblog()` / `listByUserId()` / `streamByUserId()` | 用户微博列表（分页 + 广告过滤 + 流式） |
-| `ajax/statuses/show` | `TweetService.show()` / `getByMblogId()` | 微博详情 |
+| `ajax/profile/info` | `UserService.fetchRawInfo()` / `getById()` | 用户信息 |
+| `ajax/profile/detail` | `UserService.fetchRawDetails()` / `myDetails()` / `getById()` | 用户详情（`myDetails` 无 uid，自检用） |
+| `ajax/statuses/mymblog` | `TweetService.fetchRawUserTimelinePage()` / `listByUserId()` / `streamByUserId()` | 用户微博列表（分页 + 广告过滤 + 流式） |
+| `ajax/statuses/show` | `TweetService.getByMblogId()` / `enrich()` | 微博详情 |
 | `ajax/statuses/longtext` | `TweetService.longText()` | 长微博全文 |
 | `ajax/statuses/searchProfile` | `TweetService.searchByDate()` | 按日期范围搜索用户微博 |
 | `ajax/statuses/buildComments` | `TweetService.comments()` | 微博评论列表 |
-| `ajax/feed/friendstimeline` | `TweetService.friendTimeline()` / `listFriendTimeline()` | 首页 Feed（归一化） |
+| `ajax/feed/friendstimeline` | `TweetService.listFriendTimeline()` / `streamFriendTimeline()` | 首页 Feed（归一化） |
 | `ajax/side/bandUnified` | `TrendsService.hotBand()` | 热搜榜单 |
 | `ajax/friendships/friends` | `FollowingsService.getFollowings()` | 用户关注列表 |
 | `ajax/profile/followContent` | `FollowingsService.getMyFollowings()` | 我的关注列表 |

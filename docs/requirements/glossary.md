@@ -122,7 +122,7 @@ _Avoid_: 日志、metrics（它们是不同形态）
 _Avoid_: requestId、correlation id
 
 **Hooks**:
-`WeiboSDKHooks`（`onLifecycle` / `onFetched` / `onError`），面向调用方的回调钩子，区别于 telemetry。
+`WeiboSDKHooks`（`onLifecycle` / `onRaw` / `onError`），面向调用方的回调钩子，区别于 telemetry。
 
 **结构化错误 / Structured Error**:
 继承 `WeiboSDKError`，携带 `code/level/retryable/context`。禁止直接 `throw new Error('...')`。
