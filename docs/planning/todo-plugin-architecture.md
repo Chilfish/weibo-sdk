@@ -146,7 +146,7 @@ scripts/test-bundle.mjs
 ## DoD
 
 - [x] `pnpm run typecheck` 通过
-- [x] `pnpm test --run` 离线全绿（771 passed / 23 skipped，E2E 保持门控）
+- [x] `pnpm test --run` 离线全绿（772 passed / 23 skipped，E2E 保持门控）
 - [x] `pnpm run lint` 无新增问题
 - [x] `pnpm build` 通过；`dist/index.mjs`、`dist/index.d.mts`、`dist/browser.mjs`、`dist/cli.mjs`、`dist/cli-bin.mjs` 均存在
 - [x] `new WeiboSDK({})` 仍为访客身份；Cookie 模式行为不变
