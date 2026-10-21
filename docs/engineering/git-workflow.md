@@ -125,7 +125,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 1. 在 `main` 上把本版变化写进 `CHANGELOG.md` 的 `## Unreleased`（脚本会把它转成版本节）
 2. 执行 `pnpm release <patch|minor|major|x.y.z>`
    - 校验当前分支为 `main`、工作区干净、`HEAD === origin/main`、tag 与 npm 版本尚未存在
-   - 跑本地门禁：`typecheck` / `eslint .` / `test --run` / `validate:fixtures` / `build`
+   - 跑本地门禁：`typecheck` / `eslint .` / `test --run` / `validate:fixtures` / `build` / `browser-smoke --no-browser`
    - `bumpp` 更新 `package.json`，把 `Unreleased` 转成 `## <version> (<date>)`，提交 `chore(release): v<version>`，打 `v<version>` tag 并推送
 3. tag 推送触发 `.github/workflows/publish.yml`：
    - 复核 tag 与 `package.json` 版本一致、CHANGELOG 有对应版本节

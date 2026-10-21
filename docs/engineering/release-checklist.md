@@ -20,6 +20,7 @@
 - [x] `pnpm run typecheck` 通过（2026-10-20）
 - [x] `pnpm run lint` 通过（2026-10-20）
 - [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20）
+- [x] `node scripts/browser-smoke.mjs --no-browser` 通过（导出条件解析 + Node 构建导入；2026-10-21，0.3.1 因该检查未同步条件 `exports` 在 CI 失败后修复并纳入本地门禁）
 - [x] `pnpm test` 全绿（默认离线；2026-10-20 / 0.3.0：711 passed / 23 skipped）
 - [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-20 / 0.3.0：106 fixtures，98 ok / 8 unmodeled / 0 fail）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-20，0.3.0 提交均正常触发 lint-staged）
