@@ -32,6 +32,7 @@
 | `unit/models/Tweet.commentPics.test.ts` | `normalizeComment` 图片评论 | 真实 `comments.json` / `comments_pic_multi.json` / `my_comments_p1.json`、`url_struct[].pic_infos` 提取、多图重复 `url_struct` 去重、尺寸优先 `woriginal`、`reply_comment` / 楼中楼递归、无图时省略 `pics` |
 | `unit/models/TweetContext.test.ts` | `buildTweetContext` / `renderTweetContextMarkdown` | 时间格式归一化、原创图文、长图/纯图提示、广告/付费/长文截断标记、`maxChars`/`maxMedia`、转发链只取当前作者正文、mentions 不含链上作者、原微博媒体归属、`--no-quoted`/`--no-chain` 语义、媒体下载回填、评论抽样声明、Markdown 章节、重复链接卡片只渲染一次 |
 | `unit/models/TweetAttachments.test.ts` | `extractAttachments` / `normalizeTweet` 附件归一化 | PC/m 文章、PC/m 投票（`vote_dynamic` 覆盖 stale 票数）、PC/m 直播、抽奖链接卡、未知 `object_type` 忽略、`kind:id` 去重、m 站 `object_type: 11` + `type: "video"` 视频回归、PC 视频回归 |
+| `unit/models/TweetAttachments.snapshot.test.ts` | 附件 fixture 快照 | 脱敏真实样本的 `tweet.attachments` 完整形状（文章 / 投票 / 直播 / m 站视频 media），字段增删通过 snapshot diff 暴露 |
 | `unit/models/TweetContextAttachments.test.ts` | `buildTweetContext` 附件投影 | 四类附件字段映射、quoted 微博附件归属、文章/抽奖 unknowns、投票快照与直播临时流 hints、无附件时空数组、Markdown 未知项 |
 | `unit/contract/itweet-v2.test.ts` | ITweet v2 契约冻结 | `TWEET_CONTRACT_VERSION = 2`、顶层键集类型/运行时锁定、`ITweetComment` 键集与 `pics` 形状、`migrateTweetV1toV2` 递归删除 `textHtml` |
 | `unit/contract/archive-schema.test.ts` | 归档 JSON Schema v2 | `$id` 与 `$schema` 指向同一 raw URL、最小归档通过 Ajv 校验、缺 `$schema` 被拒、未知字段前向兼容、真实 `verified_type` 取值通过 |
