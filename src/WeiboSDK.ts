@@ -22,6 +22,7 @@ import { SearchService } from './services/public/SearchService'
 import { TopicService } from './services/public/TopicService'
 import { TrendsService } from './services/public/TrendsService'
 import { TweetService } from './services/public/TweetService'
+import { UserArchiveService } from './services/public/UserArchiveService'
 import { UserService } from './services/public/UserService'
 import { resolveCookieInput } from './utils/cookieInput'
 import { combineTelemetry, createLoggerBridge } from './utils/logger'
@@ -74,6 +75,8 @@ export class WeiboSDK {
   public readonly search: SearchService
   /** 归档服务：把 timeline + favorites 串成可恢复的 AsyncIterator。 */
   public readonly archive: ArchiveService
+  /** 范围归档服务：指定时间范围 + 单条深度补全（详情 / 评论 / 楼中楼 / 转发），可续跑。 */
+  public readonly userArchive: UserArchiveService
   private readonly authContext: AuthContext
   private readonly pipeline: ReturnType<typeof createPluginPipeline>
   private readonly loggerBridge?: ReturnType<typeof createLoggerBridge>
@@ -144,6 +147,17 @@ export class WeiboSDK {
           this.media.fetchRawVideoPage(uid, options),
       },
       sessionUid: async () => (await this.getSession()).uid,
+      authMode: this.authContext.mode,
+      telemetry: this.config.telemetry,
+    })
+
+    this.userArchive = new UserArchiveService({
+      streamArchive: (uid, options) => this.archive.streamArchive(uid, options),
+      enrich: mblogId => this.tweets.enrich(mblogId),
+      streamComments: (mblogId, options) => this.tweets.streamComments(mblogId, options),
+      streamReplies: (mblogId, commentId, options) => this.tweets.streamReplies(mblogId, commentId, options),
+      streamReposts: (mblogId, options) => this.tweets.streamReposts(mblogId, options),
+      getUser: uid => this.users.getById(uid),
       authMode: this.authContext.mode,
       telemetry: this.config.telemetry,
     })

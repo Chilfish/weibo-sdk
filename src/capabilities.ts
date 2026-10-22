@@ -438,6 +438,17 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
     status: 'stable',
     cli: 'weibo-cli archive --uid-file <path>',
   },
+  {
+    id: 'archive.user',
+    service: 'userArchive',
+    methods: ['stream', 'run'],
+    description: '按时间范围归档一个用户：切片枚举 + 单条详情/长文/评论/楼中楼/转发补全，可续跑',
+    auth: 'cookie',
+    guestNote: 'guest 模式不支持完整归档',
+    pagination: 'mixed',
+    status: 'stable',
+    cli: 'weibo-cli archive user <uid>',
+  },
 ] as const
 
 /** 能力过滤条件。 */

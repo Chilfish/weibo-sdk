@@ -204,6 +204,32 @@ export type TelemetryEvent
     error_level?: WeiboSDKError['level']
     error_retryable?: boolean
   })
+  | (TelemetryEventBase & {
+    /** 范围归档进度（切片级；由 `UserArchiveService` 发出） */
+    event_name: 'user_archive_progress'
+    uid: string
+    slice: string
+    phase: 'enumerate' | 'complete' | 'slice-done'
+    processed: number
+    source?: string
+    page?: number
+    total?: number
+    remaining?: number
+  })
+  | (TelemetryEventBase & {
+    /** 范围归档单条/单页失败（由 `UserArchiveService` 发出） */
+    event_name: 'user_archive_item_error'
+    uid: string
+    slice?: string
+    stage: 'timeline' | 'detail' | 'comments' | 'replies' | 'reposts'
+    mblogId?: string
+    commentId?: string
+    error_name: string
+    error_message?: string
+    error_code?: string
+    error_level?: WeiboSDKError['level']
+    error_retryable?: boolean
+  })
 
 /**
  * telemetry 接收端契约（`config.telemetry`）。

@@ -33,6 +33,7 @@ export type {
   TransportResponse,
   WeiboTransport,
 } from './services/internal/transport'
+export { createMemoryUserArchiveStore } from './services/public/userArchive/memoryStore'
 export * from './types'
 export {
   createConsoleLogger,

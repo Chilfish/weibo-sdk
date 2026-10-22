@@ -149,6 +149,7 @@ export type {
   TweetRepostsStreamProgress,
   TweetUserTimelineStreamOptions,
 } from '../services/public/TweetService'
+export type { UserArchiveServiceDeps } from '../services/public/UserArchiveService'
 export type {
   UserMentionsListOptions,
   UserMentionsPageResult,
@@ -165,6 +166,8 @@ export type {
   StreamRangeOptions,
 } from '../utils/streamRange'
 
+export * from './archive/IArchiveFile'
+export * from './archive/IUserArchive'
 export * from './config'
 export * from './domain/IGroup'
 export * from './domain/ILiker'
