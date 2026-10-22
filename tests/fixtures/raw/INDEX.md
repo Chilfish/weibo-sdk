@@ -370,3 +370,33 @@
 - **保留结构**：`ok`、`msg`、`card_type` / `card_type_name`、`cardlistInfo` 的 `page` / `since_id` / `total` / `page_size`、条目 JSON 键树与字段类型、`mblogid` / `bid`、`screen_name`、≤40 字符短文本。
 - **刻意保留（与既有 fixture 一致）**：`rid`（纯 trace id）、`object_id`（`<type>:<id>`）、`safe_tags`（位掩码数值，非 ID）、≤40 字符的 `sinaweibo://detail/?mblogid=<bid>` 内链 scheme（公开 mblogid，与 `mblog.user` 关联一致）。
 
+## 新增抓包（2026-10-22：微博特殊卡片 —— 长文 / 投票 / 直播 / 抽奖 / m 站视频 page_info）
+
+> 抓包环境：`.env` 里的 `WEIBO_COOKIE` 直接由 Node `fetch` 复放（未用浏览器 bridge），原始响应经
+> `node scripts/sanitize-raw.mjs <temp> tests/fixtures/raw/<name>.json` 脱敏（**不带** `--keep-ids`，遵循默认规则：
+> URL → `<URL>`、长数字 ID → `<ID>`、日期 → `<DATE>`、>40 字符文本 → `<TEXT>`）。
+> 已建模：4 个网页端样本 → `statusShowSpec`（**mapped**）；3 个 m 站 `statuses/show` 样本 → **unmodeled**（SDK 未建模该端点，见下）。
+
+| 文件 | 大小 | 端点 | 说明 |
+|------|------|------|------|
+| `status_article.json` | 3.4K | `/ajax/statuses/show?id=RnQe6zQ70` | 长文（头条文章）卡：`page_info.object_type: 'article'`、`type: '24'`、`page_pic` / `page_title` / `content1..4` / `pic_info` / `transition_pics` |
+| `status_vote.json` | 15K | `/ajax/statuses/show?id=5354652917040793` | 投票卡：`page_info.object_type: 'hudongvote'`、`type: '23'`、`card_info`（选项 / 票数 / 截止时间） |
+| `mobile_status_vote.json` | 20K | `m.weibo.cn/api/statuses/show?id=5354652917040793` | 同一条投票的 **m 站**形态：`{ ok, data }` 包装、**无 `page_info`**，投票语义只在 `is_vote: true` + `cardid: 'star_1724'` |
+| `status_live.json` | 4.7K | `/ajax/statuses/show?id=5356760082679412` | 直播卡：`page_info.object_type: 'live'`、`type: '26'`、`media_info`、`status`（直播状态）/ `live` / `author` / `linkmic_peoples` |
+| `mobile_status_live.json` | 17K | `m.weibo.cn/api/statuses/show?id=5356760082679412` | 同一条直播的 **m 站**形态：`{ ok, data }` 包装、**无 `page_info`**，直播语义在 `extend_info.live_summary` |
+| `status_lottery.json` | 4.5K | `/ajax/statuses/show?id=5356487725023633` | 抽奖微博：**没有 `page_info`**，抽奖卡在 `url_struct[0]`（`url_title: '抽奖详情'`、`ori_url: lottery.media.weibo.com/...`、`url_type: 39`、`page_id: 230423f...`） |
+| `mobile_video_page.json` | 3.0K | `m.weibo.cn/statuses/show?id=5356611683222885` | **m 站**视频卡：`data.page_info.object_type: 11`（number）、`type: 'video'`、`page_pic` 对象、`media_info`（`stream_url` / `stream_url_hd` / `duration`）、`urls`（`mp4_720p_mp4` / `mp4_hd_mp4` / `mp4_ld_mp4`） |
+
+### 特殊卡片——抓包结论（2026-10-22 实测）
+
+- **网页端 `page_info.object_type` 是字符串，m 站是数字**：网页端 `article` / `hudongvote` / `live`，m 站视频为 `11`（`type` 为 `"video"`）。解析 `object_type` 必须同时接受 `string | number`。
+- **投票 / 直播的 m 站 `show` 端点不下发 `page_info`**：`m.weibo.cn/api/statuses/show` 与老路径 `m.weibo.cn/statuses/show` 都只给 `is_vote` + `cardid`（投票）或 `extend_info.live_summary`（直播）。要拿 m 侧 `page_info` 只能走容器卡片（`getIndex`）。
+- **视频的 `page_info` 只在老路径 `m.weibo.cn/statuses/show` 下发**：`m.weibo.cn/api/statuses/show?id=5356611683222885` 返回 23K 但**无 `page_info`**；老路径 `m.weibo.cn/statuses/show?id=...` 返回 `{ ok: 1, data: {...} }`，体积 6K，含完整 `page_info`（`object_type: 11` / `type: 'video'` / `page_pic` / `media_info` / `urls`）。
+  任务书原本的备选（`containerid=100103type=1&q=直播&page_type=searchall` 里挑卡片）实测**被登录门控**：匿名与带 Cookie 均返回 `{"ok":-100,"url":"https://passport.weibo.com/sso/signin..."}`，所以改用上述老路径。
+- **抽奖不在 `page_info`**：抽奖微博的卡片信息在 `url_struct[]`（`url_type: 39`、`url_title: '抽奖详情'`、`page_id` 为 32 位十六进制），需要走 `linkCards` 而非 `pageInfo` 消费。
+
+### 注册情况（`scripts/validate-fixtures.ts`）
+
+- `status_article.json` / `status_vote.json` / `status_live.json` / `status_lottery.json` → `statusShowSpec`（**mapped**，同为网页端 `/ajax/statuses/show`，响应同构）。
+- `mobile_status_vote.json` / `mobile_status_live.json` / `mobile_video_page.json` → **unmodeled**：SDK 未建模 m 站 `statuses/show`（`{ ok, data }` 包装，字段集与网页端 `statusShowSpec` 不同）；样本供 m 侧 `page_info` 归一化回归使用。
+

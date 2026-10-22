@@ -145,6 +145,13 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'tweet_ReZzZFxVQ.json': validate(statusShowSpec),
   // 2026-10-20 isGetLongText=true：url_struct 重复下发同一条网页卡（linkCards 去重）
   'tweet_RmX9TuHhV.json': validate(statusShowSpec),
+  // 2026-10-22 真实抓包：网页端 /ajax/statuses/show 的特殊卡片
+  // article → object_type: 'article' / type: '24'；hudongvote（投票）→ 'hudongvote' / '23'；
+  // live → 'live' / '26' + media_info；抽奖微博本身没有 page_info，抽奖卡在 url_struct[0]（url_type: 39）
+  'status_article.json': validate(statusShowSpec),
+  'status_vote.json': validate(statusShowSpec),
+  'status_live.json': validate(statusShowSpec),
+  'status_lottery.json': validate(statusShowSpec),
   // 2026-10-20 追加：相册 / 超话（album_list 为 mobile containerid 形态，详情接口可能返回空）
   'album_list.json': { kind: 'unmodeled', note: '/ajax/profile/albumlist（mobile containerid 与 getAlbumDetail 不兼容；实现走 getImageWall?has_album=true）' },
   'album_detail_p1.json': validate(albumDetailSpec),
@@ -169,6 +176,12 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   // 空容器：{ ok: 0, msg: '这里还没有内容', data: { cards: [] } }，属正常空页而非鉴权失败
   'mobile_empty_container.json': validate(mobileContainerSpec),
   'mobile_comments_p1.json': { kind: 'unmodeled', note: 'm 站 api/comments/show 未建模（data.data[] + total_number + max，与网页端 buildComments 响应不同）：guest mobile container; covered by component parsing tests' },
+  // m 站 statuses/show（`{ ok, data: 微博 }` 包装，字段集与网页端 statusShowSpec 不同）：SDK 未建模该端点。
+  // 实测：投票 / 直播在 m 站**没有** page_info（投票走 is_vote + cardid，直播走 extend_info.live_summary），
+  // 视频卡片的 page_info 只在 /statuses/show（非 /api/ 路径）下发，故 video 样本取自该路径。
+  'mobile_status_vote.json': { kind: 'unmodeled', note: 'm 站 /api/statuses/show 未建模（{ ok, data } 包装；投票在 m 站无 page_info，只有 is_vote + cardid）' },
+  'mobile_status_live.json': { kind: 'unmodeled', note: 'm 站 /api/statuses/show 未建模（{ ok, data } 包装；直播在 m 站无 page_info，只有 extend_info.live_summary）' },
+  'mobile_video_page.json': { kind: 'unmodeled', note: 'm 站 /statuses/show 未建模（{ ok, data } 包装）：page_info.object_type=11 / type=video 的 m 站形态样本，供 m 侧 page_info 归一化回归用' },
   // 未建模端点（2026-05-16 抓包，无 EndpointSpec）
   'profile_sidedetail.json': { kind: 'unmodeled', note: 'sidedetail 端点未建模（无 EndpointSpec）' },
   'side_cards.json': { kind: 'unmodeled', note: 'side cards 端点未建模' },
