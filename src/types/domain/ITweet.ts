@@ -77,6 +77,9 @@ export interface ITweet {
   /** 网页卡片 / 视频卡片信息（链接预览等；无卡片时缺省） */
   pageInfo?: TweetPageCard
 
+  /** 结构化附件（文章 / 投票 / 直播 / 抽奖）；无则缺省 */
+  attachments?: TweetAttachment[]
+
   // 媒体内容
   /** 媒体列表（图片/视频/LivePhoto/GIF；无媒体时为空数组） */
   media: TweetMedia[]
@@ -259,6 +262,121 @@ export interface TweetAudio {
   authorName?: string
   /** 作者 uid（`media_info.author_info.idstr` / `id`） */
   authorId?: string
+}
+
+/**
+ * 微博正文里的结构化附件。
+ *
+ * 上游把不同格式放在不同位置：
+ * - PC：`page_info`（article / hudongvote / live）；
+ * - m 站：`url_objects[].object.object`；
+ * - 抽奖：`url_struct[]` 的链接卡。
+ *
+ * `pageInfo` / `linkCards` 保持原样；本字段是它们的结构化视图，允许重复。
+ */
+export type TweetAttachment
+  = | TweetArticleAttachment
+    | TweetVoteAttachment
+    | TweetLiveAttachment
+    | TweetLotteryAttachment
+
+interface TweetAttachmentBase {
+  /** 附件类型 */
+  kind: 'article' | 'vote' | 'live' | 'lottery'
+  /** 上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid） */
+  id: string
+  /** 上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值） */
+  objectType: string
+  /** 标题 / 问题 / 直播标题 */
+  title: string
+  /** 可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换） */
+  url: string
+  /** 封面（临时 URL） */
+  coverUrl?: string
+  /** 数据来源，便于排障 */
+  source: 'page_info' | 'url_objects' | 'url_struct'
+}
+
+/** 头条文章（正文默认不抓，`content` 仅显式抓取时存在）。 */
+export interface TweetArticleAttachment extends TweetAttachmentBase {
+  kind: 'article'
+  /** 摘要（上游 `article_summary` / `page_desc`） */
+  summary?: string
+  /** 作者昵称 */
+  author?: string
+  /** 是否付费文章（上游 `ispay` / `is_paid`） */
+  isPaid?: boolean
+  /** 正文 HTML / 纯文本；默认缺省，见 `tweets.article()` */
+  content?: string
+  /** 正文是否可能被截断（付费、未登录、解析失败） */
+  truncated?: boolean
+}
+
+/** 微博投票。票数是抓取时快照，不代表实时。 */
+export interface TweetVoteAttachment extends TweetAttachmentBase {
+  kind: 'vote'
+  /** 是否多选 */
+  multiSelect: boolean
+  /** 最少选择数 */
+  minChoices?: number
+  /** 最多选择数 */
+  maxChoices?: number
+  /** 截止时间（unix 秒） */
+  expiresAt?: number
+  /** 总票数（m 站以 `vote_dynamic` 为准） */
+  totalVotes?: number
+  /** 上游状态码（语义未确认，原样保留） */
+  state?: number
+  /** 选项 */
+  options: TweetVoteOption[]
+}
+
+/** 投票选项。 */
+export interface TweetVoteOption {
+  id: string
+  text: string
+  /** 票数（字符串转 number） */
+  votes?: number
+  /** 占比 0..1 */
+  ratio?: number
+  /** 当前登录用户是否选择（仅读） */
+  selected?: boolean
+  /** 选项配图（临时 URL；不并入 `media[]`） */
+  imageUrl?: string
+}
+
+/** 微博直播 / 回放。stream / replay 地址是临时地址。 */
+export interface TweetLiveAttachment extends TweetAttachmentBase {
+  kind: 'live'
+  /** 直播 id（上游 `1022:...`） */
+  liveId: string
+  /** 上游状态码（样本 3 = 已结束/有回放；语义未确认，原样保留） */
+  status?: number
+  /** 开播时间（unix 秒） */
+  startedAt?: number
+  /** 在线人数（抓取时快照） */
+  viewerCount?: number
+  /** 回放观看数（抓取时快照） */
+  replayCount?: number
+  /** 直播流（m3u8 / API 地址，临时） */
+  streamUrl?: string
+  /** 回放流（m3u8，临时） */
+  replayUrl?: string
+  /** 观看限制（上游 `watch_limit`，语义未确认） */
+  watchLimit?: number
+  /** 直播时长（秒；m 站 `duration`） */
+  durationSeconds?: number
+  /** 直播作者昵称（m 站 `author.display_name`） */
+  authorName?: string
+}
+
+/** 抽奖链接卡（详情页未结构化）。 */
+export interface TweetLotteryAttachment extends TweetAttachmentBase {
+  kind: 'lottery'
+  /** 抽奖所属微博 id */
+  mid: string
+  /** 抽奖详情页（HTML） */
+  detailUrl: string
 }
 
 /**

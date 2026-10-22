@@ -26,7 +26,7 @@ describe('iTweet v2 contract freeze', () => {
       | 'id' | 'mblogId' | 'createdAt' | 'text' | 'regionName' | 'source'
       | 'user' | 'stats' | 'visible' | 'retweetedStatus' | 'repostChain' | 'pageInfo' | 'media' | 'geo'
       | 'topics' | 'linkCards' | 'readCount' | 'editCount' | 'title' | 'permanentVideoUrl' | 'isOriginal' | 'sourceUrl'
-      | 'atUsers' | 'playCount' | 'isTop' | 'audio'
+      | 'atUsers' | 'playCount' | 'isTop' | 'audio' | 'attachments'
       | 'comments'
     >()
   })

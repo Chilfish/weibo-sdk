@@ -106,6 +106,14 @@
           },
           "type": "array"
         },
+        "attachments": {
+          "description": "结构化附件（文章 / 投票 / 直播 / 抽奖）；无则缺省",
+          "items": {
+            "$ref": "#/definitions/TweetAttachment"
+          },
+          "markdownDescription": "结构化附件（文章 / 投票 / 直播 / 抽奖）；无则缺省",
+          "type": "array"
+        },
         "audio": {
           "description": "音频 / 播客（上游 `page_info.object_type === 'podcast_audio'`；无音频时缺省）",
           "items": {
@@ -634,6 +642,87 @@
       "markdownDescription": "媒体类型（对应上游 `mix_media_info` / 图片 `type` 的归一化结果）。",
       "type": "string"
     },
+    "TweetArticleAttachment": {
+      "description": "头条文章（正文默认不抓，`content` 仅显式抓取时存在）。",
+      "markdownDescription": "头条文章（正文默认不抓，`content` 仅显式抓取时存在）。",
+      "properties": {
+        "author": {
+          "description": "作者昵称",
+          "markdownDescription": "作者昵称",
+          "type": "string"
+        },
+        "content": {
+          "description": "正文 HTML / 纯文本；默认缺省，见 `tweets.article()`",
+          "markdownDescription": "正文 HTML / 纯文本；默认缺省，见 `tweets.article()`",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "封面（临时 URL）",
+          "markdownDescription": "封面（临时 URL）",
+          "type": "string"
+        },
+        "id": {
+          "description": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "markdownDescription": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "type": "string"
+        },
+        "isPaid": {
+          "description": "是否付费文章（上游 `ispay` / `is_paid`）",
+          "markdownDescription": "是否付费文章（上游 `ispay` / `is_paid`）",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "article",
+          "description": "附件类型",
+          "markdownDescription": "附件类型",
+          "type": "string"
+        },
+        "objectType": {
+          "description": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "markdownDescription": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "type": "string"
+        },
+        "source": {
+          "description": "数据来源，便于排障",
+          "enum": [
+            "page_info",
+            "url_objects",
+            "url_struct"
+          ],
+          "markdownDescription": "数据来源，便于排障",
+          "type": "string"
+        },
+        "summary": {
+          "description": "摘要（上游 `article_summary` / `page_desc`）",
+          "markdownDescription": "摘要（上游 `article_summary` / `page_desc`）",
+          "type": "string"
+        },
+        "title": {
+          "description": "标题 / 问题 / 直播标题",
+          "markdownDescription": "标题 / 问题 / 直播标题",
+          "type": "string"
+        },
+        "truncated": {
+          "description": "正文是否可能被截断（付费、未登录、解析失败）",
+          "markdownDescription": "正文是否可能被截断（付费、未登录、解析失败）",
+          "type": "boolean"
+        },
+        "url": {
+          "description": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "markdownDescription": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "objectType",
+        "source",
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
     "TweetAtUser": {
       "description": "微博正文中被 @ 的用户（从 `text` HTML 锚点解析）。\n\n上游没有结构化 `at_users` 字段；可稳定拿到的是锚点文本与 `href` 路径， 数字 uid 不保证存在，因此 `id` 为可选。",
       "markdownDescription": "微博正文中被 @ 的用户（从 `text` HTML 锚点解析）。\n\n上游没有结构化 `at_users` 字段；可稳定拿到的是锚点文本与 `href` 路径，\n数字 uid 不保证存在，因此 `id` 为可选。",
@@ -658,6 +747,24 @@
         "name"
       ],
       "type": "object"
+    },
+    "TweetAttachment": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TweetArticleAttachment"
+        },
+        {
+          "$ref": "#/definitions/TweetVoteAttachment"
+        },
+        {
+          "$ref": "#/definitions/TweetLiveAttachment"
+        },
+        {
+          "$ref": "#/definitions/TweetLotteryAttachment"
+        }
+      ],
+      "description": "微博正文里的结构化附件。\n\n上游把不同格式放在不同位置：\n- PC：`page_info`（article / hudongvote / live）；\n- m 站：`url_objects[].object.object`；\n- 抽奖：`url_struct[]` 的链接卡。\n\n`pageInfo` / `linkCards` 保持原样；本字段是它们的结构化视图，允许重复。",
+      "markdownDescription": "微博正文里的结构化附件。\n\n上游把不同格式放在不同位置：\n- PC：`page_info`（article / hudongvote / live）；\n- m 站：`url_objects[].object.object`；\n- 抽奖：`url_struct[]` 的链接卡。\n\n`pageInfo` / `linkCards` 保持原样；本字段是它们的结构化视图，允许重复。"
     },
     "TweetAudio": {
       "description": "音频 / 播客（`page_info.object_type === 'podcast_audio'`）。\n\n`url` 与视频直链一样是临时签名 URL；长期存档需及时下载或保存 `pageUrl`。",
@@ -707,8 +814,8 @@
       "type": "object"
     },
     "TweetCommentPic": {
-      "description": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里； `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。",
-      "markdownDescription": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；\n`imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v1.md §4）。",
+      "description": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里； `imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v2.md §5）。",
+      "markdownDescription": "评论配图（图片评论）。\n\n上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；\n`imageUrl` 与微博媒体一样是**临时签名 URL**（见 contract-itweet-v2.md §5）。",
       "properties": {
         "height": {
           "description": "像素高度（缺省 0）",
@@ -822,9 +929,184 @@
       ],
       "type": "object"
     },
+    "TweetLiveAttachment": {
+      "description": "微博直播 / 回放。stream / replay 地址是临时地址。",
+      "markdownDescription": "微博直播 / 回放。stream / replay 地址是临时地址。",
+      "properties": {
+        "authorName": {
+          "description": "直播作者昵称（m 站 `author.display_name`）",
+          "markdownDescription": "直播作者昵称（m 站 `author.display_name`）",
+          "type": "string"
+        },
+        "coverUrl": {
+          "description": "封面（临时 URL）",
+          "markdownDescription": "封面（临时 URL）",
+          "type": "string"
+        },
+        "durationSeconds": {
+          "description": "直播时长（秒；m 站 `duration`）",
+          "markdownDescription": "直播时长（秒；m 站 `duration`）",
+          "type": "number"
+        },
+        "id": {
+          "description": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "markdownDescription": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "type": "string"
+        },
+        "kind": {
+          "const": "live",
+          "description": "附件类型",
+          "markdownDescription": "附件类型",
+          "type": "string"
+        },
+        "liveId": {
+          "description": "直播 id（上游 `1022:...`）",
+          "markdownDescription": "直播 id（上游 `1022:...`）",
+          "type": "string"
+        },
+        "objectType": {
+          "description": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "markdownDescription": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "type": "string"
+        },
+        "replayCount": {
+          "description": "回放观看数（抓取时快照）",
+          "markdownDescription": "回放观看数（抓取时快照）",
+          "type": "number"
+        },
+        "replayUrl": {
+          "description": "回放流（m3u8，临时）",
+          "markdownDescription": "回放流（m3u8，临时）",
+          "type": "string"
+        },
+        "source": {
+          "description": "数据来源，便于排障",
+          "enum": [
+            "page_info",
+            "url_objects",
+            "url_struct"
+          ],
+          "markdownDescription": "数据来源，便于排障",
+          "type": "string"
+        },
+        "startedAt": {
+          "description": "开播时间（unix 秒）",
+          "markdownDescription": "开播时间（unix 秒）",
+          "type": "number"
+        },
+        "status": {
+          "description": "上游状态码（样本 3 = 已结束/有回放；语义未确认，原样保留）",
+          "markdownDescription": "上游状态码（样本 3 = 已结束/有回放；语义未确认，原样保留）",
+          "type": "number"
+        },
+        "streamUrl": {
+          "description": "直播流（m3u8 / API 地址，临时）",
+          "markdownDescription": "直播流（m3u8 / API 地址，临时）",
+          "type": "string"
+        },
+        "title": {
+          "description": "标题 / 问题 / 直播标题",
+          "markdownDescription": "标题 / 问题 / 直播标题",
+          "type": "string"
+        },
+        "url": {
+          "description": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "markdownDescription": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "type": "string"
+        },
+        "viewerCount": {
+          "description": "在线人数（抓取时快照）",
+          "markdownDescription": "在线人数（抓取时快照）",
+          "type": "number"
+        },
+        "watchLimit": {
+          "description": "观看限制（上游 `watch_limit`，语义未确认）",
+          "markdownDescription": "观看限制（上游 `watch_limit`，语义未确认）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "liveId",
+        "objectType",
+        "source",
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
+    "TweetLotteryAttachment": {
+      "description": "抽奖链接卡（详情页未结构化）。",
+      "markdownDescription": "抽奖链接卡（详情页未结构化）。",
+      "properties": {
+        "coverUrl": {
+          "description": "封面（临时 URL）",
+          "markdownDescription": "封面（临时 URL）",
+          "type": "string"
+        },
+        "detailUrl": {
+          "description": "抽奖详情页（HTML）",
+          "markdownDescription": "抽奖详情页（HTML）",
+          "type": "string"
+        },
+        "id": {
+          "description": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "markdownDescription": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "type": "string"
+        },
+        "kind": {
+          "const": "lottery",
+          "description": "附件类型",
+          "markdownDescription": "附件类型",
+          "type": "string"
+        },
+        "mid": {
+          "description": "抽奖所属微博 id",
+          "markdownDescription": "抽奖所属微博 id",
+          "type": "string"
+        },
+        "objectType": {
+          "description": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "markdownDescription": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "type": "string"
+        },
+        "source": {
+          "description": "数据来源，便于排障",
+          "enum": [
+            "page_info",
+            "url_objects",
+            "url_struct"
+          ],
+          "markdownDescription": "数据来源，便于排障",
+          "type": "string"
+        },
+        "title": {
+          "description": "标题 / 问题 / 直播标题",
+          "markdownDescription": "标题 / 问题 / 直播标题",
+          "type": "string"
+        },
+        "url": {
+          "description": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "markdownDescription": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "detailUrl",
+        "id",
+        "kind",
+        "mid",
+        "objectType",
+        "source",
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
     "TweetMedia": {
-      "description": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**： 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。 SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成， 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。",
-      "markdownDescription": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：\n有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。\nSDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，\n过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v1.md。",
+      "description": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**： 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。 SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成， 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v2.md。",
+      "markdownDescription": "标准化媒体资源 (图片、视频、LivePhoto、GIF)\n\n【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：\n有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。\nSDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，\n过期后可经 SDK 重新拉取单条微博获取新 URL。详见 contract-itweet-v2.md。",
       "properties": {
         "duration": {
           "description": "视频时长（秒；非视频缺省）",
@@ -1011,6 +1293,139 @@
       ],
       "markdownDescription": "隐私可见性",
       "type": "number"
+    },
+    "TweetVoteAttachment": {
+      "description": "微博投票。票数是抓取时快照，不代表实时。",
+      "markdownDescription": "微博投票。票数是抓取时快照，不代表实时。",
+      "properties": {
+        "coverUrl": {
+          "description": "封面（临时 URL）",
+          "markdownDescription": "封面（临时 URL）",
+          "type": "string"
+        },
+        "expiresAt": {
+          "description": "截止时间（unix 秒）",
+          "markdownDescription": "截止时间（unix 秒）",
+          "type": "number"
+        },
+        "id": {
+          "description": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "markdownDescription": "上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid）",
+          "type": "string"
+        },
+        "kind": {
+          "const": "vote",
+          "description": "附件类型",
+          "markdownDescription": "附件类型",
+          "type": "string"
+        },
+        "maxChoices": {
+          "description": "最多选择数",
+          "markdownDescription": "最多选择数",
+          "type": "number"
+        },
+        "minChoices": {
+          "description": "最少选择数",
+          "markdownDescription": "最少选择数",
+          "type": "number"
+        },
+        "multiSelect": {
+          "description": "是否多选",
+          "markdownDescription": "是否多选",
+          "type": "boolean"
+        },
+        "objectType": {
+          "description": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "markdownDescription": "上游 object_type（`article` / `hudongvote` / `live`；lottery 为合成值）",
+          "type": "string"
+        },
+        "options": {
+          "description": "选项",
+          "items": {
+            "$ref": "#/definitions/TweetVoteOption"
+          },
+          "markdownDescription": "选项",
+          "type": "array"
+        },
+        "source": {
+          "description": "数据来源，便于排障",
+          "enum": [
+            "page_info",
+            "url_objects",
+            "url_struct"
+          ],
+          "markdownDescription": "数据来源，便于排障",
+          "type": "string"
+        },
+        "state": {
+          "description": "上游状态码（语义未确认，原样保留）",
+          "markdownDescription": "上游状态码（语义未确认，原样保留）",
+          "type": "number"
+        },
+        "title": {
+          "description": "标题 / 问题 / 直播标题",
+          "markdownDescription": "标题 / 问题 / 直播标题",
+          "type": "string"
+        },
+        "totalVotes": {
+          "description": "总票数（m 站以 `vote_dynamic` 为准）",
+          "markdownDescription": "总票数（m 站以 `vote_dynamic` 为准）",
+          "type": "number"
+        },
+        "url": {
+          "description": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "markdownDescription": "可点击的网页地址（http/https，优先上游 web URL；scheme 会被转换）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "multiSelect",
+        "objectType",
+        "options",
+        "source",
+        "title",
+        "url"
+      ],
+      "type": "object"
+    },
+    "TweetVoteOption": {
+      "description": "投票选项。",
+      "markdownDescription": "投票选项。",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "description": "选项配图（临时 URL；不并入 `media[]`）",
+          "markdownDescription": "选项配图（临时 URL；不并入 `media[]`）",
+          "type": "string"
+        },
+        "ratio": {
+          "description": "占比 0..1",
+          "markdownDescription": "占比 0..1",
+          "type": "number"
+        },
+        "selected": {
+          "description": "当前登录用户是否选择（仅读）",
+          "markdownDescription": "当前登录用户是否选择（仅读）",
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        },
+        "votes": {
+          "description": "票数（字符串转 number）",
+          "markdownDescription": "票数（字符串转 number）",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "type": "object"
     },
     "VerificationType": {
       "description": "微博认证类型（对应上游 `verified_type`）。\n\n映射以真实响应为准：`-1` 普通用户、`0` 个人认证（黄 V），其余多为蓝 V； `200` / `220` 为达人类，`400` 为已故认证用户。",

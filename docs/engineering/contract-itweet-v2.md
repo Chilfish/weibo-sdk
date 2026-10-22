@@ -63,6 +63,7 @@
 | `retweetedStatus?` | `ITweet` | 转发内容，**递归同构**；非转发缺省 |
 | `repostChain?` | `TweetRepostEntry[]` | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博）；每层聚合该层 reppic 配图，见下；非转发缺省 |
 | `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType, objectId?, subtitle? }`；见下 |
+| `attachments?` | `TweetAttachment[]` | 结构化附件（`article` / `vote` / `live` / `lottery`）；无则缺省；见下。`pageInfo` / `linkCards` 保持原样，允许与附件重复 |
 | `media` | `TweetMedia[]` | 见下；**恒为数组**（无媒体 = 空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
 | `topics?` | `string[]` | 话题（`topic_struct[].topic_title`，缺省退回 `title`；去重保序） |
@@ -132,6 +133,38 @@
 | `objectType` | `string` | 对象类型（`object_type`；如 `webpage` / `video` / `podcast_audio` / `audio`） |
 | `objectId?` | `string` | 卡片对象 id（`object_id`）；未下发缺省 |
 | `subtitle?` | `string` | 卡片副标题 / 统计文案（`content2`，如「812播放  74点赞  0弹幕」）；空则缺省 |
+
+### TweetAttachment（结构化附件）
+
+`ITweet.attachments` 是判别联合，`kind` 区分四种附件。上游位置：
+
+- PC：`page_info.object_type` 为 `article` / `hudongvote` / `live`；
+- m 站：`url_objects[].object.object.object_type`；
+- 抽奖：`url_struct[]` 的链接卡（`url_type: 39` + `lottery.media.weibo.com`）。
+
+所有 `url` 都是 http/https 网页地址；`coverUrl` / `streamUrl` / `replayUrl` 可能是临时 URL。
+未知 `object_type` 不生成附件，`pageInfo` 仍保留。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `kind` | `'article' \| 'vote' \| 'live' \| 'lottery'` | 附件类型 |
+| `id` | `string` | 上游 id（去掉 `1022:` 前缀；取不到用 page_id / mid） |
+| `objectType` | `string` | 上游 object_type；lottery 为合成值 |
+| `title` | `string` | 标题 / 投票问题 / 直播标题 |
+| `url` | `string` | 可点击网页地址 |
+| `coverUrl?` | `string` | 封面（临时 URL） |
+| `source` | `'page_info' \| 'url_objects' \| 'url_struct'` | 数据来源 |
+
+`article` 追加：`summary?` / `author?` / `isPaid?` / `content?` / `truncated?`。
+
+`vote` 追加：`multiSelect` / `minChoices?` / `maxChoices?` / `expiresAt?`（unix 秒）/ `totalVotes?` / `state?` / `options: TweetVoteOption[]`。
+`TweetVoteOption`：`id` / `text` / `votes?` / `ratio?`（0..1）/ `selected?` / `imageUrl?`。
+m 站的 `vote_dynamic` 优先于 `vote_object` 的票数；票数是抓取时快照。
+
+`live` 追加：`liveId` / `status?` / `startedAt?`（unix 秒）/ `viewerCount?` / `replayCount?` / `streamUrl?` / `replayUrl?` / `watchLimit?` / `durationSeconds?` / `authorName?`。
+直播状态码语义未确认，原样保留；流地址是临时地址。
+
+`lottery` 追加：`mid` / `detailUrl`。
 
 ### TweetRepostEntry（转发链层）
 
