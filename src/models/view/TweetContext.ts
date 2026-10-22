@@ -1,6 +1,7 @@
-import type { ITweet, ITweetComment, TweetMedia } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAttachment, TweetMedia } from '~/types/domain/ITweet'
 import type {
   ITweetContext,
+  TweetContextAttachment,
   TweetContextAuthor,
   TweetContextComment,
   TweetContextFlags,
@@ -150,6 +151,12 @@ function booleanFlag(raw: UnknownRecord, ...keys: string[]): boolean | undefined
   return undefined
 }
 
+/** 追加一条 unknowns / hints，已存在则跳过（同一附件出现两次时不重复说同一句话）。 */
+function pushUnique(list: string[], message: string): void {
+  if (!list.includes(message))
+    list.push(message)
+}
+
 function toRecord(value: unknown): UnknownRecord {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as UnknownRecord
@@ -276,6 +283,94 @@ function buildComments(
 }
 
 /**
+ * 把 `ITweet.attachments` 投影为 Agent 视角的最小字段集（纯函数，不发请求）。
+ *
+ * 与 `media` / `links` 一致：能确定性展开的就展开（投票选项、直播状态），
+ * 展开不了的写进 `unknowns`；同一句话只写一次（去重），保持 `attachments` 顺序不变。
+ */
+function buildAttachments(
+  attachments: TweetAttachment[],
+  unknowns: string[],
+  hints: string[],
+): TweetContextAttachment[] {
+  type AttachmentOption = NonNullable<TweetContextAttachment['options']>[number]
+
+  const out: TweetContextAttachment[] = []
+
+  for (const attachment of attachments) {
+    const item: TweetContextAttachment = {
+      kind: attachment.kind,
+      title: attachment.title,
+      url: attachment.url,
+    }
+
+    switch (attachment.kind) {
+      case 'article': {
+        if (attachment.summary)
+          item.summary = attachment.summary
+        if (attachment.author)
+          item.author = attachment.author
+        if (attachment.isPaid !== undefined) {
+          item.isPaid = attachment.isPaid
+          if (attachment.isPaid)
+            pushUnique(unknowns, '付费文章，正文可能不完整')
+        }
+        // 正文默认不抓（见 docs §5）；只说「没抓」，不假装读过。
+        pushUnique(unknowns, '文章正文未抓取（只有元数据）')
+        break
+      }
+      case 'vote': {
+        item.multiSelect = attachment.multiSelect
+        if (attachment.totalVotes !== undefined)
+          item.totalVotes = attachment.totalVotes
+        if (attachment.expiresAt !== undefined)
+          item.expiresAt = attachment.expiresAt
+        if (attachment.options.length > 0) {
+          item.options = attachment.options.map((option) => {
+            const projected: AttachmentOption = { text: option.text }
+            if (option.votes !== undefined)
+              projected.votes = option.votes
+            if (option.ratio !== undefined)
+              projected.ratio = option.ratio
+            if (option.selected !== undefined)
+              projected.selected = option.selected
+            return projected
+          })
+        }
+        pushUnique(hints, '投票票数是抓取时快照，不代表实时')
+        break
+      }
+      case 'live': {
+        if (attachment.status !== undefined) {
+          item.liveStatus = attachment.status
+          // 样本 3 = 已结束/有回放，但没有官方文档：原样保留 + 明确标注语义未确认
+          pushUnique(unknowns, '直播状态码语义未确认')
+        }
+        if (attachment.startedAt !== undefined)
+          item.startedAt = attachment.startedAt
+        if (attachment.viewerCount !== undefined)
+          item.viewerCount = attachment.viewerCount
+        if (attachment.streamUrl)
+          item.streamUrl = attachment.streamUrl
+        if (attachment.replayUrl)
+          item.replayUrl = attachment.replayUrl
+        pushUnique(hints, '直播流/回放地址是临时地址，需要及时处理')
+        break
+      }
+      case 'lottery': {
+        // 抽奖详情页是 HTML，没有结构化接口：只给链接
+        pushUnique(unknowns, '抽奖详情未抓取（只有链接）')
+        break
+      }
+    }
+
+    out.push(item)
+  }
+
+  return out
+}
+
+/**
  * 把 `ITweet` 投影为 Agent 视角的 `ITweetContext`（纯函数）。
  *
  * 语义保证：
@@ -329,6 +424,7 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
 
   const links = collectLinks(tweet, ownText.text, unknowns)
   const media = buildMedia(tweet.media, { mblogId: tweet.mblogId, relation }, options.maxMedia, unknowns)
+  const attachments = buildAttachments(tweet.attachments ?? [], unknowns, hints)
 
   const post: TweetContextPost = {
     kind: tweet.retweetedStatus ? 'repost' : chain && chain.length > 0 ? 'repost' : 'original',
@@ -342,6 +438,7 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
     topics: tweet.topics ?? [],
     mentions: collectMentions(tweet, ownText.text),
     links,
+    attachments,
     stats: { ...tweet.stats },
     flags,
   }

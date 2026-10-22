@@ -158,6 +158,55 @@ export interface TweetContextComment {
   isAuthor?: boolean
 }
 
+/** 附件类型（与 `TweetAttachment.kind` 对齐）。 */
+export type TweetContextAttachmentKind = 'article' | 'vote' | 'live' | 'lottery'
+
+/**
+ * 正文里的结构化附件（文章 / 投票 / 直播 / 抽奖）。
+ *
+ * 只投影 Agent 理解需要的字段：封面、上游 id、`objectType`、`source` 等排障字段
+ * 仍留在 `ITweet.attachments`（同一份数据的两种视图）。正文 / 详情页默认不抓：
+ * 缺失的部分写进 `unknowns`，不伪造内容。
+ */
+export interface TweetContextAttachment {
+  kind: TweetContextAttachmentKind
+  /** 文章标题 / 投票问题 / 直播标题 / 卡片标题 */
+  title: string
+  /** 网页地址（文章页、投票页、直播页、抽奖详情页） */
+  url: string
+  /** 文章摘要 */
+  summary?: string
+  /** 文章作者昵称 */
+  author?: string
+  /** 文章是否付费（正文可能只有试读） */
+  isPaid?: boolean
+
+  /** 投票：是否多选 */
+  multiSelect?: boolean
+  /** 投票：总票数（抓取时快照，不代表实时） */
+  totalVotes?: number
+  /** 投票：截止时间（unix 秒） */
+  expiresAt?: number
+  /** 投票：选项（`ratio` 为 0..1） */
+  options?: Array<{
+    text: string
+    votes?: number
+    ratio?: number
+    selected?: boolean
+  }>
+
+  /** 直播：上游状态码（语义未确认，原样保留） */
+  liveStatus?: number
+  /** 直播：开播时间（unix 秒） */
+  startedAt?: number
+  /** 直播：在线人数（抓取时快照） */
+  viewerCount?: number
+  /** 直播：直播流地址（临时，需及时处理） */
+  streamUrl?: string
+  /** 直播：回放地址（临时，需及时处理） */
+  replayUrl?: string
+}
+
 /** `post` 字段集合。 */
 export interface TweetContextPost {
   kind: TweetContextKind
@@ -180,6 +229,8 @@ export interface TweetContextPost {
   /** 当前作者正文中 @ 的用户名（不含转发链作者） */
   mentions: string[]
   links: TweetContextLink[]
+  /** 结构化附件（文章 / 投票 / 直播 / 抽奖）；无则为空数组 */
+  attachments: TweetContextAttachment[]
   stats: TweetContextStats
   flags: TweetContextFlags
 }

@@ -7,6 +7,7 @@
 ### 新增
 
 - 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
+- `ITweet` 新增 optional `attachments`：统一承载头条文章（`article`）、微博投票（`vote`）、直播 / 回放（`live`）与抽奖链接（`lottery`），字段见 `docs/engineering/contract-itweet-v2.md`。`ITweetContext.post.attachments` 同步投影这些附件，并在 `unknowns` / `hints` 标注「文章正文未抓取」「抽奖详情未抓取」「直播流临时」等边界；既有 `pageInfo` / `linkCards` / `media` / `audio` 语义不变。
 - `archive user` 归档吞吐与整体进度：CLI 默认 `--concurrency 20`、`--delay 300`、`--burst 8`；单条微博的详情、评论、转发改为并行请求，楼中楼按小并发展开。`searchProfile` 的 `total` 写入 `meta.totals`，通过 `UserArchiveProgress.overallTotal` 展示整体进度；`run()` 的 `summary.estimatedTotal` / `summary.coverage` 与 CLI `done` 摘要用于最终核对。
 - `archive user` 新增终端呈现选项：`--log-format pretty|ndjson|silent`、`--no-progress`、`--quiet`。TTY 下默认用一行原地刷新的状态（切片 / 页 / tweets / comments / replies / errors + 当前切片进度条）并追加切片完成与 issue 行；管道、CI、`TERM=dumb` 下继续输出 NDJSON。stdout 仍是一行 `done` JSON，数据契约不变。
 - 新增范围归档能力：`sdk.userArchive.run(uid, options)` 一次返回完整 `ArchiveFile`，`sdk.userArchive.stream(uid, options)` 产出 `meta` / `slice-start` / `record` / `issue` / `slice-done` / `done` 事件。按日期切片枚举，逐条重新拉取详情与长文，可补全一级评论、楼中楼和转发列表，支持 `UserArchiveStore` 断点续跑。CLI 对应 `weibo-cli archive user <uid>`，输出单个 JSON 与 `<out>.slices/` journal，参数覆盖 `--since/--until`、`--slice-days`、`--concurrency`、`--delay/--burst`、`--no-comments/--no-replies`、`--reposts`、各类 `--max-*`、`--raw`、`--fresh`。全量镜像命令 `weibo-cli archive <uid>` 保持不变。
@@ -15,6 +16,7 @@
 
 ### 修复
 
+- 修复 m 站视频在归一化时丢失：`page_info` 的 `object_type` 可能是数字 `11`、语义在 `type: "video"`，现在同时识别两种形态，并从 `page_info.urls.mp4_*` / `media_info.stream_url` 提取直链。同步修复 m 站 `page_pic` 为对象时被转成 `"[object Object]"`、`type` 为字符串时被归零、`objectType` 丢失语义的问题。
 - 修复 `streamArchive` 日期切片在 `searchProfile` 上的静默丢数据：上游 `page > 1` 复用会话里最近一次 `page=1` 的日期窗口（`starttime` / `endtime` 被忽略），交错请求会让分页返回别的区间或空页。现在检测到窗口漂移会重新请求 `page=1` 恢复会话后重试当前页，连续失败抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），不再把错误窗口或空页静默当成到底。归档脚本同时移除 `--slice-concurrency`，日期切片改为串行枚举（该参数并发时会互相覆盖，导致每个切片只拿到第一页）。
 
 ### 变更
