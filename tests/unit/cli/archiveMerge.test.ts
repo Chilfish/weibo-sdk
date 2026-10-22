@@ -1,5 +1,5 @@
 import type { ArchiveFile } from '~/types/archive/IArchiveFile'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { makeArchiveTweet, makeArchiveUser } from 'tests/testkit/userArchive'
@@ -96,5 +96,80 @@ describe('runArchiveMerge', () => {
 
     writeFileSync(join(dir, 'broken.json'), '{', 'utf8')
     expect(() => readArchiveFile(join(dir, 'broken.json'))).toThrowError(InvalidConfigError)
+  })
+
+  it('expandsDirectoryAndSkipsUnmergeableFiles', async () => {
+    const archives = join(dir, 'archives')
+    mkdirSync(join(archives, 'nested'), { recursive: true })
+    writeFileSync(join(archives, 'a.json'), JSON.stringify(archive(['A'])), 'utf8')
+    writeFileSync(join(archives, 'b.json'), JSON.stringify(archive(['B'])), 'utf8')
+    writeFileSync(join(archives, 'notes.json'), JSON.stringify({ hello: 'world' }), 'utf8')
+    writeFileSync(join(archives, 'broken.json'), '{', 'utf8')
+    writeFileSync(join(archives, 'readme.txt'), 'ignore', 'utf8')
+    writeFileSync(join(archives, 'nested', 'c.json'), JSON.stringify(archive(['C'])), 'utf8')
+
+    const result = await runArchiveMerge(['archives'], { out: 'merged.json' }, dir)
+
+    expect(result).toMatchObject({ inputs: 2, tweets: 2 })
+    const written = JSON.parse(readFileSync(join(dir, 'merged.json'), 'utf8')) as ArchiveFile
+    expect(written.tweets.map(tweet => tweet.mblogId).sort()).toEqual(['A', 'B'])
+
+    const notices = vi.mocked(console.error).mock.calls.flat().join('\n')
+    expect(notices).toContain('broken.json')
+    expect(notices).toContain('notes.json')
+    expect(notices).not.toContain('readme.txt')
+    expect(notices).not.toContain('nested')
+  })
+
+  it('skipsOutputFileInsideScannedDirectory', async () => {
+    const archives = join(dir, 'archives')
+    mkdirSync(archives)
+    writeFileSync(join(archives, 'a.json'), JSON.stringify(archive(['A'])), 'utf8')
+    writeFileSync(join(archives, 'b.json'), JSON.stringify(archive(['B'])), 'utf8')
+    writeFileSync(join(archives, 'merged.json'), JSON.stringify(archive(['Z'])), 'utf8')
+
+    const result = await runArchiveMerge(['archives'], { out: 'archives/merged.json', force: true }, dir)
+
+    expect(result).toMatchObject({ inputs: 2, tweets: 2 })
+    const written = JSON.parse(readFileSync(join(archives, 'merged.json'), 'utf8')) as ArchiveFile
+    expect(written.tweets.map(tweet => tweet.mblogId).sort()).toEqual(['A', 'B'])
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain('output file')
+  })
+
+  it('dedupesDirectoryAndExplicitFile', async () => {
+    const archives = join(dir, 'archives')
+    mkdirSync(archives)
+    writeFileSync(join(archives, 'a.json'), JSON.stringify(archive(['A'])), 'utf8')
+    writeFileSync(join(archives, 'b.json'), JSON.stringify(archive(['B'])), 'utf8')
+
+    const result = await runArchiveMerge(['archives', 'archives/a.json'], { out: 'merged.json', quiet: true }, dir)
+
+    expect(result).toMatchObject({ inputs: 2, tweets: 2 })
+  })
+
+  it('rejectsDirectoryWithoutTwoValidArchives', async () => {
+    const archives = join(dir, 'archives')
+    mkdirSync(archives)
+    writeFileSync(join(archives, 'a.json'), JSON.stringify(archive(['A'])), 'utf8')
+    writeFileSync(join(archives, 'broken.json'), '{', 'utf8')
+
+    await expect(runArchiveMerge(['archives'], { quiet: true }, dir))
+      .rejects
+      .toThrowError(/at least two valid archive files \(found 1 in 1 directory input\(s\)\)/)
+  })
+
+  it('stillRejectsMixedAccountsInDirectory', async () => {
+    const archives = join(dir, 'archives')
+    mkdirSync(archives)
+    writeFileSync(join(archives, 'a.json'), JSON.stringify(archive(['A'])), 'utf8')
+
+    const other = archive(['B'])
+    other.query.uid = '9876543210'
+    other.user = makeArchiveUser('9876543210')
+    writeFileSync(join(archives, 'b.json'), JSON.stringify(other), 'utf8')
+
+    await expect(runArchiveMerge(['archives'], { out: 'merged.json', quiet: true }, dir))
+      .rejects
+      .toThrowError(/different accounts/)
   })
 })
