@@ -21,6 +21,8 @@
 
 - 修复 m 站视频在归一化时丢失：`page_info` 的 `object_type` 可能是数字 `11`、语义在 `type: "video"`，现在同时识别两种形态，并从 `page_info.urls.mp4_*` / `media_info.stream_url` 提取直链。同步修复 m 站 `page_pic` 为对象时被转成 `"[object Object]"`、`type` 为字符串时被归零、`objectType` 丢失语义的问题。
 - 修复 `streamArchive` 日期切片在 `searchProfile` 上的静默丢数据：上游 `page > 1` 复用会话里最近一次 `page=1` 的日期窗口（`starttime` / `endtime` 被忽略），交错请求会让分页返回别的区间或空页。现在检测到窗口漂移会重新请求 `page=1` 恢复会话后重试当前页，连续失败抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），不再把错误窗口或空页静默当成到底。归档脚本同时移除 `--slice-concurrency`，日期切片改为串行枚举（该参数并发时会互相覆盖，导致每个切片只拿到第一页）。
+- 修复 `archive user` 续跑进度把仍带 issue 的重试目标也算作已完成：现在只统计真正完成的记录，总量进度条与覆盖率不会虚高。
+- 修复 `archive user` 续跑时省略 `--since` / `--until`、切片粒度或内容开关会因配置校验失败：未显式传入的选项会从 journal 中的上次运行配置继承；`archive` 子命令也补上了 `--until` 参数解析。
 
 ### 变更
 
