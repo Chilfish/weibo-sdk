@@ -178,7 +178,7 @@ function hasWord(text: string, name: string): boolean {
   return new RegExp(`(?<![\\w$])${name.replaceAll('$', '\\$')}(?![\\w$])`).test(text)
 }
 
-function writeExportIndex(exports: ExportInfo[], config: ApiSurfaceConfig): void {
+function writeExportIndex(exports: ExportInfo[]): void {
   const sections: string[] = [
     '---',
     'title: 导出索引',
@@ -187,21 +187,15 @@ function writeExportIndex(exports: ExportInfo[], config: ApiSurfaceConfig): void
     '',
     '# 导出索引',
     '',
-    '本页由 `pnpm check:api --write` 从包根导出面生成，按稳定性分层。`稳定` 子集受 SemVer 承诺；`实验性` 可能随上游漂移。',
+    `包根共导出 ${exports.length} 个名称。本页由 \`pnpm check:api --write\` 生成；类型字段与签名以包内 \`.d.mts\` 为准。`,
     '',
-    '> 类型字段与签名以包内 `.d.mts` 为准；本页只保证「有哪些导出、属于哪一层」。',
-    '',
+    '| 名称 | 种类 |',
+    '|---|---|',
   ]
 
-  for (const tier of ['stable', 'experimental'] as const) {
-    const names = new Set(config.tiers[tier])
-    const items = exports.filter(item => names.has(item.name))
-    sections.push(`## ${tier === 'stable' ? '稳定' : '实验性'}（${items.length}）`, '')
-    sections.push('| 名称 | 种类 |', '|---|---|')
-    for (const item of items)
-      sections.push(`| \`${item.name}\` | ${item.kind} |`)
-    sections.push('')
-  }
+  for (const item of exports)
+    sections.push(`| \`${item.name}\` | ${item.kind} |`)
+  sections.push('')
 
   const target = path.join(DOCS_ROOT, 'types/index.md')
   mkdirSync(path.dirname(target), { recursive: true })
@@ -302,7 +296,7 @@ function main(): void {
 
   if (args.has('--write')) {
     writeFileSync(SNAPSHOT_PATH, `${JSON.stringify(snapshot, null, 2)}\n`)
-    writeExportIndex(exports, config)
+    writeExportIndex(exports)
     console.log(`snapshot written: ${path.relative(ROOT, SNAPSHOT_PATH)} (${exports.length} exports)`)
   }
   else {
