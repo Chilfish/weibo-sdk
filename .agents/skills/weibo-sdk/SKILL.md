@@ -99,12 +99,16 @@ weibo tweet context <mblogId> --download-media ./weibo-media   # 回填本地图
 weibo archive <uid> --images --state .weibo-archive-state.json
 weibo archive --uid-file uids.txt --state .weibo-archive-state.json
 weibo archive <uid> --incremental-since 2026-01-01 --stop-at <mblogId> --skip-pinned
+
+# 指定范围 + 深度补全，输出单个 JSON（推荐给「归档某段时间」）
+weibo archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
 ```
 
 - `item.source` ∈ `timeline` / `repost` / `favorite` / `like` / `comment` / `image` / `video`；媒体在 `item.asset`，图片项可能没有 `item.tweet`。
 - 续跑是 **at-least-once**：checkpoint 记录最后一条完整处理的项，中断重跑可能重复边界 1 条；图片墙和视频瀑布按整页回写游标，会重放整页。按 `mblogId`（媒体按 `asset.id`）幂等去重。
 - `includeFavorites` / `includeCommentHistory` 是**账号级**数据，只能读 Cookie 对应的登录账号；归档别人时传这些会 `CONFIG_INVALID`。
 - 访客模式直接 `CONFIG_INVALID`：匿名只有首屏，无法保证完整。
+- `archive user` 是范围归档：逐条重新拉详情/长文，默认补一级评论和楼中楼，`--reposts` 再拉转发；最终写一个 `ArchiveFile`。进度在 `<out>.slices/`，重跑同一命令续跑，`--fresh` 重来。SDK 对应 `sdk.userArchive.run()` / `.stream()`。
 
 ### 5. 写 SDK 脚本（同样 bun 直跑）
 
@@ -215,6 +219,14 @@ weibo archive 1111681197 --images --state .weibo-state.json
 ```
 
 流里的 `item.checkpoint` 落盘后，下次带同一个 `--state` 自动续传。
+
+**「把这个账号某段时间的微博连评论一起存成一个文件」**
+
+```bash
+weibo archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
+```
+
+默认补一级评论和楼中楼；`--no-comments` / `--no-replies` 关闭，`--reposts` 额外拉转发。进度在 `./weibo-archive.json.slices/`，中断后重跑同一命令续跑；`--fresh` 丢弃进度。
 
 **拉首页最新微博并增量保存**
 

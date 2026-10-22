@@ -25,12 +25,6 @@
 | [playground/README.md](../playground/README.md) | 场景化 SDK / CLI 示例、Quick Start、`pnpm play` 用法与排障 |
 | [playground/cli/README.md](../playground/cli/README.md) | CLI 命令食谱（复制即用，含 NDJSON 管道消费） |
 
-## scripts/ — 本地工具
-
-| 文档 | 说明 | 何时阅读 |
-|---|---|---|
-| [archive-user/README.md](../scripts/archive-user/README.md) | 用户归档脚本：运行流程、参数、断点续跑、journal 结构、模块划分与排障 | 运行 / 修改 `pnpm archive:user` |
-
 ## requirements/ — 需求文档
 
 | 文档 | 说明 | 何时阅读 |
@@ -50,6 +44,7 @@
 | [research-agent-view-2026-10-20.md](planning/research-agent-view-2026-10-20.md) | Agent 视角的单条微博上下文（`ITweetContext`）：理解所需维度、真实数据缺口、媒体归属/下载、`tweet context` CLI 设计与非目标 | 设计/修改 Agent 视图、媒体描述或上下文预算 |
 | [research-plugin-architecture-2026-10-21.md](planning/research-plugin-architecture-2026-10-21.md) | 插件化架构调研：token 池结论、Ports / Core / Plugins 三层设计、自定义 fetch、下游零配置与产物准确性、PF1–PF7 行动计划 | 评估扩展点、替换传输、调整默认配置或发布产物 |
 | [research-user-archive-integration-2026-10-22.md](planning/research-user-archive-integration-2026-10-22.md) | 用户范围归档的产品化提案：`sdk.userArchive.stream/run`、store 端口、`weibo-cli archive user`、脚本模块映射与实施顺序 | 实施/评审归档脚本迁移 |
+| [research-weibo-memories-2026-10-22.md](planning/research-weibo-memories-2026-10-22.md) | 「那年今日 / 微博回忆」抓包调研：`m.weibo.cn/api/container/getIndex?containerid=232544`、固定三年单页、Cookie 要求、containerid 是否可发现、SDK 接入建议 | 实施/评审回忆能力 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
@@ -68,6 +63,7 @@
 | [technical-spec.md](engineering/technical-spec.md) | 架构与契约规格（分层、实体契约、接口定义、错误体系、可测试性） | 任何实现/契约变更 |
 | [contract-itweet-v2.md](engineering/contract-itweet-v2.md) | `ITweet` 存档契约 v2：版本机制、字段冻结表、媒体 URL 契约、v1 → v2 迁移 | 修改数据模型 / 下游接入存档 |
 | [archive-schema.md](engineering/archive-schema.md) | 归档 JSON Schema（`weibo-user-archive/v2`）：`$schema` 约定、类型生成、版本规则、Ajv 校验 | 修改归档格式 / 下游接入归档文件 |
+| [user-archive.md](engineering/user-archive.md) | 用户范围归档：`sdk.userArchive.run/stream`、store 端口、`weibo-cli archive user`、journal 与退出码 | 运行 / 修改范围归档 |
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |
@@ -99,6 +95,8 @@
 | [2026-09-04.md](development-log/2026-09-04.md) | 当日记录（契约冻结 P0 实施） |
 | [2026-10-19.md](development-log/2026-10-19.md) | 当日记录（Cookie 来源收口 / 真实 E2E 回归 / 生态调研） |
 | [2026-10-20.md](development-log/2026-10-20.md) | 当日记录（0.1.0 发布 / 0.1.1 重发 / 用户数据能力 / 0.2.0 发布准备） |
+| [2026-10-21.md](development-log/2026-10-21.md) | 当日记录（归档页内并发 / 插件化与包完整性调研） |
+| [2026-10-22.md](development-log/2026-10-22.md) | 当日记录（archive-user 模块化 → SDK `userArchive` / CLI `archive user` 迁移） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 

@@ -74,6 +74,10 @@ weibo-cli archive 1111681197 --likes --images --videos --max-pages 1
 weibo-cli archive 1111681197 --state ./output/cli-archive-state.json --max-pages 1
 weibo-cli archive --uid-file ./uids.txt --state ./output/cli-archive-state.json
 
+# 范围归档：单个 JSON + 可续跑 journal
+weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-01-31 --out ./output/weibo-archive.json
+weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-01-31 --no-comments --reposts
+
 # 管道消费
 weibo-cli tweet home-stream --max-pages 2 | jq -c 'select(.event=="item") | .mblogId'
 weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjson
@@ -86,6 +90,7 @@ weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjs
 | 普通查询 | JSON（`JSON.stringify(data, null, 2)`）；`--format markdown` 为可读卡片 / 列表 |
 | `*-stream` | NDJSON：`progress` / `item` / `done` |
 | `archive` | NDJSON：`progress` / `item` / `item-error` / `done` / `user-*` |
+| `archive user` | 写入 `--out` 指定的单个 JSON；stdout 一行 `done` 摘要，stderr 为进度 / issue NDJSON |
 | `media download` | NDJSON：`progress` / `item` / `item-error` / `done` |
 
 错误统一走 stderr，并以非零退出码退出；错误信封包含 `code / level / retryable / message / hint? / next? / context?`。

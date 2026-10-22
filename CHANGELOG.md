@@ -6,6 +6,7 @@
 
 ### 新增
 
+- 新增范围归档能力：`sdk.userArchive.run(uid, options)` 一次返回完整 `ArchiveFile`，`sdk.userArchive.stream(uid, options)` 产出 `meta` / `slice-start` / `record` / `issue` / `slice-done` / `done` 事件。按日期切片枚举，逐条重新拉取详情与长文，可补全一级评论、楼中楼和转发列表，支持 `UserArchiveStore` 断点续跑。CLI 对应 `weibo-cli archive user <uid>`，输出单个 JSON 与 `<out>.slices/` journal，参数覆盖 `--since/--until`、`--slice-days`、`--concurrency`、`--delay/--burst`、`--no-comments/--no-replies`、`--reposts`、各类 `--max-*`、`--raw`、`--fresh`。全量镜像命令 `weibo-cli archive <uid>` 保持不变。
 - 新增结构化日志出口 `config.logger`（默认关闭）。SDK 把已有的 Wide Events 与 `sdk_init` / `self_check_*` 映射为带级别的日志记录，不新增埋点；`WeiboLogger.log()` 抛错或 reject 不影响业务。公共导出新增 `createConsoleLogger` / `createJsonlLogger` / `createMultiLogger` / `createLoggerPlugin`、`WeiboLogger` / `WeiboLogRecord` / `WeiboLogLevel`，内置 sink 默认替换 Cookie / token 等敏感字段。`weibo-cli` 的 stdout 数据与 NDJSON 协议不经过 logger。
 - CLI 查询命令新增 `--format`（默认 `json`，可选 `markdown` / `md`），覆盖 `user`、`tweet`、`follow`、`favorite list`、`like list`、`comment mine`、`notification`、`media albums`、`topic`、`trends`、`whoami`，直接输出可读的用户卡片、微博列表、评论、关注列表、热搜等。默认 JSON 与 NDJSON 行为不变；流式命令、`archive` 和 `media download` 不提供该参数。
 
@@ -15,7 +16,7 @@
 
 ### 变更
 
-- `scripts/archive-user` 从单文件拆成模块化目录（`runner` / `job` / `journal` / `output` 等），新增目录 README 与离线单测；`pnpm archive:user` 入口改为 `scripts/archive-user/index.ts`，命令行参数、journal 格式与归档输出保持不变。
+- `scripts/archive-user` 的能力迁移到 SDK 与 CLI：`pnpm archive:user` 现在转发到 `weibo-cli archive user`，旧的独立脚本与重复实现已删除。命令行参数、journal 磁盘格式（`<out>.slices/`）与归档 JSON 输出保持兼容，已有的半成品进度可以直接续跑。
 - **BREAKING CHANGE**：`ITweet` / `ITweetComment` 删除 `textHtml`，`TWEET_CONTRACT_VERSION` 升为 `2`；归档记录的 `longText` / `quotedLongText` 一并删除。`statuses/show` 默认带 `isGetLongText=true`，长微博全文已经在 `tweet.text`，无需单独补拉。
   迁移：旧存档记录调用 `migrateTweetV1toV2(record)`（递归删除 `textHtml`）；渲染层用 `text` 配合 `linkCards` / `topics` / `atUsers` / `media` 重建富文本。
 - 归档格式升级为 `weibo-user-archive/v2`，`$schema` 指向 `schemas/weibo-user-archive/v2.json`；v1 文件继续用 `schemas/weibo-user-archive/v1.json` 校验。

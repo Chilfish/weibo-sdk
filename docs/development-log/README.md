@@ -6,7 +6,7 @@
 
 | 日期 | 主题 |
 |---|---|
-| [2026-10-22](2026-10-22.md) | `scripts/archive-user` 模块化重构（runner / job / journal / output 拆分 + 目录 README + 离线单测），命令行与归档行为不变 |
+| [2026-10-22](2026-10-22.md) | `scripts/archive-user` 模块化重构，并迁移为 SDK `sdk.userArchive` + CLI `weibo-cli archive user`（journal 兼容、离线单测、playground 场景）；旧脚本删除 |
 | [2026-10-21](2026-10-21.md) | 归档页内请求并发（评论 / 转发首页预取，分页仍串行）；`tweets.context()` / `enrich()` 独立请求并行；插件化 / 传输适配 / token 池 / 包完整性调研与文档 |
 | [2026-10-20](2026-10-20.md) | 0.1.0 发布收口（CI 补强 / 正式发布 / `catalog:` 事故与 0.1.1 重发）；D3 收藏增强；Cookie 文件输入；D4/D5 图片墙+视频瀑布；ITweet v1 可选字段；媒体下载辅助；D8–D11 点赞者 / @我 / 通知 / 分组；D1/D2 归档接入；0.2 收尾（公共流式分页 / 归档媒体+增量+批量 / ProxyProvider / capabilities / 脚手架 / SKILL.md / AGENTS.md 使用速查）；首页「最新微博」`max_id` 逆向；真实归档 dogfooding + 账号级数据源守卫 + `getSession` 会话上下文；发布流水线固化（`publish.yml` + OIDC + `pnpm release`）与 0.3.0 发布 |
 | [2026-10-19](2026-10-19.md) | 发布就绪审计 + Cookie 只读 `.env` + 真实 E2E 回归（18/18）+ 生态调研 |

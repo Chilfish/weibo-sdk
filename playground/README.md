@@ -80,6 +80,7 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 | `topics-trends` | [`sdk/topics-trends.ts`](./sdk/topics-trends.ts) | 热搜、超话分类和关键词搜索 |
 | `archive` | [`sdk/archive.ts`](./sdk/archive.ts) | `streamArchive`、checkpoint、增量、多数据源、`onRaw` |
 | `archive-batch` | [`sdk/archive-batch.ts`](./sdk/archive-batch.ts) | `streamUsersArchive`、每用户 checkpoint、失败隔离 |
+| `user-archive` | [`sdk/user-archive.ts`](./sdk/user-archive.ts) | `userArchive.run`：范围归档、评论 / 楼中楼 / 转发补全、单文件产出 |
 | `telemetry` | [`sdk/telemetry.ts`](./sdk/telemetry.ts) | `createJsonlTelemetry` 和进度摘要（离线） |
 | `diagnose` | [`sdk/diagnose.ts`](./sdk/diagnose.ts) | 能力清单和结构化错误（离线，加 `--probe` 会请求真实接口） |
 | `plugins` | [`sdk/plugins.ts`](./sdk/plugins.ts) | `fetchTransport`、transport 缓存中间件、生命周期 hooks、observer、`onError` 替换（离线） |
@@ -93,6 +94,7 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 pnpm play <id> [uid|mblogId] [--max-pages 1] [--max-items 50]
 pnpm play archive 1111681197 --likes --images --max-pages 1
 pnpm play archive 1111681197 --resume --max-pages 1
+pnpm play user-archive 1111681197 --since 2025-01-01 --until 2025-01-31 --no-comments
 pnpm play archive-batch --uid-file playground/uids.example.txt
 pnpm play download-media QqsYymYOS --include pic,video --write
 ```

@@ -390,6 +390,10 @@ weibo-cli archive <uid> --state .weibo-archive-state.json [--incremental-since <
 # 批量默认不含收藏（收藏是账号级数据）；归档他人时 --favorites / --comment-history 会报 CONFIG_INVALID
 weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 
+# 范围归档：指定时间段 + 单条深度补全，输出单个 JSON，可断点续跑
+weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
+weibo-cli archive user <uid> --no-comments --reposts --concurrency 6 --slice-days 30
+
 # 能力清单（离线；可按服务 / 状态过滤）
 weibo-cli capabilities [--service <name>] [--status stable|degraded|unavailable|planned]
 weibo-cli capabilities --status stable | jq '.[] | {id, auth, guestPagination}'
@@ -424,6 +428,13 @@ weibo-cli schema diff before.json after.json
 > 和 `guestNote`，可以直接判断某个能力在访客身份下能不能用、能不能翻页。
 > `archive` 不支持访客身份：`--guest`（或不带 Cookie）会在产出任何 item 之前报 `CONFIG_INVALID`。
 > 访客只有首屏数据，归档无法保证完整；需要归档请提供 Cookie。
+>
+> `archive user` 是范围归档 + 深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、
+> 一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，
+> 重跑同一命令会按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。
+> stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。
+> 完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。
+> 详细参数、SDK 接口与 store 端口见 [user-archive.md](./user-archive.md)。
 
 CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
 
@@ -471,6 +482,7 @@ CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hoo
 | `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
 | `whoami` | `getSession()` + `users.getById()` | `User` 领域模型；`--guest` 时输出 `{ auth: 'guest', login: false, tokenIssuedAt, token: { issuedAt, scope, source } }` |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
+| `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |
 
 ## 架构
 
@@ -479,6 +491,7 @@ src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archi
 src/cli/
   shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file / --guest）
   commands/
+    archiveUser.ts      # archive user：参数映射、输出文件、退出码
     user.ts             # user info / timeline / mentions / groups
     tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
     follow.ts           # follow list / follow fans / follow my

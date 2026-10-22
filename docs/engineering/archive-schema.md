@@ -1,6 +1,6 @@
 # 归档 JSON Schema（`weibo-user-archive/v2`）
 
-[`scripts/archive-user/`](../../scripts/archive-user/README.md) 产出的单文件归档使用 [`schemas/weibo-user-archive/v2.json`](../../schemas/weibo-user-archive/v2.json) 描述结构。本文说明格式约定、生成方式和版本规则。
+[`weibo-cli archive user`](./user-archive.md) / [`sdk.userArchive`](./user-archive.md) 产出的单文件归档使用 [`schemas/weibo-user-archive/v2.json`](../../schemas/weibo-user-archive/v2.json) 描述结构。本文说明格式约定、生成方式和版本规则。
 
 > v1 文件（`weibo-user-archive/v1`）仍可用 [`schemas/weibo-user-archive/v1.json`](../../schemas/weibo-user-archive/v1.json) 校验；v2 删除了 `tweet.textHtml` 与归档记录的 `longText` / `quotedLongText`。
 

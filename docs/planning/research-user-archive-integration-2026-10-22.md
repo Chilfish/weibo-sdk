@@ -1,6 +1,6 @@
 # 用户归档能力的产品化（设计提案）
 
-> 状态：提案，待确认后实施。目标是把 `scripts/archive-user/` 的完整能力搬进 SDK 与 CLI，让 npm 用户不再自己重写一遍范围归档、补全和断点续跑。
+> 状态：已实施（2026-10-22）。SDK 入口为 `sdk.userArchive.stream/run`，CLI 为 `weibo-cli archive user <uid>`；实现细节与用法见 [`docs/engineering/user-archive.md`](../engineering/user-archive.md)。
 
 ## 1. 背景
 
@@ -275,11 +275,12 @@ weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
 5. `refactor(scripts): make archive-user a thin CLI wrapper`
 6. `docs: document user archive SDK and CLI surfaces`
 
-每一步带自己的测试和文档；第 5 步之后再决定是否直接删除 `scripts/archive-user/`。
+每一步带自己的测试和文档；实施时按此顺序推进，第 5 步直接删除旧脚本，只保留 `pnpm archive:user` 到 CLI 的转发。
 
-## 9. 需要拍板的问题
+## 9. 已拍板
 
-1. **入口命名**：建议 `sdk.userArchive.stream()` / `sdk.userArchive.run()`；备选 `sdk.archive.streamUser()` / `sdk.archive.user()`。
-2. **CLI 位置**：建议 `weibo-cli archive user <uid>`；备选 `weibo-cli user archive <uid>` 或新顶层命令。
-3. **默认内容开关**：建议沿用脚本（评论 / 楼中楼默认开，转发默认关），与「深度归档」的预期一致。
-4. **store 端口**：建议 SDK 只定义端口 + 内存实现，文件 journal 留在 CLI；如果下游 Node 场景也需要开箱即用的文件续跑，再补 `@chilfish/weibo-sdk/node` 子路径。
+1. **入口命名**：`sdk.userArchive.stream()` / `sdk.userArchive.run()`。
+2. **CLI 位置**：`weibo-cli archive user <uid>`；现有 `weibo-cli archive <uid>` 保持不变。
+3. **默认内容开关**：沿用脚本（评论 / 楼中楼默认开，转发默认关）。
+4. **store 端口**：SDK 只定义端口 + 内存实现，文件 journal 留在 CLI；`UserArchiveMeta` / `UserArchiveRecord` 等状态类型都是可序列化的，Node 下游如需文件续跑可以复用 CLI 的磁盘格式。
+5. **运行期错误**：`run()` 返回 `complete: false` + `file.errors`，不抛异常；只有配置错误和访客模式在开始前抛 `CONFIG_INVALID`。

@@ -185,6 +185,25 @@ weibo-cli archive <uid> --state .weibo-archive-state.json
 weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 ```
 
+需要「指定时间段 + 深度补全」时用 `sdk.userArchive`；它按日期切片枚举，逐条重新拉取详情和长文，默认补一级评论和楼中楼：
+
+```ts
+const result = await sdk.userArchive.run('1111681197', {
+  since: '2025-01-01',
+  until: '2025-12-31',
+  includeComments: true,
+  includeReplies: true,
+})
+
+await writeFile('weibo-archive.json', JSON.stringify(result.file, null, 2))
+```
+
+续跑状态通过 `UserArchiveStore` 传递；CLI 用文件实现，重跑同一命令即可接着跑：
+
+```bash
+weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
+```
+
 ### 下载媒体
 
 ```ts
@@ -260,6 +279,7 @@ await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 | 通知 | `sdk.notifications` | `weibo-cli notification` |
 | 超话与热搜 | `sdk.topics` / `sdk.trends` | `weibo-cli topic` / `trends` |
 | 账号归档 | `sdk.archive` | `weibo-cli archive` |
+| 范围归档（指定时间段 + 深度补全） | `sdk.userArchive` | `weibo-cli archive user` |
 
 完整命令和参数见 [CLI 参考](./docs/engineering/cli.md)。SDK 的方法签名、分页游标和返回类型以包内类型声明为准。
 
