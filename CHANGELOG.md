@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.5.0 (2026-10-22)
+
 ### 修复
 
 - 修复自检失败永久缓存导致 SDK 实例被一次网络抖动毒化：`ensureReady()` 现在只缓存确定性失败（`retryable: false`，如 Cookie 失效 / 配置错误 / 协议不匹配），`NET_TIMEOUT` / `NET_REQUEST_FAILED` / `RATE_LIMITED` 等可重试失败会清空自检缓存并在下次请求重新探测。此前长驻归档进程遇到一次超时后，所有走 preflight 的调用都会直接重抛旧错误，只能重建实例。
