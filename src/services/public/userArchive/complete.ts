@@ -50,6 +50,9 @@ async function collectComments(
 ): Promise<ITweetComment[]> {
   if (!options.includeComments)
     return []
+  // 上游统计为 0 时通常没有可见评论，跳过一页请求。
+  if (tweet.stats.comments <= 0)
+    return []
 
   const flow: 0 | 1 = options.commentOrder === 'hot' ? 0 : 1
   const comments: ITweetComment[] = []
@@ -107,6 +110,8 @@ async function collectReposts(
   issues: ArchiveIssue[],
 ): Promise<ITweet[]> {
   const reposts: ITweet[] = []
+  if (tweet.stats.reposts <= 0)
+    return reposts
   try {
     for await (const repost of deps.streamReposts(tweet.mblogId, {
       ...(options.maxReposts === undefined ? {} : { maxItems: options.maxReposts }),

@@ -1,4 +1,5 @@
 import type { UserArchiveOptions } from '~/types/archive/IUserArchive'
+import type { WeiboSDKTelemetry } from '~/types/telemetry'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
@@ -135,6 +136,7 @@ export async function runArchiveUser(
 
   const storedMeta = await store.loadMeta()
   const resuming = storedMeta !== undefined
+  const loadedRecords = resuming ? (await store.loadRecords()).length : 0
   const merge = args.merge === true
   if (!resuming) {
     if (existsSync(outPath) && args.force !== true && !merge)
@@ -186,7 +188,12 @@ export async function runArchiveUser(
   const startedAt = Date.now()
 
   try {
-    reporter.start({ uid, outPath, range })
+    reporter.start({
+      uid,
+      outPath,
+      range,
+      ...(resuming ? { resumed: true, loadedRecords } : {}),
+    })
 
     const sdkArgs = {
       ...args,
@@ -200,9 +207,17 @@ export async function runArchiveUser(
       reporter.notice(`--concurrency ${requestedConcurrency} 超过上限 ${MAX_USER_ARCHIVE_CONCURRENCY}，使用 ${MAX_USER_ARCHIVE_CONCURRENCY}`)
     }
 
+    const telemetry: WeiboSDKTelemetry = {
+      emit: (event) => {
+        if (event.event_name === 'rate_limit_wait' && event.reason === 'rate_limited')
+          reporter.notice(`rate limited: wait ${Math.ceil((event.wait_ms ?? 0) / 1000)}s`)
+      },
+    }
+
     const sdk = createSDK(sdkArgs, {
       delay,
       maxConcurrent: burst,
+      telemetry,
       ...(rawRecorder.hooks === undefined ? {} : { hooks: rawRecorder.hooks }),
     })
 
@@ -211,7 +226,7 @@ export async function runArchiveUser(
       concurrency,
       store,
       onProgress: progress => reporter.progress(progress),
-      onIssue: issue => reporter.issue(issue),
+      onIssue: (issue, slice) => reporter.issue(issue, slice),
       onRecord: entry => reporter.record(entry),
     })
 

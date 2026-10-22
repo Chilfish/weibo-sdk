@@ -38,7 +38,7 @@ describe('completeUserArchiveTweet', () => {
       },
     }
 
-    const task = completeUserArchiveTweet(deps, makeArchiveTweet('A'), OPTIONS)
+    const task = completeUserArchiveTweet(deps, makeArchiveTweet('A', undefined, { comments: 1, reposts: 1 }), OPTIONS)
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(started.sort()).toEqual(['comments', 'detail', 'reposts'])
 
@@ -69,7 +69,7 @@ describe('completeUserArchiveTweet', () => {
       },
     }
 
-    const task = completeUserArchiveTweet(deps, makeArchiveTweet('A'), {
+    const task = completeUserArchiveTweet(deps, makeArchiveTweet('A', undefined, { comments: 1 }), {
       ...OPTIONS,
       includeReposts: false,
     })
@@ -78,5 +78,26 @@ describe('completeUserArchiveTweet', () => {
 
     release()
     await task
+  })
+
+  it('skipsCommentRequestWhenStatsAreZero', async () => {
+    const calls: string[] = []
+    const deps: UserArchiveCompletionDeps = {
+      enrich: async () => ({ tweet: makeArchiveTweet('A') as never, raw: {} as never }),
+      async* streamComments() {
+        calls.push('comments')
+        yield* []
+      },
+      async* streamReplies() {
+        yield* []
+      },
+      async* streamReposts() {
+        calls.push('reposts')
+        yield* []
+      },
+    }
+
+    await completeUserArchiveTweet(deps, makeArchiveTweet('A'), OPTIONS)
+    expect(calls).toEqual([])
   })
 })

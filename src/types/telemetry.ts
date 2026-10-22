@@ -217,6 +217,8 @@ export type TelemetryEvent
     remaining?: number
     /** 已发现切片的总数之和 */
     overall_total?: number
+    slice_index?: number
+    slice_total?: number
   })
   | (TelemetryEventBase & {
     /** 范围归档单条/单页失败（由 `UserArchiveService` 发出） */

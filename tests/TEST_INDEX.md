@@ -100,7 +100,7 @@
 |---|---|---|
 | `unit/services/UserArchiveConfig.test.ts` | `buildUserArchiveConfig` / `validateUserArchiveResume` / `planUserArchiveSlices` | 默认值、日期范围解析、非负上限、并发 clamp、续跑 uid / 范围 / 选项 / 切片计划不一致 |
 | `unit/services/UserArchiveAssemble.test.ts` | `assembleUserArchive` / `dedupeUserArchiveRecords` | 按 `mblogId` 去重（issue 少 / 更晚写入优先）、时间倒序、评论 / 楼中楼统计、issue 去重、fatal / aborted 标记不完整、剥除 legacy raw |
-| `unit/services/UserArchiveComplete.test.ts` | `completeUserArchiveTweet` 内部并发 | 详情 / 评论 / 转发同时启动、楼中楼按小并发展开 |
+| `unit/services/UserArchiveComplete.test.ts` | `completeUserArchiveTweet` 内部并发与请求裁剪 | 详情 / 评论 / 转发同时启动、楼中楼按小并发展开、stats 为 0 时跳过评论 / 转发请求 |
 | `unit/services/UserArchiveMerge.test.ts` | `mergeArchiveFiles` | 跨归档按 `mblogId` 合并、评论 / 楼中楼 / 转发并集、取更完整正文、range 包络与开关交集、issue 解决判定、幂等 / 输入顺序无关、跨账号与非 v2 输入拒绝 |
 | `unit/cli/archiveMerge.test.ts` | `runArchiveMerge` / `readArchiveFile` | 多文件合并写盘、BOM 兼容、`--force` 覆盖保护、至少两份输入、缺失 / 非法 JSON 报 `CONFIG_INVALID` |
 | `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days |
@@ -141,7 +141,7 @@
 | `component/public/TweetStreams.test.ts` | 评论 / 转发 / 楼中楼流式分页 | `max_id` 翻页与跨页去重、`total_number` 不提前停止、空页结束、`flow=1` 只解析一次数字 mid、楼中楼 `max_id=0` 停止 |
 | `component/public/ArchiveService.extensions.test.ts` | `ArchiveService` D1/D2 归档集成 | `includeLikes` / `includeCommentHistory` 编排、source/`item.comment`、`likesPage` / `commentHistoryCursor` checkpoint、续跑、依赖缺失抛错、checkpoint 恒定大小 |
 | `component/public/ArchiveService.scope.test.ts` | 账号级数据源守卫 | 目标 uid ≠ 登录 uid 时 `includeFavorites` / `includeCommentHistory` 抛 `CONFIG_INVALID`；登录 uid 放行；无法解析 session uid 时跳过守卫；批量在产出前失败；session uid 只解析一次 |
-| `component/public/UserArchiveService.test.ts` | `UserArchiveService` 范围归档 | 详情 / 评论 / 楼中楼 / 转发补全与上限、`--no-comments` / `--no-replies` 语义、详情失败落 issue、致命错误停止、内存 store 续跑不重复请求、续跑参数不一致、访客模式拒绝、AbortSignal 标记不完整、事件顺序 |
+| `component/public/UserArchiveService.test.ts` | `UserArchiveService` 范围归档 | 详情 / 评论 / 楼中楼 / 转发补全与上限、`--no-comments` / `--no-replies` 语义、详情失败落 issue、致命错误停止、内存 store 续跑不重复请求、续跑参数不一致、访客模式拒绝、AbortSignal 标记不完整、事件顺序、总数 / 覆盖率 / `overallTotal` |
 | `component/public/GuestReads.test.ts` | 访客第一页读取与归档守卫 | 真实 `mobile_*` fixture 下用户时间线 / 点赞归一化并标 `partial: true`、匿名第 2 页抛 `CONFIG_INVALID`、关注走 `followers` 容器 / 粉丝走 `follows` 容器（上游命名相反）、关注流只产出第一页、guest 归档在触达数据源前失败、guest 会话不请求 `myDetails` 且只暴露 token 元信息 |
 
 ### E2E

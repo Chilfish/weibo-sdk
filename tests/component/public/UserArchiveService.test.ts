@@ -30,7 +30,14 @@ interface FakeOptions {
 }
 
 function createFakeDeps(overrides: FakeOptions = {}) {
-  const tweets = overrides.tweets ?? [makeArchiveTweet('A')]
+  const tweets = (overrides.tweets ?? [makeArchiveTweet('A')]).map(tweet => ({
+    ...tweet,
+    stats: {
+      ...tweet.stats,
+      comments: tweet.stats.comments || (overrides.comments?.[tweet.mblogId]?.length ? 1 : 0),
+      reposts: tweet.stats.reposts || (overrides.reposts?.[tweet.mblogId]?.length ? 1 : 0),
+    },
+  }))
   const calls = {
     stream: [] as ArchiveStreamOptions[],
     enrich: [] as string[],
@@ -117,7 +124,7 @@ describe('userArchiveService', () => {
     expect(result.summary).toMatchObject({ tweets: 2, comments: 1, replies: 2, errors: 0 })
     expect(calls.enrich).toEqual(['A', 'B'])
     expect(calls.replies).toEqual(['c1'])
-    expect([...calls.reposts].sort()).toEqual(['A', 'B'])
+    expect(calls.reposts).toEqual(['A'])
   })
 
   it('run_reportsEstimatedTotalAndCoverage', async () => {

@@ -131,11 +131,12 @@ describe('reporter', () => {
     const text = chunks.join('')
     expect(text).toContain('weibo-cli archive user 123')
     expect(text).toContain('2025-01-01 → 2025-01-31')
-    expect(text).toContain('→ s000-1-2 start')
-    expect(text).toContain('✓ s000-1-2 done')
+    expect(text).toContain('→ s000 start')
+    expect(text).toContain('✓ s000 done')
     expect(text).toContain('✖ comments UNKNOWN: boom')
     expect(text).toContain('archive incomplete')
     expect(text).toContain('expected 10 (coverage 30.0%)')
+    expect(text).toContain('missing  7')
     expect(text).toContain('1m 5s')
     expect(text).not.toContain('\x1B[?25l')
   })
@@ -170,7 +171,7 @@ describe('reporter', () => {
     expect(text).toContain('\x1B[?25l')
     expect(text).toContain('\x1B[?25h')
     expect(text).toContain('archive complete')
-    expect(text).toContain('s000-1-2 done')
+    expect(text).toContain('s000 done')
     expect(text).toContain('tweets')
   })
 
@@ -185,6 +186,14 @@ describe('reporter', () => {
 
     expect(plain.chunks.join('')).not.toContain('\x1B[')
     expect(colored.chunks.join('')).toContain('\x1B[')
+  })
+
+  it('printsResumeHeader', () => {
+    const { chunks, stream } = collector()
+    const reporter = createArchiveReporter({ format: 'pretty', stream, interactive: false, color: false, noProgress: true })
+    reporter.start({ uid: '123', outPath: 'out.json', resumed: true, loadedRecords: 752 })
+    reporter.close()
+    expect(chunks.join('')).toContain('resume   752 records loaded')
   })
 
   it('interactiveProgressKeepsBarWhenTotalsAreOmitted', () => {

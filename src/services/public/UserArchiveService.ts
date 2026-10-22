@@ -163,6 +163,7 @@ export class UserArchiveService {
     const limit = createLimiter(concurrency)
     const traceId = `${Date.now()}-user-archive-${uid}`
     const sliceTotals = new Map(Object.entries(meta.totals ?? {}))
+    const sliceIndexByKey = new Map(slices.map(slice => [slice.key, slice.index]))
     const overallTotal = (): number | undefined => {
       if (sliceTotals.size === 0)
         return undefined
@@ -175,7 +176,13 @@ export class UserArchiveService {
     let processed = completed.size
 
     const report = async (progress: UserArchiveProgress): Promise<void> => {
-      const payload: UserArchiveProgress = { ...progress, overallTotal: overallTotal() }
+      const sliceIndex = sliceIndexByKey.get(progress.slice)
+      const payload: UserArchiveProgress = {
+        ...progress,
+        overallTotal: overallTotal(),
+        sliceTotal: slices.length,
+        ...(sliceIndex === undefined ? {} : { sliceIndex }),
+      }
       try {
         await options.onProgress?.(payload)
       }
@@ -196,6 +203,8 @@ export class UserArchiveService {
           total: payload.total,
           remaining: payload.remaining,
           overall_total: payload.overallTotal,
+          slice_index: payload.sliceIndex,
+          slice_total: payload.sliceTotal,
         })
       }
       catch {
@@ -205,7 +214,7 @@ export class UserArchiveService {
 
     const reportIssue = async (issue: ArchiveIssue, slice?: UserArchiveSlice): Promise<void> => {
       try {
-        await options.onIssue?.(issue)
+        await options.onIssue?.(issue, slice?.key)
       }
       catch {
         // 回调异常不影响归档。
@@ -280,6 +289,7 @@ export class UserArchiveService {
       const state = sliceStates.get(slice.key)
       if (state?.done) {
         yield { type: 'slice-start', slice, resumed: true }
+        await report({ uid, slice: slice.key, phase: 'slice-done', processed })
         yield { type: 'slice-done', slice: slice.key }
         continue
       }
@@ -419,6 +429,13 @@ export class UserArchiveService {
           issues,
         }
         await store.appendRecord(line)
+        processed += 1
+        try {
+          await options.onRecord?.(line)
+        }
+        catch {
+          // 落盘回调异常由调用方负责；不改变归档结果。
+        }
         if (issues.length === 0) {
           completed.add(entry.mblogId)
           retryTargets.delete(entry.mblogId)

@@ -214,6 +214,49 @@ weibo-cli archive merge a.json b.json -o a.json --force   # 原地合并
 - 分页仍严格串行（评论 / 转发 / searchProfile 的游标都不能并发跳页）。
 - 实际 HTTP 并发受 `--burst` 限制，QPS 受 `--delay` 限制；命中 432 会全局暂停并重试。
 
+## 状态行与提示
+
+TTY 下的状态行会尽量把“现在在干什么”和“还剩多少”放在一行：
+
+```text
+s014/30  enumerate/search  ██████░░░░ 3/10  tweets 142/6705 (2.1%)  comments 320  replies 87  eta 1h 12m  errors 2
+```
+
+- `s014/30`：当前切片序号 / 总切片数。
+- `██████░░░░ 3/10`：当前切片已收集条数 / 上游报告的切片总数。
+- `tweets 142/6705 (2.1%)`：整体已完成 / 已发现切片总数与百分比。
+- `eta`：按本次运行速度估算的剩余时间；刚启动或总数未知时省略。
+- `comments` / `replies` / `errors`：本次运行累计值。
+
+切片完成、issue、raw、限流等仍然追加在状态行上方：
+
+```text
+  ✓ s014/30 done  tweets=12  comments=3  replies=1  errors=0  1m 20s
+  12:04:33  ✖ comments RATE_LIMITED 退避后继续
+  ! rate limited: wait 42s
+```
+
+续跑时标题区会显示加载量：
+
+```text
+  resume   752 records loaded
+```
+
+最终汇总在总数可用时会多出 `expected` / `missing`：
+
+```text
+✔ archive complete
+  out      ./weibo-archive.json
+  tweets   935
+  expected 936 (coverage 99.9%)
+  missing  1
+  ...
+```
+
+`missing` 只提示差异，不改变 `complete`：上游 `total` 可能包含已删除、不可见或受权限限制的微博。
+
+为了减少不必要的请求，`comments` 在 `tweet.stats.comments === 0` 时不发请求，`reposts` 在 `tweet.stats.reposts === 0` 时也不发请求。
+
 ## 行为细节
 
 - **切片枚举串行**。`searchProfile` 的 `page > 1` 复用会话里最近一次 `page = 1` 的窗口，并发切片会互相覆盖，表现为每个切片只拿到第一页。

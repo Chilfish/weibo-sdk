@@ -120,7 +120,7 @@ export interface UserArchiveOptions {
   /** 持久化端口；缺省使用内存实现。 */
   store?: UserArchiveStore
   onProgress?: (progress: UserArchiveProgress) => void | Promise<void>
-  onIssue?: (issue: ArchiveIssue) => void | Promise<void>
+  onIssue?: (issue: ArchiveIssue, slice?: string) => void | Promise<void>
   /** 每条记录完成时触发；流式消费可在这里落盘。 */
   onRecord?: (entry: UserArchiveRecord) => void | Promise<void>
   /** 中断信号；窗口内已发出的补全会在收尾阶段落盘后退出。 */
@@ -140,6 +140,10 @@ export interface UserArchiveProgress {
   remaining?: number
   /** 已发现切片的总数之和；未知时缺省。 */
   overallTotal?: number
+  /** 当前切片序号（0-based）。 */
+  sliceIndex?: number
+  /** 本次运行的切片总数。 */
+  sliceTotal?: number
 }
 
 /** `sdk.userArchive.stream()` 产出的事件。 */

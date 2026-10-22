@@ -467,9 +467,9 @@ TTY 下的样子：
 weibo-cli archive user 1111681197
   out      ./weibo-archive.json
   range    2025-01-01 → 2025-12-31
-  ✓ s000-1770000000-1772591999 done
-  ✓ s001-1772592000-1775183999 done
-  s002  enumerate/search  ██████░░░░ 42/70  tweets 142/6705  comments 320  replies 87  page 3  errors 2
+  ✓ s000/8 done
+  ✓ s001/8 done
+  s002/8  enumerate/search  ██████░░░░ 42/70  tweets 142/6705 (2.1%)  comments 320  replies 87  eta 1h 12m  errors 2
   12:04:33  ✖ comments RATE_LIMITED 退避后继续
 ```
 

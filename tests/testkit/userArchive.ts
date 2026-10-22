@@ -4,7 +4,11 @@ import type { ITweet, ITweetComment } from '~/types/domain/ITweet'
 import type { IUser } from '~/types/domain/IUser'
 import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
 
-export function makeArchiveTweet(mblogId: string, createdAt = '2025-01-15T00:00:00.000Z'): ITweet {
+export function makeArchiveTweet(
+  mblogId: string,
+  createdAt = '2025-01-15T00:00:00.000Z',
+  stats: Partial<ITweet['stats']> = {},
+): ITweet {
   return {
     id: mblogId,
     mblogId,
@@ -12,7 +16,7 @@ export function makeArchiveTweet(mblogId: string, createdAt = '2025-01-15T00:00:
     text: `text-${mblogId}`,
     source: '微博网页版',
     user: {} as ITweet['user'],
-    stats: { likes: 0, comments: 0, reposts: 0 },
+    stats: { likes: 0, comments: 0, reposts: 0, ...stats },
     visible: {} as ITweet['visible'],
     media: [],
   }
