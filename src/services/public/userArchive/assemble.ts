@@ -49,6 +49,17 @@ export interface UserArchiveAssembly {
   errors: ArchiveIssue[]
 }
 
+/** 各切片 info.total 之和；没有可用总数时返回 undefined。 */
+export function estimateUserArchiveTotal(meta: UserArchiveMeta): number | undefined {
+  const totals = Object.values(meta.totals ?? {})
+  if (totals.length === 0)
+    return undefined
+  let total = 0
+  for (const value of totals)
+    total += value
+  return total > 0 ? total : undefined
+}
+
 /** 把各切片记录合并成最终归档：去重、排序、统计。 */
 export function assembleUserArchive(input: UserArchiveAssemblyInput): UserArchiveAssembly {
   const best = dedupeUserArchiveRecords(input.records)
@@ -64,6 +75,10 @@ export function assembleUserArchive(input: UserArchiveAssemblyInput): UserArchiv
   tweets.sort((a, b) => (parseArchiveCreatedAt(b.tweet.createdAt) ?? 0) - (parseArchiveCreatedAt(a.tweet.createdAt) ?? 0))
 
   const { config } = input.meta
+  const estimatedTotal = estimateUserArchiveTotal(input.meta)
+  const coverage = estimatedTotal === undefined
+    ? undefined
+    : Math.min(1, tweets.length / estimatedTotal)
   const summary: UserArchiveSummary = {
     uid: config.uid,
     tweets: tweets.length,
@@ -74,6 +89,8 @@ export function assembleUserArchive(input: UserArchiveAssemblyInput): UserArchiv
     ),
     errors: errors.length,
     complete,
+    ...(estimatedTotal === undefined ? {} : { estimatedTotal }),
+    ...(coverage === undefined ? {} : { coverage }),
   }
 
   const file: ArchiveFile = {

@@ -162,12 +162,22 @@ export class UserArchiveService {
     const attempted = new Set<string>()
     const limit = createLimiter(concurrency)
     const traceId = `${Date.now()}-user-archive-${uid}`
+    const sliceTotals = new Map(Object.entries(meta.totals ?? {}))
+    const overallTotal = (): number | undefined => {
+      if (sliceTotals.size === 0)
+        return undefined
+      let total = 0
+      for (const value of sliceTotals.values())
+        total += value
+      return total > 0 ? total : undefined
+    }
     let fatalError: unknown
-    let processed = 0
+    let processed = bestBefore.length
 
     const report = async (progress: UserArchiveProgress): Promise<void> => {
+      const payload: UserArchiveProgress = { ...progress, overallTotal: overallTotal() }
       try {
-        await options.onProgress?.(progress)
+        await options.onProgress?.(payload)
       }
       catch {
         // 进度回调异常不影响归档。
@@ -178,13 +188,14 @@ export class UserArchiveService {
           timestamp: Date.now(),
           trace_id: traceId,
           uid,
-          slice: progress.slice,
-          phase: progress.phase,
-          processed: progress.processed,
-          source: progress.source,
-          page: progress.page,
-          total: progress.total,
-          remaining: progress.remaining,
+          slice: payload.slice,
+          phase: payload.phase,
+          processed: payload.processed,
+          source: payload.source,
+          page: payload.page,
+          total: payload.total,
+          remaining: payload.remaining,
+          overall_total: payload.overallTotal,
         })
       }
       catch {
@@ -289,8 +300,18 @@ export class UserArchiveService {
           includeFavorites: false,
           includeComments: false,
           ...(state?.checkpoint === undefined ? {} : { checkpoint: state.checkpoint }),
-          onProgress: (progress) => {
-            void report({
+          onProgress: async (progress) => {
+            if (progress.total !== undefined && sliceTotals.get(slice.key) !== progress.total) {
+              sliceTotals.set(slice.key, progress.total)
+              meta.totals = Object.fromEntries(sliceTotals)
+              try {
+                await store.saveMeta(meta)
+              }
+              catch {
+                // 进度总数只是展示/校验用，写 meta 失败不阻断归档。
+              }
+            }
+            await report({
               uid,
               slice: slice.key,
               phase: 'enumerate',
@@ -419,6 +440,10 @@ export class UserArchiveService {
       ...best.flatMap(entry => entry.issues),
     ])
     const complete = !aborted && fatalError === undefined && allIssues.length === 0
+    const estimatedTotal = overallTotal()
+    const coverage = estimatedTotal === undefined
+      ? undefined
+      : Math.min(1, best.length / estimatedTotal)
     const summary: UserArchiveSummary = {
       uid,
       tweets: best.length,
@@ -426,6 +451,8 @@ export class UserArchiveService {
       replies: best.reduce((sum, entry) => sum + countReplies(entry), 0),
       errors: allIssues.length,
       complete,
+      ...(estimatedTotal === undefined ? {} : { estimatedTotal }),
+      ...(coverage === undefined ? {} : { coverage }),
     }
     yield { type: 'done', summary }
   }

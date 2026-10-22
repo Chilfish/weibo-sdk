@@ -99,10 +99,14 @@ function summaryLines(info: ArchiveReporterFinish, color: boolean): string[] {
   const icon = info.complete
     ? paint(color, ANSI.green, '✔')
     : paint(color, ANSI.yellow, '⚠')
+  const expected = info.summary.estimatedTotal === undefined
+    ? []
+    : [`  expected ${info.summary.estimatedTotal}${info.summary.coverage === undefined ? '' : ` (coverage ${(info.summary.coverage * 100).toFixed(1)}%)`}`]
   return [
     `${icon} archive ${info.complete ? 'complete' : 'incomplete'}`,
     `  out      ${info.outPath}`,
     `  tweets   ${info.summary.tweets}`,
+    ...expected,
     `  comments ${info.summary.comments}`,
     `  replies  ${info.summary.replies}`,
     `  errors   ${info.summary.errors}`,
@@ -244,6 +248,7 @@ class InteractiveReporter extends LineReporter {
   private processed = 0
   private total?: number
   private remaining?: number
+  private overallTotal?: number
 
   private readonly onExit = (): void => this.restore()
   private readonly onSigint = (): void => {
@@ -308,7 +313,7 @@ class InteractiveReporter extends LineReporter {
       parts.push(`${bar(completed, this.total)} ${completed}/${this.total}`)
     }
 
-    parts.push(`tweets ${this.processed}`)
+    parts.push(`tweets ${this.processed}${this.overallTotal === undefined ? '' : `/${this.overallTotal}`}`)
     if (this.comments > 0)
       parts.push(`comments ${this.comments}`)
     if (this.replies > 0)
@@ -364,6 +369,8 @@ class InteractiveReporter extends LineReporter {
       this.total = progress.total
     if (progress.remaining !== undefined)
       this.remaining = progress.remaining
+    if (progress.overallTotal !== undefined)
+      this.overallTotal = progress.overallTotal
 
     if (progress.phase === 'slice-done') {
       this.append(`  ${paint(this.color, ANSI.green, '✓')} ${progress.slice} done`)

@@ -123,7 +123,7 @@ describe('reporter', () => {
     reporter.finish({
       outPath: 'out.json',
       complete: false,
-      summary: { uid: '123', tweets: 3, comments: 1, replies: 2, errors: 1, complete: false },
+      summary: { uid: '123', tweets: 3, comments: 1, replies: 2, errors: 1, complete: false, estimatedTotal: 10, coverage: 0.3 },
       elapsedMs: 65_000,
     })
     reporter.close()
@@ -135,6 +135,7 @@ describe('reporter', () => {
     expect(text).toContain('✓ s000-1-2 done')
     expect(text).toContain('✖ comments UNKNOWN: boom')
     expect(text).toContain('archive incomplete')
+    expect(text).toContain('expected 10 (coverage 30.0%)')
     expect(text).toContain('1m 5s')
     expect(text).not.toContain('\x1B[?25l')
   })
@@ -192,9 +193,10 @@ describe('reporter', () => {
     const reporter = createArchiveReporter({ format: 'pretty', stream, interactive: true, color: false, noProgress: false })
 
     reporter.start({ uid: '123', outPath: 'out.json' })
-    reporter.progress(progress({ total: 10, remaining: 4, page: 1 }))
+    reporter.progress(progress({ overallTotal: 10, total: 10, remaining: 4, page: 1 }))
     vi.advanceTimersByTime(100)
     expect(chunks.join('')).toContain('6/10')
+    expect(chunks.join('')).toContain('tweets 3/10')
 
     const before = chunks.length
     reporter.progress(progress({ phase: 'complete', page: undefined, source: undefined, total: undefined, remaining: undefined }))

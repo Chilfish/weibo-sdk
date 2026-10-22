@@ -106,6 +106,10 @@ export interface RunArchiveUserResult {
   }
 }
 
+const CLI_CONCURRENCY = 20
+const CLI_DELAY_MS = 300
+const CLI_BURST = 8
+
 /**
  * 执行 `archive user` 的实际流程，供 citty 命令与测试复用。
  */
@@ -173,21 +177,23 @@ export async function runArchiveUser(
       ...args,
       ...(args['env-file'] === undefined && typeof args.dotenv === 'string' ? { 'env-file': args.dotenv } : {}),
     }
-    const delay = parsePositiveInt(args.delay)
-    const burst = parsePositiveInt(args.burst)
+    const delay = parsePositiveInt(args.delay) ?? CLI_DELAY_MS
+    const burst = parsePositiveInt(args.burst) ?? CLI_BURST
     const requestedConcurrency = parsePositiveInt(args.concurrency)
+    const concurrency = requestedConcurrency ?? CLI_CONCURRENCY
     if (requestedConcurrency !== undefined && requestedConcurrency > MAX_USER_ARCHIVE_CONCURRENCY) {
       reporter.notice(`--concurrency ${requestedConcurrency} 超过上限 ${MAX_USER_ARCHIVE_CONCURRENCY}，使用 ${MAX_USER_ARCHIVE_CONCURRENCY}`)
     }
 
     const sdk = createSDK(sdkArgs, {
-      ...(delay === undefined ? {} : { delay }),
-      ...(burst === undefined ? {} : { maxConcurrent: burst }),
+      delay,
+      maxConcurrent: burst,
       ...(rawRecorder.hooks === undefined ? {} : { hooks: rawRecorder.hooks }),
     })
 
     const result = await sdk.userArchive.run(uid, {
       ...userArchiveOptionsFromArgs(args),
+      concurrency,
       store,
       onProgress: progress => reporter.progress(progress),
       onIssue: issue => reporter.issue(issue),
@@ -225,6 +231,8 @@ export async function runArchiveUser(
       replies: result.summary.replies,
       errors: result.summary.errors,
       complete: result.complete,
+      ...(result.summary.estimatedTotal === undefined ? {} : { estimatedTotal: result.summary.estimatedTotal }),
+      ...(result.summary.coverage === undefined ? {} : { coverage: result.summary.coverage }),
     }))
 
     if (!result.complete || rawRecorder.error !== undefined)

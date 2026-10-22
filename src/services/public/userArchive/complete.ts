@@ -25,6 +25,22 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return out
 }
 
+const REPLY_CONCURRENCY = 4
+
+async function mapWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let next = 0
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = next
+      next += 1
+      if (index >= items.length)
+        return
+      await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+}
+
 /** 拉取一条微博的全部一级评论，并按需展开每条评论的楼中楼。 */
 async function collectComments(
   deps: UserArchiveCompletionDeps,
@@ -53,12 +69,13 @@ async function collectComments(
   if (!options.includeReplies)
     return comments
 
-  for (const comment of comments) {
+  // 楼中楼彼此独立，按小并发展开；单个评论的分页仍然串行。
+  await mapWithConcurrency(comments, REPLY_CONCURRENCY, async (comment) => {
     const inline = comment.replies ?? []
     const expected = comment.totalReplies ?? 0
     // 没有楼中楼就不发请求；有内联预览但 total 缺失时也补拉一次。
     if (inline.length === 0 && expected <= 0)
-      continue
+      return
 
     const fetched: ITweetComment[] = []
     try {
@@ -77,12 +94,34 @@ async function collectComments(
     const merged = dedupeById([...inline, ...fetched])
     if (merged.length > 0)
       comment.replies = merged
-  }
+  })
 
   return comments
 }
 
-/** 补全单条微博：详情 + 长文 + 评论区（+ 可选转发列表）。 */
+/** 拉取一条微博的转发列表；与详情 / 评论互不依赖。 */
+async function collectReposts(
+  deps: UserArchiveCompletionDeps,
+  tweet: ITweet,
+  options: UserArchiveContentOptions,
+  issues: ArchiveIssue[],
+): Promise<ITweet[]> {
+  const reposts: ITweet[] = []
+  try {
+    for await (const repost of deps.streamReposts(tweet.mblogId, {
+      ...(options.maxReposts === undefined ? {} : { maxItems: options.maxReposts }),
+      ...(options.maxRepostPages === undefined ? {} : { maxPages: options.maxRepostPages }),
+    })) {
+      reposts.push(repost)
+    }
+  }
+  catch (error) {
+    issues.push(toUserArchiveIssue('reposts', error, { mblogId: tweet.mblogId }))
+  }
+  return reposts
+}
+
+/** 补全单条微博：详情 + 长文 + 评论区（+ 可选转发列表），三个子请求并行。 */
 export async function completeUserArchiveTweet(
   deps: UserArchiveCompletionDeps,
   base: ITweet,
@@ -96,32 +135,23 @@ export async function completeUserArchiveTweet(
     comments: [],
   }
 
-  try {
-    // statuses/show 默认带 isGetLongText=true，长微博全文已在 tweet.text。
-    const detail = await deps.enrich(base.mblogId)
-    record.tweet = detail.tweet
-  }
-  catch (error) {
-    issues.push(toUserArchiveIssue('detail', error, { mblogId: base.mblogId }))
-  }
+  const detailTask = deps.enrich(base.mblogId)
+    .then(detail => detail.tweet)
+    .catch((error) => {
+      issues.push(toUserArchiveIssue('detail', error, { mblogId: base.mblogId }))
+      return undefined
+    })
+  const commentsTask = collectComments(deps, base, options, issues)
+  const repostsTask = options.includeReposts
+    ? collectReposts(deps, base, options, issues)
+    : Promise.resolve(undefined)
 
-  record.comments = await collectComments(deps, record.tweet, options, issues)
-
-  if (options.includeReposts) {
-    const reposts: ITweet[] = []
-    try {
-      for await (const repost of deps.streamReposts(record.tweet.mblogId, {
-        ...(options.maxReposts === undefined ? {} : { maxItems: options.maxReposts }),
-        ...(options.maxRepostPages === undefined ? {} : { maxPages: options.maxRepostPages }),
-      })) {
-        reposts.push(repost)
-      }
-    }
-    catch (error) {
-      issues.push(toUserArchiveIssue('reposts', error, { mblogId: base.mblogId }))
-    }
+  const [detail, comments, reposts] = await Promise.all([detailTask, commentsTask, repostsTask])
+  if (detail)
+    record.tweet = detail
+  record.comments = comments
+  if (reposts !== undefined)
     record.reposts = reposts
-  }
 
   return { tweet: record, issues }
 }

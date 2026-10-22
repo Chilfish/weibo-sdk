@@ -459,7 +459,7 @@ weibo-cli archive user 1111681197
   range    2025-01-01 → 2025-12-31
   ✓ s000-1770000000-1772591999 done
   ✓ s001-1772592000-1775183999 done
-  s002  enumerate/search  ██████░░░░ 42/70  tweets 142  comments 320  replies 87  page 3  errors 2
+  s002  enumerate/search  ██████░░░░ 42/70  tweets 142/6705  comments 320  replies 87  page 3  errors 2
   12:04:33  ✖ comments RATE_LIMITED 退避后继续
 ```
 

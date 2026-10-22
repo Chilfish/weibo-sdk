@@ -72,11 +72,11 @@ for await (const event of sdk.userArchive.stream(uid, options)) {
 | `maxComments` / `maxCommentPages` | 不限 | 一级评论条数 / 页数上限 |
 | `maxReplies` / `maxReplyPages` | 不限 | 每条一级评论的楼中楼条数 / 页数上限 |
 | `maxReposts` / `maxRepostPages` | 不限 | 转发条数 / 页数上限 |
-| `concurrency` | `6` | 全局补全并发，上限 16 |
+| `concurrency` | `6` | 全局补全并发，上限 32；CLI 默认 20 |
 | `store` | 内存 | 持久化端口，见下 |
 | `signal` | — | `AbortSignal`；中止后按未完成处理 |
 
-实际 HTTP 速率仍由 SDK 的令牌桶控制（`new WeiboSDK({ delay, maxConcurrent })`），`concurrency` 只决定同时排队的补全数。
+实际 HTTP 速率仍由 SDK 的令牌桶控制（`new WeiboSDK({ delay, maxConcurrent })`），`concurrency` 只决定同时排队的补全数。CLI 的 `archive user` 默认用 `concurrency=20`、`delay=300`、`burst=8`；`--delay` / `--burst` 才是吞吐的主要旋钮。
 
 ### 断点续跑与 store 端口
 
@@ -134,8 +134,8 @@ weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
 | `--max-replies` / `--max-reply-pages` | 楼中楼条数 / 页数上限 |
 | `--reposts` / `--max-reposts` / `--max-repost-pages` | 转发列表与上限 |
 | `--slice-days` | 每 n 天一个枚举子任务，默认 30；`0` 不拆分 |
-| `--concurrency` | 补全并发，默认 6，上限 16 |
-| `--delay` / `--burst` | 令牌桶补充间隔与容量，默认 1000ms / 3 |
+| `--concurrency` | 补全并发；SDK 默认 6，CLI 默认 20，上限 32 |
+| `--delay` / `--burst` | 令牌桶补充间隔与容量；CLI 默认 300ms / 8，SDK 默认 1000ms / 3 |
 | `--log-format` | `pretty` / `ndjson` / `silent`；TTY 默认 pretty，管道 / CI 默认 ndjson |
 | `--no-progress` | pretty 下关闭动态状态块，只输出切片完成 / issue / 汇总 |
 | `--quiet` | 不输出诊断，等价于 `--log-format silent` |
@@ -157,6 +157,19 @@ weibo-archive-<uid>.json.raw.ndjson               可选的 raw sidecar（--raw�
 - stdout 输出一行 JSON 摘要 `{ event: 'done', out, tweets, comments, replies, errors, complete }`；进度、issue、raw 诊断走 stderr。
 - stderr 的呈现按终端自动切换：TTY 下是一行原地刷新的状态 + 追加日志，管道 / CI 下是 NDJSON。`--log-format` 显式覆盖，`--no-progress` 关闭动态刷新，`--quiet` 静默。具体规则见 [cli.md 的「终端呈现」](./cli.md#终端呈现archive-user)。
 - 退出码：`0` 完整；`1` 枚举中止、存在未补全项或 raw 写入失败。
+
+## 总数、进度与并发
+
+`searchProfile` 返回的 `total` 是当前日期窗口的条数。每个切片第一次拿到 `total` 时会写入 `meta.totals`，并通过 `UserArchiveProgress.overallTotal` 暴露为「已发现切片的总数之和」。多切片时这是一个逐步逼近的总数；单切片（`sliceDays: 0`）就是该范围的完整总数。
+
+最终 `sdk.userArchive.run()` 的 `summary.estimatedTotal` / `summary.coverage` 是实际归档条数与上游总数的对照；CLI 的 `done` 摘要也会带上这两个字段。两者用于核对覆盖率；上游 `total` 可能包含已删除、不可见或受权限限制的内容，所以不把差异直接当作错误，`complete` 仍只表示「没有遗留 issue 或中止」。归档 JSON 契约不新增总数字段，总数保存在 `<out>.slices/meta.json` 和运行结果里。
+
+并发模型：
+
+- 每个切片内最多 `concurrency` 条微博同时补全；一页 20 条时可以全部进入窗口。
+- 单条微博内部，`enrich`、评论、转发同时发出；楼中楼在评论拿到后按小并发展开。
+- 分页仍严格串行（评论 / 转发 / searchProfile 的游标都不能并发跳页）。
+- 实际 HTTP 并发受 `--burst` 限制，QPS 受 `--delay` 限制；命中 432 会全局暂停并重试。
 
 ## 行为细节
 

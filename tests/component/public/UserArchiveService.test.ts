@@ -1,5 +1,6 @@
 import type { ArchiveStreamOptions } from '~/services/public/ArchiveService'
 import type { UserArchiveServiceDeps } from '~/services/public/UserArchiveService'
+import type { UserArchiveProgress } from '~/types/archive/IUserArchive'
 import type { ITweet, ITweetComment } from '~/types/domain/ITweet'
 import {
   makeArchiveCheckpoint,
@@ -24,6 +25,8 @@ interface FakeOptions {
   enrichError?: unknown
   streamError?: unknown
   authMode?: 'cookie' | 'guest'
+  /** 模拟 searchProfile 返回的总数。 */
+  total?: number
 }
 
 function createFakeDeps(overrides: FakeOptions = {}) {
@@ -41,6 +44,17 @@ function createFakeDeps(overrides: FakeOptions = {}) {
       calls.stream.push(options)
       if (overrides.streamError !== undefined)
         throw overrides.streamError
+      if (overrides.total !== undefined) {
+        await options.onProgress?.({
+          uid,
+          phase: 'timeline',
+          processed: 0,
+          source: 'search',
+          page: 1,
+          total: overrides.total,
+          remaining: 0,
+        })
+      }
       for (const tweet of tweets) {
         yield makeArchiveItem(tweet, makeArchiveCheckpoint(uid, {
           sliceEnd: options.until,
@@ -104,6 +118,22 @@ describe('userArchiveService', () => {
     expect(calls.enrich).toEqual(['A', 'B'])
     expect(calls.replies).toEqual(['c1'])
     expect([...calls.reposts].sort()).toEqual(['A', 'B'])
+  })
+
+  it('run_reportsEstimatedTotalAndCoverage', async () => {
+    const { deps } = createFakeDeps({
+      tweets: [makeArchiveTweet('A'), makeArchiveTweet('B')],
+      total: 10,
+    })
+    const progress: UserArchiveProgress[] = []
+
+    const result = await new UserArchiveService(deps).run(UID, {
+      ...OPTIONS,
+      onProgress: (item) => { progress.push(item) },
+    })
+
+    expect(result.summary).toMatchObject({ tweets: 2, estimatedTotal: 10, coverage: 0.2 })
+    expect(progress.some(item => item.overallTotal === 10)).toBe(true)
   })
 
   it('run_skipsCommentsWhenDisabled', async () => {

@@ -48,6 +48,12 @@ export interface UserArchiveMeta {
   config: UserArchiveRunConfig
   slices: UserArchiveSlice[]
   user: IUser
+  /**
+   * 各切片 `searchProfile` 报告的条数；key 为 slice.key。
+   *
+   * 多切片时用于展示整体进度和最终覆盖率，可能是不完整/上游估算值。
+   */
+  totals?: Record<string, number>
 }
 
 /** 一条补全后的归档记录（journal / store 的持久化单位）。 */
@@ -109,7 +115,7 @@ export interface UserArchiveOptions {
   maxReplyPages?: number
   maxReposts?: number
   maxRepostPages?: number
-  /** 全局补全并发（默认 6，上限 16）。实际 QPS 仍由令牌桶控制。 */
+  /** 全局补全并发（SDK 默认 6，上限 32；CLI 默认 20）。实际 QPS 仍由令牌桶控制。 */
   concurrency?: number
   /** 持久化端口；缺省使用内存实现。 */
   store?: UserArchiveStore
@@ -126,12 +132,14 @@ export interface UserArchiveProgress {
   uid: string
   slice: string
   phase: 'enumerate' | 'complete' | 'slice-done'
-  /** 本次运行已完成的记录数（不含续跑时从 store 读出的旧记录）。 */
+  /** 已完成的记录数（续跑时包含从 store 读出的旧记录）。 */
   processed: number
   source?: string
   page?: number
   total?: number
   remaining?: number
+  /** 已发现切片的总数之和；未知时缺省。 */
+  overallTotal?: number
 }
 
 /** `sdk.userArchive.stream()` 产出的事件。 */
@@ -150,6 +158,10 @@ export interface UserArchiveSummary {
   replies: number
   errors: number
   complete: boolean
+  /** 上游报告的总数（各切片之和）；不可用时缺省。 */
+  estimatedTotal?: number
+  /** `tweets / estimatedTotal`，范围 0–1；没有总数时缺省。 */
+  coverage?: number
 }
 
 /** `sdk.userArchive.run()` 的结果。 */

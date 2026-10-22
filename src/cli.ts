@@ -322,7 +322,7 @@ const archive = defineCommand({
     },
     'concurrency': {
       type: 'string',
-      description: '页内并发预取窗口（默认 3，范围 1–8；1 为完全串行）',
+      description: '并发窗口（archive 默认 3；archive user 默认 20，上限 32）',
     },
     'max-retries': {
       type: 'string',
@@ -358,11 +358,11 @@ const archive = defineCommand({
     'max-reposts': { type: 'string', description: 'archive user：每条微博最多转发数' },
     'max-repost-pages': { type: 'string', description: 'archive user：每条微博最多转发页数' },
     'slice-days': { type: 'string', description: 'archive user：每 n 天一个枚举子任务（默认 30；0 = 不拆分）' },
-    'delay': { type: 'string', description: 'archive user：令牌补充间隔毫秒（默认 1000）' },
-    'burst': { type: 'string', description: 'archive user：令牌桶容量（默认 3）' },
+    'delay': { type: 'string', description: 'archive user：令牌补充间隔毫秒（默认 300）' },
+    'burst': { type: 'string', description: 'archive user：令牌桶容量（默认 8）' },
     'dotenv': { type: 'string', description: 'archive user：同 --env-file（兼容旧脚本）' },
     'log-format': { type: 'string', description: 'archive user：日志呈现 pretty | ndjson | silent（TTY 默认 pretty，管道 / CI 默认 ndjson）' },
-    'no-progress': { type: 'boolean', default: false, description: 'archive user：关闭动态状态块，只输出关键行' },
+    'no-progress': { type: 'boolean', default: false, description: 'archive user：关闭动态状态行，只输出关键行' },
     'quiet': { type: 'boolean', default: false, description: 'archive user：不输出诊断，等价于 --log-format silent' },
     ...cookieArg,
   },

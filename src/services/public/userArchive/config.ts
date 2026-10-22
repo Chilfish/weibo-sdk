@@ -11,7 +11,7 @@ import { planUserArchiveSlices } from './slices'
 const WEIBO_EPOCH = '2009-08-14'
 export const DEFAULT_USER_ARCHIVE_SLICE_DAYS = 30
 export const DEFAULT_USER_ARCHIVE_CONCURRENCY = 6
-export const MAX_USER_ARCHIVE_CONCURRENCY = 16
+export const MAX_USER_ARCHIVE_CONCURRENCY = 32
 
 function configError(field: string, value: unknown, reason: string): InvalidConfigError {
   return new InvalidConfigError(`Invalid ${field}: ${JSON.stringify(value)}. ${reason}`, { field, value, reason })
