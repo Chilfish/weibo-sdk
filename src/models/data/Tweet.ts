@@ -1,9 +1,10 @@
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import type { MyMBLog } from '~/types/raw/tweet/mymblog'
 import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { MediaType, TweetVisible } from '~/types/domain/ITweet'
+import { extractAttachments, pageObjectType } from './TweetAttachments'
 
 export type RawTweet = MyMBLog | NonNullable<MyMBLog['retweeted_status']> | IStatusShowResponse | NonNullable<IStatusShowResponse['retweeted_status']>
 type UnknownRecord = Record<string, unknown>
@@ -59,6 +60,16 @@ function getString(value: unknown): string | undefined {
   return undefined
 }
 
+/** 图片字段可能是字符串或 `{ url }` 对象（m 站 `page_pic`）；`http` 统一升级为 `https`。 */
+function getPicUrl(value: unknown): string | undefined {
+  const url = typeof value === 'string'
+    ? getString(value)
+    : isRecord(value)
+      ? getString(value.url)
+      : undefined
+  return url?.replace(/^http:\/\//i, 'https://')
+}
+
 function isTweetVisible(value: number): value is TweetVisible {
   return value === TweetVisible.PUBLIC
     || value === TweetVisible.PRIVATE
@@ -75,13 +86,14 @@ function extractPageInfo(rawRecord: UnknownRecord): TweetPageCard | undefined {
     return undefined
 
   const card: TweetPageCard = {
-    pageId: String(page.page_id ?? ''),
-    pageTitle: String(page.page_title ?? ''),
-    pageUrl: String(page.page_url ?? ''),
+    pageId: getString(page.page_id) ?? '',
+    // m 站部分文章卡把标题放在 `content1`，`page_title` 只有作者
+    pageTitle: getString(page.page_title) ?? getString(page.content1) ?? '',
+    pageUrl: getString(page.page_url) ?? '',
     // 封面与媒体图一致：http 统一升级为 https，避免混合内容
-    pagePic: String(page.page_pic ?? '').replace(/^http:\/\//i, 'https://'),
+    pagePic: getPicUrl(page.page_pic) ?? '',
     type: getNumber(page.type) ?? 0,
-    objectType: String(page.object_type ?? ''),
+    objectType: pageObjectType(page),
   }
 
   const objectId = getString(page.object_id)
@@ -292,39 +304,44 @@ function extractMediaFromPageInfo(rawRecord: UnknownRecord): TweetMedia[] {
   if (!mediaInfo)
     return []
 
-  const mediaType = typeof mediaInfo.media_type === 'string'
-    ? mediaInfo.media_type
-    : typeof page.object_type === 'string'
-      ? page.object_type
-      : undefined
-  if (mediaType !== 'video')
+  // PC：object_type="video" / media_type="video"；
+  // m 站：object_type=11、语义在 type="video"（pageObjectType 会回退到 type）。
+  const objectType = pageObjectType(page)
+  const mediaType = getString(mediaInfo.media_type)
+  if (objectType !== 'video' && mediaType !== 'video')
     return []
 
+  // m 站的 mp4 变体在 page_info.urls，不在 media_info.urls
+  const urls = isRecord(page.urls) ? page.urls : undefined
   const bigPic = isRecord(mediaInfo.big_pic_info) && isRecord(mediaInfo.big_pic_info.pic_big)
     ? mediaInfo.big_pic_info.pic_big
     : undefined
-  const coverUrl = typeof page.page_pic === 'string' && page.page_pic.length > 0
-    ? page.page_pic
-    : bigPic && typeof bigPic.url === 'string' && bigPic.url.length > 0
-      ? bigPic.url
-      : undefined
-  const videoUrl = [mediaInfo.mp4_hd_url, mediaInfo.stream_url_hd, mediaInfo.stream_url, mediaInfo.mp4_sd_url]
-    .find(value => typeof value === 'string' && value.length > 0) as string | undefined
+  const coverUrl = getPicUrl(page.page_pic) ?? getPicUrl(bigPic)
+  const videoUrl = [
+    mediaInfo.mp4_hd_url,
+    mediaInfo.stream_url_hd,
+    mediaInfo.stream_url,
+    mediaInfo.mp4_sd_url,
+    urls?.mp4_720p_mp4,
+    urls?.mp4_hd_mp4,
+    urls?.mp4_ld_mp4,
+  ].find(value => typeof value === 'string' && value.length > 0) as string | undefined
   if (!coverUrl || !videoUrl)
     return []
 
-  const id = String(mediaInfo.media_id || page.page_id || page.object_id || '')
+  const id = getString(mediaInfo.media_id) ?? getString(page.page_id) ?? getString(page.object_id)
   if (!id)
     return []
 
+  const pagePic = isRecord(page.page_pic) ? page.page_pic : undefined
   return [{
     id,
     type: MediaType.VIDEO,
     imageUrl: coverUrl,
     videoUrl,
     duration: getNumber(mediaInfo.duration),
-    width: getNumber(bigPic?.width) ?? 0,
-    height: getNumber(bigPic?.height) ?? 0,
+    width: getNumber(pagePic?.width) ?? getNumber(bigPic?.width) ?? 0,
+    height: getNumber(pagePic?.height) ?? getNumber(bigPic?.height) ?? 0,
   }]
 }
 
@@ -765,6 +782,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
 
   const retweeted = rawRecord.retweeted_status
   const retweetedStatus = retweeted ? normalizeTweet(retweeted as unknown as RawTweet) : undefined
+  const attachments = extractAttachments(rawRecord)
 
   return {
     id: String(raw.idstr || raw.id),
@@ -783,6 +801,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     visible: isTweetVisible(visibleType) ? visibleType : TweetVisible.PUBLIC,
     media: extractMedia(raw, rawRecord),
     pageInfo: extractPageInfo(rawRecord),
+    ...(attachments.length > 0 ? { attachments } : {}),
     geo: extractGeo(raw),
     retweetedStatus,
     repostChain: extractRepostChain(rawRecord),
@@ -985,6 +1004,7 @@ export class Tweet implements ITweet {
   public visible!: TweetVisible
   public regionName?: string
   public pageInfo?: TweetPageCard
+  public attachments?: TweetAttachment[]
   public retweetedStatus?: ITweet
   public geo?: TweetGeo
   public comments?: ITweetComment[]
