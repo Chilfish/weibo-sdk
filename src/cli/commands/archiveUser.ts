@@ -112,6 +112,27 @@ export interface RunArchiveUserResult {
 const CLI_CONCURRENCY = 20
 const CLI_DELAY_MS = 300
 const CLI_BURST = 8
+const FAST_CONCURRENCY = 32
+const FAST_DELAY_MS = 100
+const FAST_BURST = 16
+
+export interface CliTuning {
+  fast: boolean
+  concurrency: number
+  delayMs: number
+  burst: number
+}
+
+/** `--fast` 预设；显式 `--concurrency` / `--delay` / `--burst` 仍然优先。 */
+export function resolveCliTuning(args: Record<string, unknown>): CliTuning {
+  const fast = args.fast === true
+  return {
+    fast,
+    concurrency: parsePositiveInt(args.concurrency) ?? (fast ? FAST_CONCURRENCY : CLI_CONCURRENCY),
+    delayMs: parsePositiveInt(args.delay) ?? (fast ? FAST_DELAY_MS : CLI_DELAY_MS),
+    burst: parsePositiveInt(args.burst) ?? (fast ? FAST_BURST : CLI_BURST),
+  }
+}
 
 /**
  * 执行 `archive user` 的实际流程，供 citty 命令与测试复用。
@@ -199,13 +220,14 @@ export async function runArchiveUser(
       ...args,
       ...(args['env-file'] === undefined && typeof args.dotenv === 'string' ? { 'env-file': args.dotenv } : {}),
     }
-    const delay = parsePositiveInt(args.delay) ?? CLI_DELAY_MS
-    const burst = parsePositiveInt(args.burst) ?? CLI_BURST
+    const tuning = resolveCliTuning(args)
+    const { delayMs: delay, burst, concurrency } = tuning
     const requestedConcurrency = parsePositiveInt(args.concurrency)
-    const concurrency = requestedConcurrency ?? CLI_CONCURRENCY
     if (requestedConcurrency !== undefined && requestedConcurrency > MAX_USER_ARCHIVE_CONCURRENCY) {
       reporter.notice(`--concurrency ${requestedConcurrency} 超过上限 ${MAX_USER_ARCHIVE_CONCURRENCY}，使用 ${MAX_USER_ARCHIVE_CONCURRENCY}`)
     }
+    if (tuning.fast)
+      reporter.notice(`fast preset: concurrency=${concurrency} delay=${delay}ms burst=${burst}`)
 
     const telemetry: WeiboSDKTelemetry = {
       emit: (event) => {

@@ -326,6 +326,7 @@ const archive = defineCommand({
       type: 'string',
       description: '并发窗口（archive 默认 3；archive user 默认 20，上限 32）',
     },
+    'fast': { type: 'boolean', default: false, description: 'archive user：激进预设（concurrency 32 / delay 100ms / burst 16）' },
     'max-retries': {
       type: 'string',
       description: '可重试错误的最大重试次数（默认 1）',

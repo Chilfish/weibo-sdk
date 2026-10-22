@@ -1,6 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeArchiveUid, userArchiveOptionsFromArgs } from '~/cli/commands/archiveUser'
+import { normalizeArchiveUid, resolveCliTuning, userArchiveOptionsFromArgs } from '~/cli/commands/archiveUser'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
+
+describe('resolveCliTuning', () => {
+  it('defaultsToStandardPreset', () => {
+    expect(resolveCliTuning({})).toEqual({
+      fast: false,
+      concurrency: 20,
+      delayMs: 300,
+      burst: 8,
+    })
+  })
+
+  it('fastPresetUsesAggressiveValues', () => {
+    expect(resolveCliTuning({ fast: true })).toEqual({
+      fast: true,
+      concurrency: 32,
+      delayMs: 100,
+      burst: 16,
+    })
+  })
+
+  it('explicitValuesOverrideFastPreset', () => {
+    expect(resolveCliTuning({ fast: true, concurrency: '8', delay: '500', burst: '4' })).toEqual({
+      fast: true,
+      concurrency: 8,
+      delayMs: 500,
+      burst: 4,
+    })
+  })
+})
 
 describe('normalizeArchiveUid', () => {
   it('acceptsDigitsAndProfileUrls', () => {

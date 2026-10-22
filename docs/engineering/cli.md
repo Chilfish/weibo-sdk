@@ -393,6 +393,8 @@ weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 # 范围归档：指定时间段 + 单条深度补全，输出单个 JSON，可断点续跑
 weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
 weibo-cli archive user <uid> --no-comments --reposts --concurrency 6 --slice-days 30
+# 大范围 / 大账号：更激进的并发与限速（约 10 req/s，更容易触发 432）
+weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 --fast -o ./weibo-archive.json
 # 增量更新：已有输出文件作为基线，跑完合并写回
 weibo-cli archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json --merge
 

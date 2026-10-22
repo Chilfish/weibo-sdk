@@ -135,6 +135,7 @@ weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
 | `--reposts` / `--max-reposts` / `--max-repost-pages` | 转发列表与上限 |
 | `--slice-days` | 每 n 天一个枚举子任务，默认 30；`0` 不拆分 |
 | `--concurrency` | 补全并发；SDK 默认 6，CLI 默认 20，上限 32 |
+| `--fast` | 激进预设：`concurrency 32`、`delay 100ms`、`burst 16`；显式参数优先 |
 | `--delay` / `--burst` | 令牌桶补充间隔与容量；CLI 默认 300ms / 8，SDK 默认 1000ms / 3 |
 | `--log-format` | `pretty` / `ndjson` / `silent`；TTY 默认 pretty，管道 / CI 默认 ndjson |
 | `--no-progress` | pretty 下关闭动态状态块，只输出切片完成 / issue / 汇总 |
@@ -256,6 +257,20 @@ s014/30  enumerate/search  ██████░░░░ 3/10  tweets 142/6705 
 `missing` 只提示差异，不改变 `complete`：上游 `total` 可能包含已删除、不可见或受权限限制的微博。
 
 为了减少不必要的请求，`comments` 在 `tweet.stats.comments === 0` 时不发请求，`reposts` 在 `tweet.stats.reposts === 0` 时也不发请求。
+
+## 吞吐建议
+
+默认 `concurrency=20`、`delay=300`、`burst=8`，稳态约 3 req/s；`--fast` 提高到 `32 / 100 / 16`，稳态约 10 req/s。
+
+一条微博至少一次 `statuses/show`，再加上评论、转发、searchProfile 分页。1761 条大约是 2k 请求：默认档理论 10–12 分钟，`--fast` 理论 3–4 分钟；实际还受上游延迟、评论量和 432 影响。
+
+大账号（几万条）建议：
+
+- 按 1–3 个月拆成多个范围，每次输出独立文件；`--fast` 跑完后再用 `archive merge` 或在后一次加 `--merge` 合并。
+- 不要同时开多个进程归档同一个 Cookie：`searchProfile` 的 `page>1` 复用会话里最近一次 `page=1` 的窗口，并发会互相覆盖。分段是为了控制单次任务时长，不是为了并行。
+- 命中 432 时 SDK 会全局暂停并重试；`--fast` 更容易触发，若日志频繁出现 `rate limited`，退回默认档或调大 `--delay`。
+
+详情请求不能为了速度省掉：真实对比 `searchProfile` 列表项与 `statuses/show`，即使 `isLongText=false`，也可能差 `readCount`、`title`、`user`、`retweetedStatus` 等字段。评论 / 转发可以在 `stats` 为 0 时跳过，详情不行。
 
 ## 行为细节
 
