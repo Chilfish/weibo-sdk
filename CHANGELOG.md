@@ -6,6 +6,7 @@
 
 ### 新增
 
+- 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
 - `archive user` 归档吞吐与整体进度：CLI 默认 `--concurrency 20`、`--delay 300`、`--burst 8`；单条微博的详情、评论、转发改为并行请求，楼中楼按小并发展开。`searchProfile` 的 `total` 写入 `meta.totals`，通过 `UserArchiveProgress.overallTotal` 展示整体进度；`run()` 的 `summary.estimatedTotal` / `summary.coverage` 与 CLI `done` 摘要用于最终核对。
 - `archive user` 新增终端呈现选项：`--log-format pretty|ndjson|silent`、`--no-progress`、`--quiet`。TTY 下默认用一行原地刷新的状态（切片 / 页 / tweets / comments / replies / errors + 当前切片进度条）并追加切片完成与 issue 行；管道、CI、`TERM=dumb` 下继续输出 NDJSON。stdout 仍是一行 `done` JSON，数据契约不变。
 - 新增范围归档能力：`sdk.userArchive.run(uid, options)` 一次返回完整 `ArchiveFile`，`sdk.userArchive.stream(uid, options)` 产出 `meta` / `slice-start` / `record` / `issue` / `slice-done` / `done` 事件。按日期切片枚举，逐条重新拉取详情与长文，可补全一级评论、楼中楼和转发列表，支持 `UserArchiveStore` 断点续跑。CLI 对应 `weibo-cli archive user <uid>`，输出单个 JSON 与 `<out>.slices/` journal，参数覆盖 `--since/--until`、`--slice-days`、`--concurrency`、`--delay/--burst`、`--no-comments/--no-replies`、`--reposts`、各类 `--max-*`、`--raw`、`--fresh`。全量镜像命令 `weibo-cli archive <uid>` 保持不变。

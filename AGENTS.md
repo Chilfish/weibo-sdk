@@ -223,6 +223,9 @@ archived.file.complete
 // 或流式消费：meta / slice-start / record / issue / slice-done / done
 for await (const event of sdk.userArchive.stream(uid, { store })) { /* ... */ }
 
+// 合并同一账号的多份归档：mblogId 去重，评论 / 楼中楼 / 转发取并集
+const merged = mergeArchiveFiles([olderArchive, nextArchive]).file
+
 for await (const item of sdk.archive.streamArchive(uid, {
   includeLikes: true,
   includeCommentHistory: true,
@@ -276,6 +279,8 @@ weibo-cli notification comments-stream|likes-stream
 weibo-cli archive <uid> --likes --comment-history --images --videos
 weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 weibo-cli archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
+weibo-cli archive user <uid> --since 2026-04-01 --until 2026-06-30 -o ./weibo-archive.json --merge
+weibo-cli archive merge a.json b.json -o ./merged.json
 weibo-cli schema diff before.json after.json
 
 # 访客身份：任何命令都可以加 --guest，不读 .env

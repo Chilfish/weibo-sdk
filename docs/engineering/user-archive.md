@@ -158,6 +158,49 @@ weibo-archive-<uid>.json.raw.ndjson               可选的 raw sidecar（--raw�
 - stderr 的呈现按终端自动切换：TTY 下是一行原地刷新的状态 + 追加日志，管道 / CI 下是 NDJSON。`--log-format` 显式覆盖，`--no-progress` 关闭动态刷新，`--quiet` 静默。具体规则见 [cli.md 的「终端呈现」](./cli.md#终端呈现archive-user)。
 - 退出码：`0` 完整；`1` 枚举中止、存在未补全项或 raw 写入失败。
 
+## 合并归档
+
+增量归档的常见做法是「先跑一次较大的范围，之后每次只抓新增的一段」。每次运行都会产出一份完整的 `ArchiveFile`，所以合并可以放在文件层：
+
+```ts
+import { mergeArchiveFiles } from '@chilfish/weibo-sdk'
+
+const { file, deduped } = mergeArchiveFiles([older, newer])
+await writeFile('weibo-archive.json', JSON.stringify(file, null, 2))
+```
+
+也可以直接让 `archive user` 完成这件事：输出文件已存在时加 `--merge`，它会把旧文件当作基线，跑完再合并写回。
+
+```bash
+# 第一次：指定范围，正常产出
+weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
+
+# 之后：只抓新的一段，结果合并进同一个文件
+weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json --merge
+```
+
+如果两份归档各自独立，用 `archive merge`：
+
+```bash
+weibo-cli archive merge ./weibo-archive-2025.json ./weibo-archive-2026.json -o ./weibo-archive.json
+weibo-cli archive merge a.json b.json -o a.json --force   # 原地合并
+```
+
+合并规则：
+
+| 部分 | 规则 |
+|---|---|
+| 微博本体 | 同一个 `mblogId` 保留 issue 更少的一份；issue 相同时取媒体更多、正文更长、`generatedAt` 更新的一份 |
+| `comments` / `replies` | 按 id 并集；重复项保留楼中楼更多的一份，顺序沿用基准归档 |
+| `reposts` | 按 `mblogId` 并集 |
+| `query.range` | 取覆盖包络：最早的 `since`、最晚的 `until` |
+| `query.include*` | 取交集：所有输入都开启时才为 `true` |
+| `query.estimatedTotal` | 不写入合并结果。不同区间的总数既不能相加（重叠会翻倍）也不能取最大值 |
+| `errors` | 去重后保留；某个 `mblogId` 已在另一份归档里完整拿到时，视为已解决 |
+| `stats` / `complete` | 按合并结果重新计算；`complete` 等价于「没有遗留 issue」 |
+
+合并只接受同一 uid 的 `weibo-user-archive/v2` 文件，其他情况抛 `CONFIG_INVALID`。`query.range` 只是覆盖包络，不保证区间连续：两次归档中间如果跳过了一段，合并结果不会补上。合并是幂等的，同一份归档重复合并不会改变结果（`generatedAt` 除外）。
+
 ## 总数、进度与并发
 
 `searchProfile` 返回的 `total` 是当前日期窗口的条数。每个切片第一次拿到 `total` 时会写入 `meta.totals`，并通过 `UserArchiveProgress.overallTotal` 暴露为「已发现切片的总数之和」。多切片时这是一个逐步逼近的总数；单切片（`sliceDays: 0`）就是该范围的完整总数。

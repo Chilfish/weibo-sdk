@@ -393,6 +393,11 @@ weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 # 范围归档：指定时间段 + 单条深度补全，输出单个 JSON，可断点续跑
 weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
 weibo-cli archive user <uid> --no-comments --reposts --concurrency 6 --slice-days 30
+# 增量更新：已有输出文件作为基线，跑完合并写回
+weibo-cli archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json --merge
+
+# 合并同一账号的多份归档（mblogId 去重；评论 / 楼中楼 / 转发取并集）
+weibo-cli archive merge a.json b.json [-o merged.json] [--force]
 
 # 能力清单（离线；可按服务 / 状态过滤）
 weibo-cli capabilities [--service <name>] [--status stable|degraded|unavailable|planned]
@@ -432,9 +437,14 @@ weibo-cli schema diff before.json after.json
 > `archive user` 是范围归档 + 深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、
 > 一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，
 > 重跑同一命令会按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。
+> `--merge` 把已存在的输出文件当基线，在抓取前校验 uid / 格式，结束后合并写回。
 > stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。
 > 完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。
 > 详细参数、SDK 接口与 store 端口见 [user-archive.md](./user-archive.md)。
+>
+> `archive merge` 是纯本地操作，不请求微博：读入多份同账号归档，按 `mblogId` 合并后写出。
+> 输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。
+> 合并结果仍有未解决的 issue 时退出码为 1。规则见 [user-archive.md 的「合并归档」](./user-archive.md#合并归档)。
 
 CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
 
@@ -520,6 +530,7 @@ weibo-cli archive user 1111681197
 | `whoami` | `getSession()` + `users.getById()` | `User` 领域模型；`--guest` 时输出 `{ auth: 'guest', login: false, tokenIssuedAt, token: { issuedAt, scope, source } }` |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 | `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |
+| `archive merge` | `mergeArchiveFiles()` | 写入 `--out` 指定的合并结果；stdout 一行 `{ event: 'done', out, inputs, tweets, comments, replies, errors, complete, deduped }` |
 
 ## 架构
 
@@ -529,6 +540,7 @@ src/cli/
   shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file / --guest）
   commands/
     archiveUser.ts      # archive user：参数映射、输出文件、退出码
+    archiveMerge.ts     # archive merge：读取多份归档、合并、原子写入
     user.ts             # user info / timeline / mentions / groups
     tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
     follow.ts           # follow list / follow fans / follow my

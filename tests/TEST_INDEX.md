@@ -98,6 +98,8 @@
 | `unit/services/UserArchiveConfig.test.ts` | `buildUserArchiveConfig` / `validateUserArchiveResume` / `planUserArchiveSlices` | 默认值、日期范围解析、非负上限、并发 clamp、续跑 uid / 范围 / 选项 / 切片计划不一致 |
 | `unit/services/UserArchiveAssemble.test.ts` | `assembleUserArchive` / `dedupeUserArchiveRecords` | 按 `mblogId` 去重（issue 少 / 更晚写入优先）、时间倒序、评论 / 楼中楼统计、issue 去重、fatal / aborted 标记不完整、剥除 legacy raw |
 | `unit/services/UserArchiveComplete.test.ts` | `completeUserArchiveTweet` 内部并发 | 详情 / 评论 / 转发同时启动、楼中楼按小并发展开 |
+| `unit/services/UserArchiveMerge.test.ts` | `mergeArchiveFiles` | 跨归档按 `mblogId` 合并、评论 / 楼中楼 / 转发并集、取更完整正文、range 包络与开关交集、issue 解决判定、幂等 / 输入顺序无关、跨账号与非 v2 输入拒绝 |
+| `unit/cli/archiveMerge.test.ts` | `runArchiveMerge` / `readArchiveFile` | 多文件合并写盘、BOM 兼容、`--force` 覆盖保护、至少两份输入、缺失 / 非法 JSON 报 `CONFIG_INVALID` |
 | `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days |
 | `unit/cli/archiveUserStore.test.ts` | `FileUserArchiveStore` | meta / records / checkpoint / slice-done / issue 往返、截断行修复、meta schema 校验、`clear`、按切片过滤 |
 | `unit/cli/terminalReporter.test.ts` | `archive user` 终端呈现 | `--log-format` / TTY / CI / `TERM=dumb` / `NO_COLOR` 解析、NDJSON 兼容、pretty 行模式、单行状态原地刷新（不换行）、进度条保留、光标恢复 |

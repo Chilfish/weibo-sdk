@@ -204,6 +204,19 @@ await writeFile('weibo-archive.json', JSON.stringify(result.file, null, 2))
 weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-12-31 -o ./weibo-archive.json
 ```
 
+后续只抓新增的时间段时，用 `--merge` 把结果合并进同一份文件；也可以单独合并已有的归档：
+
+```ts
+import { mergeArchiveFiles } from '@chilfish/weibo-sdk'
+
+const { file } = mergeArchiveFiles([older, newer])
+```
+
+```bash
+weibo-cli archive merge older.json newer.json -o ./weibo-archive.json
+weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json --merge
+```
+
 ### 下载媒体
 
 ```ts
