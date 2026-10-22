@@ -21,7 +21,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/' },
       { text: 'API 参考', link: '/api/' },
       { text: 'CLI', link: '/cli/' },
-      { text: '契约与格式', link: '/reference/tweet-contract-v2' },
+      { text: '契约与格式', link: '/reference/tweet-contract' },
       {
         text: '链接',
         items: [
@@ -97,9 +97,9 @@ export default defineConfig({
             { text: '导出索引', link: '/api/types/' },
             { text: '领域模型', link: '/api/types/domain' },
             { text: '微博上下文', link: '/api/types/tweet-context' },
-            { text: '归档与 Journal', link: '/api/types/archive' },
+            { text: '归档与续跑', link: '/api/types/archive' },
             { text: '配置与扩展', link: '/api/types/config' },
-            { text: '实验性原始类型', link: '/api/types/experimental-raw' },
+            { text: '原始响应类型', link: '/api/types/raw' },
           ],
         },
       ],
@@ -115,8 +115,8 @@ export default defineConfig({
         {
           text: '契约与格式',
           items: [
-            { text: 'ITweet 契约 v2', link: '/reference/tweet-contract-v2' },
-            { text: '归档格式 v2', link: '/reference/archive-format-v2' },
+            { text: 'ITweet 契约', link: '/reference/tweet-contract' },
+            { text: '归档格式', link: '/reference/archive-format' },
             { text: '范围归档', link: '/reference/user-archive' },
             { text: '媒体下载', link: '/reference/media-download' },
           ],

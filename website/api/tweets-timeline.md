@@ -7,18 +7,20 @@ outline: deep
 
 用户时间线、首页关注时间线、日期检索与原始页。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `fetchRawUserTimelinePage(uid, page?, count?)` | `MyMblogResponse` | `page` | 第一页 | 实验性 |
-| `listByUserId(uid, options?)` | `TweetPageResult` | `page` | 第一页 | 稳定 |
-| `streamByUserId(uid, options?)` | `ITweet` 流 | `page` | 第一页 | 稳定 |
-| `listFriendTimeline(options?)` | `TweetPageResult` | `maxId` | 需 Cookie | 稳定 |
-| `streamFriendTimeline(options?)` | `ITweet` 流 | `maxId` | 需 Cookie | 稳定 |
-| `searchByDate(uid, options?)` | `SearchProfileResponse` | `page` | 需 Cookie | 实验性 |
+| 方法 | 返回 | 分页 | 访客 |
+|---|---|---|---|
+| `fetchRawUserTimelinePage(uid, page?, count?)` | `MyMblogResponse` | `page` | 第一页 |
+| `listByUserId(uid, options?)` | `TweetPageResult` | `page` | 第一页 |
+| `streamByUserId(uid, options?)` | `ITweet` 流 | `page` | 第一页 |
+| `listFriendTimeline(options?)` | `TweetPageResult` | `maxId` | 需 Cookie |
+| `streamFriendTimeline(options?)` | `ITweet` 流 | `maxId` | 需 Cookie |
+| `searchByDate(uid, options?)` | `SearchProfileResponse` | `page` | 需 Cookie |
+
+访客只拿到 m 站第一页，`page > 1` 抛 `CONFIG_INVALID`；首页时间线与日期检索需要 Cookie。详见 [访客限制](/guide/limitations)。
 
 ## `fetchRawUserTimelinePage(uid, page?, count?)`
 
-拉取 `mymblog` 原始页。归档层用它生成 `schemaDigest`；日常读取用 `listByUserId` / `streamByUserId`。
+拉取 `mymblog` 原始页，返回上游原始响应；需要归一化字段时用 `listByUserId` / `streamByUserId`。归档层用它生成 `schemaDigest`。
 
 ## `listByUserId(uid, options?)`
 
@@ -40,8 +42,7 @@ interface TweetPageResult {
 }
 ```
 
-- 广告（`isAd`）会被过滤；`hasMore` 依据过滤后是否有内容，不依赖 `total`。
-- 访客只返回 m 站第一页；`page > 1` 抛 `CONFIG_INVALID`。
+广告（`isAd`）会被过滤；`hasMore` 依据过滤后是否有内容，与 `total` 无关。
 
 ## `streamByUserId(uid, options?)`
 
@@ -73,7 +74,7 @@ for await (const tweet of sdk.tweets.streamByUserId('1111681197', {
 | `count` | `number` | 上游实测忽略 |
 | `refresh` | `number` | 刷新标记，透传 |
 
-`hasMore` 依据「本页非空 + 游标存在且前进」判断；`total_number` 是约 2000 的上限值，不代表剩余条数。
+`hasMore` 依据「本页非空 + 游标存在且前进」判断；`total_number` 是约 2000 的上限值，与剩余条数无关。
 
 ## `streamFriendTimeline(options?)`
 
@@ -92,7 +93,7 @@ for await (const tweet of sdk.tweets.streamFriendTimeline({ sinceId: lastSeenId 
 
 ## `searchByDate(uid, options?)`
 
-个人主页内按日期/关键词检索（`searchProfile`），返回原始响应：
+个人主页内按日期/关键词检索（`searchProfile`），返回上游原始响应：
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
@@ -103,7 +104,7 @@ for await (const tweet of sdk.tweets.streamFriendTimeline({ sinceId: lastSeenId 
 
 非法日期抛 `CONFIG_INVALID`。`data.total` 可能是 `number | string`，调用方自行解析。
 
-> 上游注意：`page > 1` 会复用最近一次 `page=1` 的日期窗口。并发请求不同区间会互相覆盖，归档层因此串行枚举日期切片。
+> 上游行为：`page > 1` 会复用最近一次 `page=1` 的日期窗口，并发请求不同区间会互相覆盖。归档层因此串行枚举日期切片。
 
 ## CLI
 

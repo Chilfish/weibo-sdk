@@ -5,15 +5,14 @@ outline: deep
 
 # 媒体下载（单条微博）
 
-> 适用范围：Node 环境；`sdk.media.downloadTweetMedia` / `downloadByMblogId` 与 `weibo-cli media download <mblogId>`。
-> 契约关系：不改变 `ITweet` / `ArchiveItem`；归档流仍不自动下载媒体（见 [ITweet 契约 v2](/reference/tweet-contract-v2) §7）。
+`sdk.media.downloadTweetMedia` / `downloadByMblogId` 与 `weibo-cli media download <mblogId>` 在 Node 环境中把一条微博的媒体文件下载到本地。范围限于单条微博，`ITweet` / `ArchiveItem` 的形状保持不变；归档流只记录媒体 URL，落盘由显式调用触发（见 [ITweet 存档契约](/reference/tweet-contract) §6）。
 
 ## 1. 行为
 
-- 输入：一条已归一化微博（或 `mblogId`，SDK 会先拉详情，`isGetLongText: false`）。
-- 媒体来源：`tweet.media`；若为空且存在 `retweetedStatus.media`，使用被转发原微博的媒体（仍用外层 `mblogId` 命名）。
+- 输入：一条已归一化微博，或一个 `mblogId`（SDK 先拉详情，`isGetLongText: false`）。
+- 媒体来源：`tweet.media`；该数组为空且存在 `retweetedStatus.media` 时，使用被转发原微博的媒体，命名仍用外层 `mblogId`。
 - 类型：`pic` / `gif` / `unknown` 取 `imageUrl`；`video` 取 `videoUrl`；`livephoto` 同时下载 `imageUrl`（静态帧）与 `videoUrl`（动态帧）。
-- 不下载：视频封面、`pageInfo.pagePic`、`retweetedStatus` 中自有媒体之外的内容。
+- 落盘范围仅限上述媒体条目；视频封面与 `pageInfo.pagePic` 只保留 URL。
 
 ## 2. 落盘命名
 
@@ -25,13 +24,13 @@ outline: deep
 <out>/<mblogId>-media-errors.json                # 仅在失败时
 ```
 
-- `index` 为原始 `tweet.media` 的 1-based 位置（补零两位）；过滤后允许编号空档，保证同一媒体每次同名。
-- 扩展名：`Content-Type` → URL 后缀 → 媒体类型默认值。
-- 文件名片段替换 Windows 非法字符、规避 `CON`/`NUL` 等保留名，并截断到 60 字符。
+- `index` 为原始 `tweet.media` 的 1-based 位置（补零两位）；过滤后编号可以出现空档，保证同一媒体每次落盘同名。
+- 扩展名按 `Content-Type` → URL 后缀 → 媒体类型默认值依次确定。
+- 文件名片段替换 Windows 非法字符，规避 `CON` / `NUL` 等保留名，并截断到 60 字符。
 
 ## 3. 去重与跳过
 
-顺序：
+判断顺序：
 
 1. `include` 之外 → `filtered-out`。
 2. URL 为空 → `no-url`。
@@ -42,22 +41,22 @@ outline: deep
 
 ## 4. 安全
 
-- 媒体 CDN 请求只带 `Referer`（默认 `https://weibo.com/`）、`User-Agent`、`Accept`、`Accept-Encoding: identity`。
-- **不携带 Cookie / X-XSRF-TOKEN**；不复用 API 的 axios 实例或令牌桶。
+- 媒体 CDN 请求头固定为 `Referer`（默认 `https://weibo.com/`）、`User-Agent`、`Accept`、`Accept-Encoding: identity`。Cookie 与 `X-XSRF-TOKEN` 只在 API 请求中使用。
+- 下载器使用独立的 HTTP 客户端，与 API 的 axios 实例和令牌桶分开。
 - 主机后缀白名单默认：`sinaimg.cn` / `sina.com.cn` / `weibo.com` / `weibo.cn` / `weibocdn.com` / `wbimg.cn` / `weiboimg.cn`。
-- 重定向逐跳校验协议与主机；未知主机直接拒绝。
-- 拒绝 `text/html` / `text/plain` / `application/json` / `application/xml` 响应。
+- 重定向逐跳校验协议与主机，白名单外的主机直接拒绝。
+- `text/html` / `text/plain` / `application/json` / `application/xml` 响应按错误处理。
 
-## 5. 稳定性
+## 5. 下载可靠性
 
-- 流式写盘 + 背压；临时文件写入目标同目录，成功后原子 `rename`，失败/取消删除临时文件。
+- 流式写盘 + 背压；临时文件写入目标同目录，成功后原子 `rename`，失败或取消时删除临时文件。
 - 单文件 `maxBytes`（默认 512MiB）；`Content-Length` 超限直接失败。
-- 空闲超时（默认 20s）：长时间无数据则中止并可重试。
-- `Content-Length` 校验（截断）与 0 字节检查。
+- 空闲超时（默认 20s）：长时间无数据则中止，并按可重试错误处理。
+- 校验 `Content-Length`（截断）与 0 字节响应。
 - 重试：408 / 429 / 5xx / 超时 / 连接错误 / 截断 / 空响应；指数退避 + jitter，复用 `RetryPolicy`。
-- URL 过期：403/404/410 时重新拉取该微博换新 URL；记忆化 Promise 保证每条微博最多一次刷新，且不重置重试预算。
-- 存储错误（`ENOSPC/EACCES/EPERM/EBUSY`）标记 fatal，停止调度后续媒体；已完成文件保留。
-- 取消：`signal` / CLI `SIGINT` 中止在途下载、清理临时文件，不写失败清单。
+- URL 过期：403/404/410 时重新拉取该微博换新 URL；记忆化 Promise 保证每条微博最多刷新一次，且不重置重试预算。
+- 存储错误（`ENOSPC` / `EACCES` / `EPERM` / `EBUSY`）标记 fatal，停止调度后续媒体，已完成文件保留。
+- 取消：`signal` / CLI `SIGINT` 中止在途下载、清理临时文件，原有失败清单保留。
 
 ## 6. 错误码
 
@@ -69,8 +68,7 @@ outline: deep
 
 ## 7. 失败清单
 
-> `totals` 恒满足 `downloaded + skipped + failed + planned === total`。`planned` 是仅规划、未执行的条目数：
-> dry-run 下等于待下载项，`failFast` 中止后等于未尝试项。
+`totals` 满足 `downloaded + skipped + failed + planned === total`。`planned` 是规划后未执行的条目数：dry-run 下等于待下载项，`failFast` 中止后等于未尝试项。
 
 `<out>/<mblogId>-media-errors.json`：
 
@@ -101,11 +99,11 @@ outline: deep
 }
 ```
 
-无失败时删除同名旧清单；`dryRun` 不写清单。
+无失败时移除同名旧清单。`dryRun` 只输出规划结果，清单在真正执行时才写。
 
 ## 8. 已知限制
 
-- 不做断点续传；重跑依赖 `exists` 跳过。
-- 不提供视频多清晰度选择：`ITweet` 只保留最优 `videoUrl`。
-- 不自动清理历史文件（上游媒体顺序变化会导致旧文件名残留）。
-- 媒体 URL 是临时签名 URL；请及时下载，过期后依赖刷新或重新运行。
+- 重跑时按 `exists` 跳过已存在的文件，未完成项重新下载。
+- `ITweet` 只保留最优 `videoUrl`，视频按该地址对应的清晰度下载。
+- 上游媒体顺序变化会产生新文件名，旧文件留在磁盘上，需要手工清理。
+- 媒体 URL 是临时签名 URL，归档时同步下载；过期后由下载器重新拉取微博换新地址，或重新运行命令。

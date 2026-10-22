@@ -5,11 +5,13 @@ outline: deep
 
 # trends
 
-热搜 / 话题 / 文娱榜单。
+热搜、话题与文娱榜单。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `hotBand(type?)` | `BandUnifiedResponse` | — | 可用 | 实验性 |
+| 方法 | 返回 | 分页 |
+|---|---|---|
+| `hotBand(type?)` | `BandUnifiedResponse` | 无 |
+
+访客可读取三个榜单，边界见 [范围与限制](/guide/limitations)。
 
 ## `hotBand(type = 'hot')`
 
@@ -23,7 +25,7 @@ const entertainment = await sdk.trends.hotBand('entertainment')
 |---|---|---|
 | `type` | `'hot' \| 'topic' \| 'entertainment'` | 默认 `'hot'` |
 
-返回上游原始响应（实验性），字段未归一化；需要稳定字段时请自行映射并接受上游漂移风险。
+返回上游原始响应，字段未归一化。
 
 ## CLI
 

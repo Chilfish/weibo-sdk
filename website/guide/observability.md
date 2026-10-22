@@ -18,11 +18,11 @@ const sdk = new WeiboSDK({
 })
 ```
 
-`telemetry.emit()` 抛错不会影响 SDK 业务。
+`telemetry.emit()` 的异常会被吞掉，不影响业务。
 
 ## 原始响应
 
-`ArchiveItem` 不携带 raw。需要原始 JSON 时用 hook：
+需要原始 JSON 时使用 `hooks.onRaw`：
 
 ```ts
 const sdk = new WeiboSDK({
@@ -34,13 +34,15 @@ const sdk = new WeiboSDK({
 })
 ```
 
-单条微信也可以直接拿 raw：
+单条微博也可以直接取 raw：
 
 ```ts
 const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', {
   includeLongText: true,
 })
 ```
+
+`ArchiveItem` 只包含归一化数据；归档 raw 由调用方通过 `hooks.onRaw` 或 `streamArchive({ onRaw })` 保存。
 
 ## JSONL 遥测
 
@@ -54,11 +56,11 @@ const sdk = new WeiboSDK({
 })
 ```
 
-CLI 的 `archive` / `archive user` 内部也用这套事件生成 `progress` / `done`。
+CLI 的 `archive` / `archive user` 使用同一套事件生成 `progress` / `done`。
 
 ## 分级日志
 
-日志默认关闭，SDK 不产生 console / 文件 IO。需要时显式接入：
+日志默认关闭。需要时显式接入：
 
 ```ts
 import { appendFileSync } from 'node:fs'
@@ -84,9 +86,8 @@ const sdk = new WeiboSDK({
 - `createConsoleLogger`：默认 stderr，单行 JSON。
 - `createJsonlLogger`：写入调用方提供的流。
 - `createLoggerPlugin`：把插件事件接入同一套 logger。
-- 内置 sink 默认替换 Cookie / token 等敏感字段。
+- 内置 sink 会把 Cookie / token 等敏感字段替换为 `[redacted]`。
 
-## 日志与 stdout 的边界
+## stdout 与日志
 
-- SDK 不写 stdout / stderr（除非显式接入 logger）。
-- CLI 的数据输出（JSON / NDJSON）不经过 logger，不会被日志污染。
+CLI 的数据输出写 stdout（JSON / NDJSON），日志写 stderr，管道只拿到数据。SDK 只在配置了 logger 后产生日志输出。

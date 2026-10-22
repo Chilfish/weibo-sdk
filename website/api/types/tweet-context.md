@@ -7,12 +7,9 @@ outline: deep
 
 `sdk.tweets.context()` 的返回结构，schema 标识 `weibo.tweet-context/v1`。
 
-与 `ITweet` 的区别：
+`ITweet` 记录微博本体，作为存档模型；`ITweetContext` 是面向阅读和 Agent 的确定性投影，回答：谁说的、什么时候、作者本人说了什么、配了什么、和谁有关、别人怎么反应、哪些信息缺失。
 
-- `ITweet` 忠实记录微博，作为存档终局契约；
-- `ITweetContext` 是确定性投影，回答「理解这条微博需要什么」：谁说的、什么时候、作者本人说了什么、配了什么、和谁有关、别人怎么反应、哪些是未知。
-
-不调用任何 LLM，也不做总结。
+上下文只包含抓取到的事实；OCR、视觉描述和视频转写由调用方补充。
 
 ## 顶层字段
 
@@ -20,12 +17,12 @@ outline: deep
 |---|---|---|
 | `schema` | `'weibo.tweet-context/v1'` | 结构版本 |
 | `post` | `TweetContextPost` | 当前作者本人的发言与元信息 |
-| `media` | `TweetContextMedia[]` | **当前微博自己**的媒体（原微博在 `quoted.media`） |
-| `quoted` | `ITweetContext?` | 转发的原微博（默认只展开一层） |
-| `repostChain` | `TweetContextRepostEntry[]?` | 拍平的转发链分层 |
+| `media` | `TweetContextMedia[]` | 当前微博自己的媒体；原微博媒体在 `quoted.media` |
+| `quoted` | `ITweetContext?` | 转发的原微博（默认展开一层） |
+| `repostChain` | `TweetContextRepostEntry[]?` | 转发链分层 |
 | `discussion` | `TweetContextComment[]?` | 抽样评论 |
 | `provenance` | `TweetContextProvenance` | 抓取时间、来源、抽样数、鉴权模式 |
-| `unknowns` | `string[]` | 显式未知项（图片未描述、视频未转写、正文可能截断、评论为抽样等） |
+| `unknowns` | `string[]` | 缺失项（图片未描述、视频未转写、正文可能截断、评论为抽样等） |
 | `hints` | `string[]` | 确定性提示（长图、图集、广告、媒体归属等） |
 
 ## `post`
@@ -33,7 +30,7 @@ outline: deep
 | 字段 | 说明 |
 |---|---|
 | `kind` | `'original'` / `'repost'` |
-| `text` | 当前作者本人正文；转发不会拍平 `//@` 链 |
+| `text` | 当前作者本人正文；转发链在 `repostChain` |
 | `createdAt` / `publishedAt` / `publishedAtLocal` | 原始时间与 ISO |
 | `url` | 微博永久链接 |
 | `author` | `TweetContextAuthor`：id / name / 认证 / 简介 / 粉丝数 / 关注关系 |
@@ -51,7 +48,7 @@ outline: deep
 | `mediaId` | 媒体 id |
 | `owner` | `{ mblogId, relation: 'self' \| 'quoted' }` |
 | `type` | `pic` / `gif` / `livephoto` / `video` / `unknown` |
-| `url` / `coverUrl` | 主资源与封面；**临时签名 URL** |
+| `url` / `coverUrl` | 主资源与封面；短期签名 URL |
 | `width` / `height` / `aspectRatio` / `duration` | 尺寸与时长 |
 | `temporary` | 恒为 `true`，提示及时下载 |
 | `hints` | 长图、图集、需要转写等 |
@@ -61,7 +58,7 @@ outline: deep
 
 `TweetContextKind`、`TweetContextVisibility`、`TweetContextAuthor`、`TweetContextStats`、`TweetContextFlags`、`TweetContextMediaRelation`、`TweetContextMediaDownload`、`TweetContextMedia`、`TweetContextLink`、`TweetContextRepostEntry`、`TweetContextComment`、`TweetContextAttachmentKind`、`TweetContextAttachment`、`TweetContextPost`、`TweetContextProvenance`。
 
-## 使用建议
+## 使用示例
 
 ```ts
 const context = await sdk.tweets.context(id, { comments: 5 })
@@ -70,8 +67,8 @@ const context = await sdk.tweets.context(id, { comments: 5 })
 const local = context.media.find(m => m.download?.status === 'downloaded')
 if (local?.download) readFile(local.download.path)
 
-// 边界：把未知项显式交给下游
+// 边界：把缺失项显式交给下游
 console.log(context.unknowns)
 ```
 
-CLI 的 `weibo-cli tweet context` 会输出 Markdown 卡片；`--download-media <dir>` 会回填 `download.path`。
+CLI 的 `weibo-cli tweet context` 输出 Markdown 卡片；`--download-media <dir>` 会回填 `download.path`。

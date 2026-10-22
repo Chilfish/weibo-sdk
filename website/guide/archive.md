@@ -4,12 +4,12 @@ title: 归档账号
 
 # 归档账号
 
-归档有三条路径，语义不同：
+归档有三条路径：
 
 | 入口 | 用途 | 输出 |
 |---|---|---|
-| `sdk.archive.streamArchive(uid)` | 全量镜像流：时间线、转发、收藏、点赞、历史评论、图片墙、视频 | `ArchiveItem` 流，带 checkpoint |
-| `sdk.userArchive.run/stream(uid)` | 指定时间段 + 深度补全（详情 / 长文 / 评论 / 楼中楼 / 转发） | `ArchiveFile` 或事件流 |
+| `sdk.archive.streamArchive(uid)` | 全量镜像：时间线、转发、收藏、点赞、历史评论、图片墙、视频 | `ArchiveItem` 流，带 checkpoint |
+| `sdk.userArchive.run/stream(uid)` | 指定时间段，补全详情 / 长文 / 评论 / 楼中楼 / 转发 | `ArchiveFile` 或事件流 |
 | `mergeArchiveFiles(files)` | 合并同一账号的多份归档 | 新的 `ArchiveFile` |
 
 ## 全量镜像流
@@ -30,13 +30,13 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 }
 ```
 
-`item.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image`、`video`。图片项可能没有 `tweet`，只有 `asset`。
+`item.source` 取值：`timeline`、`repost`、`favorite`、`like`、`comment`、`image`、`video`。图片项可能只有 `asset`，没有 `tweet`。
 
-### 续跑语义
+### 续跑
 
-- **at-least-once**：`checkpoint` 记录最后一条已完整处理的项；中断后重跑可能重复边界 1 条。
-- 图片墙 / 视频瀑布按整页写回游标，续跑会重放整页。
-- 消费端按 `mblogId`（媒体按 `asset.id`）幂等去重。
+- at-least-once：`checkpoint` 记录最后一条已完整处理的项；中断后重跑，边界可能重复 1 条。
+- 图片墙 / 视频瀑布按整页写回游标，续跑时重放整页。
+- 消费端按 `mblogId`（媒体按 `asset.id`）做幂等去重。
 
 ```ts
 let checkpoint = await loadCheckpoint() // 上次保存的值；首次为 undefined
@@ -50,11 +50,11 @@ for await (const item of sdk.archive.streamArchive(uid, { checkpoint })) {
 
 ### 账号级数据
 
-`includeFavorites` 与 `includeCommentHistory` 只读取 Cookie 对应的登录账号；归档其他 uid 会抛 `CONFIG_INVALID`。`includeLikes` 按目标 uid 读取。
+`includeFavorites` 与 `includeCommentHistory` 读取 Cookie 对应的登录账号；归档其他 uid 时返回 `CONFIG_INVALID`。`includeLikes` 按目标 uid 读取。
 
-### 首页并发
+### 页内并发
 
-页内请求默认并发预取（评论链 / 转发首页，`concurrency: 3`，范围 1–8）。分页、产出顺序与 checkpoint 不变；`concurrency: 1` 回到完全串行。
+评论链和转发首页按 `concurrency` 并发预取，默认 3，范围 1–8。分页、产出顺序与 checkpoint 不受影响；`concurrency: 1` 时完全串行。
 
 ## 范围归档
 
@@ -91,7 +91,7 @@ for await (const event of sdk.userArchive.stream(uid, { store })) {
 
 ### Store 端口
 
-SDK 不碰文件系统。要续跑就实现 `UserArchiveStore`（内存 / IndexedDB / SQLite / S3 均可）：
+续跑状态由 `UserArchiveStore` 承载，SDK 把读写交给调用方：
 
 ```ts
 interface UserArchiveStore {
@@ -124,7 +124,7 @@ const { file } = mergeArchiveFiles([older, newer])
 - 评论 / 楼中楼 / 转发按 id 取并集；
 - `query.range` 合并为覆盖包络（中间可能有空洞）；
 - `stats` / `complete` 重新计算；
-- 已解决的 issue 不会永久残留。
+- 已解决的 issue 会移除。
 
 ## CLI
 

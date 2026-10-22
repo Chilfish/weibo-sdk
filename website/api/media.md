@@ -7,19 +7,21 @@ outline: deep
 
 图片墙、视频瀑布、相册与媒体下载。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `fetchRawImagePage(uid, options?)` | `ImageWallResponse` | `since_id` | 可用 | 实验性 |
-| `fetchRawVideoPage(uid, options?)` | `WaterfallResponse` | `cursor` | 可用 | 实验性 |
-| `listAlbums(uid)` | `AlbumListResult` | — | 可用 | 稳定 |
-| `listAlbumPhotos(containerId, options?)` | `AlbumPhotoPageResult` | `since_id` | 可用 | 稳定 |
-| `streamAlbumPhotos(containerId, options?)` | `IUserMediaAsset` 流 | `since_id` | 可用 | 稳定 |
-| `listImages(uid, options?)` | `ImageWallPageResult` | `since_id` | 可用 | 稳定 |
-| `streamImages(uid, options?)` | `IUserMediaAsset` 流 | `since_id` | 可用 | 稳定 |
-| `listVideos(uid, options?)` | `VideoWaterfallPageResult` | `cursor` | 可用 | 稳定 |
-| `streamVideos(uid, options?)` | `IUserMediaAsset` 流 | `cursor` | 可用 | 稳定 |
-| `downloadTweetMedia(tweet, options)` | `TweetMediaDownloadResult` | — | 可用 | 稳定 |
-| `downloadByMblogId(mblogId, options)` | `TweetMediaDownloadResult` | — | 可用 | 稳定 |
+| 方法 | 返回 | 分页 |
+|---|---|---|
+| `fetchRawImagePage(uid, options?)` | `ImageWallResponse` | `since_id` |
+| `fetchRawVideoPage(uid, options?)` | `WaterfallResponse` | `cursor` |
+| `listAlbums(uid)` | `AlbumListResult` | 无 |
+| `listAlbumPhotos(containerId, options?)` | `AlbumPhotoPageResult` | `since_id` |
+| `streamAlbumPhotos(containerId, options?)` | `IUserMediaAsset` 流 | `since_id` |
+| `listImages(uid, options?)` | `ImageWallPageResult` | `since_id` |
+| `streamImages(uid, options?)` | `IUserMediaAsset` 流 | `since_id` |
+| `listVideos(uid, options?)` | `VideoWaterfallPageResult` | `cursor` |
+| `streamVideos(uid, options?)` | `IUserMediaAsset` 流 | `cursor` |
+| `downloadTweetMedia(tweet, options)` | `TweetMediaDownloadResult` | 无 |
+| `downloadByMblogId(mblogId, options)` | `TweetMediaDownloadResult` | 无 |
+
+访客可读取图片墙、视频与相册，分页完整，边界见 [范围与限制](/guide/limitations)。
 
 ## 图片墙
 
@@ -43,7 +45,7 @@ for await (const asset of sdk.media.streamImages(uid, { maxPages: 3 })) {
 
 ### `fetchRawImagePage(uid, options?)`
 
-未归一化的图片墙响应，归档层用于 `schemaDigest`。
+返回上游原始响应；需要归一化字段时用 [`listImages`](#listimages-uid-options)。归档层用它生成 `schemaDigest`。
 
 ## 视频瀑布
 
@@ -53,11 +55,11 @@ for await (const asset of sdk.media.streamImages(uid, { maxPages: 3 })) {
 
 ### `streamVideos(uid, options?)`
 
-与 `streamImages` 相同的选项与停止条件。
+选项与停止条件同 `streamImages`。
 
 ### `fetchRawVideoPage(uid, options?)`
 
-未归一化的视频瀑布响应。
+返回上游原始响应；需要归一化字段时用 [`listVideos`](#listvideos-uid-options)。
 
 ## 相册
 
@@ -82,7 +84,7 @@ const { albums } = await sdk.media.listAlbums(uid)
 
 ### `downloadTweetMedia(tweet, options)`
 
-传入已归一化的 `ITweet`，避免再次请求详情：
+传入已归一化的 `ITweet`，省掉一次详情请求：
 
 ```ts
 const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
@@ -101,12 +103,10 @@ const result = await sdk.media.downloadByMblogId('QqsYymYOS', {
 
 选项与结果字段见 [下载媒体](/guide/media)。
 
-## 访客与边界
+## 边界
 
-- 图片墙 / 视频 / 相册访客可用且可完整分页。
-- 媒体 URL 是短期签名地址，约一小时后失效。
-- 下载器只带 Referer，不带 Cookie，并限制允许的媒体主机。
-- `fetchRaw*` 返回原始形状，实验性。
+- 媒体 URL 是短期签名地址，约一小时后失效，归档时及时下载。
+- 下载器的 CDN 请求只带 `Referer`（默认 `https://weibo.com/`），主机按 [白名单](/reference/media-download) 校验。
 
 ## CLI
 

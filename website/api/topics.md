@@ -7,11 +7,13 @@ outline: deep
 
 超话分类、列表与关键词搜索。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `cates()` | `SuperTopicCategory[]` | — | 可用 | 稳定 |
-| `list(options?)` | `SuperTopicPageResult` | `page` | 可用 | 稳定 |
-| `stream(options?)` | `SuperTopic` 流 | `page` | 可用 | 稳定 |
+| 方法 | 返回 | 分页 |
+|---|---|---|
+| `cates()` | `SuperTopicCategory[]` | 无 |
+| `list(options?)` | `SuperTopicPageResult` | `page` |
+| `stream(options?)` | `SuperTopic` 流 | `page` |
+
+访客可读取分类与列表并完整分页，边界见 [范围与限制](/guide/limitations)。
 
 ## `cates()`
 
@@ -32,7 +34,7 @@ const cates = await sdk.topics.cates()
 | `keyword` | `string` | 关键词搜索（非空时按关键词） |
 | `page` | `number` | 页码，从 1 开始 |
 
-返回 `{ page, hasMore, totalPages?, topics: SuperTopic[] }`，本页按 `pageId` 去重。
+返回 `{ page, hasMore, totalPages?, topics: SuperTopic[] }`，当前页结果按 `pageId` 去重。
 
 ## `stream(options?)`
 

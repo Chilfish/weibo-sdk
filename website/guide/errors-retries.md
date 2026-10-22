@@ -17,22 +17,22 @@ class WeiboSDKError extends Error {
 }
 ```
 
-优先判断 `code`，不要匹配 `message`。`context` 用于排障，不包含 Cookie 明文。
+判断 `error.code`；`message` 会随上游文案变化。`context` 用于排障，包含端点、参数和截断后的响应片段。
 
-## 错误码
+## 常用错误码
 
-| code | 类 | level | retryable | 含义与处理 |
-|---|---|---|---|---|
-| `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | false | Cookie 缺失 / 过期；访客下表示该能力需要登录（`context.requiredAuth === 'cookie'`） |
-| `RATE_LIMITED` | `RateLimitError` | transport | true | HTTP 432 / 429；SDK 自动退避并暂停令牌桶 |
-| `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | true | 请求超时 |
-| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | true | DNS / 连接失败 / 非 2xx |
-| `API_NOT_OK` | `WeiboAPINotOkError` | business | false | 微博返回 `ok !== 1` |
-| `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | false | 非 JSON（登录页 / 风控页）或 schema 不匹配 |
-| `CONFIG_INVALID` | `InvalidConfigError` | business | false | Cookie、代理或参数不合法 |
-| `MEDIA_DOWNLOAD_FAILED` | `MediaDownloadError` | transport | true | CDN 5xx / 429 / 超时 / 截断 |
-| `MEDIA_BAD_RESPONSE` | `MediaInvalidResponseError` | protocol | false | HTML 错误页、类型不符、超字节上限 |
-| `MEDIA_STORAGE_FAILED` | `MediaStorageError` | storage | false | 本地落盘失败（ENOSPC / EACCES 等） |
+| code | level | 可重试 | 含义 |
+|---|---|---|---|
+| `AUTH_SESSION_EXPIRED` | business | 否 | Cookie 缺失或过期；访客下表示该能力需要登录 |
+| `RATE_LIMITED` | transport | 是 | HTTP 432 / 429 |
+| `NET_TIMEOUT` | transport | 是 | 请求超时 |
+| `NET_REQUEST_FAILED` | transport | 是 | DNS、连接失败或非 2xx |
+| `API_NOT_OK` | business | 否 | 微博返回 `ok !== 1` |
+| `API_BAD_RESPONSE` | protocol | 否 | 非 JSON（登录页 / 风控页）或 schema 不匹配 |
+| `CONFIG_INVALID` | business | 否 | Cookie、代理或参数不合法 |
+| `MEDIA_*` | transport / protocol / storage | 视情况 | 媒体下载失败 |
+
+完整列表与排查步骤见 [故障排查](/reference/troubleshooting)。
 
 ## 重试策略
 
@@ -49,10 +49,10 @@ new WeiboSDK({
 })
 ```
 
-- `retries` 默认 2，上限 10；`retryOn: []` 等价于不重试。
-- 4xx、`ok !== 1`、schema 失败不会重试。
+- `retries` 默认 2，上限 10；`retryOn: []` 表示不重试。
+- 4xx、`ok !== 1`、schema 校验失败直接返回错误。
 - 432 / 429 会解析 `Retry-After`，并暂停全局令牌桶（含并发请求）。
-- 媒体下载有独立重试：`retries` / `timeoutMs` / `idleTimeoutMs`，见 [下载媒体](/guide/media)。
+- 媒体下载有独立重试参数，见 [下载媒体](/guide/media)。
 
 ## 分类处理示例
 
@@ -68,7 +68,7 @@ catch (error) {
       // 重新导出 Cookie；访客模式下检查 context.requiredAuth
       break
     case 'RATE_LIMITED':
-      // 让 SDK 退避；不要绕开限流
+      // 交给 SDK 退避
       break
     case 'NET_TIMEOUT':
     case 'NET_REQUEST_FAILED':
@@ -85,7 +85,7 @@ catch (error) {
 
 ## CLI 错误输出
 
-CLI 把错误写到 stderr 并以非零退出码结束，stdout 不会混入错误：
+CLI 把错误写到 stderr，以非零退出码结束，stdout 只保留命令结果：
 
 ```json
 {"code":"AUTH_SESSION_EXPIRED","level":"business","retryable":false,"message":"...","context":{}}

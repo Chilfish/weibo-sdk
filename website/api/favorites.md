@@ -5,18 +5,20 @@ outline: deep
 
 # favorites
 
-收藏夹。上游 `all_fav` 忽略 uid，始终返回登录账号的收藏；属于账号级能力，访客不可用。
+收藏夹。上游 `all_fav` 固定返回登录账号的收藏，与传入的 uid 无关。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `getFavorites(uid, page?)` | `FavoritesResponse` | `page` | 不可用 | 实验性 |
-| `listFavorites(uid, options?)` | `FavoritePageResult` | `page` | 不可用 | 稳定 |
-| `streamFavorites(uid, options?)` | `ITweet` 流 | `page` | 不可用 | 稳定 |
-| `getTags()` | `FavoritesTagsResponse` | — | 不可用 | 实验性 |
+| 方法 | 返回 | 分页 | 访客 |
+|---|---|---|---|
+| `getFavorites(uid, page?)` | `FavoritesResponse` | `page` | 不可用 |
+| `listFavorites(uid, options?)` | `FavoritePageResult` | `page` | 不可用 |
+| `streamFavorites(uid, options?)` | `ITweet` 流 | `page` | 不可用 |
+| `getTags()` | `FavoritesTagsResponse` | - | 不可用 |
+
+访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。详见 [访客限制](/guide/limitations)。
 
 ## `getFavorites(uid, page?)`
 
-原始收藏响应。`page < 1` 会归一到 1，避免上游 400。
+返回上游原始响应；需要归一化字段时用 `listFavorites`。`page < 1` 归一到 1，避免上游 400。
 
 ## `listFavorites(uid, options?)`
 
@@ -24,7 +26,7 @@ outline: deep
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
-| `page` | `number` | 页码，`< 1` 按第一页 |
+| `page` | `number` | 页码，`< 1` 归一到 1 |
 | `tag` | `string \| number` | 按标签 id 或名称精确匹配（基于收藏项自带 `tags`） |
 
 返回：
@@ -57,13 +59,11 @@ for await (const tweet of sdk.favorites.streamFavorites(uid, {
 
 ## `getTags()`
 
-读取收藏标签清单。元素结构上游尚未稳定，按实验性处理。
+返回上游收藏标签清单的原始响应；元素结构跟随上游。
 
 ## 错误与边界
 
-- 访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。
-- 归档其他 uid 时，`includeFavorites` 会抛 `CONFIG_INVALID`，因为数据始终属于登录账号。
-- `getFavorites` / `getTags` 返回原始形状，实验性。
+- 归档其他 uid 时，`includeFavorites` 会抛 `CONFIG_INVALID`，数据始终属于登录账号。
 
 ## CLI
 

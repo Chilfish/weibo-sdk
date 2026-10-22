@@ -4,9 +4,9 @@ title: 快速开始
 
 # 快速开始
 
-## 零配置：访客身份
+## 访客身份
 
-不传 Cookie 时 `new WeiboSDK({})` 会使用访客身份，可以读取公开数据：
+不传 Cookie 时，`new WeiboSDK({})` 使用访客身份读取公开数据：
 
 ```ts
 import { WeiboSDK } from '@chilfish/weibo-sdk'
@@ -23,7 +23,7 @@ const page = await sdk.tweets.comments('QqsYymYOS', { count: 20 })
 console.log(page.total_number, page.data.length)
 ```
 
-## 登录 Cookie
+## 使用 Cookie
 
 ```ts
 const sdk = new WeiboSDK({ cookie: 'SUB=...; SUBP=...; XSRF-TOKEN=...' })
@@ -32,7 +32,7 @@ const sdk = new WeiboSDK({ cookie: 'SUB=...; SUBP=...; XSRF-TOKEN=...' })
 new WeiboSDK({ cookie: './cookies.txt' })
 ```
 
-CLI 默认只从当前目录 `.env` 读取 `WEIBO_COOKIE`，可以用 `--cookie` 覆盖：
+CLI 从当前目录 `.env` 读取 `WEIBO_COOKIE`，可以用 `--cookie` 覆盖：
 
 ```bash
 weibo-cli whoami
@@ -58,7 +58,7 @@ for await (const comment of sdk.tweets.streamComments('QqsYymYOS', {
 }
 ```
 
-## Agent 视角的单条微博
+## 单条微博上下文
 
 ```ts
 const context = await sdk.tweets.context('QqsYymYOS', {
@@ -66,9 +66,9 @@ const context = await sdk.tweets.context('QqsYymYOS', {
   maxChars: 4000,
 })
 
-context.post.text          // 当前作者本人发言，不拍平 //@ 链
+context.post.text          // 当前作者本人的发言；转发链在 repostChain
 context.quoted             // 转发的原微博
-context.media              // 有序媒体 + owner
+context.media              // 有序媒体与归属
 context.unknowns           // 图片未描述、视频未转写、评论为抽样等
 ```
 
@@ -86,7 +86,7 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
   await saveCheckpoint(item.checkpoint)
 }
 
-// 指定时间段 + 详情/评论/楼中楼补全，一次返回 ArchiveFile
+// 指定时间段，补全详情 / 评论 / 楼中楼，一次返回 ArchiveFile
 const result = await sdk.userArchive.run('1111681197', {
   since: '2026-01-01',
   until: '2026-03-31',
@@ -110,4 +110,4 @@ catch (error) {
 }
 ```
 
-优先判断 `code`，不要匹配错误文案。完整清单见 [错误、重试与限流](/guide/errors-retries)。
+判断 `error.code`；`message` 会随上游变化。完整清单见 [错误、重试与限流](/guide/errors-retries)。

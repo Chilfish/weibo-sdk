@@ -1,9 +1,9 @@
 ---
-title: 归档与 Journal
+title: 归档与续跑类型
 outline: deep
 ---
 
-# 归档与 Journal
+# 归档与续跑类型
 
 ## `ArchiveFile`（`weibo-user-archive/v2`）
 
@@ -54,7 +54,7 @@ outline: deep
 
 `MergeArchiveOptions` 控制输出与跳过策略。
 
-## Journal（`userArchive` 续跑）
+## 续跑类型
 
 `USER_ARCHIVE_JOURNAL_SCHEMA = 'weibo-user-archive-journal/v2'`。
 

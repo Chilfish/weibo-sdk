@@ -7,12 +7,14 @@ outline: deep
 
 单条微博的详情、raw、长文与 Agent 视角上下文。
 
-| 方法 | 返回 | 访客 | 稳定性 |
-|---|---|---|---|
-| `getByMblogId(mblogId, isGetLongText?)` | `ITweet` | 可用 | 稳定 |
-| `enrich(mblogId, options?)` | `TweetEnrichResult` | 可用 | 稳定 |
-| `context(mblogId, options?)` | `ITweetContext` | 可用 | 稳定 |
-| `longText(mblogId)` | `LongtextResponse` | 可用 | 实验性 |
+| 方法 | 返回 | 访客 |
+|---|---|---|
+| `getByMblogId(mblogId, isGetLongText?)` | `ITweet` | 可用 |
+| `enrich(mblogId, options?)` | `TweetEnrichResult` | 可用 |
+| `context(mblogId, options?)` | `ITweetContext` | 可用 |
+| `longText(mblogId)` | `LongtextResponse` | 可用 |
+
+访客可读取单条微博，边界见 [访客限制](/guide/limitations)。
 
 ## `getByMblogId(mblogId, isGetLongText = true)`
 
@@ -23,8 +25,8 @@ await sdk.tweets.getByMblogId('5356120103455672')
 await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 ```
 
-- 内部请求 `statuses/show`；`isGetLongText` 默认 true，长文全文会落在 `tweet.text`。
-- 返回 `ITweet`；字段契约见 [ITweet 契约 v2](/reference/tweet-contract-v2)。
+- 内部请求 `statuses/show`；`isGetLongText` 默认 true，长文全文落在 `tweet.text`。
+- 返回 `ITweet`；字段契约见 [ITweet 契约](/reference/tweet-contract)。
 - 错误：`API_NOT_OK`（不存在 / 被删）、`API_BAD_RESPONSE`、传输层错误。
 
 ## `enrich(mblogId, options?)`
@@ -59,7 +61,7 @@ const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', {
 | `includeQuoted` | true | 展开转发的原微博（一层） |
 | `includeRepostChain` | true | 展开转发链 |
 | `now` | 当前时间 | 测试注入的毫秒时间戳 |
-| `authMode` | — | 仅用于 provenance |
+| `authMode` | - | 仅用于 provenance |
 
 ```ts
 const context = await sdk.tweets.context('QqsYymYOS', { comments: 5, maxChars: 4000 })
@@ -68,13 +70,14 @@ context.quoted?.media    // 转发的原微博媒体
 context.unknowns         // 图片未描述 / 视频未转写 / 评论为抽样等
 ```
 
-- 不调用任何 LLM；OCR / 视觉描述 / 转写由调用方回填。
+上下文只包含抓取到的事实；OCR、视觉描述、视频转写由调用方补充。
+
 - 时间序评论需要数字 mid，方法内部自动解析。
 - 返回结构见 [微博上下文](/api/types/tweet-context)。
 
 ## `longText(mblogId)`
 
-读取 `ajax/statuses/longtext` 原始响应，含 `data.longTextContent` 与 `data.longTextContent_raw`。通常不需要单独调用，`enrich` / `context` 会在需要时使用。
+返回上游 `ajax/statuses/longtext` 原始响应，含 `data.longTextContent` 与 `data.longTextContent_raw`。`enrich` / `context` 在需要全文时自动拉取，通常直接使用这两个方法即可。
 
 ## CLI
 

@@ -9,7 +9,7 @@ outline: deep
 
 | 类 | `code` | `level` | `retryable` |
 |---|---|---|---|
-| `WeiboSDKError`（抽象基类） | — | — | — |
+| `WeiboSDKError`（抽象基类） | 无 | 无 | 无 |
 | `WeiboSessionExpiredError` | `AUTH_SESSION_EXPIRED` | business | false |
 | `WeiboAPINotOkError` | `API_NOT_OK` | business | false |
 | `UnexpectedAPIResponseError` | `API_BAD_RESPONSE` | protocol | false |
@@ -54,11 +54,11 @@ catch (error) {
 }
 ```
 
-不要匹配 `message`：文案会变，`code` 不会。
+判断 `code`；`message` 会随上游变化。
 
 ## 重试
 
-默认 `retries: 2`，只重试 `RATE_LIMITED` / `NET_TIMEOUT` / `NET_REQUEST_FAILED` / 5xx。配置：
+默认 `retries: 2`，只重试 `RATE_LIMITED` / `NET_TIMEOUT` / `NET_REQUEST_FAILED` / 5xx。`retryable: false` 的错误直接返回。
 
 ```ts
 new WeiboSDK({
@@ -71,6 +71,6 @@ new WeiboSDK({
 })
 ```
 
-`retryOn: []` 表示不重试。432 会暂停全局令牌桶，等待 `Retry-After` 或退避时间。
+`retryOn: []` 关闭重试。432 会暂停全局令牌桶，等待 `Retry-After` 或退避时间。
 
-完整处理建议见 [错误、重试与限流](/guide/errors-retries)。
+重试与限流细节见 [错误、重试与限流](/guide/errors-retries)。

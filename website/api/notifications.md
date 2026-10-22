@@ -7,12 +7,14 @@ outline: deep
 
 评论通知与点赞通知。账号级能力，需要 Cookie。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `listComments(options?)` | `CommentNotificationPageResult` | `maxId` / `page` | 不可用 | 稳定 |
-| `streamComments(options?)` | `CommentNotification` 流 | `maxId` | 不可用 | 稳定 |
-| `listLikes(options?)` | `LikeNotificationPageResult` | `maxId` / `page` | 不可用 | 稳定 |
-| `streamLikes(options?)` | `LikeNotification` 流 | `maxId` | 不可用 | 稳定 |
+| 方法 | 返回 | 分页 |
+|---|---|---|
+| `listComments(options?)` | `CommentNotificationPageResult` | `maxId` / `page` |
+| `streamComments(options?)` | `CommentNotification` 流 | `maxId` |
+| `listLikes(options?)` | `LikeNotificationPageResult` | `maxId` / `page` |
+| `streamLikes(options?)` | `LikeNotification` 流 | `maxId` |
+
+读取 Cookie 对应账号的数据。访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth` 为 `'cookie'`），边界见 [范围与限制](/guide/limitations)。
 
 ## `listComments(options?)`
 
@@ -21,7 +23,7 @@ outline: deep
 | `maxId` | `number \| string` | 上一页的 `cursor`，优先于 `page` |
 | `page` | `number` | 页码，未给 `maxId` 时生效 |
 
-返回 `{ cursor, hasMore, total?, items: CommentNotification[] }`。已删除的微博 / 评论会被跳过。
+返回 `{ cursor, hasMore, total?, items: CommentNotification[] }`。已删除的微博与评论会被跳过。
 
 ## `streamComments(options?)`
 
@@ -38,20 +40,19 @@ for await (const item of sdk.notifications.streamComments({
 
 ## `listLikes(options?)`
 
-同评论通知，返回 `LikeNotificationPageResult`。
+选项与返回结构同 `listComments`，items 为 `LikeNotification[]`。
 
 ## `streamLikes(options?)`
 
-选项与停止条件同上。
+选项与停止条件同 `streamComments`。
 
 ## 通知项字段
 
 `CommentNotification` / `LikeNotification` 见 [领域模型](/api/types/domain#通知)。
 
-## 错误与边界
+## 边界
 
-- 访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。
-- `total_number` 存在时用于观察，不作为流的唯一停止条件。
+流的停止由空页、整页重复、`maxPages` 与 `maxItems` 决定；`total_number` 存在时只作观察。
 
 ## CLI
 

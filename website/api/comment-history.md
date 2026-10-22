@@ -5,18 +5,20 @@ outline: deep
 
 # commentHistory
 
-当前登录账号的历史评论。上游 `myCmt` 不接受 uid，属于账号级能力；访客不可用。
+当前登录账号的历史评论。上游 `myCmt` 按登录账号返回，与 uid 无关。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `listMine(options?)` | `CommentHistoryPageResult` | `maxId` / `page` | 不可用 | 稳定 |
-| `streamMine(options?)` | `ITweetComment` 流 | `maxId` | 不可用 | 稳定 |
+| 方法 | 返回 | 分页 | 访客 |
+|---|---|---|---|
+| `listMine(options?)` | `CommentHistoryPageResult` | `maxId` / `page` | 不可用 |
+| `streamMine(options?)` | `ITweetComment` 流 | `maxId` | 不可用 |
+
+访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。详见 [访客限制](/guide/limitations)。
 
 ## `listMine(options?)`
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
-| `maxId` | `number \| string` | 上一页的 `cursor`；数字字符串自动转 number，优先于 `page` |
+| `maxId` | `number \| string` | 上一页的 `cursor`；数字字符串转 number，优先于 `page` |
 | `page` | `number` | 页码，未给 `maxId` 时生效 |
 
 返回：
@@ -47,9 +49,8 @@ for await (const comment of sdk.commentHistory.streamMine({
 
 ## 错误与边界
 
-- 访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。
-- 归档其他 uid 时，`includeCommentHistory` 会抛 `CONFIG_INVALID`。
-- 返回的评论里 `parentMblogId` 指向被评论微博（若上游内嵌了 `status`）。
+- 归档其他 uid 时，`includeCommentHistory` 抛 `CONFIG_INVALID`。
+- 返回的评论里 `parentMblogId` 指向被评论微博，前提是上游内嵌了 `status`。
 
 ## CLI
 

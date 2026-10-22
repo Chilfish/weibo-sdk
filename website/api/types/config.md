@@ -26,7 +26,7 @@ outline: deep
 | `WeiboSDKRequestMeta` / `WeiboSDKRawMeta` / `WeiboSDKErrorMeta` | 回调元数据 |
 | `WeiboSDKHookBaseMeta` | 公共字段（endpoint / args / traceId 等） |
 
-`onRaw(raw, meta)` 在 Zod 校验与 `okPolicy` 之前触发，适合落盘原始响应。
+`onRaw(raw, meta)` 在 Zod 校验与 `okPolicy` 之前触发，可以落盘原始响应。
 
 ## 传输
 
@@ -49,7 +49,7 @@ outline: deep
 | `PluginRequestInfo` | 只读请求信息 |
 | `WeiboEvent` | 事件类型 |
 
-顺序：`pre → normal → post`；`apiVersion` 当前只接受 `1`；同名插件抛 `CONFIG_INVALID`。
+顺序：`pre → normal → post`；`apiVersion` 当前接受 `1`；同名插件抛 `CONFIG_INVALID`。
 
 ## 凭证
 
@@ -88,5 +88,3 @@ outline: deep
 | `parseTweetIdInput(input)` | 解析 mblogId / 数字 mid / 状态 URL |
 | `normalizeTweetIdInput(input)` | 归一化为可请求的 id |
 | `midToMblogId(mid)` | 数字 mid → mblogId |
-
-这些辅助函数属于实验性。

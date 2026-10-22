@@ -5,11 +5,11 @@ outline: deep
 
 # 领域模型
 
-SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 受契约版本管理；其余模型跟随包 SemVer。
+SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的字段由契约版本管理，完整字段与变更规则见 [ITweet 契约](/reference/tweet-contract)。
 
 ## `ITweet`
 
-单条微博的存档契约（`TWEET_CONTRACT_VERSION = 2`）。完整字段与冻结规则见 [ITweet 契约 v2](/reference/tweet-contract-v2)。
+单条微博的存档模型（`TWEET_CONTRACT_VERSION = 2`）。
 
 核心字段：
 
@@ -24,7 +24,7 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 受�
 | `visible` | `TweetVisible` | 可见性枚举 |
 | `media` | `TweetMedia[]` | 媒体，恒为数组 |
 | `retweetedStatus` | `ITweet?` | 转发的原微博（递归） |
-| `repostChain` | `TweetRepostEntry[]?` | 拍平的转发链分层 |
+| `repostChain` | `TweetRepostEntry[]?` | 转发链分层 |
 | `attachments` | `TweetAttachment[]?` | 文章 / 投票 / 直播 / 抽奖 |
 | `pageInfo` / `linkCards` / `topics` / `atUsers` / `audio` / `geo` | — | 卡片、链接、话题、@、音频、位置 |
 | `comments` | `ITweetComment[]?` | 归档时挂载的评论 |
@@ -43,7 +43,7 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 受�
 
 ## `IUser`
 
-用户资料。字段缺失表示上游未公开，不是空默认值。
+用户资料。字段缺失表示上游未公开。
 
 | 字段 | 说明 |
 |---|---|

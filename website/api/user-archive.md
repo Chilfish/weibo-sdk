@@ -7,10 +7,12 @@ outline: deep
 
 按时间范围归档一个用户：日期切片枚举 + 逐条重新拉取详情 / 长文 / 评论 / 楼中楼 / 转发，支持续跑。
 
-| 方法 | 返回 | 访客 | 稳定性 |
-|---|---|---|---|
-| `run(uid, options?)` | `Promise<UserArchiveResult>` | 不可用 | 稳定 |
-| `stream(uid, options?)` | `AsyncIterableIterator<UserArchiveEvent>` | 不可用 | 稳定 |
+| 方法 | 返回 |
+|---|---|
+| `run(uid, options?)` | `Promise<UserArchiveResult>` |
+| `stream(uid, options?)` | `AsyncIterableIterator<UserArchiveEvent>` |
+
+访客调用抛 `CONFIG_INVALID`，边界见 [范围与限制](/guide/limitations)。
 
 ## `run(uid, options?)`
 
@@ -84,14 +86,14 @@ for await (const event of sdk.userArchive.stream(uid, { store })) {
 | `maxReposts` / `maxRepostPages` | 不限 | 转发上限 |
 | `concurrency` | 6（上限 32） | 全局补全并发；实际 QPS 仍受令牌桶控制 |
 | `store` | 内存 | `UserArchiveStore` 持久化端口 |
-| `onProgress` | — | `UserArchiveProgress` 回调 |
-| `onIssue` | — | issue 回调 |
-| `onRecord` | — | 每条记录完成时回调 |
-| `signal` | — | 中断信号 |
+| `onProgress` | 无 | `UserArchiveProgress` 回调 |
+| `onIssue` | 无 | issue 回调 |
+| `onRecord` | 无 | 每条记录完成时回调 |
+| `signal` | 无 | 中断信号 |
 
 ## `UserArchiveStore`
 
-SDK 不碰文件系统；续跑由调用方实现：
+持久化由调用方实现，SDK 通过 `UserArchiveStore` 读写进度：
 
 ```ts
 interface UserArchiveStore {
@@ -113,8 +115,8 @@ interface UserArchiveStore {
 ## 续跑语义
 
 - journal 记录每个切片的完成状态与 checkpoint；重跑同一命令即可接着跑。
-- 已加载的旧记录计入 `processed`，不会被重复产出。
-- 带 issue 的重试目标不会被算作已完成。
+- 已加载的旧记录计入 `processed`，重跑时跳过。
+- 带 issue 的目标保持未完成，下一轮重试。
 - `--fresh` 清空进度重新开始。
 
 ## 与全量镜像的区别

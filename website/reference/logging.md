@@ -5,12 +5,6 @@ outline: deep
 
 # 日志（Logger）
 
-> **目标**：给 SDK 一个显式、结构化、失败不影响业务的日志出口；默认静默，调用方在 `new WeiboSDK()` 或 `plugins` 中显式接入。
-> **实现**：`src/types/logging.ts`、`src/utils/logger.ts`、`src/WeiboSDK.ts`。
-> **相关**：[传输与插件](./plugins)、[遥测与日志](/guide/observability)。
-
----
-
 ## 1. 三层边界
 
 ```
@@ -21,10 +15,10 @@ Logger port（消费）        WeiboLogger：level / 格式化 / 落盘 / 上报
       │                    默认 no-op；显式配置后由 bridge 把事件映射成日志记录
       ▼
 CLI Output（协议）         stdout 数据 / NDJSON progress-item-done
-                           不经过 logger，避免日志级别与格式化破坏管道契约
+                           绕过 logger，日志级别与格式化不影响管道契约
 ```
 
-**不要双写**：核心代码不新增 `logger.info()` 调用。日志来自已有的 Wide Events 与生命周期事件，logger 只负责消费。这样字段、trace_id、错误摘要只有一份事实源。
+日志由已有的 Wide Events 与生命周期事件消费，核心代码只发出事件，由 logger 负责投递。字段、`trace_id`、错误摘要因此只有一份事实源。
 
 **telemetry 与 logger 的区别**：
 
@@ -38,19 +32,17 @@ CLI Output（协议）         stdout 数据 / NDJSON progress-item-done
 
 同一个事件可以同时进入 `config.telemetry` 和 `config.logger`；SDK 内部用 fanout 组合，两者互不影响。
 
----
-
 ## 2. 默认行为
+
+未配置 logger 时不产生日志输出。
 
 | 配置 | 默认 | 说明 |
 |---|---|---|
-| `config.logger` | 未设置 | 不创建 sink、不写 console / 文件，保持库入口零副作用 |
-| `config.telemetry` | 未设置 | 行为不变 |
-| `plugins` 中的 logger | 不需要 | logger 是一等配置；已用插件的调用方可用 `createLoggerPlugin()` |
+| `config.logger` | 未设置 | 保持库入口零副作用，不产生 console / 文件输出 |
+| `config.telemetry` | 未设置 | 默认关闭 |
+| `plugins` 中的 logger | 按需 | logger 是一等配置；已用插件的调用方可用 `createLoggerPlugin()` |
 
-**SDK 默认永远静默**。CLI 是否默认打开日志由 CLI 自己决定，不由库决定。
-
----
+CLI 是否打开日志由 CLI 自己决定。
 
 ## 3. 契约
 
@@ -76,16 +68,14 @@ export interface WeiboLogger {
 
 约束：
 
-1. `log()` 抛错、返回 rejected Promise 都不能影响业务；bridge 外层 try/catch 并忽略 rejection。
-2. 记录不允许嵌套对象；bridge 只搬运 primitive 字段。
-3. 不把 Cookie / token 明文交给 logger；内置 sink 默认对敏感键做 redaction。
-4. logger 在构造期组装，不支持运行时替换。
-
----
+1. `log()` 抛错或返回 rejected Promise 时由 bridge 的 try/catch 吞掉，请求结果不受影响。
+2. 记录字段是 primitive；bridge 只搬运 primitive 字段，嵌套对象在映射时被丢弃。
+3. logger 只接收脱敏后的字段；内置 sink 默认替换敏感键。
+4. logger 在构造期组装，运行期保持不变。
 
 ## 4. 事件 → 日志级别
 
-bridge 使用固定映射，不开放配置（避免同一条事件在不同项目里语义漂移）：
+bridge 使用固定映射，同一条事件在所有项目里语义一致：
 
 | 级别 | 事件 |
 |---|---|
@@ -96,9 +86,7 @@ bridge 使用固定映射，不开放配置（避免同一条事件在不同项�
 
 `archive_progress` 归到 `debug`：它按页 / 按阶段高频产生；CLI 的进度仍走 stdout NDJSON。
 
-生命周期事件（`sdk_init` / `self_check_*`）会同时进入 logger 与 `hooks.onLifecycle`；`observe` 只接收请求 / 媒体 / 归档事件。
-
----
+生命周期事件（`sdk_init` / `self_check_*`）会同时进入 logger 与 `hooks.onLifecycle`；`observe` 接收请求 / 媒体 / 归档事件。
 
 ## 5. 内置 sink
 
@@ -121,7 +109,7 @@ const sdk = new WeiboSDK({
 | `redact` | `true` | 敏感键替换为 `[redacted]` |
 | `now` | `Date.now` | 缺时间戳时补齐 |
 
-写 stdout 会污染机器可读输出，CLI 请保持 `stderr`。
+CLI 保持 `stderr`，stdout 留给机器可读数据。
 
 ### 5.2 JSONL / 文件
 
@@ -135,8 +123,8 @@ const logger = createJsonlLogger({
 ```
 
 - 一行一条记录，字段扁平化、超长值截断（复用 `telemetryJsonl` 的序列化规则）。
-- `write` 失败只计入 `dropped`，不影响命令。
-- 轮转、压缩、上传由调用方负责；SDK 不内置文件管理。
+- `write` 失败只计入 `dropped`，命令结果不受影响。
+- 轮转、压缩、上传由调用方负责，SDK 只负责产出记录行。
 
 ### 5.3 多路
 
@@ -161,9 +149,7 @@ new WeiboSDK({
 })
 ```
 
-`createLoggerPlugin()` 与 `config.logger` 使用同一套映射。**两者同时配置会重复输出**，选一个即可。
-
----
+`createLoggerPlugin()` 与 `config.logger` 使用同一套映射。同时配置两者时同一事件输出两次，保留其中一个。
 
 ## 6. 脱敏与截断
 
@@ -174,25 +160,6 @@ cookie, set-cookie, authorization, xsrf-token, x-xsrf-token,
 sub, subp, token, access_token, refresh_token, password, secret
 ```
 
-`credential_id` 是 Cookie 指纹，不是明文，保留用于排障。
+`credential_id` 是 Cookie 指纹，保留用于排障。
 
-`message` 与 `error_message` 可能来自上游或错误 context；如果调用方自己的 logger 要落盘，仍需自行确认上下文里没有额外敏感信息。CLI 的 `formatCliError` 会携带完整 `context`，消费方应只写入受控路径。
-
----
-
-## 7. 非目标
-
-- **不把 CLI 数据输出纳入 logger**：stdout JSON / NDJSON 是命令契约。
-- **不默认启用任何 sink**：零配置不产生额外分配与 IO。
-- **不在核心新增文本日志调用**：需要新事实时先扩展 `TelemetryEvent`。
-- **不做日志轮转 / 采样 / 远端上传**：用 `createJsonlLogger({ write })` 自行组合。
-
----
-
-## 8. 测试
-
-- 默认未配置 logger 时无 console 输出（库入口无副作用）。
-- 事件级别映射、`level` 过滤、生命周期事件投递。
-- 脱敏、截断、`timestamp` 补齐。
-- `log()` 同步抛错 / 异步 reject 不影响请求。
-- `createLoggerPlugin()` 与 `config.logger` 行为一致。
+`message` 与 `error_message` 可能来自上游或错误 context。调用方自己实现 logger 落盘时，确认上下文里没有额外敏感信息，并把写入路径限定在受控目录；CLI 的 `formatCliError` 会携带完整 `context`。

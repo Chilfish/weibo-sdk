@@ -7,20 +7,22 @@ outline: deep
 
 用户资料、@ 我的微博、关注分组与微博分组。
 
-| 方法 | 返回 | 分页 | 访客 | 稳定性 |
-|---|---|---|---|---|
-| `fetchRawInfo(id)` | `UserInfoResponse` | — | 可用 | 实验性 |
-| `fetchRawDetails(id)` | `UserDetailsResponse` | — | 可用 | 实验性 |
-| `myDetails()` | `UserDetailsResponse` | — | 需 Cookie | 稳定 |
-| `getById(id)` | `IUser` | — | 可用 | 稳定 |
-| `listMentions(options?)` | `UserMentionsPageResult` | `maxId` / `page` | 需 Cookie | 稳定 |
-| `streamMentions(options?)` | `ITweet` 流 | `maxId` | 需 Cookie | 稳定 |
-| `groups()` | `UserGroup[]` | — | 可用 | 稳定 |
-| `mblogGroups()` | `MblogGroup[]` | — | 需 Cookie | 稳定 |
+| 方法 | 返回 | 分页 | 访客 |
+|---|---|---|---|
+| `fetchRawInfo(id)` | `UserInfoResponse` | - | 可用 |
+| `fetchRawDetails(id)` | `UserDetailsResponse` | - | 可用 |
+| `myDetails()` | `UserDetailsResponse` | - | 需 Cookie |
+| `getById(id)` | `IUser` | - | 可用 |
+| `listMentions(options?)` | `UserMentionsPageResult` | `maxId` / `page` | 需 Cookie |
+| `streamMentions(options?)` | `ITweet` 流 | `maxId` | 需 Cookie |
+| `groups()` | `UserGroup[]` | - | 可用 |
+| `mblogGroups()` | `MblogGroup[]` | - | 需 Cookie |
+
+访客可读取用户资料；账号级方法需要 Cookie，边界见 [访客限制](/guide/limitations)。
 
 ## `fetchRawInfo(id)`
 
-拉取 `ajax/profile/info` 原始响应。字段为 snake_case 上游形状，可能随上游漂移；日常读取请用 `getById`。
+返回上游原始响应；需要归一化字段时用 `getById`。字段为 snake_case 上游形状。
 
 ```ts
 const raw = await sdk.users.fetchRawInfo('1111681197')
@@ -29,11 +31,11 @@ raw.data.user.screen_name
 
 ## `fetchRawDetails(id)`
 
-拉取 `ajax/profile/detail` 原始响应（含简介、生日、公司、学校、标签等）。
+返回上游 `ajax/profile/detail` 原始响应；需要归一化字段时用 `getById`。响应含简介、生日、公司、学校、标签等。
 
 ## `myDetails()`
 
-不带 uid，读取当前登录用户详情，常用于会话自检。内部 `skipPreflight` 发出，避免递归自检。
+不带 uid，读取当前登录用户详情，会话自检也走它。内部以 `skipPreflight` 发出，避免递归自检。
 
 - 错误：`AUTH_SESSION_EXPIRED`、`API_NOT_OK`、`API_BAD_RESPONSE`、传输层错误。
 
@@ -48,13 +50,13 @@ user.stats.followers
 user.verification.type
 ```
 
-缺失字段保持 `undefined`，不伪造默认值。任一请求失败即整体失败。
+缺失字段保留 `undefined`。任一请求失败即整体失败。
 
 返回字段见 [领域模型](/api/types/domain#iuser)。
 
 ## `listMentions(options?)`
 
-读取一页 `@我的微博`（`ajax/statuses/mentions`）。`maxId`（上游 `max_id`）优先于 `page`；`since_id` 被上游忽略。
+读取一页 `@我的微博`（`ajax/statuses/mentions`）。`maxId`（上游 `max_id`）优先于 `page`；上游忽略 `since_id`。
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
@@ -86,7 +88,7 @@ const groups = await sdk.users.groups()
 
 ## `mblogGroups()`
 
-读取微博分组（`ajax/mblog/querygroup` 的 `join_groups`），无参数即当前账号加入的分组。
+读取微博分组（`ajax/mblog/querygroup` 的 `join_groups`），无参数时返回当前账号加入的分组。
 
 ## CLI
 
