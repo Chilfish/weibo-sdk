@@ -4,6 +4,7 @@ import { makeArchiveComment, makeArchiveTweet, makeArchiveUser } from 'tests/tes
 import { describe, expect, it } from 'vitest'
 import { mergeArchiveFiles } from '~/services/public/userArchive/merge'
 import { ARCHIVE_SCHEMA_ID, ARCHIVE_SCHEMA_URL } from '~/types/archive/IArchiveFile'
+import { MediaType } from '~/types/domain/ITweet'
 
 const UID = '1234567890'
 const JAN_RANGE = {
@@ -14,7 +15,7 @@ const JAN_RANGE = {
 function media(count: number): ITweet['media'] {
   return Array.from({ length: count }, (_, index) => ({
     id: `m${index}`,
-    type: 'pic',
+    type: MediaType.PIC,
     imageUrl: '',
     width: 1,
     height: 1,
@@ -219,7 +220,6 @@ describe('mergeArchiveFiles', () => {
         includeReplies: true,
         includeReposts: false,
         commentOrder: 'time',
-        estimatedTotal: 77,
       },
     })
     const newer = archive({
@@ -231,7 +231,6 @@ describe('mergeArchiveFiles', () => {
         includeReplies: true,
         includeReposts: true,
         commentOrder: 'hot',
-        estimatedTotal: 12,
       },
     })
 
