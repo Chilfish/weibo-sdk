@@ -33,7 +33,7 @@ export const mySpec = defineEndpoint({
 ```
 
 - `argsSchema` 定义请求参数，参数类型由 `z.infer` 自动推导。
-- `schema` 校验响应，默认使用 `.passthrough()`，只声明代码实际访问的字段。
+- `schema` 校验响应，默认使用 `.loose()`，只声明代码实际访问的字段。
 - `buildResource` 负责 URL、method 和必要的 header。
 - `okPolicy` 决定 `ok !== 1` 时是否抛错。
 

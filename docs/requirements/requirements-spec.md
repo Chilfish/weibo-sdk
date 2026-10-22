@@ -32,7 +32,7 @@
 
 - **Runtime**: Isomorphic TypeScript（Node.js 为主，目标兼容 Browser/Edge）
 - **HTTP**: axios（可注入替换）
-- **协议校验**: Zod v4（`.passthrough()` 开放端点）
+- **协议校验**: Zod v4（`.loose()` 开放端点）
 - **CLI**: citty（零依赖）
 - **构建**: tsdown（Rolldown）
 

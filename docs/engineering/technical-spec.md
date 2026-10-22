@@ -594,7 +594,7 @@ Guest 模式额外写入的 `context` 字段（便于区分「该换 Cookie」�
 
 ## 6. 字段演化治理
 
-- 所有 response schema 采用 `.passthrough()` 开放端点模式（保留未知字段），代码访问字段一律 `.optional()`。
+- 所有 response schema 采用 `.loose()` 开放端点模式（保留未知字段），代码访问字段一律 `.optional()`。
 - `normalize`（`models/data/*.ts` 纯函数）提供默认值与 fallback 链：如 `avatar` fallback、`IP属地：`/`姓名：`前缀剥离、数字越界兜底。
 - Schema 精确化原则：先声明 Model 构造器实际访问的字段，其余保持宽松（`docs/planning/roadmap.md` Phase 2）。
 - 新增/修改 Schema 前 MUST 先获取真实 API 响应存为 fixture（数据驱动开发，见 `AGENTS.md`）。
@@ -658,7 +658,7 @@ tests/
 | **Wide Events** | 宽事件，扁平 KV（`event_name/timestamp/trace_id`）的可观测性事件 |
 | **EndpointSpec** | 端点定义（resourceType + endpoint + argsSchema + buildResource + okPolicy + schema） |
 | **Resource Type** | 资源类型（`IResource` 的 key），一端点一资源 |
-| **Open-ended Schema** | 开放端点模式（`.passthrough()`），保留未知字段 |
+| **Open-ended Schema** | 开放端点模式（`.loose()`），保留未知字段 |
 | **Normalize** | 将 raw JSON 转换为领域模型的纯函数过程 |
 | **Trace ID** | 单次请求/归一化全链路的追踪标识 |
 

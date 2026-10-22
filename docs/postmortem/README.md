@@ -30,7 +30,7 @@
 - **真实类型 ≠ 直觉类型**：`since_id` 可能是 `number`，也可能是带后缀的 `string`（2026-10-20 复测）；`total` 可能为 `-1`（防爬）也可能是真实总数；`followers_count` 才是 `number`。以 fixture 为准，schema 用 union 而非强转。
 - **上游分页会漂移，必须定期复测**：mymblog 曾用 `since_id` 游标（2026-05 实测），2026-08-09 实测已弃用改 `page`（`since_id` 恒 `""`、`total` 恒 `-1`）；2026-10-20 复测 `since_id` 又恢复可用且与 `page` 等价、`total` 恢复真实值。分页策略不是一次验证就完事，翻页能力需周期性用真实数据回归。
 - **`null` ≠ `undefined`**：JSON 里两者不同。递归引用（`retweeted_status`）必须 `.nullable().optional()` 同时处理；内层 retweet 没有 `ok` 字段。
-- **`.passthrough()` 是双向安全网也是陷阱**：它允许新字段进入、缺失字段不报错，但也会隐藏字段访问错误。Schema 声明字段用 `.optional()`，Model 负责 fallback（Schema 管类型校验，不管完整性）。
+- **`.loose()` 是双向安全网也是陷阱**：它允许新字段进入、缺失字段不报错，但也会隐藏字段访问错误。Schema 声明字段用 `.optional()`，Model 负责 fallback（Schema 管类型校验，不管完整性）。
 - **测试必须 fail loudly**：禁止用 `try/catch` 跳过失败的 E2E/未知端点——那是在掩盖根本问题。未知端点标 known-issue 而非绕过。
 
 ### 2. 错误与可观测性

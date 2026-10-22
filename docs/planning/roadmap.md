@@ -89,7 +89,7 @@
 - [x] `listByUserId` 中 `hasMore` 计算增加 `raw.data.total > 0` 前置条件
 
 ### Phase 2：Schema 精确化（P1）— 基本完成
-- [x] 声明 Model 构造器实际访问的字段，其余保留 `.passthrough()` 向后兼容
+- [x] 声明 Model 构造器实际访问的字段，其余保留 `.loose()` 向后兼容
 - [x] `UserInfoResponseSchema` 17 字段（User 构造器访问面）
 - [x] `UserDetailsResponseSchema` 全部字段（`company`/`career`/`links` optional）
 - [x] `StatusShowResponseSchema` ~25 核心字段 + `retweeted_status` 用 `z.lazy()` 递归

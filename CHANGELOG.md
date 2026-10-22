@@ -10,6 +10,7 @@
 
 ### 变更
 
+- Zod 4.5 起 `.passthrough()` 已标记 deprecated，全部 endpoint schema 改用行为相同的 `.loose()`（`z.looseObject()` 的链式写法）；`new:endpoint` 模板与工程文档同步。未知字段的保留语义不变。
 - `ArchiveService` 的 mymblog 与日期切片两套重复的页内处理循环合并为一个生成器（预取、评论挂载、转发流、断点推进共用一份实现），两种数据源只保留取页与游标字段差异。行为、产出顺序与 checkpoint 语义不变。
 - 响应契约类型安全补齐：移除 endpoint 中 14 处 `z.ZodType<any>`，递归响应改为「基础 schema + `z.lazy`」，`z.infer` 现在推导出真实字段类型；同步删除 `src/types/raw/**` 手写响应接口，归一化改为消费 endpoint 推导类型。`MyMblogResponse` 的 `data.list` 不再是 `any[]`，`StatusShowResponse` 等导出类型也不再退化为 `any`。
 - **BREAKING CHANGE**：包根不再导出 `IMyMBlogResponse` / `IStatusShowResponse` / `IUserDetailsResponse` / `IUserInfoResponse`，改用 schema 推导的 `MyMblogResponse` / `StatusShowResponse` / `UserDetailsResponse` / `UserInfoResponse`（`MyMblogResponse` 保留了原名）。旧名称是手写 raw 接口，字段必填性与上游实际不符。

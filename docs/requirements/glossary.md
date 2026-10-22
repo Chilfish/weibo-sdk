@@ -73,7 +73,7 @@ _Avoid_: cursor（新浪还有其他游标语义，如 `next_cursor`）
 `TweetPageResult` 是否还有下一页的布尔标志。
 
 **开放端点 / Open-ended Schema**:
-response schema 使用 `.passthrough()` 保留未知字段，代码访问字段一律 `.optional()`。
+response schema 使用 `.loose()` 保留未知字段，代码访问字段一律 `.optional()`。
 
 **buildResource**:
 EndpointSpec 中把 args 构建为 `IRequestResource`（URL + method）的函数。
