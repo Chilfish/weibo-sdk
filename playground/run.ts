@@ -8,6 +8,7 @@ import { loadEnv, OUTPUT, PLAYGROUND, requireCookie, ROOT } from './lib/env'
 import { createLogger, describeError } from './lib/log'
 import { scenario as archive } from './sdk/archive'
 import { scenario as archiveBatch } from './sdk/archive-batch'
+import { scenario as archiveMerge } from './sdk/archive-merge'
 import { scenario as diagnose } from './sdk/diagnose'
 import { scenario as downloadMedia } from './sdk/download-media'
 import { scenario as favoritesLikes } from './sdk/favorites-likes'
@@ -37,6 +38,7 @@ const SDK_SCENARIOS: SdkScenario[] = [
   topicsTrends,
   archive,
   archiveBatch,
+  archiveMerge,
   userArchive,
   telemetry,
   diagnose,

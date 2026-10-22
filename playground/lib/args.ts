@@ -23,6 +23,7 @@ const SCENARIO_OPTIONS = {
   'keyword': { type: 'string' },
   'since-id': { type: 'string' },
   'uid': { type: 'string' },
+  'out': { type: 'string' },
   'write': { type: 'boolean' },
   'dry-run': { type: 'boolean' },
   'resume': { type: 'boolean' },

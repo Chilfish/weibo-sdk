@@ -192,6 +192,34 @@ export const cliScenarios: CliScenario[] = [
   },
   {
     kind: 'cli',
+    id: 'archive-merge',
+    title: '合并归档（本地）',
+    summary: 'archive merge <a.json> [b.json] --out ... --force',
+    requiresCookie: false,
+    steps: ({ args, env, paths }) => {
+      const uid = defaultUid(env.values)
+      const fallback = join(paths.output, 'user-archive', `${uid}.json`)
+      const first = args.positionals[0] ?? fallback
+      const second = args.positionals[1] ?? first
+      return [
+        {
+          argv: [
+            'archive',
+            'merge',
+            first,
+            second,
+            '--out',
+            join(paths.output, 'cli-archive-merged.json'),
+            '--force',
+          ],
+          auth: false,
+          note: '纯本地操作，不请求微博；同一文件即演示幂等合并',
+        },
+      ]
+    },
+  },
+  {
+    kind: 'cli',
     id: 'enrich',
     title: 'raw / 长文',
     summary: 'tweet enrich --longtext',
