@@ -21,14 +21,16 @@ pnpm play
 # 3. 运行 SDK 场景
 pnpm play whoami
 pnpm play tweet-comments QqsYymYOS --max-pages 1
+pnpm play tweet-attachments RnQe6zQ70      # 文章；不传 id 会依次跑文章/投票/直播/抽奖样本
 pnpm play plugins                               # 离线：插件 / 自定义 transport
 
 # 4. 运行 CLI 场景，第一次需要先构建 dist
 pnpm build
 pnpm play cli:home
+pnpm play cli:attachments RnQe6zQ70
 ```
 
-SDK 场景在仓库内通过 `tsconfig.json` 的 `paths` 把 `@chilfish/weibo-sdk` 指向 `src/index.ts`，所以不需要先构建。CLI 场景运行 `dist/cli.mjs`，需要先执行 `pnpm build`，也可以用 `WEIBO_CLI_BIN` 指向已安装的 `weibo-cli`。
+SDK 场景在仓库内通过 `tsconfig.json` 的 `paths` 把 `@chilfish/weibo-sdk` 指向 `src/index.ts`，所以不需要先构建。CLI 场景运行 `dist/cli-bin.mjs`，需要先执行 `pnpm build`，也可以用 `WEIBO_CLI_BIN` 指向已安装的 `weibo-cli`。
 
 ## 访客模式（不需要 Cookie）
 
@@ -72,6 +74,7 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 | `user-timeline` | [`sdk/user-timeline.ts`](./sdk/user-timeline.ts) | 用户资料、`listByUserId`、有界 `streamByUserId` |
 | `home-feed` | [`sdk/home-feed.ts`](./sdk/home-feed.ts) | 首页 Feed 的 `max_id` 翻页和 `since_id` 增量 |
 | `tweet-comments` | [`sdk/tweet-comments.ts`](./sdk/tweet-comments.ts) | 详情、评论流、图片评论和楼中楼 |
+| `tweet-attachments` | [`sdk/tweet-attachments.ts`](./sdk/tweet-attachments.ts) | `tweet.attachments` / `context.post.attachments`：文章、投票、直播、抽奖（默认跑 4 条公开样本） |
 | `media-gallery` | [`sdk/media-gallery.ts`](./sdk/media-gallery.ts) | 图片墙、视频瀑布和相册 |
 | `download-media` | [`sdk/download-media.ts`](./sdk/download-media.ts) | `downloadByMblogId`、dry-run、逐项状态 |
 | `favorites-likes` | [`sdk/favorites-likes.ts`](./sdk/favorites-likes.ts) | 收藏标签和流、点赞、历史评论 |
@@ -159,6 +162,7 @@ const sdk = new WeiboSDK({
 | `cli:user` | `user info` + `user timeline` |
 | `cli:home` | `tweet home` + `tweet home-stream` |
 | `cli:comments` | `tweet detail` + `tweet comments-stream` |
+| `cli:attachments` | `tweet detail` + `tweet context --format json`（文章 / 投票 / 直播 / 抽奖） |
 | `cli:media` | `media images` / `videos` / `albums` |
 | `cli:download` | `media download --dry-run` |
 | `cli:favorites` | `favorite tags/stream` + `like stream` + `comment stream` |

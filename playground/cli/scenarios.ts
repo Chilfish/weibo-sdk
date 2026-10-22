@@ -53,6 +53,19 @@ export const cliScenarios: CliScenario[] = [
   },
   {
     kind: 'cli',
+    id: 'attachments',
+    title: '特殊格式附件',
+    summary: 'tweet detail + tweet context（文章 / 投票 / 直播 / 抽奖）',
+    steps: ({ args, env }) => {
+      const mblogId = argument(args, 0, 'PLAYGROUND_MBLOG_ID', env.values, 'RnQe6zQ70')
+      return [
+        { argv: ['tweet', 'detail', mblogId], note: 'JSON 中包含 tweet.attachments' },
+        { argv: ['tweet', 'context', mblogId, '--format', 'json'], note: 'Agent 视图的 post.attachments / unknowns' },
+      ]
+    },
+  },
+  {
+    kind: 'cli',
     id: 'media',
     title: '媒体集合',
     summary: 'media images / videos / albums',

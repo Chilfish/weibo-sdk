@@ -13,7 +13,7 @@ function resolveCliCommand(): CliCommand | undefined {
   if (process.env.WEIBO_CLI_BIN)
     return { command: process.env.WEIBO_CLI_BIN, args: [] }
 
-  const dist = join(ROOT, 'dist', 'cli.mjs')
+  const dist = join(ROOT, 'dist', 'cli-bin.mjs')
   if (existsSync(dist))
     return { command: process.execPath, args: [dist] }
 
@@ -28,7 +28,7 @@ function resolveCliCommand(): CliCommand | undefined {
 export async function runCli(argv: string[], options: { cwd: string }): Promise<number> {
   const resolved = resolveCliCommand()
   if (!resolved) {
-    console.error('未找到 dist/cli.mjs。先运行 `pnpm build`，或设置 WEIBO_CLI_BIN 指向已安装的 weibo-cli。')
+    console.error('未找到 dist/cli-bin.mjs。先运行 `pnpm build`，或设置 WEIBO_CLI_BIN 指向已安装的 weibo-cli。')
     return 127
   }
 

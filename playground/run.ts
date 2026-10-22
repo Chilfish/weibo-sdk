@@ -20,6 +20,7 @@ import { scenario as rawEnrich } from './sdk/raw-enrich'
 import { scenario as socialGraph } from './sdk/social-graph'
 import { scenario as telemetry } from './sdk/telemetry'
 import { scenario as topicsTrends } from './sdk/topics-trends'
+import { scenario as tweetAttachments } from './sdk/tweet-attachments'
 import { scenario as tweetComments } from './sdk/tweet-comments'
 import { scenario as userArchive } from './sdk/user-archive'
 import { scenario as userTimeline } from './sdk/user-timeline'
@@ -30,6 +31,7 @@ const SDK_SCENARIOS: SdkScenario[] = [
   userTimeline,
   homeFeed,
   tweetComments,
+  tweetAttachments,
   mediaGallery,
   downloadMedia,
   favoritesLikes,
