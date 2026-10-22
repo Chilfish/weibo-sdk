@@ -1,0 +1,137 @@
+---
+title: userArchive
+outline: deep
+---
+
+# userArchive
+
+按时间范围归档一个用户：日期切片枚举 + 逐条重新拉取详情 / 长文 / 评论 / 楼中楼 / 转发，支持续跑。
+
+| 方法 | 返回 | 访客 | 稳定性 |
+|---|---|---|---|
+| `run(uid, options?)` | `Promise<UserArchiveResult>` | 不可用 | 稳定 |
+| `stream(uid, options?)` | `AsyncIterableIterator<UserArchiveEvent>` | 不可用 | 稳定 |
+
+## `run(uid, options?)`
+
+```ts
+const result = await sdk.userArchive.run('1111681197', {
+  since: '2026-01-01',
+  until: '2026-03-31',
+  includeComments: true,
+  includeReplies: true,
+  maxCommentPages: 2,
+  maxReplyPages: 2,
+})
+
+result.file        // ArchiveFile（weibo-user-archive/v2）
+result.complete
+result.summary     // { tweets, comments, replies, errors, complete, estimatedTotal?, coverage? }
+result.user
+```
+
+## `stream(uid, options?)`
+
+逐事件消费，适合边抓边落盘：
+
+```ts
+for await (const event of sdk.userArchive.stream(uid, { store })) {
+  switch (event.type) {
+    case 'meta':
+      await saveMeta(event.meta)
+      break
+    case 'record':
+      await persist(event.entry)
+      break
+    case 'issue':
+      console.warn(event.issue)
+      break
+    case 'slice-done':
+      console.log('slice done', event.slice)
+      break
+    case 'done':
+      console.log(event.summary)
+      break
+  }
+}
+```
+
+事件：
+
+| `type` | 载荷 |
+|---|---|
+| `meta` | `{ meta: UserArchiveMeta }`（切片计划与运行配置） |
+| `slice-start` | `{ slice, resumed }` |
+| `record` | `{ entry: UserArchiveRecord }` |
+| `issue` | `{ slice?, issue: ArchiveIssue }` |
+| `slice-done` | `{ slice: string }` |
+| `done` | `{ summary: UserArchiveSummary }` |
+
+## 选项 `UserArchiveOptions`
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| `since` / `until` | 2009-08-14 / 现在 | unix 秒、`YYYY-MM-DD` 或 `YYYYMMDD` |
+| `sliceDays` | 30 | 每 n 天一个枚举子任务；0 = 不拆分 |
+| `includeComments` | true | 拉取并挂载一级评论 |
+| `includeReplies` | true | 展开楼中楼 |
+| `includeReposts` | false | 拉取转发列表 |
+| `commentOrder` | `'time'` | `'time'` / `'hot'` |
+| `maxComments` | 不限 | 总评论条数上限 |
+| `maxCommentPages` | 2 | 每条微博最多评论页数；0 = 全部 |
+| `maxReplies` | 不限 | 总楼中楼条数上限 |
+| `maxReplyPages` | 2 | 每条一级评论最多楼中楼页数；0 = 全部 |
+| `maxReposts` / `maxRepostPages` | 不限 | 转发上限 |
+| `concurrency` | 6（上限 32） | 全局补全并发；实际 QPS 仍受令牌桶控制 |
+| `store` | 内存 | `UserArchiveStore` 持久化端口 |
+| `onProgress` | — | `UserArchiveProgress` 回调 |
+| `onIssue` | — | issue 回调 |
+| `onRecord` | — | 每条记录完成时回调 |
+| `signal` | — | 中断信号 |
+
+## `UserArchiveStore`
+
+SDK 不碰文件系统；续跑由调用方实现：
+
+```ts
+interface UserArchiveStore {
+  loadMeta(): Promise<UserArchiveMeta | undefined>
+  saveMeta(meta: UserArchiveMeta): Promise<void>
+  loadSlices(): Promise<UserArchiveSliceState[]>
+  loadRecords(slice?: string): Promise<UserArchiveRecord[]>
+  appendRecord(entry: UserArchiveRecord): Promise<void>
+  saveCheckpoint(slice: UserArchiveSlice, checkpoint: ArchiveCheckpoint): Promise<void>
+  markSliceDone(slice: UserArchiveSlice): Promise<void>
+  appendIssue(issue: ArchiveIssue, slice?: UserArchiveSlice): Promise<void>
+  loadIssues(): Promise<ArchiveIssue[]>
+  clear(): Promise<void>
+}
+```
+
+内置 `createMemoryUserArchiveStore()`，适合测试与小范围运行。
+
+## 续跑语义
+
+- journal 记录每个切片的完成状态与 checkpoint；重跑同一命令即可接着跑。
+- 已加载的旧记录计入 `processed`，不会被重复产出。
+- 带 issue 的重试目标不会被算作已完成。
+- `--fresh` 清空进度重新开始。
+
+## 与全量镜像的区别
+
+| | `archive.streamArchive` | `userArchive.run` |
+|---|---|---|
+| 枚举方式 | mymblog + 可选日期切片 | 日期切片 |
+| 详情 | 时间线简版，可选补详情 | 逐条重新拉详情与长文 |
+| 评论 | 可选，挂到 `tweet.comments` | 默认补一级评论 + 楼中楼 |
+| 输出 | `ArchiveItem` 流 | 单个 `ArchiveFile` |
+| 用途 | 全量镜像 / 增量同步 | 指定时间段深度归档 |
+
+## CLI
+
+```bash
+weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
+weibo-cli archive user 1111681197 --since 2026-04-01 --until 2026-06-30 -o ./weibo-archive.json --merge
+weibo-cli archive user 1111681197 --all-comments --all-replies
+weibo-cli archive user 1111681197 --fresh
+```

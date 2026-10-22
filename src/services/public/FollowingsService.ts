@@ -37,7 +37,8 @@ export interface FollowingsStreamOptions extends StreamLimitOptions {
   onProgress?: (progress: FollowingsStreamProgress) => void | Promise<void>
 }
 
-type FollowingUser = FriendshipsResponse['users'][number]
+/** 关注 / 粉丝列表中的用户（`friendships.users[]`）。 */
+export type FollowingUser = FriendshipsResponse['users'][number]
 
 function userKey(user: FollowingUser): string | undefined {
   const id = user.idstr ?? (user.id === undefined ? undefined : String(user.id))

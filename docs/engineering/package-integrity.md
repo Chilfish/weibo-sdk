@@ -122,14 +122,15 @@
 
 **状态**：已实现（PF5，2026-10-21）。三个脚本落地为 `scripts/lint-package.mjs` / `scripts/verify-package.mjs` / `scripts/test-bundle.mjs`；单测仍保持离线快速（只读 `package.json`，不 spawn、不构建），并补上条件 `exports` / `bin` / `engines` / `sideEffects` 断言。
 
-### R10. `schemas/` 不随包发布（中）
+### R10. `schemas/` 不随包发布（已修复，2026-10-22）
 
-`files: ["dist"]` 意味着 `schemas/weibo-user-archive/v2.json`（以及历史的 `v1.json`）不在 tarball 里。归档文件的 `$schema` 指向 GitHub raw `main`，是可变分支，不是版本化产物。
+原问题：`files: ["dist"]` 意味着 `schemas/weibo-user-archive/v2.json`（以及历史的 `v1.json`）不在 tarball 里；归档文件的 `$schema` 指向 GitHub raw `main`，是可变分支，不是版本化产物。
 
-**修复（二选一）**：
+**修复**：
 
-- 随包发布 `schemas/`，加 `exports["./schemas/weibo-user-archive/v2.json"]`，`$schema` 可用 `https://unpkg.com/@chilfish/weibo-sdk@<version>/schemas/...`。
-- 明确不随包发布，但把 `$schema` 改为 tag / release 固定 URL（如 `.../v0.3.0/schemas/...`），并写入文档。
+- `files` 增加 `schemas`，`exports` 增加 `"./schemas/*": "./schemas/*"`；`verify:package` 断言 tarball 包含 `schemas/weibo-user-archive/v2.json` 且子路径存在。
+- `ARCHIVE_SCHEMA_URL` 改为文档站稳定 URL `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json`，站点构建时从仓库 `schemas/` 同步；离线场景使用包内副本。
+- `schema:check` 进入 CI，防止提交的 schema 与类型定义漂移。
 
 ### R11. `citty` 对所有用户都是 dependency（低，已修复）
 
@@ -199,9 +200,10 @@
 - `dist/*.d.mts` 不得出现 axios 类型引用（`from "axios"` / `import("axios")`）。zod 类型引用来自 `z.infer` 别名，zod 是运行时 dependency，允许；裸 `import "axios"` side-effect 行允许（不泄漏类型）。
 - 如果未来公开 `EndpointSpec` 或 schema，必须单独 ADR，并接受 zod 版本兼容成本。
 - 新增公共导出时同步更新：
+  - `api-surface.json` 的分层与 `api-surface.snapshot.json`（`pnpm check:api`，含文档覆盖率）；
   - `tests/unit/entry/exports.test.ts` 的导出面断言；
   - `attw` 结果；
-  - `docs/README.md` / `technical-spec.md` 的契约章节。
+  - `website/api/**` 的方法/类型页面，以及 `technical-spec.md` 的架构说明。
 
 ### 4.4 依赖策略
 
@@ -227,7 +229,7 @@ pnpm pack --pack-destination .tmp-pack
 
 检查：
 
-- tarball 只包含 `dist/`、`schemas/`（若启用）、`README.md`、`LICENSE.md`、`package.json`。
+- tarball 只包含 `dist/`、`schemas/`、`README.md`、`LICENSE.md`、`package.json`。
 - tarball 的 `dependencies` 已由 pnpm 重写，没有 `catalog:` / `workspace:`；只保留 `axios` / `zod`，CLI-only 的 `citty` 已内联。
 - `dist/index.mjs`、`dist/index.d.mts`、`dist/browser.mjs`、`dist/cli.mjs`（或拆分后的两个文件）都存在。
 - `dist/*.mjs` 的 bare import 只有 `dependencies` 里的包与 Node builtin；`dist/index.mjs` 的静态闭包不含 `dist/cli*.mjs`。
@@ -364,7 +366,7 @@ CI 约束：
 5. **browser 入口**：不得静态 import `node:*`；Node-only 能力通过 `process.getBuiltinModule` 或动态 `import()` 按需取用。
 6. **插件注册**：显式传入 `plugins` 数组；禁止模块加载时自动注册；插件包也必须 `sideEffects: false` 安全。
 7. **新增运行时依赖**：先评估 bundle 体积、Edge / Worker 兼容、tree-shaking；不要把仅 CLI 使用的依赖带进根入口。仅 CLI 使用的依赖应通过 `deps.alwaysBundle` 内联进 CLI 产物，并放在 `devDependencies`（参见 `citty`）。
-8. **导出面变更**：同步更新 `exports.test.ts`、`docs/README.md`、`technical-spec.md`、`CHANGELOG.md`。
+8. **导出面变更**：同步更新 `api-surface.json` / `api-surface.snapshot.json`、`exports.test.ts`、`website/api/**`、`technical-spec.md`、`CHANGELOG.md`，并跑 `pnpm check:api`。
 9. **schema / 静态资源**：如果下游需要本地文件，必须进 `files` + `exports`，不能只依赖 GitHub raw。
 
 ---
@@ -381,7 +383,7 @@ CI 约束：
 - [ ] `dist/index.mjs` 的静态 import 闭包不含 CLI chunk
 - [ ] `dist/*.mjs` 无未处理的 Node-only 静态导入
 - [ ] `engines.node` 与 CI 矩阵一致
-- [ ] 如发布 schema：tarball 内 `schemas/` 与子路径可解析
+- [x] 如发布 schema：tarball 内 `schemas/` 与子路径可解析（2026-10-22）
 - [ ] 发布后从 registry 下载 tarball 复跑关键检查
 
 ---

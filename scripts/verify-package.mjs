@@ -232,6 +232,17 @@ function verifyPublicTypes() {
   check(leaks.length === 0, `dist/*.d.mts 无 axios 类型引用${leaks.length > 0 ? `\n  ${leaks.join('\n  ')}` : ''}`)
 }
 
+function verifySchemas(packed) {
+  check(
+    existsSync(path.join(PACK_DIR, 'schemas/weibo-user-archive/v2.json')),
+    'tarball 包含 schemas/weibo-user-archive/v2.json（离线校验）',
+  )
+  check(
+    packed.exports?.['./schemas/*'] === './schemas/*',
+    'package.json#exports 暴露 ./schemas/* 子路径',
+  )
+}
+
 function main() {
   rmSync(TMP_DIR, { recursive: true, force: true })
   mkdirSync(TMP_DIR, { recursive: true })
@@ -260,6 +271,7 @@ function main() {
     verifyNodeImport()
     verifyCliVersion(version)
     verifyPublicTypes()
+    verifySchemas(packed)
   }
   catch (error) {
     check(false, `verify:package 执行异常：${error instanceof Error ? error.message : String(error)}`)

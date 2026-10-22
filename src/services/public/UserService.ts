@@ -1,8 +1,9 @@
 import type { MentionsViewArgs } from '../endpoints/mentions'
 import type { UserDetailsResponse, UserInfoResponse } from '../endpoints/user'
-import type { Tweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { MblogGroup, UserGroup } from '~/types/domain/IGroup'
+import type { ITweet } from '~/types/domain/ITweet'
+import type { IUser } from '~/types/domain/IUser'
 import type { StreamRangeOptions } from '~/utils/streamRange'
 import { normalizeMblogGroups, normalizeUserGroups } from '~/models/data/Group'
 import { Tweet as TweetModel } from '~/models/data/Tweet'
@@ -24,7 +25,7 @@ export interface UserMentionsPageResult {
   /** 上游 `total_number`（可用时） */
   total?: number
   /** 本页归一化微博（已按 `mblogid` 去重） */
-  tweets: Tweet[]
+  tweets: ITweet[]
 }
 
 /** `listMentions` 的选项。 */
@@ -168,10 +169,10 @@ export class UserService extends FetcherService {
    * 并发出 `normalize_done` Wide Event（`model: 'User'`）。
    *
    * @param id 用户 UID（数字串或 `idstr`）
-   * @returns 归一化后的 `User` 实例（缺失字段为 `undefined`，不伪造默认值）
+   * @returns 归一化后的 `IUser`（缺失字段为 `undefined`，不伪造默认值）
    * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误（任一请求失败即整体失败）
    */
-  public async getById(id: string): Promise<User> {
+  public async getById(id: string): Promise<IUser> {
     const traceId = `${Date.now()}-getById-${++normalizeSeq}`
     const [info, details] = await Promise.all([
       this.fetchRawInfo(id),
@@ -232,9 +233,9 @@ export class UserService extends FetcherService {
    *   console.log(tweet.mblogId, tweet.text)
    * }
    */
-  async* streamMentions(options: UserMentionsStreamOptions = {}): AsyncIterableIterator<Tweet> {
+  async* streamMentions(options: UserMentionsStreamOptions = {}): AsyncIterableIterator<ITweet> {
     const maxPages = normalizeMaxPages(options.maxPages)
-    const range = createStreamRange<Tweet>(options, tweet => tweet.createdAt)
+    const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
     const seen = new Set<string>()
     let cursor: number | undefined = normalizeMaxId(options.maxId)
     let pageNo = normalizePage(options.page) ?? 1
@@ -364,14 +365,14 @@ export class UserService extends FetcherService {
 
   /** 拉取一页 mentions 并做单页去重 / 游标与总数解析。 */
   private async fetchMentionPage(options: UserMentionsListOptions): Promise<{
-    tweets: Tweet[]
+    tweets: ITweet[]
     cursor: number
     total?: number
     rawCount: number
   }> {
     const raw = await this.request(mentionsSpec, buildMentionArgs(options))
     const seen = new Set<string>()
-    const tweets: Tweet[] = []
+    const tweets: ITweet[] = []
 
     for (const item of raw.data.statuses) {
       const tweet = new TweetModel(item)

@@ -9,6 +9,20 @@
 
 > **发布形态**（2026-10-19）：发布为 npm 包 `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`），被 `I:\dev\Weibo-archiver` 的 web-v3（SPA）/ monkey / CLI 消费，`ITweet` 定为下游存档终局契约。见 [reviews/review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) 与 [archive/todo-contract-freeze.md](archive/todo-contract-freeze.md)（契约冻结阶段，已归档）。
 
+## 公开文档（website/）
+
+面向**下游使用者**的文档不在本目录，在独立站点 [`website/`](../website/)（<https://weibo-sdk.chilfish.top>）：
+
+| 内容 | 位置 |
+|---|---|
+| 指南（安装 / 鉴权 / 分页 / 错误 / 归档 / 媒体 / 插件） | [`website/guide/`](../website/guide/) |
+| API 参考（每个服务一页，含签名 / 参数 / 返回 / 错误 / 访客限制） | [`website/api/`](../website/api/) |
+| CLI 命令参考 | [`website/cli/index.md`](../website/cli/index.md) |
+| 契约与格式（`ITweet` v2、归档 v2、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
+| 导出索引（Stable / Experimental + 全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
+
+**约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的同步由 `pnpm check:api` / `pnpm check:docs` 强制。
+
 ---
 
 ## Agent 使用文档
@@ -47,6 +61,7 @@
 | [research-weibo-memories-2026-10-22.md](planning/research-weibo-memories-2026-10-22.md) | 「那年今日 / 微博回忆」抓包调研 + 暂缓实施计划：`containerid=232544`、固定三年单页、Cookie 要求、containerid 不可发现、类型契约与伪代码 | 未来按需实现回忆能力时 |
 | [research-tweet-special-formats-2026-10-22.md](planning/research-tweet-special-formats-2026-10-22.md) | 微博特殊格式适配：视频 / 文章 / 投票 / 直播 / 抽奖的 PC/m 双结构、m 站视频归一化 bug、`ITweet.attachments` 契约与伪代码 | 实现 / 评审附件能力 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
+| [todo-downstream-handoff.md](planning/todo-downstream-handoff.md) | 下游交接计划：API 稳定子集收口、独立公开文档站（`website/`）、文档迁移与门禁、`0.6.0` 提交顺序 | 实施 / 验收下游交接 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
 
@@ -62,19 +77,13 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [technical-spec.md](engineering/technical-spec.md) | 架构与契约规格（分层、实体契约、接口定义、错误体系、可测试性） | 任何实现/契约变更 |
-| [contract-itweet-v2.md](engineering/contract-itweet-v2.md) | `ITweet` 存档契约 v2：版本机制、字段冻结表、媒体 URL 契约、v1 → v2 迁移 | 修改数据模型 / 下游接入存档 |
-| [archive-schema.md](engineering/archive-schema.md) | 归档 JSON Schema（`weibo-user-archive/v2`）：`$schema` 约定、类型生成、版本规则、Ajv 校验 | 修改归档格式 / 下游接入归档文件 |
-| [user-archive.md](engineering/user-archive.md) | 用户范围归档：`sdk.userArchive.run/stream`、store 端口、`weibo-cli archive user`、journal 与退出码 | 运行 / 修改范围归档 |
+| [api-stability.md](engineering/api-stability.md) | 公开 API 稳定性政策：Stable / Experimental / Internal 分层、变更流程、门禁 | 新增/修改公开导出、评审 breaking change |
+| [cli-architecture.md](engineering/cli-architecture.md) | CLI 内部架构：命令树、bin 入口、新增子命令流程 | 添加/修改 CLI 子命令 |
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
 | [release-checklist.md](engineering/release-checklist.md) | 里程碑发布清单（验证门禁 + 导出面核验 + E2E 冒烟） | 发布前 |
 | [package-integrity.md](engineering/package-integrity.md) | 包完整性与下游打包指南：exports / types / sideEffects / engines、tarball 核验矩阵、publint / attw / Vite / tree-shaking 门禁 | 修改发布配置、新增子路径/依赖、排查下游打包问题 |
-| [plugins.md](engineering/plugins.md) | 插件与传输适配：`WeiboTransport` / `CredentialResolver` / 插件生命周期、顺序、错误语义与示例 | 替换 fetch、编写插件、排查扩展点 |
-| [logging.md](engineering/logging.md) | 日志出口：Wide Events → logger bridge、级别映射、内置 console / JSONL sink、脱敏与默认静默 | 接入日志、落盘、排查输出边界 |
-| [cli.md](engineering/cli.md) | CLI 命令参考与架构说明（citty，二进制 `weibo-cli`） | 添加/修改 CLI 子命令 |
 | [endpoint-authoring.md](engineering/endpoint-authoring.md) | 端点开发指南：抓包 → schema → spec → service → CLI → 测试 → 文档；含分页约定与高频雷区 | 新增/修改任何 endpoint |
-| [media-download.md](engineering/media-download.md) | 单条微博媒体下载：命名、安全、重试、失败清单 | 修改下载行为 / 排障 |
-| [error-diagnostics.md](engineering/error-diagnostics.md) | 错误排障手册（结构化错误码表、排查流程） | 排障时 |
 | [skill.md](engineering/skill.md) | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 | 理解可观测性/SDD |
 | [opencli-browser-bridge.md](engineering/opencli-browser-bridge.md) | **两条抓包通道的选型入口** + OpenCLI 操作手册（复用已登录 Chrome、发现未知端点、模拟点击触发 XHR） | 抓真实 fixture 前先读 |
 | [browser-capture.md](engineering/browser-capture.md) | `capture/` CDP 通道的方案选型记录（候选方案对比 / 选型理由 / 与 OpenCLI 的分工）；操作契约见 [`capture/README.md`](../capture/README.md) | 想改抓包方案 / 理解历史选型 |
@@ -113,7 +122,7 @@
 
 ## 约定
 
-- 所有文档使用中文（README / CHANGELOG / LICENSE 除外）。
+- 内部文档使用中文；公开站点同样以中文为主，API 名与字段保留英文。
 - **文档先行**：每个任务第一步先更新相关文档（开发日志、任务状态、方案文档），再开始写代码；实施中随反馈同步修改，而非事后补记。
 - **文档即事实**：发现文档与代码不一致，以代码为准并修正文档。
 - **归档**：完成阶段的规划文档移入 `archive/`——存档 = 历史记录，不主动读取；活跃文档只留在对应分类下。

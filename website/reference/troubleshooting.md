@@ -1,3 +1,8 @@
+---
+title: 故障排查
+outline: deep
+---
+
 # 错误排障手册
 
 这份手册列出 SDK 会抛出的错误码、常见原因和排查方式。遇到错误时先看 `error.code`，再看 `error.context`，不要把错误文案当作判断依据。
@@ -242,7 +247,7 @@ const sdk = new WeiboSDK({
 - `MEDIA_DOWNLOAD_FAILED`：CDN 传输层失败。检查 `context.status` 和 `reason`，这类错误可以重试。遇到 403、404、410 时，下载器会先尝试刷新微博 URL。
 - `MEDIA_BAD_RESPONSE`：响应不是媒体文件，常见于 `text/html` 的登录页或风控页；也可能是类型不匹配或超过 `maxBytes`。可以看 `context.contentType` 和 `snippet`。
 - `MEDIA_STORAGE_FAILED`：本地落盘失败，比如 `ENOSPC`、`EACCES` 或 `EPERM`。换一个输出目录或释放空间；下载器会停止后续调度。
-- 失败清单写在 `<out>/<mblogId>-media-errors.json`。详细规则见 [media-download.md](./media-download.md)。
+- 失败清单写在 `<out>/<mblogId>-media-errors.json`。详细规则见 [媒体下载](./media-download)。
 
 ---
 

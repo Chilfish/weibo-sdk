@@ -4,6 +4,31 @@
 
 ## Unreleased
 
+### 新增
+
+- 新增独立公开文档站（VitePress，`website/`，<https://weibo-sdk.chilfish.top>）：指南、按服务拆分的 API 参考、CLI、契约与格式、排障。下游文档从 `docs/engineering/` 迁出，仓库 `docs/` 只保留内部开发文档。
+- 新增公开 API 稳定性政策：Stable / Experimental / Internal 分层，见 `docs/engineering/api-stability.md` 与文档站「如何阅读」。`api-surface.json` + `api-surface.snapshot.json` 记录导出面，`pnpm check:api` 校验分层完整性、文档覆盖率与 service 方法覆盖；`pnpm check:docs` 防止公开文档引用内部路径。
+- `schemas/` 随包发布：`@chilfish/weibo-sdk/schemas/*`；归档 JSON Schema 的 canonical URL 改为文档站 `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json`，离线可用包内副本。
+- 补齐公开类型导出：`TweetPageResult`、`TweetFriendTimelineStreamProgress`、`FollowingUser`、`TweetCommentsOptions`、`TweetRepliesOptions`、`TweetRepostsListOptions`、`TweetSearchByDateOptions`、`TweetUserTimelineListOptions`、`TweetFriendTimelineListOptions`。
+- 新增 `tweets.context`、`tweets.replies` / `streamReplies`、`tweets.longText` 与门面自身的 `capabilities` 能力登记；能力表新增「方法必须可调用」测试。
+
+### 变更
+
+- **BREAKING CHANGE**：公开方法返回类型统一到领域接口——`users.getById` 返回 `IUser`，`tweets.getByMblogId` / `enrich().tweet` / 所有 `Tweet` 流返回 `ITweet`，`ArchiveItem.tweet` 为 `ITweet`。运行时对象不变。
+  迁移：把 `import type { Tweet, User } from '@chilfish/weibo-sdk'` 改为 `ITweet` / `IUser`；`Tweet` / `User` 类不再从包根导出。
+- **BREAKING CHANGE**：包根收窄，移除内部实现导出：`IResource` / `IResourceType`、endpoint `*Args`、`*Deps`、`PaginateOptions` / `PaginationPage`、`RawTweet`、`Tweet` / `User` 类、logger / telemetry 内部工具、视图管线 helper。
+  迁移：仓库内从 `~/types/...` / `~/models/...` 直接导入；下游使用对应的 Stable 类型（如 `ITweet`、`PaginationProgress`）。
+- **BREAKING CHANGE**：公开选项字段统一 camelCase：`tweets.comments` / `tweets.replies` 的 `max_id` / `is_reply` / `rootid` / `fetch_level` → `maxId` / `isReply` / `rootId` / `fetchLevel`；`tweets.listFriendTimeline` 的 `max_id` / `since_id` / `list_id` → `maxId` / `sinceId` / `listId`。CLI 参数名不变。
+- **BREAKING CHANGE**：`capabilities()` 修正 `auth` 与 `methods`——用户时间线、点赞、关注、粉丝改为 `auth: 'guest'`（`guestPagination: 'first_page'`）；`users.profile` 的 methods 改为实际方法名；`users.timeline` 归到 `tweets` 服务。按 `auth` 判断访客可用性的代码需同时看 `guestPagination`。
+- 归档 `$schema` 字符串改为文档站 URL；已生成文件的读取不受影响。
+- `tweets.enrich` / `streamArchive` 等原有行为不变；raw 方法（`comments` / `getReposts` / `getFollowings` 等）与原始响应类型标记为 Experimental。
+
+### 文档
+
+- `docs/engineering/` 中面向下游的 8 篇文档迁入 `website/`（CLI、ITweet 契约、归档格式、范围归档、媒体下载、插件、日志、排障），内部链接同步更新。
+- `technical-spec.md` 不再逐方法维护服务签名与导出清单，改为指向文档站与 `api-surface.json`；补充 `attachments`、`transport` / `fetch` / `plugins` / `logger` 配置。
+- 修正 README 的文档链接、能力表（新增 `sdk.search` / `tweets.context`）与 CLI 入口路径。
+
 ## 0.5.0 (2026-10-22)
 
 ### 修复

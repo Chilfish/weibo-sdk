@@ -103,6 +103,10 @@ for (const tweet of page.tweets)
 
 const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
 console.log(tweet.media)
+
+// Agent 视角：谁说的 / 时间 / 正文 / 媒体归属 / 转发关系 / 未知项
+const context = await sdk.tweets.context('QqsYymYOS', { comments: 5 })
+console.log(context.post.text, context.unknowns)
 ```
 
 ### 流式读取
@@ -217,6 +221,8 @@ weibo-cli archive merge older.json newer.json -o ./weibo-archive.json
 weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json --merge
 ```
 
+`weibo-cli archive user` 产出 `weibo-user-archive/v2` 格式，`$schema` 指向 <https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json>；JSON Schema 也随包发布，可离线校验：`@chilfish/weibo-sdk/schemas/weibo-user-archive/v2.json`。
+
 ### 下载媒体
 
 ```ts
@@ -285,6 +291,7 @@ await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 |---|---|---|
 | 用户与关系 | `sdk.users` | `weibo-cli user` |
 | 微博、评论、转发 | `sdk.tweets` | `weibo-cli tweet` |
+| Agent 视角上下文 | `sdk.tweets.context` | `weibo-cli tweet context` |
 | 关注与粉丝 | `sdk.followings` | `weibo-cli follow` |
 | 收藏与点赞 | `sdk.favorites` / `sdk.likes` | `weibo-cli favorite` / `like` |
 | 历史评论 | `sdk.commentHistory` | `weibo-cli comment` |
@@ -293,8 +300,19 @@ await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 | 超话与热搜 | `sdk.topics` / `sdk.trends` | `weibo-cli topic` / `trends` |
 | 账号归档 | `sdk.archive` | `weibo-cli archive` |
 | 范围归档（指定时间段 + 深度补全） | `sdk.userArchive` | `weibo-cli archive user` |
+| 公开关键词搜索（当前不可用） | `sdk.search` | `weibo-cli search` |
 
-完整命令和参数见 [CLI 参考](./docs/engineering/cli.md)。SDK 的方法签名、分页游标和返回类型以包内类型声明为准。
+完整命令和参数见 [CLI 参考](https://weibo-sdk.chilfish.top/cli/)。SDK 的方法签名、参数、返回类型、错误与访客限制见 [API 参考](https://weibo-sdk.chilfish.top/api/)；根导出按 Stable / Experimental 分层，见 [导出索引](https://weibo-sdk.chilfish.top/api/types/)。
+
+## 稳定性
+
+包根公开面分三层：
+
+- **Stable**：门面与配置、返回领域模型的读取/流方法、领域模型、归档契约、扩展端口、错误体系。破坏性变更升包 major；0.x 内至少给 `CHANGELOG` 迁移说明。
+- **Experimental**：返回原始上游形状的方法、`z.infer` 端点响应类型、辅助函数。可能随上游漂移。
+- **Internal**：不从包根导出。
+
+`pnpm check:api` 会校验导出面快照、分层完整性与文档覆盖率；新增公开导出必须同时更新 `api-surface.json` 与文档。
 
 ## 诊断
 
@@ -318,7 +336,7 @@ weibo-cli schema diff before-digest.json after-digest.json
 - `API_BAD_RESPONSE`：返回的不是 JSON，或字段结构与预期不符
 - `CONFIG_INVALID`：Cookie、代理或参数配置有误（例如 `auth: 'cookie'` 却没有 Cookie、访客请求第 2 页、访客调用归档）
 
-完整的错误码和处理方式见 [错误排障手册](./docs/engineering/error-diagnostics.md)。
+完整的错误码和处理方式见 [错误排障手册](https://weibo-sdk.chilfish.top/reference/troubleshooting)。
 
 ## 原始响应与遥测
 
@@ -356,7 +374,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-日志来自已有的 Wide Events 与 `sdk_init` / `self_check_*`，不会额外埋点；内置 sink 默认替换 Cookie / token 等敏感字段。详见 [日志](./docs/engineering/logging.md)。
+日志来自已有的 Wide Events 与 `sdk_init` / `self_check_*`，不会额外埋点；内置 sink 默认替换 Cookie / token 等敏感字段。详见 [日志](https://weibo-sdk.chilfish.top/reference/logging)。
 
 ## 扩展：自定义传输与插件
 
@@ -387,7 +405,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-transport 中间件可以短路、缓存或 mock；生命周期钩子可改请求 / 重试延迟 / 终态错误。完整契约见 [插件与传输适配](./docs/engineering/plugins.md)。
+transport 中间件可以短路、缓存或 mock；生命周期钩子可改请求 / 重试延迟 / 终态错误。完整契约见 [插件与传输适配](https://weibo-sdk.chilfish.top/reference/plugins)。
 
 ## 开发
 
@@ -419,17 +437,21 @@ pnpm play whoami
 pnpm play cli:home
 ```
 
-更多开发约定见 [AGENTS.md](./AGENTS.md)，端点开发流程见 [endpoint-authoring.md](./docs/engineering/endpoint-authoring.md)。
+更多开发约定见 [AGENTS.md](./AGENTS.md)，端点开发流程见 [endpoint-authoring.md](https://github.com/Chilfish/weibo-sdk/blob/main/docs/engineering/endpoint-authoring.md)。
 
 ## 文档
 
-文档入口是 [docs/README.md](./docs/README.md)。常用的几篇：
+公开文档站：<https://weibo-sdk.chilfish.top>
 
-- [项目概览](./docs/requirements/overview.md)
-- [CLI 参考](./docs/engineering/cli.md)
-- [错误排障](./docs/engineering/error-diagnostics.md)
-- [端点开发](./docs/engineering/endpoint-authoring.md)
-- [数据模型说明](./docs/engineering/contract-itweet-v2.md)
+- [快速开始](https://weibo-sdk.chilfish.top/guide/quick-start)
+- [鉴权与访客模式](https://weibo-sdk.chilfish.top/guide/authentication)
+- [API 参考](https://weibo-sdk.chilfish.top/api/)
+- [CLI 参考](https://weibo-sdk.chilfish.top/cli/)
+- [ITweet 契约 v2](https://weibo-sdk.chilfish.top/reference/tweet-contract-v2)
+- [归档格式 v2](https://weibo-sdk.chilfish.top/reference/archive-format-v2)
+- [故障排查](https://weibo-sdk.chilfish.top/reference/troubleshooting)
+
+仓库内部的开发约定见 [AGENTS.md](./AGENTS.md)，端点开发流程见 [endpoint-authoring.md](https://github.com/Chilfish/weibo-sdk/blob/main/docs/engineering/endpoint-authoring.md)。
 
 ## 边界
 

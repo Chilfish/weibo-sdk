@@ -150,7 +150,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-约束：插件只在 `new WeiboSDK()` 时组装（不支持 `sdk.use()` 热插拔）；同名插件或 `apiVersion !== 1` 会抛 `CONFIG_INVALID`；`observe` 是只读观察者，抛错不会影响请求。完整契约见 [插件与传输适配](../docs/engineering/plugins.md)。
+约束：插件只在 `new WeiboSDK()` 时组装（不支持 `sdk.use()` 热插拔）；同名插件或 `apiVersion !== 1` 会抛 `CONFIG_INVALID`；`observe` 是只读观察者，抛错不会影响请求。完整契约见 [插件与传输适配](../website/reference/plugins.md)。
 
 ## CLI 场景
 

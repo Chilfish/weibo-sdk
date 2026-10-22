@@ -176,7 +176,7 @@ export const scenario: SdkScenario = {
     }
 
     log.heading('下一步')
-    log.info('插件契约：docs/engineering/plugins.md')
+    log.info('插件契约：website/reference/plugins.md（https://weibo-sdk.chilfish.top/reference/plugins）')
     log.info('同一套 API 也适用于 Worker / Edge：new WeiboSDK({ transport: fetchTransport({ fetch: myFetch }) })')
     log.info('插件必须在构造期传入，不支持热插拔；observe 抛错不会影响请求。')
   },

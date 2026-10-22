@@ -2,7 +2,7 @@
 
 这份指南说明如何新增或修改微博端点：先用真实响应确认行为，再写 schema、Service、CLI 和测试。微博接口没有公开文档，字段和分页方式会变，所以真实响应始终优先于推测。
 
-相关文档：[技术规格](./technical-spec.md)、[代码规范](./code-style.md)、[CLI 参考](./cli.md)。
+相关文档：[技术规格](./technical-spec.md)、[代码规范](./code-style.md)、[CLI 参考](../../website/cli/index.md)。
 
 ## 设计原则
 
@@ -177,7 +177,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 ### 第八步：更新文档
 
 - [ ] `docs/engineering/technical-spec.md`：端点清单 / 服务方法 / 契约
-- [ ] `docs/engineering/cli.md`：命令参考 + 输出形态
+- [ ] `website/cli/index.md`：命令参考 + 输出形态
 - [ ] `README.md`：用户可见能力（如适用）
 - [ ] `CHANGELOG.md`：用户可感知变化
 - [ ] `docs/planning/backlog.md`：阶段完成后登记后续候选（历史阶段计划归档到 `docs/archive/`）
@@ -247,7 +247,7 @@ public async listByUserId(uid: string, options?: { page?: number }): Promise<MyP
 - [ ] args / response schema 由真实 fixture 验证
 - [ ] `auth` 明确：默认 `cookie`；标 `guest` 的端点有访客真实样本与 `capabilities` 的 `guestPagination` 说明
 - [ ] 分页语义有注释与测试；有重复页保护
-- [ ] 错误映射符合 [error-diagnostics.md](./error-diagnostics.md)
+- [ ] 错误映射符合 [故障排查](../../website/reference/troubleshooting.md)
 - [ ] 公开方法有 TSDoc；CLI 有对应命令
 - [ ] `pnpm run typecheck` / `lint` / `test` / `validate:fixtures` / `build` 通过
 - [ ] 文档与代码一致（docs-as-truth）

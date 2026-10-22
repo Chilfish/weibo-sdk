@@ -279,7 +279,7 @@ describe('tweetService', () => {
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const page = await service.listFriendTimeline({ max_id: '999' })
+    const page = await service.listFriendTimeline({ maxId: '999' })
     expect(page.maxId).toBe('12345')
     expect(page.hasMore).toBe(true)
     expect(page.tweets).toHaveLength(1)

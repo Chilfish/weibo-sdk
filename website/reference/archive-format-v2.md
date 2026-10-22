@@ -1,8 +1,13 @@
+---
+title: 归档格式 v2
+outline: deep
+---
+
 # 归档 JSON Schema（`weibo-user-archive/v2`）
 
-[`weibo-cli archive user`](./user-archive.md) / [`sdk.userArchive`](./user-archive.md) 产出的单文件归档使用 [`schemas/weibo-user-archive/v2.json`](../../schemas/weibo-user-archive/v2.json) 描述结构。本文说明格式约定、生成方式和版本规则。
+[`weibo-cli archive user`](/cli/) / [`sdk.userArchive`](/api/user-archive) 产出的单文件归档使用 [`schemas/weibo-user-archive/v2.json`](/schemas/weibo-user-archive/v2.json) 描述结构。本文说明格式约定、生成方式和版本规则。
 
-> v1 文件（`weibo-user-archive/v1`）仍可用 [`schemas/weibo-user-archive/v1.json`](../../schemas/weibo-user-archive/v1.json) 校验；v2 删除了 `tweet.textHtml` 与归档记录的 `longText` / `quotedLongText`。
+> v1 文件（`weibo-user-archive/v1`）仍可用 [`schemas/weibo-user-archive/v1.json`](/schemas/weibo-user-archive/v1.json) 校验；v2 删除了 `tweet.textHtml` 与归档记录的 `longText` / `quotedLongText`。
 
 ## 1. 为什么是 JSON Schema，不是 OpenAPI
 
@@ -12,16 +17,16 @@ OpenAPI 描述的是 **HTTP API**（路径、参数、响应），归档 JSON �
 
 | 键 | 示例 | 作用 |
 |---|---|---|
-| `$schema` | `https://raw.githubusercontent.com/Chilfish/weibo-sdk/main/schemas/weibo-user-archive/v2.json` | 标准约定；编辑器 / 校验器据此自动发现 schema |
+| `$schema` | `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json` | 标准约定；编辑器 / 校验器据此自动发现 schema |
 | `schema` | `weibo-user-archive/v2` | 归档格式标识；与包版本解耦，供程序按版本分发 |
 
 `$schema` 是 JSON Schema 生态的通用约定（VS Code、IntelliJ、Ajv 等都能识别）；它不替代 `schema`，读取方仍应优先判断 `schema`。
 
-> GitHub raw 的响应头是 `text/plain`，浏览器内做运行时校验时建议改用 jsDelivr（`https://cdn.jsdelivr.net/gh/Chilfish/weibo-sdk@main/schemas/weibo-user-archive/v2.json`）。编辑器场景用 raw 即可。
+> 离线或内网环境可以直接使用 npm 包内的 `@chilfish/weibo-sdk/schemas/weibo-user-archive/v2.json`，不依赖网络。
 
 ## 2. 唯一事实源与生成
 
-契约类型定义在 [`src/types/archive/IArchiveFile.ts`](../../src/types/archive/IArchiveFile.ts)。JSON Schema **不手写**，由 `ts-json-schema-generator` 从 TypeScript 类型生成：
+契约类型定义在 `src/types/archive/IArchiveFile.ts`。JSON Schema **不手写**，由 `ts-json-schema-generator` 从 TypeScript 类型生成：
 
 ```bash
 pnpm schema:archive   # 重新生成 schemas/weibo-user-archive/v2.json
@@ -47,7 +52,7 @@ pnpm schema:check     # 生成并检查是否有未提交的漂移（CI 用）
 
 ## 4. 校验
 
-[`tests/unit/contract/archive-schema.test.ts`](../../tests/unit/contract/archive-schema.test.ts) 用 Ajv 校验一个由 TypeScript 类型约束的最小归档，覆盖：
+[`tests/unit/contract/archive-schema.test.ts`](https://github.com/Chilfish/weibo-sdk/blob/main/tests/unit/contract/archive-schema.test.ts) 用 Ajv 校验一个由 TypeScript 类型约束的最小归档，覆盖：
 
 - `$schema` / `schema` 的值与 schema 的 `$id` 一致；
 - 最小归档通过；
@@ -63,4 +68,4 @@ node -e "const Ajv=require('ajv');const fs=require('fs');const s=JSON.parse(fs.r
 
 ## 5. raw 响应不在归档契约内
 
-归档 JSON 不包含每条微博的 `statuses/show` 原始响应。需要原始数据时使用 `--raw` / `--raw-out`，单独写 `<out>.raw.ndjson`。这样上游协议漂移不会污染存档契约，也避免文件体积失控（与 `contract-itweet-v2.md` §6 一致）。
+归档 JSON 不包含每条微博的 `statuses/show` 原始响应。需要原始数据时使用 `--raw` / `--raw-out`，单独写 `<out>.raw.ndjson`。这样上游协议漂移不会污染存档契约，也避免文件体积失控（与 [ITweet 契约 v2](/reference/tweet-contract-v2) §6 一致）。

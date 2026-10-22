@@ -7,13 +7,13 @@ import type { IUser } from '../domain/IUser'
 export const ARCHIVE_SCHEMA_ID = 'weibo-user-archive/v2'
 
 /**
- * 归档 JSON Schema 的 canonical URL（GitHub raw）。
+ * 归档 JSON Schema 的 canonical URL（文档站托管，随包同时发布离线副本）。
  *
  * 该地址同时用于归档文件的 `$schema` 字段与 schema 文档的 `$id`，
  * v2 内保持稳定；破坏性变更时新增 `v3.json`。
  */
 export const ARCHIVE_SCHEMA_URL
-  = 'https://raw.githubusercontent.com/Chilfish/weibo-sdk/main/schemas/weibo-user-archive/v2.json'
+  = 'https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json'
 
 export type ArchiveIssueStage
   = | 'timeline'

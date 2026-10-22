@@ -1,6 +1,6 @@
 # ITweet 存档契约 v1（冻结）
 
-> **历史文档**：v1 已于 2026-10-21 升级为 [v2](./contract-itweet-v2.md)（删除 `textHtml`）。
+> **历史文档**：v1 已于 2026-10-21 升级为 [v2](../../website/reference/tweet-contract-v2.md)（删除 `textHtml`）。
 > 本文件仅用于理解 v1 落盘记录与迁移背景，当前契约以 v2 为准。
 
 **项目**: weibo-sdk | **冻结日期**: 2026-09-04 | **状态**: v1 已归档 | **来源**: [todo-contract-freeze P0-1](../archive/todo-contract-freeze.md) / [review K1/K3](../reviews/review-apple-design-2026-08-10.md)
@@ -231,7 +231,7 @@
 - 安全：CDN 请求只带 `Referer`（默认 `https://weibo.com/`），**不携带 Cookie/XSRF**；主机后缀白名单。
 - 稳定性：403/404/410 重新拉取微博换新 URL（每条微博最多一次）；临时文件 + 原子 rename；字节上限、空闲超时、Content-Length 校验、重试退避。
 - 失败：单项失败不中断其余项；`<mblogId>-media-errors.json` 汇总；CLI 有失败时非零退出。
-- 详见 [media-download.md](./media-download.md)。
+- 详见 [媒体下载](../../website/reference/media-download.md)。
 ## 5. 迁移策略（v1 → v2）
 
 1. v2 随包 **major** 版本发布，`TWEET_CONTRACT_VERSION` 升为 `2`，`ArchiveItem.schemaVersion` 类型随之收紧。

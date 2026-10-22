@@ -1,5 +1,5 @@
 {
-  "$id": "https://raw.githubusercontent.com/Chilfish/weibo-sdk/main/schemas/weibo-user-archive/v2.json",
+  "$id": "https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "ArchiveIssue": {

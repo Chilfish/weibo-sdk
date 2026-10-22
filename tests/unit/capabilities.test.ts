@@ -7,18 +7,25 @@ const VALID_AUTH: readonly WeiboCapability['auth'][] = ['cookie', 'guest', 'none
 
 const GUEST_CAPABLE_IDS = [
   'users.profile',
+  'users.timeline',
   'users.groups',
   'tweets.detail',
   'tweets.context',
   'tweets.enrich',
   'tweets.comments',
+  'tweets.replies',
+  'tweets.longText',
   'tweets.reposts',
   'tweets.likers',
+  'followings.following',
+  'followings.fans',
+  'likes.list',
   'media.images',
   'media.videos',
   'media.albums',
   'topics.list',
   'trends.hot',
+  'sdk.session',
 ]
 
 describe('capabilities', () => {
@@ -76,18 +83,32 @@ describe('capabilities', () => {
 
   it('degrades guest timeline to the first page only', () => {
     const timeline = WEIBO_CAPABILITIES.find(capability => capability.id === 'users.timeline')
-    expect(timeline?.auth).toBe('cookie')
+    expect(timeline?.auth).toBe('guest')
     expect(timeline?.guestPagination).toBe('first_page')
     expect(timeline?.guestNote).toContain('partial: true')
   })
 
-  it('marks cookie capabilities that expose a guest first page', () => {
+  it('marks every guest-first-page capability as guest auth', () => {
     for (const id of ['users.timeline', 'likes.list', 'followings.following', 'followings.fans']) {
       const capability = WEIBO_CAPABILITIES.find(item => item.id === id)
       expect(capability, id).toBeDefined()
-      expect(capability?.auth, id).toBe('cookie')
+      expect(capability?.auth, id).toBe('guest')
       expect(capability?.guestPagination, id).toBe('first_page')
       expect(capability?.guestNote, id).toBeTruthy()
+    }
+  })
+
+  it('only references methods that exist on the referenced service', () => {
+    const sdk = new WeiboSDK({ cookie: 'SUB=abc' })
+
+    for (const capability of WEIBO_CAPABILITIES) {
+      const target = capability.service === 'sdk'
+        ? sdk
+        : (sdk as unknown as Record<string, Record<string, unknown>>)[capability.service]
+      expect(target, `${capability.id}: service ${capability.service}`).toBeDefined()
+
+      for (const method of capability.methods)
+        expect(typeof (target as Record<string, unknown>)[method], `${capability.id}: ${method}`).toBe('function')
     }
   })
 

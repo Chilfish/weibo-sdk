@@ -1,8 +1,13 @@
+---
+title: 日志
+outline: deep
+---
+
 # 日志（Logger）
 
 > **目标**：给 SDK 一个显式、结构化、失败不影响业务的日志出口；默认静默，调用方在 `new WeiboSDK()` 或 `plugins` 中显式接入。
 > **实现**：`src/types/logging.ts`、`src/utils/logger.ts`、`src/WeiboSDK.ts`。
-> **相关**：[telemetry](../engineering/plugins.md#44-只读观察者)、[plugins.md](plugins.md)、[skill.md](skill.md)。
+> **相关**：[传输与插件](./plugins)、[遥测与日志](/guide/observability)。
 
 ---
 

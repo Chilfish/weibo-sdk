@@ -48,7 +48,11 @@ jobs:
       - run: pnpm exec eslint .
       - run: pnpm test --run
       - run: pnpm run validate:fixtures
+      - run: pnpm check:api
+      - run: pnpm check:docs
+      - run: pnpm run schema:check
       - run: pnpm run build
+      - run: pnpm docs:build
       - run: node scripts/browser-smoke.mjs --no-browser
 
       - name: Publish to npm

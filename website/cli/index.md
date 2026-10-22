@@ -1,3 +1,8 @@
+---
+title: 命令参考
+outline: deep
+---
+
 # Weibo CLI（`weibo-cli`）
 
 `weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令默认输出 JSON，流式命令输出 NDJSON，方便直接交给脚本、`jq` 或 Agent 处理；需要给人或 Agent 直接阅读时，可用 `--format markdown` 换成可读卡片。
@@ -12,9 +17,9 @@ npm i -g @chilfish/weibo-sdk && weibo-cli --help
 
 # 本仓库开发
 pnpm build        # 构建 dist/
-node dist/cli.mjs --help
+node dist/cli-bin.mjs --help
 # 或开发模式直接运行
-npx tsx src/cli.ts --help
+npx tsx src/cli-bin.ts --help
 ```
 
 ## 配置 Cookie
@@ -443,14 +448,14 @@ weibo-cli schema diff before.json after.json
 > `--merge` 把已存在的输出文件当基线，在抓取前校验 uid / 格式，结束后合并写回。
 > stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。
 > 完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。
-> 详细参数、SDK 接口与 store 端口见 [user-archive.md](./user-archive.md)。
+> 详细参数、SDK 接口与 store 端口见 [范围归档](/reference/user-archive)。
 >
 > `archive merge` 是纯本地操作，不请求微博：读入多份同账号归档，按 `mblogId` 合并后写出。
 > 输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。
 > 输入也可以是目录：只扫描顶层 `*.json`，逐份校验后跳过不可合并的文件并在 stderr 说明原因；目录中的输出文件会被排除，跨账号仍然报错。
-> 合并结果仍有未解决的 issue 时退出码为 1。规则见 [user-archive.md 的「合并归档」](./user-archive.md#合并归档)。
+> 合并结果仍有未解决的 issue 时退出码为 1。规则见 [范围归档 · 合并](/reference/user-archive)。
 
-CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
+CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [ITweet 契约 v2](/reference/tweet-contract-v2)。
 
 ## 终端呈现（`archive user`）
 
@@ -535,31 +540,18 @@ weibo-cli archive user 1111681197
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 | `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |
 | `archive merge` | `mergeArchiveFiles()` | 写入 `--out` 指定的合并结果；stdout 一行 `{ event: 'done', out, inputs, tweets, comments, replies, errors, complete, deduped }` |
+| `tweet context` | `tweets.context()` | Markdown 上下文卡片（默认）；`-f json` 输出 `ITweetContext` |
+| `tweet replies` / `replies-stream` | `tweets.replies()` / `tweets.streamReplies()` | raw `BuildCommentsResponse` / NDJSON |
+| `user timeline-stream` | `tweets.streamByUserId()` | NDJSON `progress` / `item` / `done` |
+| `topic stream` | `topics.stream()` | NDJSON `progress` / `item` / `done` |
+| `media albums` / `album` | `media.listAlbums()` / `media.listAlbumPhotos()` | 相册列表 / 分页照片 |
+| `capabilities` | `capabilities()` | 能力表 JSON（可按 `--service` / `--status` 过滤） |
+| `schema diff` | `diffSchemaDigest()` | 两份 schema digest 的差异 |
 
-## 架构
+## 退出码
 
-```
-src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archive；子命令注册
-src/cli/
-  shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file / --guest）
-  commands/
-    archiveUser.ts      # archive user：参数映射、输出文件、退出码
-    archiveMerge.ts     # archive merge：读取多份归档、合并、原子写入
-    user.ts             # user info / timeline / mentions / groups
-    tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
-    follow.ts           # follow list / follow fans / follow my
-    favorite.ts         # favorite list / favorite stream / favorite tags
-    like.ts             # like list / like stream
-    comment.ts          # comment mine / comment stream
-    media.ts            # media images / media videos
-    notification.ts     # notification comments / comments-stream / likes / likes-stream
-    search.ts           # search users / search tweets
-src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一解析
-```
-
-基于 citty 的 `defineCommand` + `runMain` 模式：
-
-- 每个子命令独立定义，支持嵌套（`user`/`tweet`/`follow`/`favorite`/`search` 为分组，`trends`/`whoami`/`archive` 为顶层命令）
-- 自动生成 `--help` 文档
-- 零运行时依赖
-- 错误输出到 stderr 并以非零退出码退出（如 `whoami` 在 Cookie 无效或访客 token 发放失败时 `process.exit(1)`；没有 Cookie 时默认走访客身份，正常退出）
+| 退出码 | 含义 |
+|---|---|
+| 0 | 成功（`archive user` 表示完整结束且无遗留 issue） |
+| 1 | 参数 / 鉴权 / 网络错误；`archive user` 枚举中止、存在未补全项或 raw 写入失败 |
+| 非零 | 错误信封写入 stderr，stdout 不混入错误 |

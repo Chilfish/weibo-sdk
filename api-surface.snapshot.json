@@ -1,0 +1,1169 @@
+{
+  "schemaVersion": 1,
+  "exports": [
+    {
+      "name": "AlbumDetailResponse",
+      "kind": "type"
+    },
+    {
+      "name": "AlbumListResult",
+      "kind": "interface"
+    },
+    {
+      "name": "AlbumPhotoListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "AlbumPhotoPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "AlbumPhotoStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "AlbumStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "ARCHIVE_SCHEMA_ID",
+      "kind": "const"
+    },
+    {
+      "name": "ARCHIVE_SCHEMA_URL",
+      "kind": "const"
+    },
+    {
+      "name": "ArchiveCheckpoint",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchivedTweet",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveErrorAction",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveErrorStage",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveFile",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveIncrementalOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveIssue",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveIssueStage",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveItem",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveItemErrorContext",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchivePhase",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveProgressEvent",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveProgressSummary",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveRawMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveTimelineSource",
+      "kind": "type"
+    },
+    {
+      "name": "ArchiveUserItem",
+      "kind": "interface"
+    },
+    {
+      "name": "ArchiveUsersOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "AttitudeItem",
+      "kind": "type"
+    },
+    {
+      "name": "BandUnifiedResponse",
+      "kind": "type"
+    },
+    {
+      "name": "BeforeRetryResult",
+      "kind": "interface"
+    },
+    {
+      "name": "BuildCommentsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "buildTweetContext",
+      "kind": "function"
+    },
+    {
+      "name": "CapabilityAuth",
+      "kind": "type"
+    },
+    {
+      "name": "CapabilityFilter",
+      "kind": "interface"
+    },
+    {
+      "name": "CapabilityGuestPagination",
+      "kind": "type"
+    },
+    {
+      "name": "CapabilityPagination",
+      "kind": "type"
+    },
+    {
+      "name": "CapabilityStatus",
+      "kind": "type"
+    },
+    {
+      "name": "CommentHistoryListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "CommentHistoryPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "CommentHistoryStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "CommentHistoryStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "CommentNotification",
+      "kind": "interface"
+    },
+    {
+      "name": "CommentNotificationPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "ConnectionTimeoutError",
+      "kind": "class"
+    },
+    {
+      "name": "ConsoleLoggerOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "createConsoleLogger",
+      "kind": "function"
+    },
+    {
+      "name": "createJsonlLogger",
+      "kind": "function"
+    },
+    {
+      "name": "createJsonlTelemetry",
+      "kind": "function"
+    },
+    {
+      "name": "createLoggerPlugin",
+      "kind": "function"
+    },
+    {
+      "name": "createMemoryUserArchiveStore",
+      "kind": "function"
+    },
+    {
+      "name": "createMultiLogger",
+      "kind": "function"
+    },
+    {
+      "name": "Credential",
+      "kind": "interface"
+    },
+    {
+      "name": "CredentialResolveContext",
+      "kind": "interface"
+    },
+    {
+      "name": "CredentialResolver",
+      "kind": "interface"
+    },
+    {
+      "name": "diffSchemaDigest",
+      "kind": "function"
+    },
+    {
+      "name": "ErrorContext",
+      "kind": "interface"
+    },
+    {
+      "name": "FavoriteListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "FavoritePageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "FavoritesResponse",
+      "kind": "type"
+    },
+    {
+      "name": "FavoritesTagsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "FavoriteStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "FavoriteStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "FeedGroupsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "FetchLike",
+      "kind": "type"
+    },
+    {
+      "name": "FetchResponseLike",
+      "kind": "interface"
+    },
+    {
+      "name": "fetchTransport",
+      "kind": "function"
+    },
+    {
+      "name": "FollowContentResponse",
+      "kind": "type"
+    },
+    {
+      "name": "FollowingsSource",
+      "kind": "type"
+    },
+    {
+      "name": "FollowingsStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "FollowingsStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "FollowingUser",
+      "kind": "type"
+    },
+    {
+      "name": "formatArchiveProgress",
+      "kind": "function"
+    },
+    {
+      "name": "formatSchemaDrift",
+      "kind": "function"
+    },
+    {
+      "name": "FriendshipsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "FriendstimelineResponse",
+      "kind": "type"
+    },
+    {
+      "name": "Gender",
+      "kind": "enum"
+    },
+    {
+      "name": "ImageWallListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "ImageWallPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "ImageWallResponse",
+      "kind": "type"
+    },
+    {
+      "name": "ImageWallStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "InvalidConfigError",
+      "kind": "class"
+    },
+    {
+      "name": "IProxyProvider",
+      "kind": "interface"
+    },
+    {
+      "name": "IProxyRequestContext",
+      "kind": "interface"
+    },
+    {
+      "name": "isArchiveProgress",
+      "kind": "function"
+    },
+    {
+      "name": "ITweet",
+      "kind": "interface"
+    },
+    {
+      "name": "ITweetComment",
+      "kind": "interface"
+    },
+    {
+      "name": "ITweetContext",
+      "kind": "interface"
+    },
+    {
+      "name": "IUser",
+      "kind": "interface"
+    },
+    {
+      "name": "IUserAlbum",
+      "kind": "interface"
+    },
+    {
+      "name": "IUserLabel",
+      "kind": "interface"
+    },
+    {
+      "name": "IUserMediaAsset",
+      "kind": "interface"
+    },
+    {
+      "name": "IUserVerification",
+      "kind": "interface"
+    },
+    {
+      "name": "IWeiboConfig",
+      "kind": "interface"
+    },
+    {
+      "name": "IWeiboGuestConfig",
+      "kind": "interface"
+    },
+    {
+      "name": "IWeiboRetryConfig",
+      "kind": "interface"
+    },
+    {
+      "name": "JsonlLogger",
+      "kind": "interface"
+    },
+    {
+      "name": "JsonlLoggerOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "JsonlTelemetry",
+      "kind": "interface"
+    },
+    {
+      "name": "JsonlTelemetryOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "LikeItem",
+      "kind": "type"
+    },
+    {
+      "name": "LikeListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "LikeListResponse",
+      "kind": "type"
+    },
+    {
+      "name": "LikeNotification",
+      "kind": "interface"
+    },
+    {
+      "name": "LikeNotificationPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "LikePageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "LikersResponse",
+      "kind": "type"
+    },
+    {
+      "name": "LikeStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "LikeStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "listCapabilities",
+      "kind": "function"
+    },
+    {
+      "name": "LogWriteStream",
+      "kind": "interface"
+    },
+    {
+      "name": "LongtextResponse",
+      "kind": "type"
+    },
+    {
+      "name": "MblogGroup",
+      "kind": "interface"
+    },
+    {
+      "name": "MblogGroupsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "MediaDownloadError",
+      "kind": "class"
+    },
+    {
+      "name": "MediaDownloadItem",
+      "kind": "type"
+    },
+    {
+      "name": "MediaDownloadItemBase",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaDownloadOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaDownloadProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaDownloadTotals",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaInvalidResponseError",
+      "kind": "class"
+    },
+    {
+      "name": "MediaItemErrorContext",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaSkipReason",
+      "kind": "type"
+    },
+    {
+      "name": "MediaStorageError",
+      "kind": "class"
+    },
+    {
+      "name": "MediaStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "MediaType",
+      "kind": "enum"
+    },
+    {
+      "name": "MediaVariant",
+      "kind": "type"
+    },
+    {
+      "name": "MentionsViewResponse",
+      "kind": "type"
+    },
+    {
+      "name": "mergeArchiveFiles",
+      "kind": "function"
+    },
+    {
+      "name": "MergeArchiveOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "MergeArchiveResult",
+      "kind": "interface"
+    },
+    {
+      "name": "MessageAttitudesResponse",
+      "kind": "type"
+    },
+    {
+      "name": "MessageCommentsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "midToMblogId",
+      "kind": "function"
+    },
+    {
+      "name": "migrateTweetV1toV2",
+      "kind": "function"
+    },
+    {
+      "name": "MobileCard",
+      "kind": "interface"
+    },
+    {
+      "name": "MobileCardPic",
+      "kind": "interface"
+    },
+    {
+      "name": "MobileContainerResponse",
+      "kind": "type"
+    },
+    {
+      "name": "MyCommentItem",
+      "kind": "type"
+    },
+    {
+      "name": "MyCommentsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "MyMblogResponse",
+      "kind": "type"
+    },
+    {
+      "name": "NetworkRequestError",
+      "kind": "class"
+    },
+    {
+      "name": "normalizeComment",
+      "kind": "function"
+    },
+    {
+      "name": "normalizeLiker",
+      "kind": "function"
+    },
+    {
+      "name": "normalizeTweet",
+      "kind": "function"
+    },
+    {
+      "name": "normalizeTweetIdInput",
+      "kind": "function"
+    },
+    {
+      "name": "normalizeTweetUser",
+      "kind": "function"
+    },
+    {
+      "name": "NotificationListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "NotificationStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "NotificationStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "PaginationProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "ParsedTweetId",
+      "kind": "interface"
+    },
+    {
+      "name": "parseTweetIdInput",
+      "kind": "function"
+    },
+    {
+      "name": "PluginRequestInfo",
+      "kind": "interface"
+    },
+    {
+      "name": "RateLimitError",
+      "kind": "class"
+    },
+    {
+      "name": "renderTweetContextMarkdown",
+      "kind": "function"
+    },
+    {
+      "name": "RepostTimelineResponse",
+      "kind": "type"
+    },
+    {
+      "name": "RequestContext",
+      "kind": "type"
+    },
+    {
+      "name": "ResponseContext",
+      "kind": "interface"
+    },
+    {
+      "name": "RetryContext",
+      "kind": "interface"
+    },
+    {
+      "name": "SchemaDiffEntry",
+      "kind": "interface"
+    },
+    {
+      "name": "SearchProfileResponse",
+      "kind": "type"
+    },
+    {
+      "name": "SearchTweetsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "SearchUsersResponse",
+      "kind": "type"
+    },
+    {
+      "name": "StatusShowResponse",
+      "kind": "type"
+    },
+    {
+      "name": "STopicCatesResponse",
+      "kind": "type"
+    },
+    {
+      "name": "STopicListResponse",
+      "kind": "type"
+    },
+    {
+      "name": "StreamLimitOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "StreamRangeOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "SuperTopic",
+      "kind": "interface"
+    },
+    {
+      "name": "SuperTopicCategory",
+      "kind": "interface"
+    },
+    {
+      "name": "SuperTopicListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "SuperTopicPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "SuperTopicStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TelemetryEvent",
+      "kind": "type"
+    },
+    {
+      "name": "TelemetryEventBase",
+      "kind": "interface"
+    },
+    {
+      "name": "TelemetryJsonlInput",
+      "kind": "type"
+    },
+    {
+      "name": "TelemetryPrimitive",
+      "kind": "type"
+    },
+    {
+      "name": "TransportFailure",
+      "kind": "class"
+    },
+    {
+      "name": "TransportFailureKind",
+      "kind": "type"
+    },
+    {
+      "name": "TransportMethod",
+      "kind": "type"
+    },
+    {
+      "name": "TransportRequest",
+      "kind": "interface"
+    },
+    {
+      "name": "TransportRequestMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "TransportResponse",
+      "kind": "interface"
+    },
+    {
+      "name": "TWEET_CONTEXT_SCHEMA",
+      "kind": "const"
+    },
+    {
+      "name": "TWEET_CONTRACT_VERSION",
+      "kind": "const"
+    },
+    {
+      "name": "TweetArticleAttachment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetAttachment",
+      "kind": "type"
+    },
+    {
+      "name": "TweetAtUser",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetAudio",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetCommentPic",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetCommentsOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetCommentsStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetCommentsStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextAttachment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextAttachmentKind",
+      "kind": "type"
+    },
+    {
+      "name": "TweetContextAuthor",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextComment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextFlags",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextKind",
+      "kind": "type"
+    },
+    {
+      "name": "TweetContextLink",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextMedia",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextMediaDownload",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextMediaRelation",
+      "kind": "type"
+    },
+    {
+      "name": "TweetContextOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextPost",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextProvenance",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextRepostEntry",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextStats",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetContextVisibility",
+      "kind": "type"
+    },
+    {
+      "name": "TweetContractVersion",
+      "kind": "type"
+    },
+    {
+      "name": "TweetEnrichOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetEnrichResult",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetFriendTimelineListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetFriendTimelineStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetGeo",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetIdKind",
+      "kind": "type"
+    },
+    {
+      "name": "TweetLiker",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLikersOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLikersPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLikersStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLikersStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLinkCard",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLiveAttachment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetLotteryAttachment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetMedia",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetMediaDownloadResult",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetPageCard",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetRepliesOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetRepostEntry",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetRepostsListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetRepostsStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetRepostsStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetSearchByDateOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetUser",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetUserTimelineListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetUserTimelineStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetVisible",
+      "kind": "enum"
+    },
+    {
+      "name": "TweetVoteAttachment",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetVoteOption",
+      "kind": "interface"
+    },
+    {
+      "name": "UnexpectedAPIResponseError",
+      "kind": "class"
+    },
+    {
+      "name": "USER_ARCHIVE_JOURNAL_SCHEMA",
+      "kind": "const"
+    },
+    {
+      "name": "UserArchiveContentOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveEvent",
+      "kind": "type"
+    },
+    {
+      "name": "UserArchiveMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveRecord",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveResult",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveRunConfig",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveSlice",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveSliceState",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveStore",
+      "kind": "interface"
+    },
+    {
+      "name": "UserArchiveSummary",
+      "kind": "interface"
+    },
+    {
+      "name": "UserDetailsResponse",
+      "kind": "type"
+    },
+    {
+      "name": "UserGroup",
+      "kind": "interface"
+    },
+    {
+      "name": "UserInfoResponse",
+      "kind": "type"
+    },
+    {
+      "name": "UserMentionsListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "UserMentionsPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "UserMentionsStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "UserMentionsStreamProgress",
+      "kind": "interface"
+    },
+    {
+      "name": "VerificationType",
+      "kind": "enum"
+    },
+    {
+      "name": "VERSION",
+      "kind": "const"
+    },
+    {
+      "name": "VideoWaterfallListOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "VideoWaterfallPageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "VideoWaterfallStreamOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "WaterfallResponse",
+      "kind": "type"
+    },
+    {
+      "name": "WEIBO_CAPABILITIES",
+      "kind": "const"
+    },
+    {
+      "name": "WeiboAPINotOkError",
+      "kind": "class"
+    },
+    {
+      "name": "WeiboAuthMode",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboCapability",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboEvent",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboLogger",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboLogLevel",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboLogRecord",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboPlugin",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboProxyInput",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboRetryKind",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboSDK",
+      "kind": "class"
+    },
+    {
+      "name": "WeiboSDKError",
+      "kind": "class"
+    },
+    {
+      "name": "WeiboSDKErrorMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSDKHookBaseMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSDKHooks",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSDKLifecycleEvent",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboSDKRawMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSDKRequestMeta",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSDKSelfCheckMode",
+      "kind": "type"
+    },
+    {
+      "name": "WeiboSDKTelemetry",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSessionContext",
+      "kind": "interface"
+    },
+    {
+      "name": "WeiboSessionExpiredError",
+      "kind": "class"
+    },
+    {
+      "name": "WeiboTransport",
+      "kind": "interface"
+    }
+  ]
+}

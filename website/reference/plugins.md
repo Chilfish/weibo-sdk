@@ -1,8 +1,13 @@
+---
+title: 传输与插件
+outline: deep
+---
+
 # 插件与传输适配
 
 > **目标**：在不改变默认路径（`new WeiboSDK({})`）的前提下，提供可替换的 HTTP 传输、凭证解析端口与构造期插件管线。
 > **实现**：`src/services/internal/transport/**`、`src/services/internal/plugins/**`、`src/services/internal/CredentialResolver.ts`。
-> **相关**：[todo-plugin-architecture.md](../planning/todo-plugin-architecture.md)、[research-plugin-architecture-2026-10-21.md](../planning/research-plugin-architecture-2026-10-21.md)、ADR-014 / ADR-015。
+> **相关**：[传输与插件指南](/guide/extending)、[日志](./logging)。
 
 ---
 
@@ -171,7 +176,7 @@ const logger: WeiboPlugin = {
 }
 ```
 
-`observe` 会收到 Wide Events（`request_start` / `request_success` / `request_error` / `request_retry` / `rate_limit_wait` 等）与生命周期事件（`sdk_init` / `self_check_*`）。需要分级、格式化或落盘时，优先用 `config.logger` 或 `createLoggerPlugin()`，见 [logging.md](logging.md)。
+`observe` 会收到 Wide Events（`request_start` / `request_success` / `request_error` / `request_retry` / `rate_limit_wait` 等）与生命周期事件（`sdk_init` / `self_check_*`）。需要分级、格式化或落盘时，优先用 `config.logger` 或 `createLoggerPlugin()`，见 [日志](./logging)。
 
 ---
 
@@ -252,7 +257,7 @@ const slowRetry: WeiboPlugin = {
 1. 插件只在 `new WeiboSDK()` 时组装，不支持 `sdk.use()` 热插拔。
 2. 插件必须显式传入，禁止模块加载时自动注册（否则 `sideEffects: false` 失真）。
 3. 插件不得依赖 `axios` / `zod` 的内部类型；公共类型只用 `WeiboTransport` 与上下文类型。
-4. 新增公开导出时同步更新 `tests/unit/entry/exports.test.ts` 与 `docs/README.md`。
+4. 新增公开导出时同步更新 `api-surface.json`、`api-surface.snapshot.json` 与 [导出索引](/api/types/)。
 5. `observe` 不得阻塞；实现方自行排队。
 6. `transport` 中间件必须保持「所有 HTTP 状态码正常返回」契约。
 

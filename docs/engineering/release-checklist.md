@@ -8,7 +8,7 @@
 ## 版本纪律
 
 - **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
-- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [contract-itweet-v2.md](./contract-itweet-v2.md)
+- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [ITweet 契约 v2](../../website/reference/tweet-contract-v2.md)
 - **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v3 + major；v1 → v2 已于 2026-10-21 完成）
 - 仅在验证门禁全绿后打 tag：统一走 `pnpm release <type>`（脚本会先跑门禁，再 bump + tag + push）
 - 每次发布 version 单调递增，禁止回退
@@ -23,6 +23,10 @@
 - [x] `node scripts/browser-smoke.mjs --no-browser` 通过（导出条件解析 + Node 构建导入；2026-10-21，0.3.1 因该检查未同步条件 `exports` 在 CI 失败后修复并纳入本地门禁；2026-10-22 / 0.4.0、0.5.0 本地与 CI 均通过）
 - [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped；2026-10-22 / 0.4.0：956 passed / 23 skipped；2026-10-22 / 0.5.0：958 passed / 23 skipped）
 - [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail；2026-10-22 / 0.4.0、0.5.0：113 fixtures，102 ok / 11 unmodeled / 0 fail）
+- [ ] `pnpm check:api` 通过（导出面快照 + Stable/Experimental 分层 + 文档覆盖率）
+- [ ] `pnpm check:docs` 通过（公开站点无内部路径 / 内部文档链接）
+- [ ] `pnpm schema:check` 通过（归档 schema 无漂移）
+- [ ] `pnpm docs:build` 通过（VitePress 构建 + 死链检查）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 / 0.5.0 提交均正常触发 lint-staged）
 
 ## 包身份核验
@@ -30,14 +34,14 @@
 - [x] `package.json#name` = `@chilfish/weibo-sdk`（2026-10-20）
 - [x] `package.json#bin` = `{ "weibo-cli": "./dist/cli-bin.mjs" }`（2026-10-21；CLI 拆分为命令树 + bin 入口）
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
-- [x] `pnpm pack` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
+- [x] `pnpm pack` 产物只包含 `dist/`、`schemas/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
 - [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.5.0`，2026-10-22）
 
 ## 公共导出面核验
 
-- [x] `src/index.ts` 导出面与规格书 §3.7 一致（无内部实现泄漏；2026-10-20；2026-10-22 / 0.5.0 删除 4 个手写 raw 类型导出，替换为 schema 推导类型，迁移见 CHANGELOG）
-- [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20；2026-10-22 / 0.5.0 复跑通过）
+- [x] 公开导出面与 `api-surface.json` / `api-surface.snapshot.json` 一致（无内部实现泄漏；`pnpm check:api` 强制；2026-10-22 起）
+- [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20；2026-10-22 / 0.5.0 复跑通过；新增 `./schemas/*` 断言）
 - [x] 新增响应类型已用 `z.infer` 推导并导出（2026-10-20；2026-10-22 / 0.5.0 `MyMblogResponse` / `StatusShowResponse` 不再退化为 `any`）
 - [x] 下游产物完整性门禁（见 [package-integrity.md](./package-integrity.md) §5）：`publint` / `attw` / tarball 安装 / Vite / tree-shaking / Worker smoke（2026-10-21；2026-10-22 / 0.5.0 在 bump 后重建再跑 `lint:package` / `verify:package` / `test:bundle` 均通过）
 
@@ -61,7 +65,7 @@
 
 1. 确认 `main` 已推送且 CI 全绿
 2. 更新 `CHANGELOG.md` 的 `## Unreleased`（本版全部变化）
-3. 更新 `docs/README.md` 索引（如涉及新增文档）
+3. 公开 API 变化时同步 `api-surface.json` / `api-surface.snapshot.json` 与 `website/api/**`（`pnpm check:api` 必须通过）；新增/迁移文档时更新 `website/.vitepress/config.ts` 侧边栏与 `docs/README.md` 内部索引
 4. 需要时跑功能冒烟（`WEIBO_E2E=1`），勾选并记录日期
 5. 执行 `pnpm release <patch|minor|major|x.y.z>`
    - 脚本会校验分支 / 工作区 / 远端同步 / tag 与 npm 版本，跑本地门禁
@@ -72,12 +76,13 @@
 
 6. `.github/workflows/publish.yml` 由 tag 触发：
    - 校验 tag 与 `package.json` 版本一致、CHANGELOG 存在对应版本节
-   - 复跑 `typecheck` / `eslint` / `test --run` / `validate:fixtures` / `build` / `browser-smoke --no-browser`
+   - 复跑 `typecheck` / `eslint` / `test --run` / `validate:fixtures` / `check:api` / `check:docs` / `schema:check` / `build` / `docs:build` / `browser-smoke --no-browser`
    - `pnpm publish --no-git-checks --access public --provenance`
    - 流水线不创建 GitHub Release
 7. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，`gh release create v<version> --notes-file <file>`
 8. **禁止 `npm publish`**：pnpm `catalog:` 不会被 npm 重写，产物会写成 `"catalog:"`（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
-9. tag 已推送但发布失败：从 GitHub Actions 重跑失败的工作流，不要删除 tag 重打。若 `Publish to npm` 已成功、仅 `Verify registry` 超时，先手动核验 registry；GitHub 可能对 `startup_failure` 的 run 拒绝重跑（0.5.0 遇到），此时保留 tag、记录到开发日志并完成手工核验。
+9. Vercel 文档站由 Git 集成自动部署；发布后确认 `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json` 可访问且与包内 schema 一致。
+10. tag 已推送但发布失败：从 GitHub Actions 重跑失败的工作流，不要删除 tag 重打。若 `Publish to npm` 已成功、仅 `Verify registry` 超时，先手动核验 registry；GitHub 可能对 `startup_failure` 的 run 拒绝重跑（0.5.0 遇到），此时保留 tag、记录到开发日志并完成手工核验。
 
 ### 发布后（核验）
 

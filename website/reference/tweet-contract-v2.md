@@ -1,6 +1,11 @@
+---
+title: ITweet 契约 v2
+outline: deep
+---
+
 # ITweet 存档契约 v2
 
-**项目**: weibo-sdk | **生效日期**: 2026-10-21 | **状态**: v2 生效 | **上一版**: [contract-itweet-v1.md](./contract-itweet-v1.md)（冻结历史）
+**项目**: weibo-sdk | **生效日期**: 2026-10-21 | **状态**: v2 生效 | **上一版**: v1（冻结历史）
 
 > `ITweet` 是下游 Weibo-archiver（web-v3 / monkey / CLI）的 **UI 展示与磁盘存档终局契约**
 > （ADR-007/008，存入 IndexedDB）。改一个字段 = 破坏下游已归档数据——本文件把「改契约」
@@ -17,8 +22,7 @@
   `source: 'image'` 时 `tweet` / `mblogId` 可选，媒体资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`；其余微博类 source 的 `tweet` / `mblogId` 恒有。
 - **下游最小存档记录**建议：`{ schemaVersion: TweetContractVersion, tweet: ITweet }`
   （`source` / `checkpoint` 等为 SDK 归档流的附加元数据，消费方可按需取舍）
-- **契约版本 ≠ 包版本**（K2/P0-3 解耦，详见 [release-checklist.md](./release-checklist.md)）：
-  上游协议漂移 → 内部 schema 修复 + patch/minor；**只有契约破坏性变更才升包 major**。
+- **契约版本 ≠ 包版本**（解耦）：上游协议漂移 → 内部 schema 修复 + patch/minor；**只有契约破坏性变更才升包 major**。
 
 ## 2. v2 变更（相对 v1）
 
@@ -271,7 +275,7 @@ m 站的 `vote_dynamic` 优先于 `vote_object` 的票数；票数是抓取时�
 - 安全：CDN 请求只带 `Referer`（默认 `https://weibo.com/`），**不携带 Cookie/XSRF**；主机后缀白名单。
 - 稳定性：403/404/410 重新拉取微博换新 URL（每条微博最多一次）；临时文件 + 原子 rename；字节上限、空闲超时、Content-Length 校验、重试退避。
 - 失败：单项失败不中断其余项；`<mblogId>-media-errors.json` 汇总；CLI 有失败时非零退出。
-- 详见 [media-download.md](./media-download.md)。
+- 详见 [媒体下载](./media-download)。
 
 ## 8. 迁移策略（v1 → v2）
 
@@ -299,13 +303,11 @@ m 站的 `vote_dynamic` 优先于 `vote_object` 的票数；票数是抓取时�
 - **运行时层**：真实 fixture（`mymblog_page1.json`，含 `pic_infos` 样本）归一化键集快照（数据驱动，防实现悄悄改形状）。
 - **修改契约的流程**：先改本文件（版本决策，§3）→ 改 `ITweet.ts` 类型 → 契约测试红 → 实现 → CHANGELOG 标注。
 
-## 11. 待下游（Weibo-archiver）同步事项
-
-> 本机不可读 `I:\dev\Weibo-archiver`，以下为 archiver 侧需要跟进的对齐点：
+## 11. 下游迁移检查清单
 
 1. 存档记录升级到 `schemaVersion: 2`；读 v1 记录时调用 `migrateTweetV1toV2`。
 2. 删除渲染层对 `textHtml` 的依赖：表情改用 `text` 中的 `[表情名]` 自行映射，链接 / 话题 / @ 使用 `linkCards` / `topics` / `atUsers`。
 3. 长文直接读 `tweet.text`，不再读取归档记录的 `longText` / `quotedLongText`。
-4. dexie 升级回调用按 §8 设计。
+4. 持久化层升级回调按 §8 设计。
 5. 媒体持久化职责按 §5 落实。
 

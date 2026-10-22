@@ -1,3 +1,8 @@
+---
+title: 范围归档
+outline: deep
+---
+
 # 用户范围归档（`sdk.userArchive` / `weibo-cli archive user`）
 
 用户范围归档解决一个具体问题：把一个账号在**指定时间范围内**发布的微博、评论、楼中楼和转发，补全后写进**一个 JSON 文件**，中断后还能接着跑。
@@ -158,7 +163,7 @@ weibo-archive-<uid>.json.raw.ndjson               可选的 raw sidecar（--raw�
 - 完整结束时 `.slices/` 会被删除；存在错误或枚举中止时保留，下次重跑同一命令即可续跑。
 - 每个切片独立 journal；进程被杀导致的截断行会在下次读取时丢弃并原子修复。
 - stdout 输出一行 JSON 摘要 `{ event: 'done', out, tweets, comments, replies, errors, complete }`；进度、issue、raw 诊断走 stderr。
-- stderr 的呈现按终端自动切换：TTY 下是一行原地刷新的状态 + 追加日志，管道 / CI 下是 NDJSON。`--log-format` 显式覆盖，`--no-progress` 关闭动态刷新，`--quiet` 静默。具体规则见 [cli.md 的「终端呈现」](./cli.md#终端呈现archive-user)。
+- stderr 的呈现按终端自动切换：TTY 下是一行原地刷新的状态 + 追加日志，管道 / CI 下是 NDJSON。`--log-format` 显式覆盖，`--no-progress` 关闭动态刷新，`--quiet` 静默。具体规则见 [CLI 的「终端呈现」](/cli/#终端呈现-archive-user)。
 - 退出码：`0` 完整；`1` 枚举中止、存在未补全项或 raw 写入失败。
 
 ## 合并归档
@@ -291,7 +296,7 @@ s014/30  enumerate/search  ██████░░░░ 3/10  tweets 142/6705 
 
 ## 相关文档
 
-- 归档 JSON 结构：[archive-schema.md](./archive-schema.md)
-- `ITweet` 契约：[contract-itweet-v2.md](./contract-itweet-v2.md)
-- 全量镜像与增量同步：[cli.md](./cli.md)
-- SDK 错误码：[error-diagnostics.md](./error-diagnostics.md)
+- 归档 JSON 结构：[归档格式 v2](./archive-format-v2)
+- `ITweet` 契约：[ITweet 契约 v2](./tweet-contract-v2)
+- 全量镜像与增量同步：[CLI 参考](/cli/)
+- SDK 错误码：[故障排查](./troubleshooting)

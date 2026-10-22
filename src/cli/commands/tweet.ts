@@ -219,7 +219,7 @@ export const tweetComments = defineCommand({
   async run({ args }) {
     const print = createPrinter(args)
     const raw = await createSDK(args).tweets.comments(args.id, {
-      max_id: parsePositiveInt(args['max-id']),
+      maxId: parsePositiveInt(args['max-id']),
       count: args.count ? Number(args.count) : undefined,
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
@@ -304,7 +304,7 @@ export const tweetReplies = defineCommand({
   async run({ args }) {
     const print = createPrinter(args)
     const raw = await createSDK(args).tweets.replies(args.id, args['root-id'], {
-      max_id: parsePositiveInt(args['max-id']),
+      maxId: parsePositiveInt(args['max-id']),
       count: parsePositiveInt(args.count),
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
@@ -363,9 +363,9 @@ export const tweetTimeline = defineCommand({
   async run({ args }) {
     const print = createPrinter(args)
     const page = await createSDK(args).tweets.listFriendTimeline({
-      max_id: args['max-id'],
-      since_id: args['since-id'],
-      list_id: args['list-id'],
+      maxId: args['max-id'],
+      sinceId: args['since-id'],
+      listId: args['list-id'],
       fid: args.fid,
       refresh: args.refresh ? Number(args.refresh) : undefined,
       count: parsePositiveInt(args.count),

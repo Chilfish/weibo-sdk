@@ -26,23 +26,23 @@ describe('tweet comments CLI args', () => {
     expect((tweetComments as any).args['max-id']).toBeDefined()
   })
 
-  it('forwards --max-id as max_id', async () => {
+  it('forwards --max-id as maxId', async () => {
     mocks.calls.length = 0
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     await (tweetComments as any).run({ args: { 'id': 'M1', 'max-id': '5356107262329915' } })
 
     log.mockRestore()
-    expect(mocks.calls).toEqual([['M1', { max_id: 5356107262329915, count: undefined, flow: undefined }]])
+    expect(mocks.calls).toEqual([['M1', { maxId: 5356107262329915, count: undefined, flow: undefined }]])
   })
 
-  it('omits max_id when the flag is absent', async () => {
+  it('omits maxId when the flag is absent', async () => {
     mocks.calls.length = 0
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     await (tweetComments as any).run({ args: { id: 'M1' } })
 
     log.mockRestore()
-    expect(mocks.calls).toEqual([['M1', { max_id: undefined, count: undefined, flow: undefined }]])
+    expect(mocks.calls).toEqual([['M1', { maxId: undefined, count: undefined, flow: undefined }]])
   })
 })
