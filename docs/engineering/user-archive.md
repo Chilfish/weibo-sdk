@@ -69,8 +69,8 @@ for await (const event of sdk.userArchive.stream(uid, options)) {
 | `includeReplies` | `true` | 展开楼中楼 |
 | `includeReposts` | `false` | 拉取转发列表 |
 | `commentOrder` | `'time'` | `time` 按数字 mid 翻页，完整遍历更稳 |
-| `maxComments` / `maxCommentPages` | 不限 | 一级评论条数 / 页数上限 |
-| `maxReplies` / `maxReplyPages` | 不限 | 每条一级评论的楼中楼条数 / 页数上限 |
+| `maxComments` / `maxCommentPages` | 不限 / `2` | 一级评论条数 / 页数上限；页数 `0` = 全部 |
+| `maxReplies` / `maxReplyPages` | 不限 / `2` | 每条一级评论的楼中楼条数 / 页数上限；页数 `0` = 全部 |
 | `maxReposts` / `maxRepostPages` | 不限 | 转发条数 / 页数上限 |
 | `concurrency` | `6` | 全局补全并发，上限 32；CLI 默认 20 |
 | `store` | 内存 | 持久化端口，见下 |
