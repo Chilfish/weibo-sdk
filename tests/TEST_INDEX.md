@@ -91,6 +91,18 @@
 | `unit/utils/streamRange.test.ts` | `createStreamRange` | `maxItems` 上限、`since` 早停、`until` 跳过、日期窗口、不可解析时间保留、非法日期 `CONFIG_INVALID`、缺 `getTime` 报错 |
 | `unit/utils/pagination.test.ts` | `paginate` | 空页/去重/游标不前进/`maxPages`、`maxItems` 跨页截断、`since`/`until` 边界、日期边界缺 `getTime` 报错 |
 
+### Unit — 脚本
+
+| 文件 | 覆盖内容 | 关键测试点 |
+|---|---|---|
+| `unit/scripts/archive-user/slices.test.ts` | `planSlices` | `sliceDays = 0` 不拆分、区间短于窗口、多切片的连续无重叠、整除边界、key 编号稳定性 |
+| `unit/scripts/archive-user/cli.test.ts` | `parseCli` / `isHelpRequested` | uid 位置参数、布尔与字符串选项解析、`provided` 记录显式参数、未知选项报错、长短 help |
+| `unit/scripts/archive-user/config.test.ts` | 归档脚本参数与续跑校验 | uid 归一化（数字 / 主页链接）、并发与限速参数 clamp、`buildConfig` 默认值与开关、`assertResumeConfig` 的 uid / 时间 / 开关不一致 |
+| `unit/scripts/archive-user/journal.test.ts` | journal 读写与合并 | meta 兼容性校验、切片 journal 往返、截断行修复、`stripRaw`、同 `mblogId` 去重（issue 少 / 更晚写入优先） |
+| `unit/scripts/archive-user/raw.test.ts` | raw sidecar | `--raw` 路径推导与冲突校验、已存在文件的 `--force` / 续跑语义、逐次响应写 JSONL |
+| `unit/scripts/archive-user/concurrency.test.ts` | `createLimiter` / `runPool` | 并发峰值、FIFO、异常归还槽位、任务池停止条件与错误传播 |
+| `unit/scripts/archive-user/output.test.ts` | `assembleArchive` | 按 `mblogId` 去重、时间倒序、评论 / 楼中楼统计、issue 去重、fatal error 标记不完整、剥除 legacy raw |
+
 ### Unit — 错误
 
 | 文件 | 覆盖内容 | 关键测试点 |
