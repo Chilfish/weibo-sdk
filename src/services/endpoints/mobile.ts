@@ -43,7 +43,7 @@ const MobileCardPicSchema: z.ZodType<MobileCardPic> = z.object({
   pic_big: z.string().optional(),
   pic_mw2000: z.string().optional(),
   mblog: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 /**
  * `getIndex` 的单张卡片。
@@ -76,7 +76,7 @@ const MobileCardSchema: z.ZodType<MobileCard> = z.lazy(() => z.object({
   user: z.record(z.string(), z.unknown()).optional(),
   card_group: z.array(MobileCardSchema).optional(),
   pics: z.array(MobileCardPicSchema).optional(),
-}).passthrough())
+}).loose())
 
 export const MobileCardListInfoSchema = z.object({
   total: z.number().optional(),
@@ -85,7 +85,7 @@ export const MobileCardListInfoSchema = z.object({
   containerid: z.string().optional(),
   // 真实样本：timeline 的 v_p 为 number(42)，search / videos 为 string("42")
   v_p: z.union([z.string(), z.number()]).optional(),
-}).passthrough()
+}).loose()
 
 const MobileContainerResponseSchema = z.object({
   ok: z.number(),
@@ -93,8 +93,8 @@ const MobileContainerResponseSchema = z.object({
   data: z.object({
     cardlistInfo: MobileCardListInfoSchema.optional(),
     cards: z.array(MobileCardSchema),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MobileContainerResponse = z.infer<typeof MobileContainerResponseSchema>
 

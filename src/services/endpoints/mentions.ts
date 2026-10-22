@@ -31,8 +31,8 @@ const MentionsViewResponseSchema = z.object({
     total_number: z.number().optional(),
     hasvisible: z.boolean().optional(),
     interval: z.number().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MentionsViewResponse = z.infer<typeof MentionsViewResponseSchema>
 

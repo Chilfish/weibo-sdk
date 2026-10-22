@@ -50,7 +50,7 @@ const ${pascal}ArgsSchema = z.object({
 const ${pascal}ResponseSchema = z.object({
   ok: z.number(),
   data: z.unknown(),
-}).passthrough()
+}).loose()
 
 export type ${pascal}Response = z.infer<typeof ${pascal}ResponseSchema>
 

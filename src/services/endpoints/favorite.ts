@@ -22,7 +22,7 @@ const FavoriteItemSchemaBase = z.object({
   visible: z.object({
     type: z.number(),
     list_id: z.number().optional(),
-  }).passthrough().optional(),
+  }).loose().optional(),
   user: z.object({
     id: z.union([z.string(), z.number()]).optional(),
     idstr: z.string().optional(),
@@ -32,7 +32,7 @@ const FavoriteItemSchemaBase = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough().nullable().optional(),
+  }).loose().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -42,7 +42,7 @@ const FavoriteItemSchemaBase = z.object({
   tags: z.array(z.unknown()).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 type FavoriteItem = z.infer<typeof FavoriteItemSchemaBase> & {
   retweeted_status?: FavoriteItem | null
@@ -62,8 +62,8 @@ const FavoritesResponseSchema = z.object({
   data: z.object({
     status: z.array(FavoriteItemSchema),
     total_number: z.number().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type FavoritesResponse = z.infer<typeof FavoritesResponseSchema>
 
@@ -92,7 +92,7 @@ const FavoritesTagsResponseSchema = z.object({
   total_number: z.number().optional(),
   unclassified_num: z.number().optional(),
   fav_total_num: z.number().optional(),
-}).passthrough()
+}).loose()
 
 export type FavoritesTagsResponse = z.infer<typeof FavoritesTagsResponseSchema>
 

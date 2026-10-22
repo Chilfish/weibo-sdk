@@ -34,7 +34,7 @@ const SearchUserCardSchema = z.object({
   followers_count: z.union([z.number(), z.string()]).optional(),
   description: z.string().optional(),
   gender: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const SearchUsersResponseSchema = z.object({
   ok: z.number(),
@@ -43,15 +43,15 @@ const SearchUsersResponseSchema = z.object({
       card_type: z.number().optional(),
       card_group: z.array(z.object({
         user: SearchUserCardSchema.optional(),
-      }).passthrough()).optional(),
-    }).passthrough()),
+      }).loose()).optional(),
+    }).loose()),
     cardlistInfo: z.object({
       page: z.number().nullable().optional(),
       total: z.number().optional(),
       containerid: z.string().optional(),
-    }).passthrough().optional(),
-  }).passthrough(),
-}).passthrough()
+    }).loose().optional(),
+  }).loose(),
+}).loose()
 
 export type SearchUsersResponse = z.infer<typeof SearchUsersResponseSchema>
 
@@ -62,13 +62,13 @@ const SearchTweetsResponseSchema = z.object({
       card_type: z.number().optional(),
       mblog: z.record(z.string(), z.unknown()).optional(),
       card_group: z.array(z.unknown()).optional(),
-    }).passthrough()),
+    }).loose()),
     cardlistInfo: z.object({
       page: z.number().nullable().optional(),
       total: z.number().optional(),
-    }).passthrough().optional(),
-  }).passthrough(),
-}).passthrough()
+    }).loose().optional(),
+  }).loose(),
+}).loose()
 
 export type SearchTweetsResponse = z.infer<typeof SearchTweetsResponseSchema>
 

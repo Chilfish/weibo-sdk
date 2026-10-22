@@ -14,7 +14,7 @@ const BandItemSchema = z.object({
   icon_desc: z.string().optional(),
   flag: z.number().optional(),
   word_scheme: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const BandUnifiedResponseSchema = z.object({
   ok: z.number(),
@@ -22,8 +22,8 @@ const BandUnifiedResponseSchema = z.object({
     realtime: z.array(BandItemSchema).optional(),
     hotgovs: z.array(z.unknown()).optional(),
     hotgov: z.record(z.string(), z.unknown()).optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type BandUnifiedResponse = z.infer<typeof BandUnifiedResponseSchema>
 

@@ -21,7 +21,7 @@ const LikerUserSchema = z.object({
   avatar_large: z.string().optional(),
   verified: z.boolean().optional(),
   verified_type: z.number().optional(),
-}).passthrough()
+}).loose()
 
 // 真实 fixture：likers_p1.json / likers_p2.json / likers_end.json
 const LikerItemSchema = z.object({
@@ -29,7 +29,7 @@ const LikerItemSchema = z.object({
   created_at: z.string().optional(),
   source: z.string().optional(),
   user: LikerUserSchema,
-}).passthrough()
+}).loose()
 
 const LikersArgsSchema = z.object({
   /** 微博 mid（数字 id 字符串，不是字母 mblogid） */
@@ -58,8 +58,8 @@ const LikersResponseSchema = z.object({
     total_number: z.number().optional(),
     /** 越界页为 null；正常页为数组 */
     data: z.array(LikerItemSchema).nullable().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type LikersResponse = z.infer<typeof LikersResponseSchema>
 

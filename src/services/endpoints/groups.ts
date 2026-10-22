@@ -14,7 +14,7 @@ const FeedGroupItemSchema = z.object({
   sysgroup: z.number().optional(),
   apipath: z.string().optional(),
   is_unread: z.number().optional(),
-}).passthrough()
+}).loose()
 
 const FeedGroupsArgsSchema = z.object({}).strict()
 
@@ -30,13 +30,13 @@ const FeedGroupsResponseSchema = z.object({
     title: z.string().optional(),
     group_type: z.number().optional(),
     group: z.array(FeedGroupItemSchema),
-  }).passthrough()),
+  }).loose()),
   total_number: z.number().optional(),
   fetch_hot: z.union([z.string(), z.number()]).optional(),
   is_new_segment: z.union([z.string(), z.number()]).optional(),
   feed_default: z.number().optional(),
   trans_param: z.string().optional(),
-}).passthrough()
+}).loose()
 
 export type FeedGroupsResponse = z.infer<typeof FeedGroupsResponseSchema>
 
@@ -56,11 +56,11 @@ const MblogGroupsResponseSchema = z.object({
       name: z.string().optional(),
       system_name: z.string().optional(),
       id: IdSchema.optional(),
-    }).passthrough()),
+    }).loose()),
     result: z.unknown().optional(),
     ts: z.number().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MblogGroupsResponse = z.infer<typeof MblogGroupsResponseSchema>
 

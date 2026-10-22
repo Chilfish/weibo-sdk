@@ -17,7 +17,7 @@ const NotificationUserSchema = z.object({
   avatar_large: z.string().optional(),
   verified: z.boolean().optional(),
   verified_type: z.number().optional(),
-}).passthrough()
+}).loose()
 
 /**
  * 消息中心分页参数（`/ajax/message/cmt` 与 `/ajax/message/attitudes` 共用）。
@@ -42,8 +42,8 @@ const MessageCommentsResponseSchema = z.object({
     total_number: z.number().optional(),
     hasvisible: z.boolean().optional(),
     interval: z.number().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MessageCommentsResponse = z.infer<typeof MessageCommentsResponseSchema>
 
@@ -61,7 +61,7 @@ const AttitudeItemSchema = z.object({
   user: NotificationUserSchema,
   // 被点赞微博可能已被删除，真实样本里存在没有 status 的条目。
   status: MyMBlogItemSchema.optional(),
-}).passthrough()
+}).loose()
 
 export type AttitudeItem = z.infer<typeof AttitudeItemSchema>
 
@@ -74,8 +74,8 @@ const MessageAttitudesResponseSchema = z.object({
     total_number: z.number().optional(),
     hasvisible: z.boolean().optional(),
     interval: z.number().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MessageAttitudesResponse = z.infer<typeof MessageAttitudesResponseSchema>
 

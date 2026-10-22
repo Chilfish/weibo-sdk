@@ -23,7 +23,7 @@ export const FollowingUserSchema = z.object({
   verified_type: z.number().optional(),
   verified_reason: z.string().optional(),
   gender: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const FriendshipsArgsSchema = z.object({
   uid: z.string(),
@@ -38,7 +38,7 @@ const FriendshipsResponseSchema = z.object({
   previous_cursor: z.number().optional(),
   total_number: z.number().optional(),
   ok: z.number(),
-}).passthrough()
+}).loose()
 
 export type FriendshipsResponse = z.infer<typeof FriendshipsResponseSchema>
 
@@ -68,7 +68,7 @@ const FollowContentFollowsSchema = z.object({
   next_cursor: z.number().optional(),
   previous_cursor: z.number().optional(),
   total_number: z.number().optional(),
-}).passthrough()
+}).loose()
 
 // 真实 fixture（followContent.json p1-p3）：specialAttention 为「特别关注」分组对象
 // （{ name, users, list_id }），p2/p3 该键缺失；此前误声明为 array（来自内联测试假设，非真实样本，E5 抓出）
@@ -76,18 +76,18 @@ const FollowContentSpecialAttentionSchema = z.object({
   name: z.string().optional(),
   users: z.array(FollowingUserSchema).optional(),
   list_id: z.union([z.string(), z.number()]).optional(),
-}).passthrough().nullable().optional()
+}).loose().nullable().optional()
 
 const FollowContentDataSchema = z.object({
   follows: FollowContentFollowsSchema,
   specialAttention: FollowContentSpecialAttentionSchema,
   total_number: z.number().optional(),
-}).passthrough()
+}).loose()
 
 const FollowContentResponseSchema = z.object({
   ok: z.number(),
   data: FollowContentDataSchema,
-}).passthrough()
+}).loose()
 
 export type FollowContentResponse = z.infer<typeof FollowContentResponseSchema>
 

@@ -14,7 +14,7 @@ const LikeUserSchema = z.object({
   profile_image_url: z.string().optional(),
   verified: z.boolean().optional(),
   verified_type: z.number().optional(),
-}).passthrough().nullable().optional()
+}).loose().nullable().optional()
 
 // 真实 fixture：likes_p1.json / likes_p2.json / likes_end.json
 // 注意：第一页的部分条目没有 user / 计数字段，因此除 mblogid 外全部 optional。
@@ -31,7 +31,7 @@ const LikeItemSchemaBase = z.object({
   visible: z.object({
     type: z.number(),
     list_id: z.number().optional(),
-  }).passthrough().optional(),
+  }).loose().optional(),
   user: LikeUserSchema,
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
@@ -40,7 +40,7 @@ const LikeItemSchemaBase = z.object({
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 export type LikeItem = z.infer<typeof LikeItemSchemaBase> & {
   retweeted_status?: LikeItem | null
@@ -65,8 +65,8 @@ const LikeListResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
     list: z.array(LikeItemSchema),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type LikeListResponse = z.infer<typeof LikeListResponseSchema>
 

@@ -13,7 +13,7 @@ const PicSizeSchema = z.object({
   width: z.union([z.number(), z.string()]).optional(),
   height: z.union([z.number(), z.string()]).optional(),
   croped: z.boolean().optional(),
-}).passthrough()
+}).loose()
 
 export const PicInfoSchema = z.object({
   thumbnail: PicSizeSchema.optional(),
@@ -36,7 +36,7 @@ export const PicInfoSchema = z.object({
   photo_tag: z.number().optional(),
   type: z.string().optional(), // 'pic' | 'gif' | ...
   pic_status: z.number().optional(),
-}).passthrough()
+}).loose()
 
 // annotations 行为多变：异构数组（单键对象 {photo_sub_type}、{source_text, phone_id}、嵌套数组等），只约束「必须是数组」
 const AnnotationsSchema = z.array(z.unknown()).optional()
@@ -69,7 +69,7 @@ const MyMBlogItemSchemaBase = z.object({
   visible: z.object({
     type: z.number(),
     list_id: z.number().optional(),
-  }).passthrough().optional(),
+  }).loose().optional(),
   user: z.object({
     id: IdSchema.optional(),
     idstr: z.string().optional(),
@@ -79,7 +79,7 @@ const MyMBlogItemSchemaBase = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough().nullable().optional(),
+  }).loose().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -90,7 +90,7 @@ const MyMBlogItemSchemaBase = z.object({
   page_info: z.record(z.string(), z.unknown()).optional(),
   geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 export type MyMBlogItem = z.infer<typeof MyMBlogItemSchemaBase> & {
   retweeted_status?: MyMBlogItem | null
@@ -132,7 +132,7 @@ const StatusShowResponseSchemaBase = z.object({
   visible: z.object({
     type: z.number(),
     list_id: z.number().optional(),
-  }).passthrough().optional(),
+  }).loose().optional(),
   user: z.object({
     id: IdSchema.optional(),
     idstr: z.string().optional(),
@@ -142,7 +142,7 @@ const StatusShowResponseSchemaBase = z.object({
     profile_image_url: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough().nullable().optional(),
+  }).loose().nullable().optional(),
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
   reposts_count: z.number().optional(),
@@ -153,7 +153,7 @@ const StatusShowResponseSchemaBase = z.object({
   page_info: z.record(z.string(), z.unknown()).optional(),
   geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 export type StatusShowResponse = z.infer<typeof StatusShowResponseSchemaBase> & {
   retweeted_status?: StatusShowResponse | null
@@ -226,7 +226,7 @@ const CommentUrlStructSchema = z.object({
   h5_target_url: z.string().optional(),
   pic_ids: z.array(z.string()).optional(),
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
-}).passthrough()
+}).loose()
 
 const CommentItemSchemaBase = z.object({
   id: IdSchema.optional(),
@@ -255,8 +255,8 @@ const CommentItemSchemaBase = z.object({
     avatar_large: z.string().optional(),
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
-  }).passthrough().nullable().optional(),
-}).passthrough()
+  }).loose().nullable().optional(),
+}).loose()
 
 type CommentItem = z.infer<typeof CommentItemSchemaBase> & {
   comments?: CommentItem[]
@@ -273,7 +273,7 @@ const BuildCommentsResponseSchema = z.object({
     scheme: z.string().optional(),
     title: z.string(),
     isDefault: z.number().optional(),
-  }).passthrough()).optional(),
+  }).loose()).optional(),
   data: z.array(CommentItemSchema),
   // 顶层评论的 total_number 包含楼中楼 / 可能包含不可见评论，不能当作「还剩多少条顶层评论」。
   total_number: z.number().optional(),
@@ -282,7 +282,7 @@ const BuildCommentsResponseSchema = z.object({
   // 部分可见提示：如「博主已开启防火墙，部分内容暂不展示」（此时 data 会少于 total_number）。
   trendsText: z.string().optional(),
   tip_msg: z.string().optional(),
-}).passthrough()
+}).loose()
 
 export type BuildCommentsResponse = z.infer<typeof BuildCommentsResponseSchema>
 
@@ -331,7 +331,7 @@ const FriendstimelineResponseSchema = z.object({
   max_id: z.union([z.string(), z.number()]).optional(),
   since_id_str: z.string().optional(),
   max_id_str: z.string().optional(),
-}).passthrough()
+}).loose()
 
 export type FriendstimelineResponse = z.infer<typeof FriendstimelineResponseSchema>
 
@@ -387,7 +387,7 @@ const RepostTimelineResponseSchema = z.object({
   max_page: z.number().optional(),
   next_cursor: z.number().optional(),
   empty_tip: z.string().optional(),
-}).passthrough()
+}).loose()
 
 export type RepostTimelineResponse = z.infer<typeof RepostTimelineResponseSchema>
 
@@ -422,8 +422,8 @@ const LongtextResponseSchema = z.object({
     url_struct: z.array(z.unknown()).optional(),
     isMarkdown: z.boolean().optional(),
     longTextContent_raw: z.string().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type LongtextResponse = z.infer<typeof LongtextResponseSchema>
 

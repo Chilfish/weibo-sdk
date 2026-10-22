@@ -14,13 +14,13 @@ const STopicCatesArgsSchema = z.object({}).strict()
 const STopicCategorySchema = z.object({
   id: z.number(),
   name: z.string(),
-}).passthrough()
+}).loose()
 
 const STopicCatesResponseSchema = z.object({
   ok: z.number(),
   code: z.number().optional(),
   data: z.array(STopicCategorySchema),
-}).passthrough()
+}).loose()
 
 export type STopicCatesResponse = z.infer<typeof STopicCatesResponseSchema>
 
@@ -62,7 +62,7 @@ const STopicItemSchema = z.object({
   icon: z.string().optional(),
   is_circle: z.number().optional(),
   ori_rank: z.number().optional(),
-}).passthrough()
+}).loose()
 
 const STopicListResponseSchema = z.object({
   ok: z.number(),
@@ -70,7 +70,7 @@ const STopicListResponseSchema = z.object({
   count: z.number().optional(),
   since_id: z.union([z.string(), z.number()]).optional(),
   data: z.array(STopicItemSchema),
-}).passthrough()
+}).loose()
 
 export type STopicListResponse = z.infer<typeof STopicListResponseSchema>
 

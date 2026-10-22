@@ -15,14 +15,14 @@ const UserDetailsArgsSchema = z.object({
 const LabelModeSchema = z.object({
   word_color: z.string().optional(),
   background_color: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const LabelDescSchema = z.object({
   name: z.string().optional(),
   normal_mode: LabelModeSchema.optional(),
   dark_mode: LabelModeSchema.optional(),
   scheme_url: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const UserInfoResponseSchema = z.object({
   ok: z.number(),
@@ -47,9 +47,9 @@ const UserInfoResponseSchema = z.object({
       statuses_count: z.number().optional(),
       svip: z.number().optional(),
       mbrank: z.number().optional(),
-    }).passthrough(),
-  }).passthrough(),
-}).passthrough()
+    }).loose(),
+  }).loose(),
+}).loose()
 
 const UserDetailsResponseSchema = z.object({
   ok: z.number(),
@@ -60,25 +60,25 @@ const UserDetailsResponseSchema = z.object({
     gender: z.string().optional(),
     birthday: z.string().optional(),
     description: z.string().optional(),
-    education: z.object({ school: z.string().optional() }).passthrough().optional(),
-    sunshine_credit: z.object({ level: z.string().optional() }).passthrough().optional(),
-    followers: z.object({ total_number: z.number().optional() }).passthrough().optional(),
+    education: z.object({ school: z.string().optional() }).loose().optional(),
+    sunshine_credit: z.object({ level: z.string().optional() }).loose().optional(),
+    followers: z.object({ total_number: z.number().optional() }).loose().optional(),
     label_desc: z.array(LabelDescSchema).optional(),
     verified_url: z.string().optional(),
     friend_info: z.string().optional(),
     links: z.array(z.object({
       title: z.string().optional(),
       url: z.string().optional(),
-    }).passthrough()).optional(),
+    }).loose()).optional(),
     real_name: z.object({
       name: z.string().optional(),
       career: z.string().optional(),
-    }).passthrough().optional(),
+    }).loose().optional(),
     company: z.string().optional(),
-    career: z.object({ company: z.string().optional() }).passthrough().optional(),
+    career: z.object({ company: z.string().optional() }).loose().optional(),
     hometown: z.string().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type UserInfoResponse = z.infer<typeof UserInfoResponseSchema>
 export type UserDetailsResponse = z.infer<typeof UserDetailsResponseSchema>

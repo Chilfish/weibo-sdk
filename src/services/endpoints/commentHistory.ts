@@ -15,7 +15,7 @@ const HistoryUserSchema = z.object({
   profile_image_url: z.string().optional(),
   verified: z.boolean().optional(),
   verified_type: z.number().optional(),
-}).passthrough().nullable().optional()
+}).loose().nullable().optional()
 
 // 评论内嵌的「被评论微博」；与 mymblog 条目同构，只声明代码实际访问的字段。
 const CommentedStatusSchemaBase = z.object({
@@ -31,7 +31,7 @@ const CommentedStatusSchemaBase = z.object({
   visible: z.object({
     type: z.number(),
     list_id: z.number().optional(),
-  }).passthrough().optional(),
+  }).loose().optional(),
   user: HistoryUserSchema,
   attitudes_count: z.number().optional(),
   comments_count: z.number().optional(),
@@ -40,7 +40,7 @@ const CommentedStatusSchemaBase = z.object({
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 type CommentedStatus = z.infer<typeof CommentedStatusSchemaBase> & {
   retweeted_status?: CommentedStatus | null
@@ -65,7 +65,7 @@ const ReplyCommentSchemaBase = z.object({
   like_counts: z.number().optional(),
   liked: z.boolean().optional(),
   user: HistoryUserSchema,
-}).passthrough()
+}).loose()
 
 type ReplyComment = z.infer<typeof ReplyCommentSchemaBase> & {
   reply_comment?: ReplyComment | null
@@ -93,7 +93,7 @@ export const MyCommentItemSchema = z.object({
   status: CommentedStatusSchema,
   reply_comment: ReplyCommentSchema.nullable().optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+}).loose()
 
 export type MyCommentItem = z.infer<typeof MyCommentItemSchema>
 
@@ -119,8 +119,8 @@ const MyCommentsResponseSchema = z.object({
     interval: z.number().optional(),
     extend_card: z.number().optional(),
     messType: z.string().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type MyCommentsResponse = z.infer<typeof MyCommentsResponseSchema>
 

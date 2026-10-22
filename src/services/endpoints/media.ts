@@ -31,13 +31,13 @@ export const ImageWallItemSchema = z.object({
   type: z.string().optional(),
   // livephoto 的 .mov 地址；普通图片缺省
   video: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const AlbumListItemSchema = z.object({
   containerid: z.string(),
   pic: z.string().optional(),
   pic_title: z.string().optional(),
-}).passthrough()
+}).loose()
 
 const ImageWallResponseSchema = z.object({
   ok: z.number(),
@@ -47,10 +47,10 @@ const ImageWallResponseSchema = z.object({
     // D4：has_album=true 时额外返回（相册 tab 同一请求）
     album_list: z.array(AlbumListItemSchema).optional(),
     album_since_id: z.union([z.string(), z.number()]).optional(),
-  }).passthrough(),
+  }).loose(),
   bottom_tips_visible: z.boolean().optional(),
   bottom_tips_text: z.string().optional(),
-}).passthrough()
+}).loose()
 
 export type ImageWallResponse = z.infer<typeof ImageWallResponseSchema>
 
@@ -87,8 +87,8 @@ const WaterfallResponseSchema = z.object({
   data: z.object({
     list: z.array(MyMBlogItemSchema),
     next_cursor: z.union([z.string(), z.number()]).optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type WaterfallResponse = z.infer<typeof WaterfallResponseSchema>
 
@@ -127,8 +127,8 @@ const AlbumDetailResponseSchema = z.object({
     list: z.array(ImageWallItemSchema),
     since_id: z.union([z.string(), z.number()]).optional(),
     type: z.string().optional(),
-  }).passthrough(),
-}).passthrough()
+  }).loose(),
+}).loose()
 
 export type AlbumDetailResponse = z.infer<typeof AlbumDetailResponseSchema>
 
