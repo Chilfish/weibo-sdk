@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.4.0 (2026-10-22)
+
 ### 新增
 
 - 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；输入也可以传目录，只扫描顶层 `*.json` 并跳过不可合并的文件（stderr 打印原因）。`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
