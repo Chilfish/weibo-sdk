@@ -78,6 +78,13 @@ weibo-cli archive --uid-file ./uids.txt --state ./output/cli-archive-state.json
 weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-01-31 --out ./output/weibo-archive.json
 weibo-cli archive user 1111681197 --since 2025-01-01 --until 2025-01-31 --no-comments --reposts
 
+# 增量更新：已有输出文件作为基线，跑完合并写回
+weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 --out ./output/weibo-archive.json --merge
+
+# 合并归档（本地，不请求微博；评论 / 楼中楼 / 转发按 id 取并集）
+weibo-cli archive merge ./output/weibo-archive.json ./output/weibo-archive-2026.json --out ./output/merged.json
+weibo-cli archive merge ./output/weibo-archive.json ./output/weibo-archive.json --out ./output/merged.json --force   # 同一个文件传两次，演示幂等
+
 # 管道消费
 weibo-cli tweet home-stream --max-pages 2 | jq -c 'select(.event=="item") | .mblogId'
 weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjson
@@ -91,6 +98,7 @@ weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjs
 | `*-stream` | NDJSON：`progress` / `item` / `done` |
 | `archive` | NDJSON：`progress` / `item` / `item-error` / `done` / `user-*` |
 | `archive user` | 写入 `--out` 指定的单个 JSON；stdout 一行 `done` 摘要，stderr 为进度 / issue NDJSON |
+| `archive merge` | 本地合并，写入 `--out`；stdout 一行 `done` 摘要（含 `inputs` / `deduped`），stderr 两行诊断 |
 | `media download` | NDJSON：`progress` / `item` / `item-error` / `done` |
 
 错误统一走 stderr，并以非零退出码退出；错误信封包含 `code / level / retryable / message / hint? / next? / context?`。
