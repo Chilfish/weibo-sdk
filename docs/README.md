@@ -49,6 +49,7 @@
 | [research-guest-mode-2026-10-20.md](planning/research-guest-mode-2026-10-20.md) | 无登录访客模式（guest mode）调研：token 发放、真实端点矩阵、匿名翻页边界、SDK 接入方案与 P0/P1/P2 行动计划 | 规划 guest mode / 评估匿名读取能力 |
 | [research-agent-view-2026-10-20.md](planning/research-agent-view-2026-10-20.md) | Agent 视角的单条微博上下文（`ITweetContext`）：理解所需维度、真实数据缺口、媒体归属/下载、`tweet context` CLI 设计与非目标 | 设计/修改 Agent 视图、媒体描述或上下文预算 |
 | [research-plugin-architecture-2026-10-21.md](planning/research-plugin-architecture-2026-10-21.md) | 插件化架构调研：token 池结论、Ports / Core / Plugins 三层设计、自定义 fetch、下游零配置与产物准确性、PF1–PF7 行动计划 | 评估扩展点、替换传输、调整默认配置或发布产物 |
+| [research-user-archive-integration-2026-10-22.md](planning/research-user-archive-integration-2026-10-22.md) | 用户范围归档的产品化提案：`sdk.userArchive.stream/run`、store 端口、`weibo-cli archive user`、脚本模块映射与实施顺序 | 实施/评审归档脚本迁移 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
