@@ -61,12 +61,12 @@ jobs:
 
       - name: Verify registry
         run: |
-          for attempt in $(seq 1 12); do
+          for attempt in $(seq 1 30); do
             if npm view "@chilfish/weibo-sdk@$VERSION" version; then
               exit 0
             fi
             echo "registry 尚未可安装（第 $attempt 次），10s 后重试"
             sleep 10
           done
-          echo "✖ registry 在 120s 内没有出现 @chilfish/weibo-sdk@$VERSION"
+          echo "✖ registry 在 300s 内没有出现 @chilfish/weibo-sdk@$VERSION"
           exit 1
