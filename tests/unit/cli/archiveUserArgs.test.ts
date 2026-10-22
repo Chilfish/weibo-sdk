@@ -58,6 +58,32 @@ describe('userArchiveOptionsFromArgs', () => {
     expect(options.includeReposts).toBe(false)
   })
 
+  it('omitsImplicitDefaultsWhenRawArgsArePresent', () => {
+    const options = userArchiveOptionsFromArgs({
+      '__rawArgs': ['archive', 'user', '123', '--until', '2025-01-31'],
+      'comments': true,
+      'replies': true,
+      'reposts': true,
+      'comment-order': 'time',
+    })
+
+    expect(options.includeComments).toBeUndefined()
+    expect(options.includeReplies).toBeUndefined()
+    expect(options.includeReposts).toBeUndefined()
+    expect(options.commentOrder).toBeUndefined()
+  })
+
+  it('keepsExplicitFlagsWhenRawArgsArePresent', () => {
+    const options = userArchiveOptionsFromArgs({
+      '__rawArgs': ['archive', 'user', '123', '--no-comments', '--reposts', '--comment-order', 'hot'],
+      'comment-order': 'hot',
+    })
+
+    expect(options.includeComments).toBe(false)
+    expect(options.includeReposts).toBe(true)
+    expect(options.commentOrder).toBe('hot')
+  })
+
   it('invalidCommentOrder_throws', () => {
     expect(() => userArchiveOptionsFromArgs({ 'comment-order': 'newest' })).toThrow(InvalidConfigError)
   })

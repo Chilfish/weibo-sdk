@@ -99,6 +99,7 @@
 | `unit/services/UserArchiveAssemble.test.ts` | `assembleUserArchive` / `dedupeUserArchiveRecords` | 按 `mblogId` 去重（issue 少 / 更晚写入优先）、时间倒序、评论 / 楼中楼统计、issue 去重、fatal / aborted 标记不完整、剥除 legacy raw |
 | `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days |
 | `unit/cli/archiveUserStore.test.ts` | `FileUserArchiveStore` | meta / records / checkpoint / slice-done / issue 往返、截断行修复、meta schema 校验、`clear`、按切片过滤 |
+| `unit/cli/terminalReporter.test.ts` | `archive user` 终端呈现 | `--log-format` / TTY / CI / `TERM=dumb` / `NO_COLOR` 解析、NDJSON 兼容、pretty 行模式、单行状态原地刷新（不换行）、进度条保留、光标恢复 |
 
 ### Unit — 错误
 

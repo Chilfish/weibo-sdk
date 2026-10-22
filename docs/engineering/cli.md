@@ -438,6 +438,43 @@ weibo-cli schema diff before.json after.json
 
 CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
 
+## 终端呈现（`archive user`）
+
+`archive user` 的进度与诊断默认按终端能力自动切换，数据契约不受影响：
+
+| 场景 | 默认呈现 |
+|---|---|
+| stderr 是 TTY，且不在 CI / `TERM=dumb` | 原地刷新的单行状态 + 追加的切片 / issue 行 |
+| 管道、重定向、CI、`TERM=dumb` | NDJSON（与旧行为一致） |
+| `--log-format pretty` | 强制人类可读；非 TTY 时退化为普通行，不做光标控制 |
+| `--log-format ndjson` | 强制机器可读 |
+| `--log-format silent` / `--quiet` | 不输出诊断 |
+| `--no-progress` | `pretty` 下关闭动态状态行，只输出切片完成 / issue / 汇总 |
+
+TTY 下的样子：
+
+```text
+weibo-cli archive user 1111681197
+  out      ./weibo-archive.json
+  range    2025-01-01 → 2025-12-31
+  ✓ s000-1770000000-1772591999 done
+  ✓ s001-1772592000-1775183999 done
+  s002  enumerate/search  ██████░░░░ 42/70  tweets 142  comments 320  replies 87  page 3  errors 2
+  12:04:33  ✖ comments RATE_LIMITED 退避后继续
+```
+
+状态行只有一行，用 `\r` + 清行原地刷新；切片完成、issue、raw 等日志追加在状态行上方，保留 scrollback。
+
+规则：
+
+- **stdout 只放结果**。`archive user` 的 stdout 仍是一行 `{ event: 'done', ... }`，管道消费不受影响。
+- **stderr 放诊断**。进度、切片完成、issue、raw 写入状态都在 stderr；TTY 下是状态行，非 TTY 下是 NDJSON。
+- **不做全屏 TUI**。不切 alternate screen，不接管滚动；状态行是可清除的临时行，日志仍然 append-only。
+- **自动降级优先**。`NO_COLOR` / `FORCE_COLOR` 只控制颜色；`CI` / `TERM=dumb` / 非 TTY 关闭动态刷新。`--log-format` 显式指定时优先。
+- **零依赖**。用 ANSI + `\r` / 清行实现，不引入 `ink` / `blessed` / `listr2`。
+
+当前只在 `archive user` 试点；`archive`、`media download`、`*-stream` 等命令保持原有输出，后续按同一 reporter 推广。
+
 ## 输出形态速查
 
 下表是默认 JSON 形态；上方「输出格式」章节列出的查询命令都可以再加 `--format markdown`。

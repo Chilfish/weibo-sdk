@@ -179,6 +179,30 @@ describe('userArchiveService', () => {
     expect(second.calls.stream).toEqual([])
   })
 
+  it('run_resumeWithoutExplicitOptionsInheritsJournalConfig', async () => {
+    const store = createMemoryUserArchiveStore()
+    const first = createFakeDeps()
+
+    await new UserArchiveService(first.deps).run(UID, {
+      ...OPTIONS,
+      includeComments: false,
+      includeReplies: false,
+      commentOrder: 'hot',
+      store,
+    })
+
+    const second = createFakeDeps({ streamError: new Error('should not be called') })
+    const result = await new UserArchiveService(second.deps).run(UID, { store })
+
+    expect(result.complete).toBe(true)
+    expect(result.file.query).toMatchObject({
+      includeComments: false,
+      includeReplies: false,
+      commentOrder: 'hot',
+    })
+    expect(second.calls.stream).toEqual([])
+  })
+
   it('run_resumeConfigMismatchThrows', async () => {
     const store = createMemoryUserArchiveStore()
     const { deps } = createFakeDeps()

@@ -293,7 +293,8 @@ const archive = defineCommand({
       type: 'string',
       description: 'timeline 数据源：mymblog（默认）或 search（直接日期切片）',
     },
-    'since': { type: 'string', description: '日期切片下界（unix 秒，可选）' },
+    'since': { type: 'string', description: '日期切片下界（unix 秒，可选）；archive user 也作为范围起点' },
+    'until': { type: 'string', description: 'archive user：范围终点（YYYY-MM-DD / YYYYMMDD / unix 秒；默认现在）' },
     'incremental-since': {
       type: 'string',
       description: '增量时间下界：YYYY-MM-DD / YYYYMMDD 或 unix 秒',
@@ -360,6 +361,9 @@ const archive = defineCommand({
     'delay': { type: 'string', description: 'archive user：令牌补充间隔毫秒（默认 1000）' },
     'burst': { type: 'string', description: 'archive user：令牌桶容量（默认 3）' },
     'dotenv': { type: 'string', description: 'archive user：同 --env-file（兼容旧脚本）' },
+    'log-format': { type: 'string', description: 'archive user：日志呈现 pretty | ndjson | silent（TTY 默认 pretty，管道 / CI 默认 ndjson）' },
+    'no-progress': { type: 'boolean', default: false, description: 'archive user：关闭动态状态块，只输出关键行' },
+    'quiet': { type: 'boolean', default: false, description: 'archive user：不输出诊断，等价于 --log-format silent' },
     ...cookieArg,
   },
   async run({ args, rawArgs }) {
@@ -374,9 +378,7 @@ const archive = defineCommand({
       await runArchiveUser({
         ...args,
         uid: target,
-        comments: args['no-comments'] !== true,
-        replies: args['no-replies'] !== true,
-        reposts: rawArgs.some(item => item === '--reposts' || item.startsWith('--reposts=')),
+        __rawArgs: rawArgs,
       })
       return
     }

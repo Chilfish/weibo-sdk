@@ -6,6 +6,7 @@
 
 ### 新增
 
+- `archive user` 新增终端呈现选项：`--log-format pretty|ndjson|silent`、`--no-progress`、`--quiet`。TTY 下默认用一行原地刷新的状态（切片 / 页 / tweets / comments / replies / errors + 当前切片进度条）并追加切片完成与 issue 行；管道、CI、`TERM=dumb` 下继续输出 NDJSON。stdout 仍是一行 `done` JSON，数据契约不变。
 - 新增范围归档能力：`sdk.userArchive.run(uid, options)` 一次返回完整 `ArchiveFile`，`sdk.userArchive.stream(uid, options)` 产出 `meta` / `slice-start` / `record` / `issue` / `slice-done` / `done` 事件。按日期切片枚举，逐条重新拉取详情与长文，可补全一级评论、楼中楼和转发列表，支持 `UserArchiveStore` 断点续跑。CLI 对应 `weibo-cli archive user <uid>`，输出单个 JSON 与 `<out>.slices/` journal，参数覆盖 `--since/--until`、`--slice-days`、`--concurrency`、`--delay/--burst`、`--no-comments/--no-replies`、`--reposts`、各类 `--max-*`、`--raw`、`--fresh`。全量镜像命令 `weibo-cli archive <uid>` 保持不变。
 - 新增结构化日志出口 `config.logger`（默认关闭）。SDK 把已有的 Wide Events 与 `sdk_init` / `self_check_*` 映射为带级别的日志记录，不新增埋点；`WeiboLogger.log()` 抛错或 reject 不影响业务。公共导出新增 `createConsoleLogger` / `createJsonlLogger` / `createMultiLogger` / `createLoggerPlugin`、`WeiboLogger` / `WeiboLogRecord` / `WeiboLogLevel`，内置 sink 默认替换 Cookie / token 等敏感字段。`weibo-cli` 的 stdout 数据与 NDJSON 协议不经过 logger。
 - CLI 查询命令新增 `--format`（默认 `json`，可选 `markdown` / `md`），覆盖 `user`、`tweet`、`follow`、`favorite list`、`like list`、`comment mine`、`notification`、`media albums`、`topic`、`trends`、`whoami`，直接输出可读的用户卡片、微博列表、评论、关注列表、热搜等。默认 JSON 与 NDJSON 行为不变；流式命令、`archive` 和 `media download` 不提供该参数。

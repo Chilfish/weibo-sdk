@@ -19,7 +19,7 @@ import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { USER_ARCHIVE_JOURNAL_SCHEMA } from '~/types/archive/IUserArchive'
 import { assembleUserArchive, dedupeUserArchiveRecords } from './userArchive/assemble'
 import { completeUserArchiveTweet } from './userArchive/complete'
-import { buildUserArchiveConfig, resolveUserArchiveConcurrency, validateUserArchiveResume } from './userArchive/config'
+import { applyUserArchiveResumeDefaults, buildUserArchiveConfig, resolveUserArchiveConcurrency, validateUserArchiveResume } from './userArchive/config'
 import { dedupeUserArchiveIssues, isFatalUserArchiveError, toUserArchiveIssue } from './userArchive/issues'
 import { createMemoryUserArchiveStore } from './userArchive/memoryStore'
 import { planUserArchiveSlices } from './userArchive/slices'
@@ -128,10 +128,10 @@ export class UserArchiveService {
     }
 
     const store = options.store ?? createMemoryUserArchiveStore()
-    const config = buildUserArchiveConfig(uid, options)
+    let meta = await store.loadMeta()
+    const config = buildUserArchiveConfig(uid, applyUserArchiveResumeDefaults(options, meta?.config))
     const concurrency = resolveUserArchiveConcurrency(options.concurrency)
 
-    let meta = await store.loadMeta()
     if (meta) {
       validateUserArchiveResume(meta, config)
       meta = await this.refreshMetaUser(meta, store)

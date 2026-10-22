@@ -88,6 +88,32 @@ export function buildUserArchiveConfig(uid: string, options: UserArchiveOptions)
   }
 }
 
+/** 续跑时用 journal 里的配置补齐未显式传入的选项。 */
+export function applyUserArchiveResumeDefaults(
+  options: UserArchiveOptions,
+  existing?: UserArchiveRunConfig,
+): UserArchiveOptions {
+  if (!existing)
+    return options
+
+  return {
+    ...options,
+    since: options.since ?? existing.range.since.input,
+    until: options.until ?? existing.range.until.input,
+    sliceDays: options.sliceDays ?? existing.sliceDays,
+    includeComments: options.includeComments ?? existing.options.includeComments,
+    includeReplies: options.includeReplies ?? existing.options.includeReplies,
+    includeReposts: options.includeReposts ?? existing.options.includeReposts,
+    commentOrder: options.commentOrder ?? existing.options.commentOrder,
+    maxComments: options.maxComments ?? existing.options.maxComments,
+    maxCommentPages: options.maxCommentPages ?? existing.options.maxCommentPages,
+    maxReplies: options.maxReplies ?? existing.options.maxReplies,
+    maxReplyPages: options.maxReplyPages ?? existing.options.maxReplyPages,
+    maxReposts: options.maxReposts ?? existing.options.maxReposts,
+    maxRepostPages: options.maxRepostPages ?? existing.options.maxRepostPages,
+  }
+}
+
 function assertSame(field: string, actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new InvalidConfigError(
