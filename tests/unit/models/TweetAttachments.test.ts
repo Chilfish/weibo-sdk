@@ -89,6 +89,20 @@ describe('extractAttachments – PC page_info', () => {
     expect(article.isPaid).toBeUndefined()
   })
 
+  it('reads top-level is_paid for a PC article', () => {
+    const article = onlyAttachment({
+      is_paid: 1,
+      page_info: {
+        type: 24,
+        object_type: 'article',
+        page_id: '2309404901234567890999',
+        content1: '付费文章',
+      },
+    }, 'article')
+
+    expect(article.isPaid).toBe(true)
+  })
+
   it('normalizes a PC vote card (card_info.vote_object, numbers delivered as strings)', () => {
     const vote = onlyAttachment({
       page_info: {
@@ -252,6 +266,31 @@ describe('extractAttachments – m-site url_objects', () => {
     expect(article.coverUrl).toBe('https://wx1.sinaimg.cn/large/m_article.jpg')
     expect(article.url).toBe('https://weibo.com/ttarticle/p/show?id=2309404901234567890124')
     expect(article.isPaid).toBe(true)
+  })
+
+  it('falls back to vote_dynamic.object_id when vote_object has no id', () => {
+    const vote = onlyAttachment({
+      url_objects: [{
+        object: {
+          object_type: 'hudongvote',
+          object: {
+            object_type: 'hudongvote',
+            vote_object: {
+              content: '没有 id 的投票',
+              vote_list: [{ id: '1', content: 'A' }],
+            },
+          },
+        },
+        vote_dynamic: JSON.stringify({
+          object_id: '1022:2317162026_5120999999',
+          part_info: 1,
+          vote_list: [{ id: '1', part_num: 1, part_ratio: '1.00' }],
+        }),
+      }],
+    }, 'vote')
+
+    expect(vote.id).toBe('2317162026_5120999999')
+    expect(vote.totalVotes).toBe(1)
   })
 
   it('prefers vote_dynamic over stale vote_object counters on m-site votes', () => {
