@@ -172,7 +172,7 @@ export class UserArchiveService {
       return total > 0 ? total : undefined
     }
     let fatalError: unknown
-    let processed = bestBefore.length
+    let processed = completed.size
 
     const report = async (progress: UserArchiveProgress): Promise<void> => {
       const payload: UserArchiveProgress = { ...progress, overallTotal: overallTotal() }
