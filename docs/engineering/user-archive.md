@@ -187,7 +187,11 @@ weibo-cli archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./wei
 ```bash
 weibo-cli archive merge ./weibo-archive-2025.json ./weibo-archive-2026.json -o ./weibo-archive.json
 weibo-cli archive merge a.json b.json -o a.json --force   # 原地合并
+weibo-cli archive merge ./archives -o ./weibo-archive.json          # 合并目录下所有合法归档
+weibo-cli archive merge ./archives ./extra.json -o ./merged.json     # 目录与显式文件混用
 ```
+
+输入可以是目录：只扫描目录**顶层**的 `*.json`，逐份校验后只把可合并的 `weibo-user-archive/v2` 文件纳入合并，其余文件跳过并在 stderr 打印原因。`--out` 指向目录内的文件时会被排除；目录与显式路径重复时按绝对路径去重。显式文件仍保持严格语义：不存在或不是合法归档会直接失败。单份合法但 uid 不同不会跳过，仍然抛 `CONFIG_INVALID`。目录展开后不足两份有效归档时报错。
 
 合并规则：
 

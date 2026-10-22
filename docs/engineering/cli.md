@@ -400,6 +400,7 @@ weibo-cli archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-ar
 
 # 合并同一账号的多份归档（mblogId 去重；评论 / 楼中楼 / 转发取并集）
 weibo-cli archive merge a.json b.json [-o merged.json] [--force]
+weibo-cli archive merge ./archives [-o merged.json] [--force]   # 目录：只取顶层合法 *.json
 
 # 能力清单（离线；可按服务 / 状态过滤）
 weibo-cli capabilities [--service <name>] [--status stable|degraded|unavailable|planned]
@@ -446,6 +447,7 @@ weibo-cli schema diff before.json after.json
 >
 > `archive merge` 是纯本地操作，不请求微博：读入多份同账号归档，按 `mblogId` 合并后写出。
 > 输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。
+> 输入也可以是目录：只扫描顶层 `*.json`，逐份校验后跳过不可合并的文件并在 stderr 说明原因；目录中的输出文件会被排除，跨账号仍然报错。
 > 合并结果仍有未解决的 issue 时退出码为 1。规则见 [user-archive.md 的「合并归档」](./user-archive.md#合并归档)。
 
 CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。

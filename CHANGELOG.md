@@ -6,7 +6,7 @@
 
 ### 新增
 
-- 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
+- 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；输入也可以传目录，只扫描顶层 `*.json` 并跳过不可合并的文件（stderr 打印原因）。`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
 - `ITweet` 新增 optional `attachments`：统一承载头条文章（`article`）、微博投票（`vote`）、直播 / 回放（`live`）与抽奖链接（`lottery`），字段见 `docs/engineering/contract-itweet-v2.md`。`ITweetContext.post.attachments` 同步投影这些附件，并在 `unknowns` / `hints` 标注「文章正文未抓取」「抽奖详情未抓取」「直播流临时」等边界；既有 `pageInfo` / `linkCards` / `media` / `audio` 语义不变。
 - `archive user` 评论与楼中楼默认各只翻 2 页，避免高互动微博阻塞整个任务；`--max-comment-pages 0` / `--max-reply-pages 0` 或 `--all-comments` / `--all-replies` 显式拉完。条数上限（`--max-comments` / `--max-replies`）仍然独立生效。
 - `archive user` 新增 `--fast` 预设：`concurrency 32`、`delay 100ms`、`burst 16`，稳态约 10 req/s；显式 `--concurrency` / `--delay` / `--burst` 仍然优先。大范围建议按日期分段跑，最后用 `archive merge` / `--merge` 合并；`--fast` 更容易触发 432，SDK 会暂停重试。
