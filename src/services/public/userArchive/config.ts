@@ -12,6 +12,10 @@ const WEIBO_EPOCH = '2009-08-14'
 export const DEFAULT_USER_ARCHIVE_SLICE_DAYS = 30
 export const DEFAULT_USER_ARCHIVE_CONCURRENCY = 6
 export const MAX_USER_ARCHIVE_CONCURRENCY = 32
+/** 默认最多拉取的一级评论页数；0 / 显式 all 才表示不限。 */
+export const DEFAULT_USER_ARCHIVE_COMMENT_PAGES = 2
+/** 默认每条一级评论最多拉取的楼中楼页数；0 / 显式 all 才表示不限。 */
+export const DEFAULT_USER_ARCHIVE_REPLY_PAGES = 2
 
 function configError(field: string, value: unknown, reason: string): InvalidConfigError {
   return new InvalidConfigError(`Invalid ${field}: ${JSON.stringify(value)}. ${reason}`, { field, value, reason })
@@ -26,6 +30,18 @@ function positiveInt(value: unknown, field: string): number | undefined {
   const parsed = typeof value === 'number' ? value : Number(value)
   if (!Number.isInteger(parsed) || parsed < 0)
     throw configError(field, value, 'Expected a non-negative integer.')
+  return parsed === 0 ? undefined : parsed
+}
+
+/** 页数上限：缺省用默认值，`0` 表示不限。 */
+function pageLimit(value: unknown, fallback: number, field: string): number | undefined {
+  if (value === undefined || value === null)
+    return fallback
+  if (typeof value === 'string' && value.trim() === '')
+    return fallback
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isInteger(parsed) || parsed < 0)
+    throw configError(field, value, 'Expected a non-negative integer (0 = all pages).')
   return parsed === 0 ? undefined : parsed
 }
 
@@ -70,9 +86,9 @@ export function buildUserArchiveConfig(uid: string, options: UserArchiveOptions)
     includeReposts: options.includeReposts ?? false,
     commentOrder: parseCommentOrder(options.commentOrder),
     maxComments: positiveInt(options.maxComments, 'maxComments'),
-    maxCommentPages: positiveInt(options.maxCommentPages, 'maxCommentPages'),
+    maxCommentPages: pageLimit(options.maxCommentPages, DEFAULT_USER_ARCHIVE_COMMENT_PAGES, 'maxCommentPages'),
     maxReplies: positiveInt(options.maxReplies, 'maxReplies'),
-    maxReplyPages: positiveInt(options.maxReplyPages, 'maxReplyPages'),
+    maxReplyPages: pageLimit(options.maxReplyPages, DEFAULT_USER_ARCHIVE_REPLY_PAGES, 'maxReplyPages'),
     maxReposts: positiveInt(options.maxReposts, 'maxReposts'),
     maxRepostPages: positiveInt(options.maxRepostPages, 'maxRepostPages'),
   }
@@ -106,9 +122,10 @@ export function applyUserArchiveResumeDefaults(
     includeReposts: options.includeReposts ?? existing.options.includeReposts,
     commentOrder: options.commentOrder ?? existing.options.commentOrder,
     maxComments: options.maxComments ?? existing.options.maxComments,
-    maxCommentPages: options.maxCommentPages ?? existing.options.maxCommentPages,
+    // 旧 journal 没有页数上限字段，按当时的「不限」语义补 0（build 时再转成 undefined）。
+    maxCommentPages: options.maxCommentPages ?? existing.options.maxCommentPages ?? 0,
     maxReplies: options.maxReplies ?? existing.options.maxReplies,
-    maxReplyPages: options.maxReplyPages ?? existing.options.maxReplyPages,
+    maxReplyPages: options.maxReplyPages ?? existing.options.maxReplyPages ?? 0,
     maxReposts: options.maxReposts ?? existing.options.maxReposts,
     maxRepostPages: options.maxRepostPages ?? existing.options.maxRepostPages,
   }

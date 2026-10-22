@@ -8,6 +8,7 @@
 
 - 新增归档合并：`mergeArchiveFiles(files)` 把同一个账号的多份 `weibo-user-archive/v2` 归档合成一份。同一个 `mblogId` 保留信息更全的微博本体，评论 / 楼中楼 / 转发按 id 取并集，`query.range` 合并为覆盖包络，`stats` / `complete` 重新计算；`query.estimatedTotal` 不再输出。CLI 对应 `weibo-cli archive merge a.json b.json -o merged.json`；`weibo-cli archive user <uid> --merge` 会把已存在的输出文件当基线，增量抓取结束后直接合并写回。
 - `ITweet` 新增 optional `attachments`：统一承载头条文章（`article`）、微博投票（`vote`）、直播 / 回放（`live`）与抽奖链接（`lottery`），字段见 `docs/engineering/contract-itweet-v2.md`。`ITweetContext.post.attachments` 同步投影这些附件，并在 `unknowns` / `hints` 标注「文章正文未抓取」「抽奖详情未抓取」「直播流临时」等边界；既有 `pageInfo` / `linkCards` / `media` / `audio` 语义不变。
+- `archive user` 评论与楼中楼默认各只翻 2 页，避免高互动微博阻塞整个任务；`--max-comment-pages 0` / `--max-reply-pages 0` 或 `--all-comments` / `--all-replies` 显式拉完。条数上限（`--max-comments` / `--max-replies`）仍然独立生效。
 - `archive user` 新增 `--fast` 预设：`concurrency 32`、`delay 100ms`、`burst 16`，稳态约 10 req/s；显式 `--concurrency` / `--delay` / `--burst` 仍然优先。大范围建议按日期分段跑，最后用 `archive merge` / `--merge` 合并；`--fast` 更容易触发 432，SDK 会暂停重试。
 - `archive user` 状态信息增强：状态行显示切片序号 / 总数、当前切片进度条、整体百分比与 ETA；切片完成行带 tweets/comments/replies/errors 和耗时；续跑时显示已加载记录数；汇总显示 `expected` / `missing`；432 暂停会追加限流提示。`comments` / `reposts` 在对应 stats 为 0 时跳过请求，减少无意义的 API 调用。
 - `archive user` 归档吞吐与整体进度：CLI 默认 `--concurrency 20`、`--delay 300`、`--burst 8`；单条微博的详情、评论、转发改为并行请求，楼中楼按小并发展开。`searchProfile` 的 `total` 写入 `meta.totals`，通过 `UserArchiveProgress.overallTotal` 展示整体进度；`run()` 的 `summary.estimatedTotal` / `summary.coverage` 与 CLI `done` 摘要用于最终核对。

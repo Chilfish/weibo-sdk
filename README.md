@@ -185,7 +185,7 @@ weibo-cli archive <uid> --state .weibo-archive-state.json
 weibo-cli archive --uid-file uids.txt --state .weibo-archive-state.json
 ```
 
-需要「指定时间段 + 深度补全」时用 `sdk.userArchive`；它按日期切片枚举，逐条重新拉取详情和长文，默认补一级评论和楼中楼：
+需要「指定时间段 + 深度补全」时用 `sdk.userArchive`；它按日期切片枚举，逐条重新拉取详情和长文，默认补一级评论和楼中楼（各最多 2 页，`--all-comments` / `--all-replies` 可拉完）：
 
 ```ts
 const result = await sdk.userArchive.run('1111681197', {

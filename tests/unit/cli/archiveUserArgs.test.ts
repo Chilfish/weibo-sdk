@@ -85,6 +85,23 @@ describe('userArchiveOptionsFromArgs', () => {
     expect(options.includeComments).toBe(true)
     expect(options.includeReplies).toBe(true)
     expect(options.includeReposts).toBe(false)
+    expect(options.maxCommentPages).toBeUndefined()
+    expect(options.maxReplyPages).toBeUndefined()
+  })
+
+  it('allFlagsMapToZeroPageLimits', () => {
+    const options = userArchiveOptionsFromArgs({ 'all-comments': true, 'all-replies': true })
+    expect(options.maxCommentPages).toBe(0)
+    expect(options.maxReplyPages).toBe(0)
+  })
+
+  it('zeroPageLimitIsPreserved', () => {
+    const options = userArchiveOptionsFromArgs({
+      'max-comment-pages': '0',
+      'max-reply-pages': '0',
+    })
+    expect(options.maxCommentPages).toBe(0)
+    expect(options.maxReplyPages).toBe(0)
   })
 
   it('omitsImplicitDefaultsWhenRawArgsArePresent', () => {

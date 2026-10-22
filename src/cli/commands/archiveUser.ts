@@ -79,6 +79,10 @@ export function userArchiveOptionsFromArgs(args: Record<string, unknown>): UserA
       : args.reposts === true
 
   const sliceDays = parseNonNegativeInt(args['slice-days'], 'slice-days')
+  const commentPages = parseNonNegativeInt(args['max-comment-pages'], 'max-comment-pages')
+    ?? (args['all-comments'] === true ? 0 : undefined)
+  const replyPages = parseNonNegativeInt(args['max-reply-pages'], 'max-reply-pages')
+    ?? (args['all-replies'] === true ? 0 : undefined)
 
   return {
     ...(typeof args.since === 'string' && args.since.trim() !== '' ? { since: args.since } : {}),
@@ -89,9 +93,9 @@ export function userArchiveOptionsFromArgs(args: Record<string, unknown>): UserA
     ...(includeReposts === undefined ? {} : { includeReposts }),
     ...(commentOrder === undefined ? {} : { commentOrder }),
     maxComments: parsePositiveInt(args['max-comments']),
-    maxCommentPages: parsePositiveInt(args['max-comment-pages']),
+    ...(commentPages === undefined ? {} : { maxCommentPages: commentPages }),
     maxReplies: parsePositiveInt(args['max-replies']),
-    maxReplyPages: parsePositiveInt(args['max-reply-pages']),
+    ...(replyPages === undefined ? {} : { maxReplyPages: replyPages }),
     maxReposts: parsePositiveInt(args['max-reposts']),
     maxRepostPages: parsePositiveInt(args['max-repost-pages']),
     concurrency: parsePositiveInt(args.concurrency),

@@ -110,8 +110,10 @@ export interface UserArchiveOptions {
   /** 评论排序（默认 time）。 */
   commentOrder?: 'time' | 'hot'
   maxComments?: number
+  /** 每条微博最多评论页数；默认 2，0 = 全部。 */
   maxCommentPages?: number
   maxReplies?: number
+  /** 每条一级评论最多楼中楼页数；默认 2，0 = 全部。 */
   maxReplyPages?: number
   maxReposts?: number
   maxRepostPages?: number

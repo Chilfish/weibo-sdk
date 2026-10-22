@@ -226,7 +226,7 @@ weibo archive 1111681197 --images --state .weibo-state.json
 weibo archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
 ```
 
-默认补一级评论和楼中楼；`--no-comments` / `--no-replies` 关闭，`--reposts` 额外拉转发。进度在 `./weibo-archive.json.slices/`，中断后重跑同一命令续跑；`--fresh` 丢弃进度。
+默认补一级评论和楼中楼，但各只翻 2 页；`--all-comments` / `--all-replies`（或 `--max-*-pages 0`）才拉完。`--no-comments` / `--no-replies` 关闭，`--reposts` 额外拉转发。进度在 `./weibo-archive.json.slices/`，中断后重跑同一命令续跑；`--fresh` 丢弃进度。大账号用 `--fast` 提高吞吐，按日期分段跑最后 `archive merge`。
 
 **拉首页最新微博并增量保存**
 

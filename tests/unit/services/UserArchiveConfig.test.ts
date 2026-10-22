@@ -3,6 +3,7 @@ import { makeArchiveUser } from 'tests/testkit/userArchive'
 import { describe, expect, it } from 'vitest'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import {
+  applyUserArchiveResumeDefaults,
   buildUserArchiveConfig,
   DEFAULT_USER_ARCHIVE_CONCURRENCY,
   MAX_USER_ARCHIVE_CONCURRENCY,
@@ -33,6 +34,8 @@ describe('buildUserArchiveConfig', () => {
       includeReplies: true,
       includeReposts: false,
       commentOrder: 'time',
+      maxCommentPages: 2,
+      maxReplyPages: 2,
     })
     expect(config.sliceDays).toBe(0)
   })
@@ -55,9 +58,41 @@ describe('buildUserArchiveConfig', () => {
   })
 
   it('zeroMaxValuesMeanUnlimited', () => {
-    const config = buildUserArchiveConfig(UID, { ...BASE, maxComments: 0, maxReplies: 0 })
+    const config = buildUserArchiveConfig(UID, {
+      ...BASE,
+      maxComments: 0,
+      maxCommentPages: 0,
+      maxReplies: 0,
+      maxReplyPages: 0,
+    })
     expect(config.options.maxComments).toBeUndefined()
+    expect(config.options.maxCommentPages).toBeUndefined()
     expect(config.options.maxReplies).toBeUndefined()
+    expect(config.options.maxReplyPages).toBeUndefined()
+  })
+
+  it('explicitPageLimitsOverrideDefaults', () => {
+    const config = buildUserArchiveConfig(UID, {
+      ...BASE,
+      maxCommentPages: 5,
+      maxReplyPages: 3,
+    })
+    expect(config.options.maxCommentPages).toBe(5)
+    expect(config.options.maxReplyPages).toBe(3)
+  })
+
+  it('oldJournalWithoutPageLimits_staysUnlimitedOnResume', () => {
+    const config = buildUserArchiveConfig(UID, {
+      ...BASE,
+      maxCommentPages: 0,
+      maxReplyPages: 0,
+    })
+    delete config.options.maxCommentPages
+    delete config.options.maxReplyPages
+
+    const resumed = buildUserArchiveConfig(UID, applyUserArchiveResumeDefaults({}, config))
+    expect(resumed.options.maxCommentPages).toBeUndefined()
+    expect(resumed.options.maxReplyPages).toBeUndefined()
   })
 
   it('sliceDaysOutOfRange_throwsConfigInvalid', () => {

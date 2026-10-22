@@ -130,15 +130,17 @@ weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
 | `--raw` / `--raw-out` | 把上游原始响应单独写进 JSONL，不进入归档 JSON |
 | `--no-comments` / `--no-replies` | 不拉评论 / 只拉一级评论 |
 | `--comment-order` | `time`（默认）或 `hot` |
-| `--max-comments` / `--max-comment-pages` | 一级评论条数 / 页数上限 |
-| `--max-replies` / `--max-reply-pages` | 楼中楼条数 / 页数上限 |
+| `--max-comments` / `--max-comment-pages` | 一级评论条数 / 页数上限；页数默认 2，`0` = 全部 |
+| `--all-comments` | 拉取全部评论页（等价于 `--max-comment-pages 0`） |
+| `--max-replies` / `--max-reply-pages` | 楼中楼条数 / 页数上限；页数默认 2，`0` = 全部 |
+| `--all-replies` | 拉取全部楼中楼页（等价于 `--max-reply-pages 0`） |
 | `--reposts` / `--max-reposts` / `--max-repost-pages` | 转发列表与上限 |
 | `--slice-days` | 每 n 天一个枚举子任务，默认 30；`0` 不拆分 |
 | `--concurrency` | 补全并发；SDK 默认 6，CLI 默认 20，上限 32 |
 | `--fast` | 激进预设：`concurrency 32`、`delay 100ms`、`burst 16`；显式参数优先 |
 | `--delay` / `--burst` | 令牌桶补充间隔与容量；CLI 默认 300ms / 8，SDK 默认 1000ms / 3 |
 | `--log-format` | `pretty` / `ndjson` / `silent`；TTY 默认 pretty，管道 / CI 默认 ndjson |
-| `--no-progress` | pretty 下关闭动态状态块，只输出切片完成 / issue / 汇总 |
+| `--no-progress` | pretty 下关闭动态状态行，只输出切片完成 / issue / 汇总 |
 | `--quiet` | 不输出诊断，等价于 `--log-format silent` |
 | `--env-file` / `--dotenv` / `--cookie` | Cookie 来源；默认 `<pwd>/.env` |
 
@@ -257,6 +259,8 @@ s014/30  enumerate/search  ██████░░░░ 3/10  tweets 142/6705 
 `missing` 只提示差异，不改变 `complete`：上游 `total` 可能包含已删除、不可见或受权限限制的微博。
 
 为了减少不必要的请求，`comments` 在 `tweet.stats.comments === 0` 时不发请求，`reposts` 在 `tweet.stats.reposts === 0` 时也不发请求。
+
+评论与楼中楼默认各只翻 **2 页**，避免高互动微博阻塞整个任务。需要完整评论区时显式加 `--all-comments` / `--all-replies`（或 `--max-comment-pages 0` / `--max-reply-pages 0`）。页数上限仍然受 `--max-comments` / `--max-replies` 的条数上限约束，两个条件先到先停。
 
 ## 吞吐建议
 
