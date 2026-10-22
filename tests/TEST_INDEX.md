@@ -91,17 +91,14 @@
 | `unit/utils/streamRange.test.ts` | `createStreamRange` | `maxItems` 上限、`since` 早停、`until` 跳过、日期窗口、不可解析时间保留、非法日期 `CONFIG_INVALID`、缺 `getTime` 报错 |
 | `unit/utils/pagination.test.ts` | `paginate` | 空页/去重/游标不前进/`maxPages`、`maxItems` 跨页截断、`since`/`until` 边界、日期边界缺 `getTime` 报错 |
 
-### Unit — 脚本
+### Unit — 用户归档
 
 | 文件 | 覆盖内容 | 关键测试点 |
 |---|---|---|
-| `unit/scripts/archive-user/slices.test.ts` | `planSlices` | `sliceDays = 0` 不拆分、区间短于窗口、多切片的连续无重叠、整除边界、key 编号稳定性 |
-| `unit/scripts/archive-user/cli.test.ts` | `parseCli` / `isHelpRequested` | uid 位置参数、布尔与字符串选项解析、`provided` 记录显式参数、未知选项报错、长短 help |
-| `unit/scripts/archive-user/config.test.ts` | 归档脚本参数与续跑校验 | uid 归一化（数字 / 主页链接）、并发与限速参数 clamp、`buildConfig` 默认值与开关、`assertResumeConfig` 的 uid / 时间 / 开关不一致 |
-| `unit/scripts/archive-user/journal.test.ts` | journal 读写与合并 | meta 兼容性校验、切片 journal 往返、截断行修复、`stripRaw`、同 `mblogId` 去重（issue 少 / 更晚写入优先） |
-| `unit/scripts/archive-user/raw.test.ts` | raw sidecar | `--raw` 路径推导与冲突校验、已存在文件的 `--force` / 续跑语义、逐次响应写 JSONL |
-| `unit/scripts/archive-user/concurrency.test.ts` | `createLimiter` / `runPool` | 并发峰值、FIFO、异常归还槽位、任务池停止条件与错误传播 |
-| `unit/scripts/archive-user/output.test.ts` | `assembleArchive` | 按 `mblogId` 去重、时间倒序、评论 / 楼中楼统计、issue 去重、fatal error 标记不完整、剥除 legacy raw |
+| `unit/services/UserArchiveConfig.test.ts` | `buildUserArchiveConfig` / `validateUserArchiveResume` / `planUserArchiveSlices` | 默认值、日期范围解析、非负上限、并发 clamp、续跑 uid / 范围 / 选项 / 切片计划不一致 |
+| `unit/services/UserArchiveAssemble.test.ts` | `assembleUserArchive` / `dedupeUserArchiveRecords` | 按 `mblogId` 去重（issue 少 / 更晚写入优先）、时间倒序、评论 / 楼中楼统计、issue 去重、fatal / aborted 标记不完整、剥除 legacy raw |
+| `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days |
+| `unit/cli/archiveUserStore.test.ts` | `FileUserArchiveStore` | meta / records / checkpoint / slice-done / issue 往返、截断行修复、meta schema 校验、`clear`、按切片过滤 |
 
 ### Unit — 错误
 
@@ -137,6 +134,7 @@
 | `component/public/TweetStreams.test.ts` | 评论 / 转发 / 楼中楼流式分页 | `max_id` 翻页与跨页去重、`total_number` 不提前停止、空页结束、`flow=1` 只解析一次数字 mid、楼中楼 `max_id=0` 停止 |
 | `component/public/ArchiveService.extensions.test.ts` | `ArchiveService` D1/D2 归档集成 | `includeLikes` / `includeCommentHistory` 编排、source/`item.comment`、`likesPage` / `commentHistoryCursor` checkpoint、续跑、依赖缺失抛错、checkpoint 恒定大小 |
 | `component/public/ArchiveService.scope.test.ts` | 账号级数据源守卫 | 目标 uid ≠ 登录 uid 时 `includeFavorites` / `includeCommentHistory` 抛 `CONFIG_INVALID`；登录 uid 放行；无法解析 session uid 时跳过守卫；批量在产出前失败；session uid 只解析一次 |
+| `component/public/UserArchiveService.test.ts` | `UserArchiveService` 范围归档 | 详情 / 评论 / 楼中楼 / 转发补全与上限、`--no-comments` / `--no-replies` 语义、详情失败落 issue、致命错误停止、内存 store 续跑不重复请求、续跑参数不一致、访客模式拒绝、AbortSignal 标记不完整、事件顺序 |
 | `component/public/GuestReads.test.ts` | 访客第一页读取与归档守卫 | 真实 `mobile_*` fixture 下用户时间线 / 点赞归一化并标 `partial: true`、匿名第 2 页抛 `CONFIG_INVALID`、关注走 `followers` 容器 / 粉丝走 `follows` 容器（上游命名相反）、关注流只产出第一页、guest 归档在触达数据源前失败、guest 会话不请求 `myDetails` 且只暴露 token 元信息 |
 
 ### E2E
