@@ -25,6 +25,12 @@
 | [playground/README.md](../playground/README.md) | 场景化 SDK / CLI 示例、Quick Start、`pnpm play` 用法与排障 |
 | [playground/cli/README.md](../playground/cli/README.md) | CLI 命令食谱（复制即用，含 NDJSON 管道消费） |
 
+## scripts/ — 本地工具
+
+| 文档 | 说明 | 何时阅读 |
+|---|---|---|
+| [archive-user/README.md](../scripts/archive-user/README.md) | 用户归档脚本：运行流程、参数、断点续跑、journal 结构、模块划分与排障 | 运行 / 修改 `pnpm archive:user` |
+
 ## requirements/ — 需求文档
 
 | 文档 | 说明 | 何时阅读 |

@@ -11,10 +11,11 @@
 
 ### 修复
 
-- 修复 `streamArchive` 日期切片在 `searchProfile` 上的静默丢数据：上游 `page > 1` 复用会话里最近一次 `page=1` 的日期窗口（`starttime` / `endtime` 被忽略），交错请求会让分页返回别的区间或空页。现在检测到窗口漂移会重新请求 `page=1` 恢复会话后重试当前页，连续失败抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），不再把错误窗口或空页静默当成到底。`scripts/archive-user.ts` 同时移除 `--slice-concurrency`，日期切片改为串行枚举（该参数并发时会互相覆盖，导致每个切片只拿到第一页）。
+- 修复 `streamArchive` 日期切片在 `searchProfile` 上的静默丢数据：上游 `page > 1` 复用会话里最近一次 `page=1` 的日期窗口（`starttime` / `endtime` 被忽略），交错请求会让分页返回别的区间或空页。现在检测到窗口漂移会重新请求 `page=1` 恢复会话后重试当前页，连续失败抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`），不再把错误窗口或空页静默当成到底。归档脚本同时移除 `--slice-concurrency`，日期切片改为串行枚举（该参数并发时会互相覆盖，导致每个切片只拿到第一页）。
 
 ### 变更
 
+- `scripts/archive-user` 从单文件拆成模块化目录（`runner` / `job` / `journal` / `output` 等），新增目录 README 与离线单测；`pnpm archive:user` 入口改为 `scripts/archive-user/index.ts`，命令行参数、journal 格式与归档输出保持不变。
 - **BREAKING CHANGE**：`ITweet` / `ITweetComment` 删除 `textHtml`，`TWEET_CONTRACT_VERSION` 升为 `2`；归档记录的 `longText` / `quotedLongText` 一并删除。`statuses/show` 默认带 `isGetLongText=true`，长微博全文已经在 `tweet.text`，无需单独补拉。
   迁移：旧存档记录调用 `migrateTweetV1toV2(record)`（递归删除 `textHtml`）；渲染层用 `text` 配合 `linkCards` / `topics` / `atUsers` / `media` 重建富文本。
 - 归档格式升级为 `weibo-user-archive/v2`，`$schema` 指向 `schemas/weibo-user-archive/v2.json`；v1 文件继续用 `schemas/weibo-user-archive/v1.json` 校验。
