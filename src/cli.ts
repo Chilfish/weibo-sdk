@@ -240,6 +240,7 @@ const archive = defineCommand({
       '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）\n'
       + '范围归档：weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./archive.json\n'
       + '合并归档：weibo-cli archive merge a.json b.json -o ./merged.json\n'
+      + '合并目录：weibo-cli archive merge ./archives -o ./merged.json（只取顶层合法 *.json）\n'
       + '注意：--guest 不支持归档（访客只有匿名首屏数据），SDK 会以 CONFIG_INVALID 拒绝',
   },
   args: {
