@@ -8,7 +8,8 @@ export default antfu(
   },
   {
     // schemas/** 是 `pnpm schema:archive` 的生成产物，不参与 lint / 自动修复
-    ignores: ['tests/fixtures/raw/*.json', 'schemas/**/*.json', '**/*.md'],
+    // data/** 是本地抓取数据（已被 data/.gitignore 忽略），不应影响发布门禁
+    ignores: ['tests/fixtures/raw/*.json', 'schemas/**/*.json', 'data/**', '**/*.md'],
   },
   {
     rules: {
