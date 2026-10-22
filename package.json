@@ -51,7 +51,7 @@
     "build": "tsdown",
     "capture": "tsx capture/bin/index.ts",
     "capture:endpoint": "tsx scripts/capture-endpoint.ts",
-    "archive:user": "tsx scripts/archive-user.ts",
+    "archive:user": "tsx scripts/archive-user/index.ts",
     "new:endpoint": "node scripts/new-endpoint.mjs",
     "dev": "tsdown --watch",
     "lint": "eslint . --fix",
