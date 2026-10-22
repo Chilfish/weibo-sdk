@@ -3,12 +3,14 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { MAX_USER_ARCHIVE_CONCURRENCY } from '~/services/public/userArchive/config'
+import { mergeArchiveFiles } from '~/services/public/userArchive/merge'
 import { createRawRecorder, prepareRawPath } from '../archiveUser/raw'
 import { FileUserArchiveStore, writeFileAtomic } from '../archiveUser/store'
 import { parsePositiveInt } from '../parseArgs'
 import { createSDK } from '../shared'
 import { isInteractiveOutput, resolveLogFormat, supportsColor } from '../terminal/format'
 import { createArchiveReporter } from '../terminal/reporter'
+import { readArchiveFile } from './archiveMerge'
 
 /** 接受数字 uid 或微博主页链接。 */
 export function normalizeArchiveUid(input: string): string {
@@ -133,13 +135,26 @@ export async function runArchiveUser(
 
   const storedMeta = await store.loadMeta()
   const resuming = storedMeta !== undefined
+  const merge = args.merge === true
   if (!resuming) {
-    if (existsSync(outPath) && args.force !== true)
-      throw new Error(`输出文件已存在：${outPath}（加 --force 覆盖，或保留切片进度续跑）`)
+    if (existsSync(outPath) && args.force !== true && !merge)
+      throw new Error(`输出文件已存在：${outPath}（加 --force 覆盖，或加 --merge 合并到已有归档）`)
     if (existsSync(store.paths.legacyJournalPath)) {
       throw new Error(
         `检测到旧版单文件 journal：${store.paths.legacyJournalPath}\n`
         + `切片进度现在按 ${store.paths.partsDir}/<slice>.journal.jsonl 存放。加 --fresh 重新开始（旧进度不会自动迁移）。`,
+      )
+    }
+  }
+
+  const baseline = merge && existsSync(outPath) ? readArchiveFile(outPath) : undefined
+  if (baseline) {
+    // 在真正抓取前校验基线：跨账号 / 非 v2 归档直接失败。
+    mergeArchiveFiles([baseline])
+    if (baseline.query?.uid !== uid) {
+      throw new InvalidConfigError(
+        `Cannot merge into ${outPath}: archive belongs to uid ${baseline.query?.uid}, got ${uid}.`,
+        { field: 'merge', value: outPath },
       )
     }
   }
@@ -200,12 +215,32 @@ export async function runArchiveUser(
       onRecord: entry => reporter.record(entry),
     })
 
-    writeFileAtomic(outPath, `${JSON.stringify(result.file, null, 2)}\n`)
+    const merged = baseline === undefined ? undefined : mergeArchiveFiles([baseline, result.file])
+    const file = merged?.file ?? result.file
+    const summary = merged === undefined
+      ? result.summary
+      : {
+          ...result.summary,
+          tweets: file.stats.tweets,
+          comments: file.stats.comments,
+          replies: file.stats.replies,
+          errors: file.stats.errors,
+          complete: file.complete,
+        }
+
+    writeFileAtomic(outPath, `${JSON.stringify(file, null, 2)}\n`)
 
     if (result.complete)
       await store.clear()
     else
       reporter.partsKept(store.paths.partsDir)
+
+    if (merged !== undefined) {
+      reporter.notice(
+        `合并已有归档：${baseline?.tweets.length ?? 0} + ${result.file.tweets.length} 条`
+        + ` → ${file.tweets.length} 条（去重 ${merged.deduped}）`,
+      )
+    }
 
     if (rawOutPath !== undefined) {
       reporter.rawSummary({
@@ -217,8 +252,8 @@ export async function runArchiveUser(
 
     reporter.finish({
       outPath,
-      complete: result.complete,
-      summary: result.summary,
+      complete: file.complete,
+      summary,
       elapsedMs: Date.now() - startedAt,
     })
 
@@ -226,22 +261,23 @@ export async function runArchiveUser(
       event: 'done',
       out: outPath,
       uid,
-      tweets: result.summary.tweets,
-      comments: result.summary.comments,
-      replies: result.summary.replies,
-      errors: result.summary.errors,
-      complete: result.complete,
+      tweets: file.stats.tweets,
+      comments: file.stats.comments,
+      replies: file.stats.replies,
+      errors: file.stats.errors,
+      complete: file.complete,
+      ...(merged === undefined ? {} : { merged: true, deduped: merged.deduped }),
       ...(result.summary.estimatedTotal === undefined ? {} : { estimatedTotal: result.summary.estimatedTotal }),
       ...(result.summary.coverage === undefined ? {} : { coverage: result.summary.coverage }),
     }))
 
-    if (!result.complete || rawRecorder.error !== undefined)
+    if (!file.complete || rawRecorder.error !== undefined)
       process.exitCode = 1
 
     return {
       outPath,
-      complete: result.complete,
-      summary: result.summary,
+      complete: file.complete,
+      summary,
     }
   }
   finally {

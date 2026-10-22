@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { defineCommand } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
 import { listCapabilities } from './capabilities'
+import { runArchiveMerge } from './cli/commands/archiveMerge'
 import { runArchiveUser } from './cli/commands/archiveUser'
 import { commentMine, commentStream } from './cli/commands/comment'
 import {
@@ -238,6 +239,7 @@ const archive = defineCommand({
     description:
       '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）\n'
       + '范围归档：weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./archive.json\n'
+      + '合并归档：weibo-cli archive merge a.json b.json -o ./merged.json\n'
       + '注意：--guest 不支持归档（访客只有匿名首屏数据），SDK 会以 CONFIG_INVALID 拒绝',
   },
   args: {
@@ -343,8 +345,9 @@ const archive = defineCommand({
     },
     'max-pages': { type: 'string', description: '每阶段最大翻页数（测试用）' },
     // archive user 的范围归档参数；旧的 archive <uid> 路径会忽略这些参数。
-    'out': { type: 'string', alias: 'o', description: 'archive user 的输出文件（默认 ./weibo-archive-<uid>.json）' },
-    'force': { type: 'boolean', default: false, description: 'archive user：覆盖已存在的输出 / raw 文件' },
+    'out': { type: 'string', alias: 'o', description: 'archive user / merge 的输出文件' },
+    'force': { type: 'boolean', default: false, description: 'archive user / merge：覆盖已存在的输出 / raw 文件' },
+    'merge': { type: 'boolean', default: false, description: 'archive user：把已存在的输出文件作为基线合并（增量更新）' },
     'fresh': { type: 'boolean', default: false, description: 'archive user：丢弃已有切片进度' },
     'raw': { type: 'boolean', default: false, description: 'archive user：把原始响应写到 <out>.raw.ndjson' },
     'raw-out': { type: 'string', description: 'archive user：自定义 raw JSONL 路径' },
@@ -380,6 +383,11 @@ const archive = defineCommand({
         uid: target,
         __rawArgs: rawArgs,
       })
+      return
+    }
+
+    if (positionals[0] === 'merge') {
+      await runArchiveMerge(positionals.slice(1), args)
       return
     }
 
