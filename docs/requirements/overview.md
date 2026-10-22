@@ -13,7 +13,7 @@
 - 门面层：`WeiboSDK` 负责装配配置、鉴权、限流、hooks 和遥测，并把领域服务暴露给调用方。
 - 服务层：`UserService`、`TweetService`、`FollowingsService`、`FavoriteService`、`LikeService`、`CommentHistoryService`、`MediaService`、`NotificationService`、`TopicService`、`TrendsService`、`SearchService` 和 `ArchiveService`。除归档外，这些服务都继承 `FetcherService`。
 - 基础设施层：`FetcherService` 处理 HTTP 请求，`AuthService` 管理 Cookie 和 XSRF，`RateLimitService` 负责令牌桶和限流暂停。
-- 数据层：`types/raw` 定义原始响应的 Zod schema，`types/domain` 和 `models/data` 定义领域模型与归一化函数，`models/errors` 定义结构化错误。
+- 数据层：`services/endpoints` 定义响应 Zod schema，响应类型由 `z.infer` 推导；`types/domain` 和 `models/data` 定义领域模型与归一化函数，`models/errors` 定义结构化错误。
 
 所有 Service 方法最终都走 `this.request(spec, args)`，由它完成请求、Zod 校验、hooks 和遥测。
 

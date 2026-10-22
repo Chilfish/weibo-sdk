@@ -2,7 +2,7 @@
 
 **版本**: 2.3.0
 **状态**: 与实现对齐（docs-as-truth）
-**最后更新**: 2026-10-20
+**最后更新**: 2026-10-22
 **规范级别**: 类 RFC 2119
 
 > 本文档描述 **当前实现** 的架构与契约（以代码为准）。标注「目标 / 未实现」的条目为演进方向，不代表现状。
@@ -33,7 +33,7 @@
 客户端层   WeiboSDK（门面） + CLI（citty）
 服务层     UserService / TweetService / FollowingsService / FavoriteService / LikeService / CommentHistoryService / MediaService / NotificationService / TopicService / TrendsService / SearchService
 基础设施层  FetcherService（HTTP + 错误映射 + 校验） / AuthService / RateLimitService / EndpointSpec + Zod
-数据层     types/raw/**（原始响应类型） + types/domain/**（领域契约）+ models/data/**（归一化）
+数据层     services/endpoints/**（Zod schema，z.infer 推导响应类型） + types/domain/**（领域契约）+ models/data/**（归一化）
 错误层     models/errors/**（结构化错误）
 ```
 
@@ -218,6 +218,7 @@ class WeiboSDK {
 - `uid` 从 `data.verified_url` 的 `uid=` 解析（仅 Cookie 模式），缺失时为 `undefined`；
 - `selfCheck: { mode: 'none' }` 时仍可用（首次调用主动探测一次）；
 - `refresh: true` 才会重新探测。CLI 每个进程只会产生至多一次自检；长时间运行的消费方复用一个 SDK 实例即可，不要在高频循环里刷新。
+- **自检失败缓存有边界**：只有确定性失败（`retryable: false`，如 `AUTH_SESSION_EXPIRED` / `CONFIG_INVALID` / `API_BAD_RESPONSE`）会被缓存并重抛；`NET_TIMEOUT` / `NET_REQUEST_FAILED` / `RATE_LIMITED` 等可重试失败会清空自检缓存，下次请求重新探测，避免一次网络抖动永久毒化长驻实例。
 
 `capabilities()` 的条目带 `accountScoped` 标记：收藏、历史评论、通知、@我、我的关注等只能读取登录账号自身；归档的 `includeFavorites` / `includeCommentHistory` 也按此规则守卫。每条还带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）与 `guestNote`，是判断访客身份可用范围的第一手依据。
 
@@ -524,7 +525,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 **规则**：
 - 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。
-- `types/raw/**` 中未被代码引用的历史接口（comment/band/search）为内部遗留，不对外导出；端点类型以 `services/endpoints/*.ts` 的 `z.infer` 为准。
+- 手写 raw 响应接口（原 `types/raw/**`）已删除；端点类型以 `services/endpoints/*.ts` 的 `z.infer` 为唯一事实源。递归响应（转发 / 楼中楼）用「基础 schema + `z.lazy`」表达，见 [endpoint-authoring.md](./endpoint-authoring.md)。
 - 禁止从包入口导出内部实现（`services/*`、`models/data` 内部 helper 等）。
 
 ---
@@ -630,7 +631,6 @@ src/
   types/
     config.ts hooks.ts telemetry.ts resources.ts index.ts session.ts
     domain/{IUser,ITweet,IUserMediaAsset,IGroup,ILiker,INotification}.ts
-    raw/{user,tweet,side,search}/**   # 原始响应类型（z.infer 替代中）
   services/
     public/{User,Tweet,Followings,Favorite,Like,CommentHistory,Media,Notification,Topic,Trends,Search}Service.ts
     internal/{FetcherService,AuthService,CredentialResolver,GuestTokenService,RateLimitService,RetryPolicy,EndpointSpec}.ts

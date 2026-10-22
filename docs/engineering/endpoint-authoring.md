@@ -10,9 +10,20 @@
 2. 一个端点对应一个 spec。Zod schema 和 `EndpointSpec` 放在 `src/services/endpoints/<domain>.ts`，不要内联在 Service 里。
 3. 响应 schema 使用 `.passthrough()`。只精确声明代码实际访问的字段，其余字段保留下来。
 4. args 类型从 schema 推导。使用 `defineEndpoint()` 和 `z.infer`，避免 `as any`。
-5. 分页语义写清楚。在 spec、Service 注释和类型里注明使用的是 page、cursor、since_id 还是 max_id，不要靠猜。
-6. 错误要结构化。不要直接 `throw new Error`，使用 `TransportError`、`ProtocolError` 或 `BusinessError`。
-7. CLI 是验收面。新增公开 Service 方法时，同时补对应 CLI 子命令，输出 JSON，错误写到 stderr 并以非零状态退出。
+5. 递归响应用「基础 schema + `z.lazy`」推导类型，不要写 `z.ZodType<any>`：
+
+   ```ts
+   const ItemSchemaBase = z.object({ mblogid: z.string() }).passthrough()
+   export type Item = z.infer<typeof ItemSchemaBase> & { retweeted_status?: Item | null }
+   export const ItemSchema: z.ZodType<Item> = ItemSchemaBase.extend({
+     retweeted_status: z.lazy(() => ItemSchema).nullable().optional(),
+   })
+   ```
+
+   `z.ZodType<any>` 会让 `z.infer` 退化成 `any`，等于放弃编译期契约保护。也不要在 `.passthrough()` 的对象字面量里用 getter 递归：`.passthrough()` 会立即读取 shape，触发 TDZ。
+6. 分页语义写清楚。在 spec、Service 注释和类型里注明使用的是 page、cursor、since_id 还是 max_id，不要靠猜。
+7. 错误要结构化。不要直接 `throw new Error`，使用 `TransportError`、`ProtocolError` 或 `BusinessError`。
+8. CLI 是验收面。新增公开 Service 方法时，同时补对应 CLI 子命令，输出 JSON，错误写到 stderr 并以非零状态退出。
 
 ---
 

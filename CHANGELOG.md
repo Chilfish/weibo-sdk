@@ -4,6 +4,17 @@
 
 ## Unreleased
 
+### 修复
+
+- 修复自检失败永久缓存导致 SDK 实例被一次网络抖动毒化：`ensureReady()` 现在只缓存确定性失败（`retryable: false`，如 Cookie 失效 / 配置错误 / 协议不匹配），`NET_TIMEOUT` / `NET_REQUEST_FAILED` / `RATE_LIMITED` 等可重试失败会清空自检缓存并在下次请求重新探测。此前长驻归档进程遇到一次超时后，所有走 preflight 的调用都会直接重抛旧错误，只能重建实例。
+
+### 变更
+
+- `ArchiveService` 的 mymblog 与日期切片两套重复的页内处理循环合并为一个生成器（预取、评论挂载、转发流、断点推进共用一份实现），两种数据源只保留取页与游标字段差异。行为、产出顺序与 checkpoint 语义不变。
+- 响应契约类型安全补齐：移除 endpoint 中 14 处 `z.ZodType<any>`，递归响应改为「基础 schema + `z.lazy`」，`z.infer` 现在推导出真实字段类型；同步删除 `src/types/raw/**` 手写响应接口，归一化改为消费 endpoint 推导类型。`MyMblogResponse` 的 `data.list` 不再是 `any[]`，`StatusShowResponse` 等导出类型也不再退化为 `any`。
+- **BREAKING CHANGE**：包根不再导出 `IMyMBlogResponse` / `IStatusShowResponse` / `IUserDetailsResponse` / `IUserInfoResponse`，改用 schema 推导的 `MyMblogResponse` / `StatusShowResponse` / `UserDetailsResponse` / `UserInfoResponse`（`MyMblogResponse` 保留了原名）。旧名称是手写 raw 接口，字段必填性与上游实际不符。
+  迁移：`import type { IStatusShowResponse } from '@chilfish/weibo-sdk'` → `import type { StatusShowResponse } from '@chilfish/weibo-sdk'`；`IMyMBlogResponse` → `MyMblogResponse`；`IUserInfoResponse` / `IUserDetailsResponse` → `UserInfoResponse` / `UserDetailsResponse`。
+
 ## 0.4.0 (2026-10-22)
 
 ### 新增

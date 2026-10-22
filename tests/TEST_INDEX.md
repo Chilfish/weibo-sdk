@@ -79,7 +79,7 @@
 | `unit/entry/index.test.ts` | SDK 入口无副作用 | 导入 `WeiboSDK` 时无 console.log 等副作用 |
 | `unit/entry/exports.test.ts` | 导出完整性回归 | `package.json#exports` 中声明的子路径均可正确导入 |
 | `unit/sdk/WeiboSDK.test.ts` | `WeiboSDK` 门面类 | 构造矩阵（`auth: 'auto'` 无 Cookie → guest；`auth: 'cookie'` 无 Cookie → `CONFIG_INVALID`）、构造器初始化 UserService/TweetService、`sdk_init` 生命周期事件、selfCheck 模式 |
-| `unit/sdk/WeiboSDK.session.test.ts` | `WeiboSDK.getSession` | uid 解析、single-flight 缓存、与 lazy 自检共享一次 `myDetails`、`refresh` 重探、失败不缓存、`checkSession` 复用 |
+| `unit/sdk/WeiboSDK.session.test.ts` | `WeiboSDK.getSession` | uid 解析、single-flight 缓存、与 lazy 自检共享一次 `myDetails`、`refresh` 重探、失败不缓存、可重试自检失败不被缓存、确定性自检失败被缓存、`checkSession` 复用 |
 
 ### Unit — CLI
 

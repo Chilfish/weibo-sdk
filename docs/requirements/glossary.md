@@ -92,7 +92,7 @@ _Avoid_: HttpClient、client（`this.client` 是内部的 axios 实例）
 SDK 对外暴露的稳定契约（`IUser`/`ITweet` + `User`/`Tweet` 类），与 raw 层解耦。
 
 **raw 层 / Raw Types**:
-`types/raw/**` 中镜像微博 API 原始结构的类型（部分已迁移为 `z.infer`）。
+微博 API 的原始响应。类型统一由 `services/endpoints/**` 的 Zod schema 经 `z.infer` 推导，不再维护手写 raw 接口。
 
 **文档即事实 / Docs-as-truth**:
 文档必须与代码一致；不一致时以代码为准并修正文档。
