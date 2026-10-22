@@ -84,7 +84,7 @@
 | 文档 | 说明 |
 |---|---|
 | [README.md](postmortem/README.md) | 索引 + **高频雷区自查清单**（写码前必读）+ 模板 |
-| [001-010](postmortem/README.md#索引表) | 历次尸检报告 |
+| [001-012](postmortem/README.md#索引表) | 历次尸检报告 |
 
 ## development-log/ — 开发日志
 

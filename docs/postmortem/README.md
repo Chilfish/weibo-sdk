@@ -19,6 +19,7 @@
 | [009](009-cookie-env-shadowing.md) | Cookie 环境变量遮蔽 `.env` | 工具反馈 / 流程缺失 | 配置来源必须单一显式；`process.loadEnvFile()` 不覆盖已有变量 |
 | [010](010-npm-publish-catalog-protocol.md) | npm publish 打包 `catalog:` 依赖 | 工具反馈 / 流程缺失 | 发布只能用 `pnpm publish`；门禁必须检查产物而非源码 |
 | [011](011-release-gate-conditional-exports.md) | 发布门禁未同步条件 exports | 流程缺失 / 工具反馈 | 本地发版门禁必须与 CI 跑同一组检查；`exports` 断言要兼容条件对象 |
+| [012](012-eslint-local-capture-data.md) | 本地发布门禁 lint 了被忽略的抓取数据 | 工具反馈 / 流程缺失 | `.gitignore` 不等于 ESLint ignore；本地门禁输入面必须与 CI 一致 |
 
 ## 高频雷区（写码前自查）
 
@@ -51,6 +52,7 @@
 - **配置来源单一显式**（2026-10-19 复发）：Cookie 只读 `.env`（默认 `<pwd>/.env`，`--env-file` 指定），不回退到环境变量；`process.loadEnvFile()` 不覆盖已存在的环境变量，旧值会静默遮蔽新值。
 - **发布只用项目包管理器**（2026-10-20）：项目使用 pnpm catalog，`npm publish` 会把 `"catalog:"` 原样打进产物，消费者安装报 `EUNSUPPORTEDPROTOCOL`。发布必须 `pnpm publish`；发布后解包 tarball 检查 `dependencies` 与 `bin`，不要只看 `npm view`。
 - **门禁与 CI 同源**（2026-10-21）：`scripts/release.mjs` 必须跑 CI 执行的同一组检查。改动 `exports` 形状后，所有读取 `package.json` 的脚本（`browser-smoke` / `verify-package` / 单测）都要一起更新；条件 `exports` 用 `default` 目标比较，不要和字符串比。
+- **本地数据目录要同时登记 `.gitignore` 与 ESLint `ignores`**（2026-10-22）：ESLint 不读嵌套 `.gitignore`，本地抓取目录（如 `data/`）会让 `eslint .` 在发布门禁上大面积报错，而 CI 永远看不到这些文件。门禁失败先确认报错文件是否被 Git 跟踪。
 
 ### 4. 流程（非代码）
 

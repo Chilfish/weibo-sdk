@@ -1,6 +1,6 @@
 # Release Checklist
 
-**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-21
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-22
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（`pnpm release` 打 tag → CI 发布 npm → 手写 GitHub Release）时的完整清单。
@@ -17,13 +17,13 @@
 
 ## 验证门禁（发布前必过）
 
-- [x] `pnpm run typecheck` 通过（2026-10-20；2026-10-21 / 0.3.2 CI 复跑通过）
-- [x] `pnpm run lint` 通过（2026-10-20；2026-10-21 / 0.3.2 CI 复跑通过）
-- [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20；2026-10-21 / 0.3.2 CI 复跑通过）
-- [x] `node scripts/browser-smoke.mjs --no-browser` 通过（导出条件解析 + Node 构建导入；2026-10-21，0.3.1 因该检查未同步条件 `exports` 在 CI 失败后修复并纳入本地门禁）
-- [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped）
-- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail）
-- [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged）
+- [x] `pnpm run typecheck` 通过（2026-10-20；2026-10-21 / 0.3.2、2026-10-22 / 0.4.0 CI 复跑通过）
+- [x] `pnpm run lint` 通过（2026-10-20；2026-10-21 / 0.3.2、2026-10-22 / 0.4.0 CI 复跑通过；本地 `eslint .` 已排除 `data/**`，见 [postmortem 012](../postmortem/012-eslint-local-capture-data.md)）
+- [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20；2026-10-21 / 0.3.2、2026-10-22 / 0.4.0 CI 复跑通过）
+- [x] `node scripts/browser-smoke.mjs --no-browser` 通过（导出条件解析 + Node 构建导入；2026-10-21，0.3.1 因该检查未同步条件 `exports` 在 CI 失败后修复并纳入本地门禁；2026-10-22 / 0.4.0 本地与 CI 均通过）
+- [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped；2026-10-22 / 0.4.0：956 passed / 23 skipped）
+- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail；2026-10-22 / 0.4.0：113 fixtures，102 ok / 11 unmodeled / 0 fail）
+- [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 提交均正常触发 lint-staged）
 
 ## 包身份核验
 
@@ -32,7 +32,7 @@
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
-- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.3.2`，2026-10-21）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.4.0`，2026-10-22）
 
 ## 公共导出面核验
 
@@ -50,8 +50,8 @@
 - [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-20，E2E lifecycle 用例）
 - [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-20：`archive --max-pages 1` 产出 20 条，checkpoint 落盘正常）
 - [x] 新端点 Zod schema 与真实响应 safeParse 通过（`pnpm run validate:fixtures`，E5；2026-10-20 / 0.3.0：98 ok / 8 unmodeled / 0 fail）
-- [x] registry 安装冒烟：干净临时目录安装 `@chilfish/weibo-sdk@0.3.2` 的 tarball 后 CLI `--version` = `0.3.2`，`dependencies` 仅 `axios` / `zod`（2026-10-21）
-- [x] provenance 签名链：`npm audit signatures` 显示 28 个包通过 registry 签名、2 个包通过 attestations；`0.3.2` 带 SLSA provenance v1（2026-10-21）
+- [x] registry 安装冒烟：干净临时目录安装 `@chilfish/weibo-sdk@0.4.0` 后 CLI `--version` = `0.4.0`，`dependencies` 仅 `axios` / `zod`（2026-10-22；`npx` 会命中本地缓存并输出旧版本，核验版本应以临时目录安装为准）
+- [x] provenance 签名链：`npm audit signatures` 显示 29 个包通过 registry 签名、3 个包通过 attestations；`0.4.0` 带 SLSA provenance v1（2026-10-22）
 
 ## 发布步骤
 
