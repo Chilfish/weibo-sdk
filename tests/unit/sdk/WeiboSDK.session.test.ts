@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
+import { ConnectionTimeoutError } from '~/models/errors/TransportError'
 import { WeiboSDK } from '~/WeiboSDK'
 
 function details(verifiedUrl?: string) {
@@ -59,6 +61,29 @@ describe('weiboSDK session context', () => {
     await expect(sdk.getSession()).rejects.toThrow('network')
     await expect(sdk.getSession()).resolves.toMatchObject({ uid: '42' })
     expect(myDetails).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not poison self-check with a retryable failure', async () => {
+    const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'lazy' } })
+    const myDetails = vi.spyOn(sdk.users, 'myDetails')
+      .mockRejectedValueOnce(new ConnectionTimeoutError('timeout'))
+      .mockResolvedValueOnce(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+
+    await expect(sdk.selfCheck()).rejects.toBeInstanceOf(ConnectionTimeoutError)
+    await expect(sdk.selfCheck()).resolves.toBeUndefined()
+
+    expect(myDetails).toHaveBeenCalledTimes(2)
+  })
+
+  it('caches a deterministic self-check failure', async () => {
+    const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'lazy' } })
+    const myDetails = vi.spyOn(sdk.users, 'myDetails')
+      .mockRejectedValue(new WeiboSessionExpiredError('expired'))
+
+    await expect(sdk.selfCheck()).rejects.toBeInstanceOf(WeiboSessionExpiredError)
+    await expect(sdk.selfCheck()).rejects.toBeInstanceOf(WeiboSessionExpiredError)
+
+    expect(myDetails).toHaveBeenCalledTimes(1)
   })
 
   it('reuses the cached session in checkSession', async () => {

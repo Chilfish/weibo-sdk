@@ -9,6 +9,7 @@ import type {
 import type { WeiboSessionContext } from './types/session'
 import { listCapabilities } from './capabilities'
 import { WeiboSessionExpiredError } from './models/errors/BusinessError'
+import { WeiboSDKError } from './models/errors/WeiboSDKError'
 import { createAuthContext, resolveAuthMode } from './services/internal/CredentialResolver'
 import { createPluginPipeline } from './services/internal/plugins'
 import { ArchiveService } from './services/public/ArchiveService'
@@ -32,6 +33,17 @@ let sdkTraceSeq = 0
 function createSdkTraceId(): string {
   sdkTraceSeq += 1
   return `${Date.now()}-${sdkTraceSeq}`
+}
+
+/**
+ * 自检失败是否值得缓存。
+ *
+ * 只缓存确定性失败（Cookie 失效、配置错误、协议不匹配）：这些错误重试也不会自愈。
+ * 网络抖动 / 限流（`retryable: true`）必须在下次调用时重新探测，否则一次瞬时失败会
+ * 永久毒化实例——这对长驻归档进程是致命缺陷。
+ */
+function isDeterministicSelfCheckError(error: unknown): boolean {
+  return error instanceof WeiboSDKError && !error.retryable
 }
 
 /**
@@ -183,7 +195,8 @@ export class WeiboSDK {
    *
    * 说明：该方法会触发一次 `ajax/profile/detail` 请求（不带 uid），用于判断 Cookie 是否过期。
    *
-   * 自检结果会被缓存：成功后续不再重复请求，失败则把错误缓存下来、在每次请求前重抛。
+   * 自检结果会被缓存：成功后续不再重复请求；确定性失败（Cookie 失效 / 配置错误 /
+   * 协议不匹配）缓存后直接重抛，网络抖动 / 限流等可重试失败会在下次调用时重新探测。
    *
    * @throws `InvalidConfigError` / 会话相关的结构化错误（`WeiboSDKError` 子类，携带 `code` / `level` / `retryable`）
    */
@@ -206,7 +219,7 @@ export class WeiboSDK {
       return this.readyPromise
 
     const traceId = createSdkTraceId()
-    this.readyPromise = (async () => {
+    const readyPromise = (async () => {
       await this.emitLifecycle({
         event_name: 'self_check_start',
         mode: this.selfCheckMode,
@@ -224,7 +237,8 @@ export class WeiboSDK {
         })
       }
       catch (error) {
-        this.readyError = error
+        if (isDeterministicSelfCheckError(error))
+          this.readyError = error
         await this.emitLifecycle({
           event_name: 'self_check_error',
           error,
@@ -235,7 +249,17 @@ export class WeiboSDK {
       }
     })()
 
-    return this.readyPromise
+    this.readyPromise = readyPromise
+
+    try {
+      await readyPromise
+    }
+    catch (error) {
+      // 可重试失败不进入 readyError；同时清掉 rejected Promise，
+      // 否则后续调用会直接复用这个失败结果。
+      this.readyPromise = undefined
+      throw error
+    }
   }
 
   private async emitLifecycle(event: WeiboSDKLifecycleEvent): Promise<void> {
