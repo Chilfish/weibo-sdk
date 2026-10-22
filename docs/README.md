@@ -44,7 +44,8 @@
 | [research-agent-view-2026-10-20.md](planning/research-agent-view-2026-10-20.md) | Agent 视角的单条微博上下文（`ITweetContext`）：理解所需维度、真实数据缺口、媒体归属/下载、`tweet context` CLI 设计与非目标 | 设计/修改 Agent 视图、媒体描述或上下文预算 |
 | [research-plugin-architecture-2026-10-21.md](planning/research-plugin-architecture-2026-10-21.md) | 插件化架构调研：token 池结论、Ports / Core / Plugins 三层设计、自定义 fetch、下游零配置与产物准确性、PF1–PF7 行动计划 | 评估扩展点、替换传输、调整默认配置或发布产物 |
 | [research-user-archive-integration-2026-10-22.md](planning/research-user-archive-integration-2026-10-22.md) | 用户范围归档的产品化提案：`sdk.userArchive.stream/run`、store 端口、`weibo-cli archive user`、脚本模块映射与实施顺序 | 实施/评审归档脚本迁移 |
-| [research-weibo-memories-2026-10-22.md](planning/research-weibo-memories-2026-10-22.md) | 「那年今日 / 微博回忆」抓包调研：`m.weibo.cn/api/container/getIndex?containerid=232544`、固定三年单页、Cookie 要求、containerid 是否可发现、SDK 接入建议 | 实施/评审回忆能力 |
+| [research-weibo-memories-2026-10-22.md](planning/research-weibo-memories-2026-10-22.md) | 「那年今日 / 微博回忆」抓包调研 + 暂缓实施计划：`containerid=232544`、固定三年单页、Cookie 要求、containerid 不可发现、类型契约与伪代码 | 未来按需实现回忆能力时 |
+| [research-tweet-special-formats-2026-10-22.md](planning/research-tweet-special-formats-2026-10-22.md) | 微博特殊格式适配：视频 / 文章 / 投票 / 直播 / 抽奖的 PC/m 双结构、m 站视频归一化 bug、`ITweet.attachments` 契约与伪代码 | 实现 / 评审附件能力 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
