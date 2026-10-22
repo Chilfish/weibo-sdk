@@ -34,6 +34,7 @@ export type {
   WeiboTransport,
 } from './services/internal/transport'
 export { createMemoryUserArchiveStore } from './services/public/userArchive/memoryStore'
+export { mergeArchiveFiles } from './services/public/userArchive/merge'
 export * from './types'
 export {
   createConsoleLogger,

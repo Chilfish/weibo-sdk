@@ -167,6 +167,7 @@ export type {
 } from '../utils/streamRange'
 
 export * from './archive/IArchiveFile'
+export * from './archive/IArchiveMerge'
 export * from './archive/IUserArchive'
 export * from './config'
 export * from './domain/IGroup'
