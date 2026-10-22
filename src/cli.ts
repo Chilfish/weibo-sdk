@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { defineCommand } from 'citty'
 import pkg from '../package.json' with { type: 'json' }
 import { listCapabilities } from './capabilities'
+import { runArchiveUser } from './cli/commands/archiveUser'
 import { commentMine, commentStream } from './cli/commands/comment'
 import {
   favoriteList,
@@ -235,7 +236,9 @@ const archive = defineCommand({
   meta: {
     name: 'archive',
     description:
-      '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）\n注意：--guest 不支持归档（访客只有匿名首屏数据），SDK 会以 CONFIG_INVALID 拒绝',
+      '镜像微博账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）\n'
+      + '范围归档：weibo-cli archive user <uid> --since 2025-01-01 --until 2025-12-31 -o ./archive.json\n'
+      + '注意：--guest 不支持归档（访客只有匿名首屏数据），SDK 会以 CONFIG_INVALID 拒绝',
   },
   args: {
     'uid': {
@@ -338,9 +341,46 @@ const archive = defineCommand({
         'checkpoint 文件路径（仅单账号；默认 .weibo-sdk-archive-<uid>.json）',
     },
     'max-pages': { type: 'string', description: '每阶段最大翻页数（测试用）' },
+    // archive user 的范围归档参数；旧的 archive <uid> 路径会忽略这些参数。
+    'out': { type: 'string', alias: 'o', description: 'archive user 的输出文件（默认 ./weibo-archive-<uid>.json）' },
+    'force': { type: 'boolean', default: false, description: 'archive user：覆盖已存在的输出 / raw 文件' },
+    'fresh': { type: 'boolean', default: false, description: 'archive user：丢弃已有切片进度' },
+    'raw': { type: 'boolean', default: false, description: 'archive user：把原始响应写到 <out>.raw.ndjson' },
+    'raw-out': { type: 'string', description: 'archive user：自定义 raw JSONL 路径' },
+    'no-comments': { type: 'boolean', default: false, description: 'archive user：不拉评论区' },
+    'no-replies': { type: 'boolean', default: false, description: 'archive user：只拉一级评论' },
+    'comment-order': { type: 'string', default: 'time', description: 'archive user：评论排序 time / hot' },
+    'max-comments': { type: 'string', description: 'archive user：每条微博最多一级评论数' },
+    'max-comment-pages': { type: 'string', description: 'archive user：每条微博最多评论页数' },
+    'max-replies': { type: 'string', description: 'archive user：每条一级评论最多楼中楼数' },
+    'max-reply-pages': { type: 'string', description: 'archive user：每条一级评论最多楼中楼页数' },
+    'max-reposts': { type: 'string', description: 'archive user：每条微博最多转发数' },
+    'max-repost-pages': { type: 'string', description: 'archive user：每条微博最多转发页数' },
+    'slice-days': { type: 'string', description: 'archive user：每 n 天一个枚举子任务（默认 30；0 = 不拆分）' },
+    'delay': { type: 'string', description: 'archive user：令牌补充间隔毫秒（默认 1000）' },
+    'burst': { type: 'string', description: 'archive user：令牌桶容量（默认 3）' },
+    'dotenv': { type: 'string', description: 'archive user：同 --env-file（兼容旧脚本）' },
     ...cookieArg,
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
+    // `archive user` 走范围归档；旧的 `archive <uid>` / `--uid-file` 保持原行为。
+    const positionals = Array.isArray(args._) ? args._ : []
+    if (positionals[0] === 'user') {
+      const target = positionals[1]
+      if (!target) {
+        console.error('❌ archive user 需要一个用户 UID')
+        process.exit(1)
+      }
+      await runArchiveUser({
+        ...args,
+        uid: target,
+        comments: args['no-comments'] !== true,
+        replies: args['no-replies'] !== true,
+        reposts: rawArgs.some(item => item === '--reposts' || item.startsWith('--reposts=')),
+      })
+      return
+    }
+
     const uid = typeof args.uid === 'string' ? args.uid : undefined
     const uidFile
       = typeof args['uid-file'] === 'string' ? args['uid-file'] : undefined

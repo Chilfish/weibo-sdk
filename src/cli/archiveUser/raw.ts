@@ -1,4 +1,5 @@
-import type { WeiboSDKRawMeta } from '../../src/types/hooks'
+import type { UserArchivePaths } from './store'
+import type { WeiboSDKRawMeta } from '~/types/hooks'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
 
@@ -8,7 +9,7 @@ export interface RawRecorder {
   }
   /** 已写入的行数。 */
   lines: number
-  /** 首次写入失败的错误信息；后续写入不再覆盖。 */
+  /** 首次写入失败的错误信息。 */
   error?: string
 }
 
@@ -18,26 +19,23 @@ export interface RawPathOptions {
   rawOut?: string
   /** `--raw`：写到 `<out>.raw.ndjson`。 */
   raw: boolean
-  outPath: string
-  legacyJournalPath: string
-  metaPath: string
-  partsDir: string
+  paths: UserArchivePaths
   force: boolean
   resuming: boolean
 }
 
 /**
- * 解析并准备 raw sidecar 路径。
+ * 解析并准备 raw sidecar 路径；返回 undefined 表示本次不记录 raw。
  *
- * 返回 undefined 表示本次不记录 raw。全新运行时按 `--force` 规则处理已存在文件；
- * 续跑时不截断，继续追加。
+ * 全新运行按 `--force` 规则处理已存在文件；续跑时继续追加，不截断。
  */
 export function prepareRawPath(options: RawPathOptions): string | undefined {
+  const { paths } = options
   const rawOutPath = (() => {
     if (options.rawOut !== undefined && options.rawOut.trim() !== '')
       return resolve(options.cwd, options.rawOut)
     if (options.raw)
-      return `${options.outPath}.raw.ndjson`
+      return `${paths.outPath}.raw.ndjson`
     return undefined
   })()
 
@@ -45,10 +43,10 @@ export function prepareRawPath(options: RawPathOptions): string | undefined {
     return undefined
 
   if (
-    rawOutPath === options.outPath
-    || rawOutPath === options.legacyJournalPath
-    || rawOutPath === options.metaPath
-    || isInside(options.partsDir, rawOutPath)
+    rawOutPath === paths.outPath
+    || rawOutPath === paths.legacyJournalPath
+    || rawOutPath === paths.metaPath
+    || rawOutPath.startsWith(`${paths.partsDir}${sep}`)
   ) {
     throw new Error('raw 路径不能与归档 JSON / 切片进度目录相同')
   }
@@ -95,14 +93,10 @@ export function createRawRecorder(path: string | undefined): RawRecorder {
           if (recorder.error !== undefined)
             return
           recorder.error = error instanceof Error ? error.message : String(error)
-          console.log(`[archive] raw write failed: ${recorder.error}`)
+          process.stderr.write(`${JSON.stringify({ event: 'raw-error', message: recorder.error })}\n`)
         }
       },
     },
   }
   return recorder
-}
-
-function isInside(partsDir: string, target: string): boolean {
-  return target.startsWith(`${partsDir}${sep}`)
 }

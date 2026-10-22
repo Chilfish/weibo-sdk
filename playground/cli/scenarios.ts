@@ -164,6 +164,34 @@ export const cliScenarios: CliScenario[] = [
   },
   {
     kind: 'cli',
+    id: 'archive-user',
+    title: '范围归档（单文件）',
+    summary: 'archive user <uid> --since ... --until ... --out ...',
+    steps: ({ args, env, paths }) => {
+      const uid = argument(args, 0, 'PLAYGROUND_UID', env.values, defaultUid(env.values))
+      const since = flagString(args, 'since') ?? '2025-01-01'
+      const until = flagString(args, 'until') ?? new Date().toISOString().slice(0, 10)
+      return [
+        {
+          argv: [
+            'archive',
+            'user',
+            uid,
+            '--since',
+            since,
+            '--until',
+            until,
+            '--out',
+            join(paths.output, 'cli-archive-user', `${uid}.json`),
+            '--no-comments',
+          ],
+          note: '输出单个 ArchiveFile；进度 / issue 走 stderr，stdout 只有一行 done 摘要',
+        },
+      ]
+    },
+  },
+  {
+    kind: 'cli',
     id: 'enrich',
     title: 'raw / 长文',
     summary: 'tweet enrich --longtext',

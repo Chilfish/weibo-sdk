@@ -88,11 +88,12 @@ export function resolveArchiveIncludeFlags(
  * - 默认：`auth: 'auto'`，Cookie 从 `.env` / `--cookie` 读取；解析结果为空时交给 SDK 走访客身份，
  *   但「提供了非法 Cookie」（如不存在的文件路径）仍在 `getCookie` 抛 `CONFIG_INVALID`，不会静默降级。
  */
-export function createSDK(args: Record<string, unknown>): WeiboSDK {
+export function createSDK(args: Record<string, unknown>, overrides: Partial<IWeiboConfig> = {}): WeiboSDK {
   if (args.guest === true) {
     const guestConfig: IWeiboConfig = {
       auth: 'guest',
       selfCheck: { mode: 'lazy' },
+      ...overrides,
     }
     return new WeiboSDK(guestConfig)
   }
@@ -102,6 +103,7 @@ export function createSDK(args: Record<string, unknown>): WeiboSDK {
     auth: 'auto',
     cookie,
     selfCheck: { mode: 'lazy' },
+    ...overrides,
   }
   return new WeiboSDK(config)
 }

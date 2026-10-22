@@ -20,6 +20,7 @@ import { scenario as socialGraph } from './sdk/social-graph'
 import { scenario as telemetry } from './sdk/telemetry'
 import { scenario as topicsTrends } from './sdk/topics-trends'
 import { scenario as tweetComments } from './sdk/tweet-comments'
+import { scenario as userArchive } from './sdk/user-archive'
 import { scenario as userTimeline } from './sdk/user-timeline'
 import { scenario as whoami } from './sdk/whoami'
 
@@ -36,6 +37,7 @@ const SDK_SCENARIOS: SdkScenario[] = [
   topicsTrends,
   archive,
   archiveBatch,
+  userArchive,
   telemetry,
   diagnose,
   plugins,

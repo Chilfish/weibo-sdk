@@ -15,6 +15,9 @@ const SCENARIO_OPTIONS = {
   'include': { type: 'string' },
   'tag': { type: 'string' },
   'since': { type: 'string' },
+  'until': { type: 'string' },
+  'slice-days': { type: 'string' },
+  'concurrency': { type: 'string' },
   'stop-at': { type: 'string' },
   'uid-file': { type: 'string' },
   'keyword': { type: 'string' },
@@ -31,6 +34,8 @@ const SCENARIO_OPTIONS = {
   'videos': { type: 'boolean' },
   'favorites': { type: 'boolean' },
   'reposts': { type: 'boolean' },
+  'no-comments': { type: 'boolean' },
+  'no-replies': { type: 'boolean' },
   'probe': { type: 'boolean' },
 } as const
 
