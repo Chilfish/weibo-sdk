@@ -182,11 +182,6 @@ export * from './hooks'
 export * from './logging'
 export * from './media'
 
-// 历史 raw 接口（保留向后兼容；新代码优先使用上述 endpoint 响应类型）
-export type { IMyMBlogResponse } from './raw/tweet/mymblog'
-export type { IStatusShowResponse } from './raw/tweet/show'
-export type { IUserDetailsResponse } from './raw/user/Details'
-export type { IUserInfoResponse } from './raw/user/Info'
 export * from './resources'
 export * from './session'
 export * from './telemetry'

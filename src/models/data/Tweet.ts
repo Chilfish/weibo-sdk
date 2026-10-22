@@ -1,12 +1,11 @@
+import type { MyMBlogItem, StatusShowResponse } from '~/services/endpoints/tweet'
 import type { TweetLiker } from '~/types/domain/ILiker'
 import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
-import type { MyMBLog } from '~/types/raw/tweet/mymblog'
-import type { IStatusShowResponse } from '~/types/raw/tweet/show'
 import { MediaType, TweetVisible } from '~/types/domain/ITweet'
 import { extractAttachments, pageObjectType } from './TweetAttachments'
 
-export type RawTweet = MyMBLog | NonNullable<MyMBLog['retweeted_status']> | IStatusShowResponse | NonNullable<IStatusShowResponse['retweeted_status']>
+export type RawTweet = MyMBlogItem | StatusShowResponse
 type UnknownRecord = Record<string, unknown>
 
 /**
@@ -107,7 +106,7 @@ function extractPageInfo(rawRecord: UnknownRecord): TweetPageCard | undefined {
 }
 
 function getCoordinates(raw: RawTweet): [number, number] | undefined {
-  const geo = (raw as MyMBLog).geo
+  const geo = raw.geo
   if (!isRecord(geo))
     return undefined
 
@@ -128,7 +127,7 @@ function getCoordinates(raw: RawTweet): [number, number] | undefined {
 }
 
 function getGeoAddress(raw: RawTweet): string | undefined {
-  const tags = (raw as MyMBLog).tag_struct
+  const tags = raw.tag_struct
   if (Array.isArray(tags)) {
     const place = tags.find((t) => {
       if (!isRecord(t))
@@ -140,7 +139,7 @@ function getGeoAddress(raw: RawTweet): string | undefined {
       return name
   }
 
-  const geo = (raw as MyMBLog).geo
+  const geo = raw.geo
   if (!isRecord(geo))
     return undefined
 
@@ -787,7 +786,7 @@ export function normalizeTweet(raw: RawTweet): ITweet {
   return {
     id: String(raw.idstr || raw.id),
     mblogId: raw.mblogid,
-    createdAt: raw.created_at,
+    createdAt: raw.created_at ?? '',
     // m 站（guest 时间线 / 点赞 / 媒体）没有 `text_raw`，只有 `raw_text` 或 HTML `text`。
     text: getString(raw.text_raw) ?? getString(rawRecord.raw_text) ?? decodeHtmlText(raw.text || ''),
     regionName: raw.region_name || undefined,

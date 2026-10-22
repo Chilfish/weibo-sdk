@@ -10,7 +10,7 @@ const FavoritesArgsSchema = z.object({
   with_total: z.boolean().optional(),
 }).strict()
 
-const FavoriteItemSchema: z.ZodType<any> = z.object({
+const FavoriteItemSchemaBase = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   idstr: z.string().optional(),
   mblogid: z.string(),
@@ -42,8 +42,15 @@ const FavoriteItemSchema: z.ZodType<any> = z.object({
   tags: z.array(z.unknown()).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-  retweeted_status: z.lazy((): z.ZodType<any> => FavoriteItemSchema).nullable().optional(),
 }).passthrough()
+
+type FavoriteItem = z.infer<typeof FavoriteItemSchemaBase> & {
+  retweeted_status?: FavoriteItem | null
+}
+
+const FavoriteItemSchema: z.ZodType<FavoriteItem> = FavoriteItemSchemaBase.extend({
+  retweeted_status: z.lazy(() => FavoriteItemSchema).nullable().optional(),
+})
 
 const FavoritesResponseSchema = z.object({
   ok: z.number(),

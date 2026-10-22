@@ -179,7 +179,7 @@ export class UserService extends FetcherService {
     ])
 
     const startAt = Date.now()
-    const user = new User(info.data.user as any, details.data as any)
+    const user = new User(info.data.user, details.data)
     await this.emitTelemetry({
       event_name: 'normalize_done',
       timestamp: Date.now(),

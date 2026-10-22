@@ -28,7 +28,7 @@ describe('followings streams', () => {
     for await (const user of service.streamFollowings('111', {
       onProgress: (p) => { progress.push(p) },
     })) {
-      out.push(user.id)
+      out.push(String(user.idstr ?? user.id))
     }
 
     expect(out).toEqual(['1', '2', '3'])
@@ -52,7 +52,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamFans('111'))
-      out.push(user.id)
+      out.push(String(user.idstr ?? user.id))
 
     expect(out).toEqual(['1'])
   })
@@ -71,7 +71,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamMyFollowings())
-      out.push(user.id)
+      out.push(String(user.idstr ?? user.id))
 
     expect(out).toEqual(['1'])
   })
@@ -85,7 +85,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamFollowings('111', { maxPages: 5 }))
-      out.push(user.id)
+      out.push(String(user.idstr ?? user.id))
 
     expect(out).toEqual(['1'])
     expect(calls).toBe(2)

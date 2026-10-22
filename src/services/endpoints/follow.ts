@@ -4,7 +4,7 @@ import { defineEndpoint } from '../internal/EndpointSpec'
 
 const IdSchema = z.union([z.string(), z.number()])
 
-export const FollowingUserSchema: z.ZodType<any> = z.object({
+export const FollowingUserSchema = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   screen_name: z.string().optional(),

@@ -37,7 +37,7 @@ describe('comments endpoint schema', () => {
       expect(typeof comment.idstr).toBe('string')
       expect(typeof comment.text).toBe('string')
       expect(comment.user).toBeDefined()
-      expect(typeof comment.user.screen_name).toBe('string')
+      expect(typeof comment.user?.screen_name).toBe('string')
     }
   })
 

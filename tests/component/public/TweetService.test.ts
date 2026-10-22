@@ -1,4 +1,4 @@
-import type { IStatusShowResponse } from '~/types/raw/tweet/show'
+import type { StatusShowResponse } from '~/services/endpoints/tweet'
 import { readFileSync } from 'node:fs'
 import { createFakeAxios, NoopRateLimitService } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
@@ -519,7 +519,7 @@ describe('tweetService', () => {
         idstr: '2',
         screen_name: 'u',
       },
-    } as any as IStatusShowResponse
+    } as any as StatusShowResponse
 
     const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/statuses/show')
@@ -600,7 +600,7 @@ describe('tweetService', () => {
         verified_type: 1,
       },
       pic_ids: [],
-    } as any as IStatusShowResponse
+    } as any as StatusShowResponse
 
     const { transport } = createFakeAxios(async () => response)
     const telemetry = { emit: vi.fn(async () => {}) }

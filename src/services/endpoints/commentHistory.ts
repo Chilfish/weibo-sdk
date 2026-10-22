@@ -18,7 +18,7 @@ const HistoryUserSchema = z.object({
 }).passthrough().nullable().optional()
 
 // 评论内嵌的「被评论微博」；与 mymblog 条目同构，只声明代码实际访问的字段。
-const CommentedStatusSchema: z.ZodType<any> = z.object({
+const CommentedStatusSchemaBase = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mid: z.string().optional(),
@@ -40,11 +40,18 @@ const CommentedStatusSchema: z.ZodType<any> = z.object({
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-  retweeted_status: z.lazy((): z.ZodType<any> => CommentedStatusSchema).nullable().optional(),
 }).passthrough()
 
+type CommentedStatus = z.infer<typeof CommentedStatusSchemaBase> & {
+  retweeted_status?: CommentedStatus | null
+}
+
+const CommentedStatusSchema: z.ZodType<CommentedStatus> = CommentedStatusSchemaBase.extend({
+  retweeted_status: z.lazy(() => CommentedStatusSchema).nullable().optional(),
+})
+
 // 被回复的评论（楼中楼）；递归同构，字段全部 optional 以兼容缺省变种。
-const ReplyCommentSchema: z.ZodType<any> = z.lazy(() => z.object({
+const ReplyCommentSchemaBase = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mid: z.string().optional(),
@@ -58,8 +65,15 @@ const ReplyCommentSchema: z.ZodType<any> = z.lazy(() => z.object({
   like_counts: z.number().optional(),
   liked: z.boolean().optional(),
   user: HistoryUserSchema,
-  reply_comment: z.lazy((): z.ZodType<any> => ReplyCommentSchema).nullable().optional(),
-}).passthrough())
+}).passthrough()
+
+type ReplyComment = z.infer<typeof ReplyCommentSchemaBase> & {
+  reply_comment?: ReplyComment | null
+}
+
+const ReplyCommentSchema: z.ZodType<ReplyComment> = ReplyCommentSchemaBase.extend({
+  reply_comment: z.lazy(() => ReplyCommentSchema).nullable().optional(),
+})
 
 // 真实 fixture：my_comments_p1.json / my_comments_p2.json / my_comments_end.json
 export const MyCommentItemSchema = z.object({

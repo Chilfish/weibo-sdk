@@ -1,5 +1,4 @@
-import type { IUserDetailsResponse } from '~/types/raw/user/Details'
-import type { IUserInfoResponse } from '~/types/raw/user/Info'
+import type { UserDetailsResponse, UserInfoResponse } from '~/services/endpoints/user'
 import { createFakeAxios } from 'tests/testkit/fakeAxios'
 import { describe, expect, it, vi } from 'vitest'
 import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
@@ -11,7 +10,7 @@ describe('userService', () => {
     const response = {
       ok: 1,
       data: { user: { id: 1, idstr: '1' }, tabList: [], blockText: '' },
-    } as any as IUserInfoResponse
+    } as any as UserInfoResponse
 
     const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/info')
@@ -35,7 +34,7 @@ describe('userService', () => {
     const response = {
       ok: 1,
       data: { user: { id: 1, idstr: '1' }, tabList: [], blockText: '' },
-    } as any as IUserInfoResponse
+    } as any as UserInfoResponse
 
     const { transport } = createFakeAxios(async () => response)
 
@@ -65,7 +64,7 @@ describe('userService', () => {
     const response = {
       ok: 1,
       data: { created_at: 'x', desc_text: '' },
-    } as any as IUserDetailsResponse
+    } as any as UserDetailsResponse
 
     const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/detail')
@@ -89,7 +88,7 @@ describe('userService', () => {
     const response = {
       ok: 1,
       data: { created_at: 'x', desc_text: '' },
-    } as any as IUserDetailsResponse
+    } as any as UserDetailsResponse
 
     const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
       expect(cfg.url).toBe('https://weibo.com/ajax/profile/detail')
@@ -182,7 +181,7 @@ describe('userService', () => {
         tabList: [],
         blockText: '',
       },
-    } as any as IUserInfoResponse
+    } as any as UserInfoResponse
 
     const detailsResponse = {
       ok: 1,
@@ -200,7 +199,7 @@ describe('userService', () => {
         friend_info: '',
         links: [],
       },
-    } as any as IUserDetailsResponse
+    } as any as UserDetailsResponse
 
     const { transport } = createFakeAxios(async (cfg) => {
       if (cfg.url === 'https://weibo.com/ajax/profile/info')

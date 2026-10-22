@@ -1,8 +1,10 @@
+import type { UserDetailsResponse, UserInfoResponse } from '~/services/endpoints/user'
 import type { Gender, IUser, IUserLabel, IUserVerification } from '~/types/domain/IUser'
-import type { IRawUserDetails } from '~/types/raw/user/Details'
-import type { IRawUserInfo } from '~/types/raw/user/Info'
 
-function normalizeLabelDesc(labels: IRawUserDetails['label_desc'] | undefined): IUserLabel[] | undefined {
+type RawUserInfo = UserInfoResponse['data']['user']
+type RawUserDetails = UserDetailsResponse['data']
+
+function normalizeLabelDesc(labels: RawUserDetails['label_desc']): IUserLabel[] | undefined {
   if (!Array.isArray(labels) || labels.length === 0)
     return undefined
 
@@ -15,14 +17,14 @@ function normalizeLabelDesc(labels: IRawUserDetails['label_desc'] | undefined): 
       item.schemeUrl = label.scheme_url
     if (label.normal_mode) {
       item.normalMode = {
-        wordColor: label.normal_mode.word_color,
-        backgroundColor: label.normal_mode.background_color,
+        wordColor: label.normal_mode.word_color ?? '',
+        backgroundColor: label.normal_mode.background_color ?? '',
       }
     }
     if (label.dark_mode) {
       item.darkMode = {
-        wordColor: label.dark_mode.word_color,
-        backgroundColor: label.dark_mode.background_color,
+        wordColor: label.dark_mode.word_color ?? '',
+        backgroundColor: label.dark_mode.background_color ?? '',
       }
     }
     out.push(item)
@@ -85,23 +87,23 @@ export class User implements IUser {
    * @param userInfo 用户简版 raw 响应（`ajax/profile/info` 的 `data.user`）
    * @param userDetails 用户详情 raw 响应（`ajax/profile/detail` 的 `data`）
    */
-  constructor(userInfo: IRawUserInfo, userDetails: IRawUserDetails) {
+  constructor(userInfo: RawUserInfo, userDetails: RawUserDetails) {
     this.id = String(userInfo.idstr || userInfo.id)
     this.name = userInfo.screen_name || ''
     this.avatar = userInfo.avatar_hd || userInfo.avatar_large || userInfo.profile_image_url || ''
-    this.cover = userInfo.cover_image_phone
+    this.cover = userInfo.cover_image_phone ?? ''
     this.url = `https://weibo.com${userInfo.profile_url || ''}`
-    this.description = userInfo.description || userDetails.desc_text
+    this.description = userInfo.description || userDetails.desc_text || ''
 
-    this.location = userDetails.ip_location?.replace('IP属地：', '') || userInfo.location
+    this.location = userDetails.ip_location?.replace('IP属地：', '') || userInfo.location || ''
     this.gender = (userInfo.gender || userDetails.gender || 'n') as Gender
-    this.createdAt = userDetails.created_at
+    this.createdAt = userDetails.created_at ?? ''
 
     this.birthday = userDetails.birthday || undefined
     this.realName = userDetails.real_name?.name?.replace('姓名：', '')
 
     this.verification = {
-      isVerified: userInfo.verified,
+      isVerified: userInfo.verified ?? false,
       type: userInfo.verified_type ?? -1,
       reason: userInfo.verified_reason,
     }
@@ -116,8 +118,8 @@ export class User implements IUser {
     this.company = userDetails.company || userDetails.career?.company
     this.creditLevel = userDetails.sunshine_credit?.level || '0'
     this.externalLinks = userDetails.links?.map(l => ({
-      title: l.title,
-      url: l.url,
+      title: l.title ?? '',
+      url: l.url ?? '',
     }))
     this.school = userDetails.education?.school
 

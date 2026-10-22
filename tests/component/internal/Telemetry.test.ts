@@ -1,4 +1,4 @@
-import type { IUserInfoResponse } from '~/types/raw/user/Info'
+import type { UserInfoResponse } from '~/services/endpoints/user'
 import { createFakeAxios, FakeClock, TelemetryCollector } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
@@ -7,8 +7,8 @@ import { FetcherService } from '~/services/internal/FetcherService'
 import { RateLimitService } from '~/services/internal/RateLimitService'
 
 class TestFetcherService extends FetcherService {
-  public async call(uid: string): Promise<IUserInfoResponse> {
-    return await this.request(userInfoSpec, { uid }) as unknown as IUserInfoResponse
+  public async call(uid: string): Promise<UserInfoResponse> {
+    return await this.request(userInfoSpec, { uid })
   }
 }
 

@@ -18,7 +18,7 @@ const LikeUserSchema = z.object({
 
 // 真实 fixture：likes_p1.json / likes_p2.json / likes_end.json
 // 注意：第一页的部分条目没有 user / 计数字段，因此除 mblogid 外全部 optional。
-const LikeItemSchema: z.ZodType<any> = z.object({
+const LikeItemSchemaBase = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mid: z.string().optional(),
@@ -40,10 +40,15 @@ const LikeItemSchema: z.ZodType<any> = z.object({
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
   annotations: z.array(z.unknown()).optional(),
   page_info: z.record(z.string(), z.unknown()).optional(),
-  retweeted_status: z.lazy((): z.ZodType<any> => LikeItemSchema).nullable().optional(),
 }).passthrough()
 
-export type LikeItem = z.infer<typeof LikeItemSchema>
+export type LikeItem = z.infer<typeof LikeItemSchemaBase> & {
+  retweeted_status?: LikeItem | null
+}
+
+const LikeItemSchema: z.ZodType<LikeItem> = LikeItemSchemaBase.extend({
+  retweeted_status: z.lazy(() => LikeItemSchema).nullable().optional(),
+})
 
 const LikeListArgsSchema = z.object({
   uid: z.string(),

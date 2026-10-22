@@ -54,7 +54,7 @@ const StatusShowArgsSchema = z.object({
   isGetLongText: z.boolean(),
 }).strict()
 
-export const MyMBlogItemSchema: z.ZodType<any> = z.object({
+const MyMBlogItemSchemaBase = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mblogid: z.string(),
@@ -90,8 +90,15 @@ export const MyMBlogItemSchema: z.ZodType<any> = z.object({
   page_info: z.record(z.string(), z.unknown()).optional(),
   geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy((): z.ZodType<any> => MyMBlogItemSchema).nullable().optional(),
 }).passthrough()
+
+export type MyMBlogItem = z.infer<typeof MyMBlogItemSchemaBase> & {
+  retweeted_status?: MyMBlogItem | null
+}
+
+export const MyMBlogItemSchema: z.ZodType<MyMBlogItem> = MyMBlogItemSchemaBase.extend({
+  retweeted_status: z.lazy(() => MyMBlogItemSchema).nullable().optional(),
+})
 
 const MyMblogResponseSchema = z.object({
   ok: z.number(),
@@ -111,7 +118,7 @@ const MyMblogResponseSchema = z.object({
 
 export type MyMblogResponse = z.infer<typeof MyMblogResponseSchema>
 
-const StatusShowResponseSchema: z.ZodType<any> = z.object({
+const StatusShowResponseSchemaBase = z.object({
   ok: z.number().optional(),
   id: IdSchema.optional(),
   idstr: z.string().optional(),
@@ -146,8 +153,15 @@ const StatusShowResponseSchema: z.ZodType<any> = z.object({
   page_info: z.record(z.string(), z.unknown()).optional(),
   geo: z.union([z.record(z.string(), z.unknown()), z.string()]).nullable().optional(),
   tag_struct: z.array(z.unknown()).optional(),
-  retweeted_status: z.lazy((): z.ZodType<any> => StatusShowResponseSchema).nullable().optional(),
-}).passthrough().superRefine((val, ctx) => {
+}).passthrough()
+
+export type StatusShowResponse = z.infer<typeof StatusShowResponseSchemaBase> & {
+  retweeted_status?: StatusShowResponse | null
+}
+
+const StatusShowResponseSchema: z.ZodType<StatusShowResponse> = StatusShowResponseSchemaBase.extend({
+  retweeted_status: z.lazy(() => StatusShowResponseSchema).nullable().optional(),
+}).superRefine((val, ctx) => {
   if (val.id === undefined && !val.idstr) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -163,8 +177,6 @@ const StatusShowResponseSchema: z.ZodType<any> = z.object({
     })
   }
 })
-
-export type StatusShowResponse = z.infer<typeof StatusShowResponseSchema>
 
 export const myMblogSpec: EndpointSpec<'TWEET_MYMBLOG', typeof MyMblogArgsSchema> = defineEndpoint({
   resourceType: 'TWEET_MYMBLOG',
@@ -216,7 +228,7 @@ const CommentUrlStructSchema = z.object({
   pic_infos: z.record(z.string(), PicInfoSchema).optional(),
 }).passthrough()
 
-const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
+const CommentItemSchemaBase = z.object({
   id: IdSchema.optional(),
   idstr: z.string().optional(),
   mid: z.string().optional(),
@@ -244,8 +256,15 @@ const CommentItemSchema: z.ZodType<any> = z.lazy(() => z.object({
     verified: z.boolean().optional(),
     verified_type: z.number().optional(),
   }).passthrough().nullable().optional(),
-  comments: z.array(z.lazy(() => CommentItemSchema)).optional(),
-}).passthrough())
+}).passthrough()
+
+type CommentItem = z.infer<typeof CommentItemSchemaBase> & {
+  comments?: CommentItem[]
+}
+
+const CommentItemSchema: z.ZodType<CommentItem> = CommentItemSchemaBase.extend({
+  comments: z.lazy(() => CommentItemSchema).array().optional(),
+})
 
 const BuildCommentsResponseSchema = z.object({
   ok: z.number(),

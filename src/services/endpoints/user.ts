@@ -12,6 +12,18 @@ const UserDetailsArgsSchema = z.object({
   uid: z.string(),
 }).strict()
 
+const LabelModeSchema = z.object({
+  word_color: z.string().optional(),
+  background_color: z.string().optional(),
+}).passthrough()
+
+const LabelDescSchema = z.object({
+  name: z.string().optional(),
+  normal_mode: LabelModeSchema.optional(),
+  dark_mode: LabelModeSchema.optional(),
+  scheme_url: z.string().optional(),
+}).passthrough()
+
 const UserInfoResponseSchema = z.object({
   ok: z.number(),
   data: z.object({
@@ -33,6 +45,8 @@ const UserInfoResponseSchema = z.object({
       followers_count: z.number().optional(),
       friends_count: z.number().optional(),
       statuses_count: z.number().optional(),
+      svip: z.number().optional(),
+      mbrank: z.number().optional(),
     }).passthrough(),
   }).passthrough(),
 }).passthrough()
@@ -49,7 +63,7 @@ const UserDetailsResponseSchema = z.object({
     education: z.object({ school: z.string().optional() }).passthrough().optional(),
     sunshine_credit: z.object({ level: z.string().optional() }).passthrough().optional(),
     followers: z.object({ total_number: z.number().optional() }).passthrough().optional(),
-    label_desc: z.array(z.unknown()).optional(),
+    label_desc: z.array(LabelDescSchema).optional(),
     verified_url: z.string().optional(),
     friend_info: z.string().optional(),
     links: z.array(z.object({
@@ -62,6 +76,7 @@ const UserDetailsResponseSchema = z.object({
     }).passthrough().optional(),
     company: z.string().optional(),
     career: z.object({ company: z.string().optional() }).passthrough().optional(),
+    hometown: z.string().optional(),
   }).passthrough(),
 }).passthrough()
 

@@ -1,3 +1,4 @@
+import type { MyMBlogItem } from '~/services/endpoints/tweet'
 import type { ArchiveServiceDeps } from '~/services/public/ArchiveService'
 import { describe, expect, it, vi } from 'vitest'
 import { ArchiveService } from '~/services/public/ArchiveService'
@@ -15,11 +16,11 @@ function mkRaw(mblogid: string, createdAt = '2026-10-19T00:00:00+08:00', extra: 
   }
 }
 
-function mkPage(items: unknown[]) {
+function mkPage(items: MyMBlogItem[]) {
   return { ok: 1, data: { since_id: '', list: items, total: items.length } }
 }
 
-function createDeps(items: unknown[]): { deps: ArchiveServiceDeps, myMblog: ReturnType<typeof vi.fn> } {
+function createDeps(items: MyMBlogItem[]): { deps: ArchiveServiceDeps, myMblog: ReturnType<typeof vi.fn> } {
   const myMblog = vi.fn()
     .mockResolvedValueOnce(mkPage(items))
     .mockResolvedValue(mkPage([]))
