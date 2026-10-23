@@ -11,6 +11,8 @@ const SCENARIO_OPTIONS = {
   'max-pages': { type: 'string' },
   'max-items': { type: 'string' },
   'count': { type: 'string' },
+  'comments': { type: 'string' },
+  'stream': { type: 'boolean' },
   'flow': { type: 'string' },
   'include': { type: 'string' },
   'tag': { type: 'string' },

@@ -42,6 +42,24 @@ export const scenario: SdkScenario = {
     }
     log.kv('mentions', mentions)
 
+    log.heading('单页接口（getX / listX）')
+    const profile = await sdk.users.myDetails()
+    log.kv('myDetails', `${profile.uid ?? '?'} gender=${profile.gender}`)
+    const mentionPage = await sdk.users.listMentions({ page: 1 })
+    log.kv('listMentions', `tweets=${mentionPage.tweets.length} cursor=${mentionPage.cursor} hasMore=${mentionPage.hasMore}`)
+    const followingsPage = await sdk.followings.getFollowings(uid, 1)
+    log.kv('getFollowings', `users=${followingsPage.users.length} hasMore=${followingsPage.hasMore}`)
+    const fansPage = await sdk.followings.getFans(uid, 1)
+    log.kv('getFans', `users=${fansPage.users.length} hasMore=${fansPage.hasMore}`)
+    const minePage = await sdk.followings.getMyFollowings(1)
+    log.kv('getMyFollowings', `users=${minePage.users.length} specialAttention=${minePage.specialAttention?.length ?? 0}`)
+    let mine = 0
+    for await (const user of sdk.followings.streamMyFollowings({ maxPages })) {
+      if (++mine <= 3)
+        log.info(`- ${displayName(user)}`)
+    }
+    log.kv('streamMyFollowings', mine)
+
     log.heading('关注分组 / 微博分组')
     const groups = await sdk.users.groups()
     const mblogGroups = await sdk.users.mblogGroups()
