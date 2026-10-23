@@ -1,5 +1,6 @@
 import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileArgs, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { TweetContextDeps, TweetContextOptions } from './tweet/context'
+import type { TweetLikersSource } from './tweet/likers'
 import type {
   TweetCommentsOptions,
   TweetCommentsPageResult,
@@ -11,7 +12,6 @@ import type {
   TweetLikersOptions,
   TweetLikersPageResult,
   TweetLikersStreamOptions,
-  TweetLikersStreamProgress,
   TweetPageResult,
   TweetRepliesOptions,
   TweetRepostsListOptions,
@@ -26,7 +26,7 @@ import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
 import type { ITweet, ITweetComment, TweetLongText } from '~/types/domain/ITweet'
 import type { ITweetContext } from '~/types/domain/ITweetContext'
-import { isRawTweet, normalizeComment, normalizeLiker, normalizeLongText, Tweet } from '~/models/data/Tweet'
+import { isRawTweet, normalizeComment, normalizeLongText, Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { normalizeMaxPages, paginate } from '~/utils/pagination'
@@ -38,7 +38,8 @@ import { extractMobileMblogs, mobileContainerSpec } from '../endpoints/mobile'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
 import { loadTweetContext } from './tweet/context'
-import { commentsPageFromRaw, filterRawTweets, MAX_FILTERED_PAGES, normalizeFeedCursor, normalizeLikerMaxPages, normalizeLikerPage, parseSearchTotal } from './tweet/helpers'
+import { commentsPageFromRaw, filterRawTweets, MAX_FILTERED_PAGES, normalizeFeedCursor, parseSearchTotal } from './tweet/helpers'
+import { loadLikersPage, streamLikersFrom } from './tweet/likers'
 
 export type { TweetContextDeps, TweetContextOptions } from './tweet/context'
 export type {
@@ -807,43 +808,7 @@ export class TweetService extends FetcherService {
    * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
    */
   public async likers(mblogId: string, options: TweetLikersOptions = {}): Promise<TweetLikersPageResult> {
-    const page = normalizeLikerPage(options.page)
-    const startAt = Date.now()
-    const id = await this.resolveTweetMid(mblogId)
-    const raw = await this.request(likersSpec, { id, page })
-    const rawLikers = raw.data.data ?? []
-
-    const seen = new Set<string>()
-    const likers: TweetLiker[] = []
-    for (const item of rawLikers) {
-      const liker = normalizeLiker(item)
-      if (liker.id) {
-        if (seen.has(liker.id))
-          continue
-        seen.add(liker.id)
-      }
-      likers.push(liker)
-    }
-
-    await this.emitTelemetry({
-      event_name: 'normalize_done',
-      timestamp: Date.now(),
-      trace_id: this.newTraceId(),
-      model: 'TweetLiker',
-      count: likers.length,
-      duration_ms: Date.now() - startAt,
-    })
-
-    const total = raw.data.total_number
-    const result: TweetLikersPageResult = {
-      page: page + 1,
-      // 上游没有「是否有下一页」字段：空页即到底；有 total 时以页码 × 本页条数估算。
-      hasMore: likers.length > 0 && (total === undefined || page * rawLikers.length < total),
-      likers,
-    }
-    if (total !== undefined)
-      result.total = total
-    return result
+    return await loadLikersPage(this.likersSource(), mblogId, options)
   }
 
   /**
@@ -858,69 +823,21 @@ export class TweetService extends FetcherService {
    * }
    */
   async* streamLikers(mblogId: string, options: TweetLikersStreamOptions = {}): AsyncIterableIterator<TweetLiker> {
-    const normalized = normalizeTweetIdInput(mblogId)
-    const id = await this.resolveTweetMid(normalized)
-    const maxPages = normalizeLikerMaxPages(options.maxPages)
-    const range = createStreamRange<TweetLiker>(options)
-    const seen = new Set<string>()
-    let page = normalizeLikerPage(options.page)
-    let pages = 0
-    let processed = 0
-    let total: number | undefined
+    yield* streamLikersFrom(this.likersSource(), mblogId, options)
+  }
 
-    while (pages < maxPages) {
-      const result = await this.likers(id, { page })
-      pages += 1
-      if (result.likers.length === 0)
-        break
-
-      const fresh = result.likers.filter((liker) => {
-        if (!liker.id)
-          return true
-        if (seen.has(liker.id))
-          return false
-        seen.add(liker.id)
-        return true
-      })
-      if (fresh.length === 0)
-        break // 整页重复：上游忽略了 page
-
-      for (const liker of fresh) {
-        const decision = range.decide(liker)
-        if (decision === 'stop')
-          break
-        if (decision === 'skip')
-          continue
-        processed += 1
-        yield liker
-      }
-
-      if (result.total !== undefined)
-        total = result.total
-
-      const progress: TweetLikersStreamProgress = {
-        mblogId: normalized,
-        page,
-        processed,
-        pageSize: result.likers.length,
-      }
-      if (total !== undefined)
-        progress.total = total
-
-      try {
-        await options.onProgress?.(progress)
-      }
-      catch {
-        // 进度回调异常不影响流
-      }
-
-      if (range.stopped)
-        break
-      if (total !== undefined && processed >= total)
-        break
-      if (!result.hasMore)
-        break
-      page = result.page
+  private likersSource(): TweetLikersSource {
+    return {
+      resolveMid: input => this.resolveTweetMid(input),
+      fetchPage: (id, page) => this.request(likersSpec, { id, page }),
+      emitNormalizeDone: ({ count, durationMs }) => this.emitTelemetry({
+        event_name: 'normalize_done',
+        timestamp: Date.now(),
+        trace_id: this.newTraceId(),
+        model: 'TweetLiker',
+        count,
+        duration_ms: durationMs,
+      }),
     }
   }
 
