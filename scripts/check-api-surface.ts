@@ -12,12 +12,23 @@ const DOCS_ROOT = path.join(ROOT, 'website')
 /** 生成页：列出全部导出，不能作为「有说明」的证据。 */
 const GENERATED_DOC_PAGES = new Set(['api/types/index.md'])
 
+/**
+ * Stable 保留模式：这些后缀是「形状会随 minor 演进的辅助类型」。
+ *
+ * 它们默认只能待在 experimental；确需升 Stable 时必须显式登记在
+ * `api-surface.json` 的 `allowStablePatternExceptions`，否则门禁失败——
+ * 避免 Stable 层靠「顺手加一行」悄悄长回来（见 docs/engineering/api-stability.md §6）。
+ */
+const STABLE_RESERVED_PATTERN = /(?:Options|Progress|ProgressSummary|ProgressEvent|LoggerOptions|LogWriteStream)$/
+
 interface ApiSurfaceConfig {
   schemaVersion: number
   tiers: {
     stable: string[]
     experimental: string[]
   }
+  /** 允许以 Stable 身份命中 `STABLE_RESERVED_PATTERN` 的显式豁免；默认空。 */
+  allowStablePatternExceptions?: string[]
   serviceDocs: Record<string, string[]>
 }
 
@@ -238,6 +249,7 @@ function main(): void {
     const next: ApiSurfaceConfig = {
       schemaVersion: 1,
       tiers: { stable, experimental: [...experimental].sort() },
+      allowStablePatternExceptions: [...(config.allowStablePatternExceptions ?? [])].sort(),
       serviceDocs: config.serviceDocs,
     }
     writeFileSync(CONFIG_PATH, `${JSON.stringify(next, null, 2)}\n`)
@@ -266,6 +278,21 @@ function main(): void {
   for (const item of exports) {
     if (!classified.has(item.name))
       failures.push(`新增导出 "${item.name}" (${item.kind}, ${item.file}) 未在 api-surface.json 分层`)
+  }
+
+  // Stable 保留模式：*Options / *Progress* / logger 选项 / LogWriteStream 只能 experimental。
+  const stableExceptions = new Set(config.allowStablePatternExceptions ?? [])
+  for (const name of config.tiers.stable) {
+    if (STABLE_RESERVED_PATTERN.test(name) && !stableExceptions.has(name)) {
+      failures.push(
+        `[stable] "${name}" 命中 Stable 保留模式（*Options / *Progress* / *LoggerOptions / LogWriteStream）：0.x 内这类形状只能待在 experimental；`
+        + '确需 Stable 请加入 api-surface.json 的 allowStablePatternExceptions，并在 docs/engineering/api-stability.md §6 写明理由',
+      )
+    }
+  }
+  for (const name of stableExceptions) {
+    if (!config.tiers.stable.includes(name))
+      failures.push(`allowStablePatternExceptions 中的 "${name}" 不是 stable 条目（豁免只能用于已升 Stable 的名字，请移除）`)
   }
 
   const docsFiles = listMarkdownFiles(DOCS_ROOT)
