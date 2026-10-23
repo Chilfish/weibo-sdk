@@ -39,7 +39,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run typecheck
-      - run: pnpm exec eslint .
+      # eslint-plugin-unicorn@74 声明 engines.node >=22，并在模块顶层使用
+      # Set.prototype.union；在 Node 20 上 lint 会直接崩溃。运行时仍实测 20，
+      # 但 lint 只在 Node 24 上跑一次。
+      - if: matrix.node == 24
+        run: pnpm exec eslint .
       - run: pnpm test --run
       - run: pnpm run validate:fixtures
       - run: pnpm check:api
