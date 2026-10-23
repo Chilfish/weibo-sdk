@@ -40,6 +40,8 @@ catalogs:
     typescript: 6.0.3
     vite: ^8.2.2
   testing:
+    # 与锁定的 vitest 5.0.0 严格同版本：vitest 检测到 mixed versions 会警告「may lead into bugs」
+    '@vitest/coverage-v8': 5.0.0
     vitest: ^5.0.0
     vitest-package-exports: ^1.2.0
     yaml: ^2.9.0
