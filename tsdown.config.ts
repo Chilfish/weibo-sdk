@@ -45,6 +45,10 @@ export default defineConfig([
           types: './dist/index.d.mts',
           default: './dist/browser.mjs',
         }
+        // tsdown 只保留自己生成的入口；随包发布的 schema 与 package.json 子路径
+        // 必须在自定义导出里补回，否则每次 build 都会被删掉（verify:package 会失败）。
+        exports['./schemas/*'] = './schemas/*'
+        exports['./package.json'] = './package.json'
         return exports
       },
     },
