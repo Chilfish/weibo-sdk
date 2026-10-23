@@ -121,13 +121,13 @@ followContent 50/100/150），而抓包用的是 `page=1/2/3`。`FollowingPageRe
 | 2 | 每个 Service 各持一个令牌桶，432 暂停只停命中服务；文档「全局令牌桶」不成立 | `WeiboSDK` 只创建一个 `RateLimitService` 并注入全部 Service；测试断言实例共享，暂停对整实例生效 | ✅ 已修 |
 | 3 | README / `website/api/sdk.md` 教用户读已改名的 `session.details`；门禁只能证明「提过」 | 改为 `session.profile`；`check:docs` 新增字段级校验（代码片段里的 `session.*` / `sdk.*` 必须是公开成员），补 8 个自测 | ✅ 已修并加门禁 |
 | 4 | 最高频误用路径的 7 处裸 `Error` 退化成 `code: 'UNKNOWN'` | 全部改为 `InvalidConfigError`（`CONFIG_INVALID`），带 `field` / `hint` / `next`；补 12 个 CLI / 媒体回归测试 | ✅ 已修 |
-| 5 | Stable 是「文档提过」认证，实现细节拿到稳定承诺 | 20 个实现细节降为 Experimental（186/81 → 166/101）；`check:api` 新增 Stable 保留模式（`*Options` / `*Progress*` / logger 选项等默认不能升回） | ✅ 已修并加规则 |
+| 5 | Stable 是「文档提过」认证，实现细节拿到稳定承诺 | 分层改为 `Stable / Evolving / Experimental`：Evolving = 形状会变，Experimental = 能力可能撤回。20 个实现细节降为 Evolving（186/81 → 166/85，另移除 16 个非契约根导出）；新增 Stable 保留模式与方法级 `methodTiers.evolving`（所有 `fetchRaw*` 必须显式登记），生成页按 shape 分区 | ✅ 已修并加规则 |
 | 6 | 对上游漂移的自动化覆盖为 0，只有 push/PR 触发 CI | 新增 `drift.yml`：每周一访客冒烟直连真实上游（无 Cookie）；配置 `WEIBO_COOKIE` 后跑完整 E2E；失败写 summary 并复用 `[drift]` issue | ✅ 已修 |
 | 7 | 覆盖率无机器约束 | 接入 `@vitest/coverage-v8`，`pnpm test:coverage` 进 CI；基线 83.5% lines，阈值 82/82/81/73 且标注为只升不降 | ✅ 已修 |
 | 8 | 双归档管线长期并存，checkpoint / 续跑 / 去重语义不同 | ADR-017 冻结边界（`streamArchive` 唯一枚举状态机；新能力只进 `userArchive`；两种 checkpoint 禁止互传），加静态守卫测试。**没有**合并两套状态机：那是 breaking redesign，需要单独方案 | 🟡 边界已冻结，合并不做 |
-| 9 | God Service 继续长大（TweetService 1472 行 / 30 个公开方法） | 抽出 `services/public/tweet/context.ts`（选项 / 依赖 / 作者归一化 / `loadTweetContext`），Service 只留薄委托；1472 → 1364 行。按域继续拆分记入 backlog C6 | 🟡 首步完成，剩余进 backlog |
+| 9 | God Service 继续长大（TweetService 1472 行 / 30 个公开方法） | 按域完整拆分：`tweet/{types,helpers,context,likers,comments,timeline,detail,reposts}.ts`，Service 只留 raw 端点、id 解析与薄委托，1472 → 663 行。MediaService（787）与 `models/data/Tweet.ts`（898）是单域实现，暂不机械拆分（backlog C6） | ✅ 已完成（TweetService） |
 | 10 | 文档体量与政策自相矛盾：上一个 commit 收窄了 AGENTS.md，`docs/README.md` 仍要求「第一步更新文档」 | `docs/README.md` 两处改为与 AGENTS.md 一致的三类；删掉「check:api / check:docs 强制两边同步」的不成立说法 | ✅ 已修 |
 
-**一句话结论**：把能写成门禁的断言都写成了门禁（字段漂移、Stable 保留模式、覆盖率、定时漂移巡检、归档管线边界）；不能写成门禁的两项（双管线合并、God Service 彻底拆分）明确降级为有触发条件的 backlog，而不是继续用文档假装已解决。
+**一句话结论**：把能写成门禁的断言都写成了门禁（字段漂移、Stable 保留模式与方法层级、覆盖率、定时漂移巡检、归档管线边界）；唯一没有硬做的是双管线合并——它是 breaking redesign，已冻结边界并写明触发条件，而不是用文档假装已解决。
 
-**门禁**：1012 passed / 28 skipped；typecheck、eslint、check:api（267 exports）、check:docs、test:coverage 全绿。
+**门禁**：1018 passed / 28 skipped；typecheck、eslint、check:api（251 exports / 166 Stable / 85 Evolving）、check:docs、test:coverage 全绿。
