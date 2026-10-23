@@ -36,7 +36,7 @@ import { AuthService } from './AuthService'
 ### 公共 API
 
 - **契约优先（Contract First）**：先写类型/接口契约，再实现
-- **类型推导优先**：响应类型用 `z.infer<typeof Schema>` 推导，消费者使用导出的命名类型（见规格书 §3.7）
+- **类型推导优先**：端点响应用 `z.infer<typeof Schema>` 推导；公开读取方法返回 `types/domain/**` 的领域模型，raw 响应类型只作为 `fetchRaw*` 的内部返回形状（见规格书 §3.7）
 - **禁止从包入口导出内部实现**：`services/*`、`models/data` 内部 helper 等
 - 新增公开 Service 方法时必须加对应 CLI 子命令（CLI Mandate）
 

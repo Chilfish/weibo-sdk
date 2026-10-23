@@ -141,6 +141,15 @@ session.details    // profile/detail 原始响应（访客缺省）
 
 ### 归档账号
 
+先选管线，两条不能混用：
+
+| 你的目标 | 用哪条 | 产物与续跑单位 |
+|---|---|---|
+| 把账号的全部内容（时间线 / 转发 / 点赞 / 收藏 / 评论 / 媒体）镜像到本地，可长期增量 | `sdk.archive.streamArchive` | `ArchiveItem` 流；checkpoint 是游标（at-least-once） |
+| 只要某段时间的微博，并补全详情、长文、评论、楼中楼、转发 | `sdk.userArchive.run` | 单个 `ArchiveFile`（`weibo-user-archive/v2`）；journal 按日期切片续跑 |
+
+两条管线的 checkpoint 语义、媒体处理与输出格式都不同：把 `archive` 的 checkpoint 传给 `userArchive`（或反过来）没有意义。下面的例子是第一条。
+
 ```ts
 for await (const item of sdk.archive.streamArchive('1111681197', {
   includeReposts: true,

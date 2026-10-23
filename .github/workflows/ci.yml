@@ -21,8 +21,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 24 是当前 LTS，26 是即将在 2026-10-28 进入 LTS 的当前版本。
-        node: [24, 26]
+        # 20 是 engines.node 声称的下限（>=20.16），必须实测；24 是当前 LTS，26 是即将进入 LTS 的当前版本。
+        node: [20, 24, 26]
+
+    # tsdown 0.23 / eslint-plugin-unicorn 74 / vite 8 都要求 Node >=22.18，
+    # 所以 Node 20 只验证运行时与源码测试，完整工具链（lint / build / 打包 / 文档）只在 22+ 跑。
+    env:
+      FULL_TOOLCHAIN: ${{ matrix.node != 20 }}
 
     steps:
       - uses: actions/checkout@v7
@@ -39,12 +44,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run typecheck
-      - run: pnpm exec eslint .
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: pnpm exec eslint .
       - run: pnpm test --run
       - run: pnpm run validate:fixtures
       - run: pnpm check:api
       - run: pnpm check:docs
       - run: pnpm run schema:check
-      - run: pnpm run build
-      - run: pnpm docs:build
-      - run: node scripts/browser-smoke.mjs --no-browser
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: pnpm run build
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: pnpm run verify:package
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: pnpm run test:bundle
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: pnpm docs:build
+      - if: env.FULL_TOOLCHAIN == 'true'
+        run: node scripts/browser-smoke.mjs --no-browser

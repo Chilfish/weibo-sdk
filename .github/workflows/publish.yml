@@ -52,6 +52,8 @@ jobs:
       - run: pnpm check:docs
       - run: pnpm run schema:check
       - run: pnpm run build
+      - run: pnpm run verify:package
+      - run: pnpm run test:bundle
       - run: pnpm docs:build
       - run: node scripts/browser-smoke.mjs --no-browser
 

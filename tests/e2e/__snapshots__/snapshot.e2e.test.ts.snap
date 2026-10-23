@@ -535,6 +535,13 @@ exports[`snapshot: tweet structure > statuses/show response structure matches (f
       "profile_image_url": "<STR>",
       "profile_url": "<STR>",
       "screen_name": "<STR>",
+      "status_total_counter": {
+        "comment_cnt": "<STR>",
+        "like_cnt": "<STR>",
+        "repost_cnt": "<STR>",
+        "total_cnt": "<STR>",
+        "total_cnt_format": "<STR>",
+      },
       "user_ability": "<NUM>",
       "v_plus": "<NUM>",
       "verified": "<BOOL>",

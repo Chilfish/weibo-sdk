@@ -12,6 +12,7 @@ import { WeiboSessionExpiredError } from './models/errors/BusinessError'
 import { WeiboSDKError } from './models/errors/WeiboSDKError'
 import { createAuthContext, resolveAuthMode } from './services/internal/CredentialResolver'
 import { createPluginPipeline } from './services/internal/plugins'
+import { RateLimitService } from './services/internal/RateLimitService'
 import { ArchiveService } from './services/public/ArchiveService'
 import { CommentHistoryService } from './services/public/CommentHistoryService'
 import { FavoriteService } from './services/public/FavoriteService'
@@ -121,11 +122,21 @@ export class WeiboSDK {
     })
     this.selfCheckMode = this.config.selfCheck?.mode ?? 'lazy'
 
+    // 实例级共享令牌桶：432 暂停与平均速率必须对所有 Service 生效，
+    // 否则每个 Service 各持一个桶，实际 QPS = 服务数 / delay。
+    const rateLimitService = new RateLimitService(
+      this.config.burst ?? 3,
+      this.config.delay ?? 1000,
+      undefined,
+      this.config.telemetry,
+    )
+
     const deps = {
       hooks: this.config.hooks,
       preflight: () => this.ensureReady(),
       auth: this.authContext,
       pipeline: this.pipeline,
+      rateLimitService,
     }
 
     this.users = new UserService(this.config, deps)

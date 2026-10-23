@@ -174,9 +174,25 @@ export class FetcherService {
     this.auth = deps?.auth ?? createAuthContext(config, {
       telemetry: this.telemetry,
     })
+    const burst = config.burst ?? 3
+    const delay = config.delay ?? 1000
+    // 这里校验后仍交给 RateLimitService（它自己也守同一组不变量），
+    // 保证注入替身之外的路径都拿不到非法桶。
+    if (!Number.isInteger(burst) || burst < 1) {
+      throw new InvalidConfigError('config.burst must be an integer >= 1.', {
+        field: 'burst',
+        value: config.burst,
+      })
+    }
+    if (typeof delay !== 'number' || !Number.isFinite(delay) || delay < 0) {
+      throw new InvalidConfigError('config.delay must be a finite number of milliseconds >= 0 (0 = unlimited).', {
+        field: 'delay',
+        value: config.delay,
+      })
+    }
     this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
-      config.maxConcurrent || 3,
-      typeof config.delay === 'number' ? config.delay : 1000,
+      burst,
+      delay,
       undefined,
       this.telemetry,
     )
@@ -261,18 +277,16 @@ export class FetcherService {
           timestamp: Date.now(),
         })
 
-        await this.emitTelemetry({
-          event_name: 'request_error',
-          timestamp: Date.now(),
-          trace_id: traceId,
+        await this.emitRequestError({
+          traceId,
           phase: 'preflight',
           method: resource.method,
           url: resource.url,
           endpoint: options?.endpoint,
-          resource_type: options?.resourceType,
-          duration_ms: Date.now() - startAt,
-          ...authFields,
-          ...toTelemetryErrorFields(error),
+          resourceType: options?.resourceType,
+          durationMs: Date.now() - startAt,
+          authFields,
+          error,
         })
 
         throw error
@@ -370,19 +384,17 @@ export class FetcherService {
           timestamp: Date.now(),
         })
 
-        await this.emitTelemetry({
-          event_name: 'request_error',
-          timestamp: Date.now(),
-          trace_id: traceId,
+        await this.emitRequestError({
+          traceId,
           phase: 'request',
           method: resource.method,
           url: resource.url,
           endpoint: options?.endpoint,
-          resource_type: options?.resourceType,
-          duration_ms: Date.now() - startAt,
+          resourceType: options?.resourceType,
+          durationMs: Date.now() - startAt,
           attempt,
-          ...authFields,
-          ...toTelemetryErrorFields(finalError),
+          authFields,
+          error: finalError,
         })
 
         throw finalError
@@ -722,18 +734,16 @@ export class FetcherService {
         trace_id: traceId,
         timestamp: Date.now(),
       })
-      await this.emitTelemetry({
-        event_name: 'request_error',
-        timestamp: Date.now(),
-        trace_id: traceId,
+      await this.emitRequestError({
+        traceId,
         phase: 'response',
         method: request.method,
         url: request.url,
         endpoint: spec.endpoint,
-        resource_type: spec.resourceType,
-        duration_ms: Date.now() - startAt,
-        ...authFields,
-        ...toTelemetryErrorFields(error),
+        resourceType: spec.resourceType,
+        durationMs: Date.now() - startAt,
+        authFields,
+        error,
       })
       throw error
     }
@@ -798,20 +808,18 @@ export class FetcherService {
           timestamp: Date.now(),
         })
 
-        await this.emitTelemetry({
-          event_name: 'request_error',
-          timestamp: Date.now(),
-          trace_id: traceId,
+        await this.emitRequestError({
+          traceId,
           phase: 'response',
           method: request.method,
           url: request.url,
           endpoint: spec.endpoint,
-          resource_type: spec.resourceType,
-          duration_ms: Date.now() - startAt,
+          resourceType: spec.resourceType,
+          durationMs: Date.now() - startAt,
           ok: okNumber,
           message,
-          ...authFields,
-          ...toTelemetryErrorFields(error),
+          authFields,
+          error,
         })
 
         throw error
@@ -863,18 +871,16 @@ export class FetcherService {
         timestamp: Date.now(),
       })
 
-      await this.emitTelemetry({
-        event_name: 'request_error',
-        timestamp: Date.now(),
-        trace_id: traceId,
+      await this.emitRequestError({
+        traceId,
         phase: 'parse',
         method: request.method,
         url: request.url,
         endpoint: spec.endpoint,
-        resource_type: spec.resourceType,
-        duration_ms: Date.now() - startAt,
-        ...authFields,
-        ...toTelemetryErrorFields(error),
+        resourceType: spec.resourceType,
+        durationMs: Date.now() - startAt,
+        authFields,
+        error,
       })
 
       throw error
@@ -924,6 +930,44 @@ export class FetcherService {
     })
     await this.hooks?.onError?.(replaced, meta)
     return replaced
+  }
+
+  /**
+   * 统一发出 `request_error`。
+   *
+   * 所有失败分支共享同一组字段（trace / method / url / endpoint / auth / error），
+   * 避免逐处手写导致字段漂移；分支差异只通过参数表达。
+   */
+  private async emitRequestError(params: {
+    traceId: string
+    phase: 'preflight' | 'request' | 'response' | 'parse'
+    method: 'GET' | 'POST'
+    url: string
+    endpoint?: string
+    resourceType?: IResourceType
+    durationMs?: number
+    attempt?: number
+    ok?: number
+    message?: string
+    authFields: ReturnType<typeof authTelemetryFields>
+    error: unknown
+  }): Promise<void> {
+    await this.emitTelemetry({
+      event_name: 'request_error',
+      timestamp: Date.now(),
+      trace_id: params.traceId,
+      phase: params.phase,
+      method: params.method,
+      url: params.url,
+      endpoint: params.endpoint,
+      resource_type: params.resourceType,
+      duration_ms: params.durationMs,
+      attempt: params.attempt,
+      ok: params.ok,
+      message: params.message,
+      ...params.authFields,
+      ...toTelemetryErrorFields(params.error),
+    })
   }
 
   protected async emitTelemetry(event: TelemetryEvent & Record<string, string | number | boolean | null | undefined>): Promise<void> {

@@ -27,6 +27,20 @@
 - 读取方法统一返回领域模型（`IUser` / `ITweet`）。
 - 公开选项统一 camelCase，CLI 参数名保持原样。
 - 包根只导出公开 API。
+- **破坏性**：`IWeiboConfig.maxConcurrent` 改名为 `burst`，语义仍是令牌桶容量（突发上限），
+  不是并发闸门；持续吞吐由 `delay` 决定。CLI `--burst` 不变。
+- **破坏性**：`IWeiboConfig.delay` 只接受毫秒数；此前声明但从未生效的函数形式会在构造期抛
+  `CONFIG_INVALID`，不再静默回退 1000ms。
+- API 分层收紧：66 个只在文档里被顺带提及的导出（各方法的 `*Options` / `*Progress`、
+  `Capability*` 枚举、`ArchivePhase` 等运行时标签与几个辅助常量）从 Stable 降为 Experimental。
+  方法签名本身仍稳定；详见 `docs/engineering/api-stability.md`。
+
+### 修复
+
+- `tweets.streamByUserId`：整页都是广告时不再提前终止（`hasMore` 改为依据上游原始页）。
+- `followings.streamFollowings` / `streamFans` / `streamMyFollowings`：使用上游 `hasMore` 提前结束，
+  少发一次必然为空的请求。`FollowingPageResult.cursor` 是上游偏移量，不是页码。
+- m 站关注 / 粉丝用户卡片改为经 `FollowingUserSchema` 校验，形状漂移时抛结构化错误而不是靠类型断言。
 
 ## 0.5.0 (2026-10-22)
 

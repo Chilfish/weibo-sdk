@@ -9,6 +9,7 @@ import type {
 } from '~/types/archive/IUserArchive'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { stripUserArchiveRaw } from '~/services/public/userArchive/assemble'
 import { USER_ARCHIVE_JOURNAL_SCHEMA } from '~/types/archive/IUserArchive'
 
@@ -180,7 +181,12 @@ function readMeta(path: string): UserArchiveMeta | undefined {
     parsed = JSON.parse(readFileSync(path, 'utf8'))
   }
   catch {
-    throw new Error(`meta 无法解析：${path}（加 --fresh 重新开始）`)
+    throw new InvalidConfigError(`meta 无法解析：${path}（加 --fresh 重新开始）`, {
+      field: 'resume',
+      value: path,
+      hint: 'meta.json 不是合法 JSON；进度文件损坏无法续跑',
+      next: '--fresh',
+    })
   }
 
   if (
@@ -195,7 +201,12 @@ function readMeta(path: string): UserArchiveMeta | undefined {
       && typeof slice.since === 'number'
       && typeof slice.until === 'number')
   ) {
-    throw new Error(`meta 不兼容：${path}（旧版归档进度请加 --fresh 重新开始）`)
+    throw new InvalidConfigError(`meta 不兼容：${path}（旧版归档进度请加 --fresh 重新开始）`, {
+      field: 'resume',
+      value: path,
+      hint: `meta.json 的 schema 与当前版本（${USER_ARCHIVE_JOURNAL_SCHEMA}）不一致`,
+      next: '--fresh',
+    })
   }
   return parsed as unknown as UserArchiveMeta
 }

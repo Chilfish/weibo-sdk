@@ -20,6 +20,9 @@ import { FetcherService } from '../internal/FetcherService'
 
 let normalizeSeq = 0
 
+/** 连续「整页被过滤」的页数上限：防止上游忽略 page 时无限翻页。 */
+const MAX_FILTERED_PAGES = 3
+
 /** 一页点赞者（`likers` 返回值）。 */
 export interface TweetLikersPageResult {
   /** 下一页页码（page 游标，从 1 开始） */
@@ -561,8 +564,10 @@ export class TweetService extends FetcherService {
     }
 
     const raw = await this.fetchRawUserTimelinePage(uid, page, count)
-    const filtered = this.filterTweets(raw.data.list || [])
-    const hasMore = filtered.length > 0
+    const rawList = raw.data.list ?? []
+    const filtered = this.filterTweets(rawList)
+    // hasMore 依据上游原始页判断：整页都是广告时仍有下一页，不能提前终止。
+    const hasMore = rawList.length > 0
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({
@@ -608,12 +613,24 @@ export class TweetService extends FetcherService {
     const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
     let page = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
     let pages = 0
+    let filteredPages = 0
 
     while (pages < maxPages) {
       const result = await this.listByUserId(uid, { page, count: options.count })
       pages += 1
-      if (result.tweets.length === 0)
-        break
+
+      if (result.tweets.length === 0) {
+        // 整页都是广告 / 无效项时上游仍可能给下一页；只有空页（hasMore=false）才到底。
+        if (!result.hasMore)
+          break
+        filteredPages += 1
+        // 上游忽略 page 时会连续返回同一整页广告，达到上限即视为到底。
+        if (filteredPages >= MAX_FILTERED_PAGES)
+          break
+        page = result.page ?? page + 1
+        continue
+      }
+      filteredPages = 0
 
       for (const tweet of result.tweets) {
         const decision = range.decide(tweet)

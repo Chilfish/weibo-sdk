@@ -105,6 +105,7 @@
 | `unit/cli/archiveMerge.test.ts` | `runArchiveMerge` / `readArchiveFile` | 多文件合并写盘、BOM 兼容、`--force` 覆盖保护、至少两份输入、缺失 / 非法 JSON 报 `CONFIG_INVALID`、目录展开只取顶层合法归档并报告跳过、排除输出文件、路径去重 |
 | `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` / `resolveCliTuning` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days、默认与 `--fast` 预设、显式参数覆盖 |
 | `unit/cli/archiveUserStore.test.ts` | `FileUserArchiveStore` | meta / records / checkpoint / slice-done / issue 往返、截断行修复、meta schema 校验、`clear`、按切片过滤 |
+| `unit/cli/archiveUserErrors.test.ts` | `archive user` 误用路径的结构化错误 | 输出文件已存在（无 `--force`/`--merge`）、旧版单文件 journal、meta 无法解析 / 不兼容、raw 路径冲突与 raw 文件已存在：均经 `formatCliError` 得到 `CONFIG_INVALID`，并携带 `context.field` / `next` |
 | `unit/cli/terminalReporter.test.ts` | `archive user` 终端呈现 | `--log-format` / TTY / CI / `TERM=dumb` / `NO_COLOR` 解析、NDJSON 兼容、pretty 行模式、单行状态原地刷新（不换行）、进度条保留、光标恢复 |
 
 ### Unit — 错误
@@ -267,3 +268,4 @@ curl -s -H "Cookie: $WEIBO_COOKIE" \
 | `unit/services/media/MediaHttpClient.test.ts` | 独立 CDN 客户端 | 无 Cookie、Referer/UA/identity、重定向与 host 白名单、403/429/4xx 映射 |
 | `unit/cli/mediaDownload.test.ts` | `media download` 参数与事件 | include 解析、数字/`--no-refresh`、默认 out、item/item-error/done 键集 |
 | `component/public/MediaServiceDownload.test.ts` | `MediaService` 下载编排 | 图片/视频/LivePhoto、exists 跳过、去重、HTML 失败继续、dryRun（`totals.planned`）、无 fs、403 刷新、storage fatal |
+| `component/public/MediaServiceReferer.test.ts` | `MediaService` referer 校验 | 非 http(s) / 无法解析的 referer 抛 `CONFIG_INVALID`（`context.field = 'referer'`，`retryable: false`、非裸 `Error`）、http(s) referer 放行 |

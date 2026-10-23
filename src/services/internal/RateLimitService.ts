@@ -1,5 +1,6 @@
 // src/services/internal/RateLimitService.ts
 import type { WeiboSDKTelemetry } from '~/types/telemetry'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 
 export interface IRateLimitClock {
   now: () => number
@@ -36,10 +37,25 @@ export class RateLimitService {
 
   constructor(
     private maxTokens: number = 10,
-    private refillRate: number = 1000, // ms per token
+    private refillRate: number = 1000, // ms per token；0 = 不限速
     private clock: IRateLimitClock = defaultClock,
     private telemetry?: WeiboSDKTelemetry,
   ) {
+    // 不变量：负容量 / 负补充间隔会让 acquire() 在「取不到令牌 → sleep(负数) → 立即醒来」
+    // 之间空转，请求永远不会返回。构造期直接失败，而不是把实例变成黑洞。
+    if (!Number.isInteger(maxTokens) || maxTokens < 1) {
+      throw new InvalidConfigError('Rate limit burst must be an integer >= 1.', {
+        field: 'burst',
+        value: maxTokens,
+      })
+    }
+    if (typeof refillRate !== 'number' || !Number.isFinite(refillRate) || refillRate < 0) {
+      throw new InvalidConfigError('Rate limit delay must be a finite number >= 0 (0 = unlimited).', {
+        field: 'delay',
+        value: refillRate,
+      })
+    }
+
     this.tokens = maxTokens
     this.lastRefill = this.clock.now()
   }
@@ -117,6 +133,13 @@ export class RateLimitService {
 
   private refill(): void {
     const now = this.clock.now()
+    if (this.refillRate === 0) {
+      // delay: 0 显式表示不限速：不消耗令牌，也不等待。
+      this.tokens = this.maxTokens
+      this.lastRefill = now
+      return
+    }
+
     const elapsed = now - this.lastRefill
     const newTokens = Math.floor(elapsed / this.refillRate)
 

@@ -150,10 +150,21 @@ export interface IWeiboConfig {
   fetch?: FetchLike
   /** 构造期组装的插件（可选；无插件时走 identity 快路径）。 */
   plugins?: WeiboPlugin[]
-  /** 令牌桶最大并发数（默认 3） */
-  maxConcurrent?: number
-  /** 请求间隔毫秒数，或按重试次数返回间隔的函数（默认 1000） */
-  delay?: number | ((retryCount: number) => number)
+  /**
+   * 令牌桶容量（burst，默认 3，必须为 >= 1 的整数）。
+   *
+   * 决定同一瞬间最多能突发多少个请求，也即实际并发上限；它不是并发闸门，
+   * 持续吞吐由 `delay` 决定。想串行化请设为 `1` 并配合 `delay`。
+   *
+   * 所有 Service 共享同一个桶：432 后的暂停与平均速率对整实例生效。
+   */
+  burst?: number
+  /**
+   * 令牌补充间隔毫秒数（默认 1000，必须为 >= 0 的有限数），即平均每 N ms 允许一个请求。
+   *
+   * `0` 明确表示不限速（不消耗令牌、不等待）。非法值在构造时抛 `CONFIG_INVALID`。
+   */
+  delay?: number
 
   /**
    * 请求级重试策略（默认 `retries: 2`，指数退避 + jitter）。

@@ -1,6 +1,6 @@
 # 行动计划：下游交接（API 稳定子集 + 公开文档站）
 
-> **状态**：进行中（2026-10-22 启动）。目标版本 `0.6.0`（0.5.0 已发布）。
+> **状态**：实施完成（2026-10-23），待 `0.6.0` 发布。目标版本 `0.6.0`（0.5.0 已发布）。
 > **来源**：0.5.0 发布时的文档评估（[development-log/2026-10-22.md](../development-log/2026-10-22.md)）与公开面审计。
 > **目标**：把 SDK 交给下游前，收口公开面并建立可强制校验的公开文档；公开文档站与内部 `docs/` 物理分离。
 
@@ -21,13 +21,13 @@
 见 [api-stability.md](../engineering/api-stability.md)。
 
 - **Stable**：门面与配置、返回领域模型的读取/流方法、领域模型、归档契约、扩展端口、错误体系。
-- **Experimental**：返回原始上游形状的方法、42 个 `z.infer` 响应类型、辅助函数。
-- **Internal**：endpoint `*Args`、`*Deps`、`IResource`、分页/日志/遥测内部工具、`Tweet`/`User` 类等，从包根移除。
+- **Experimental**：返回原始上游形状的 `fetchRaw*` 方法、辅助函数。
+- **Internal**：所有上游响应类型（`*Response` / `*Item`）、endpoint `*Args`、`*Deps`、`IResource`、分页/日志/遥测内部工具、`Tweet`/`User` 类等，从包根移除。
 
 ## P0 公开面收口
 
 1. 返回类型统一：`getById` → `IUser`；`getByMblogId` / `enrich().tweet` / 所有 `stream*` → `ITweet`；`ArchiveItem.tweet` → `ITweet`。
-2. 命名：9 个匿名参数类型具名化；`comments` / `replies` 选项字段改 camelCase；补导出 `TweetPageResult`、`TweetFriendTimelineStreamProgress`、`FollowingUser`。
+2. 命名：9 个匿名参数类型具名化；`comments` / `replies` 选项字段改 camelCase；补导出 `TweetPageResult`、`TweetFriendTimelineStreamProgress`。后续输出归一化把 `FollowingUser` 替换为 `UserBrief`。
 3. 收窄包根导出，删除 Internal 符号；`src/index.ts` 改显式具名导出。
 4. 修正 `capabilities()`：guest 可用的 `auth` 改 `guest`；修正 `methods` 名称；补 `tweets.replies`、`tweets.longText`、门面自身；新增「方法必须可调用」测试。
 5. 新增 `api-surface.json`、`scripts/check-api-surface.ts`：导出面快照 + 分类完整性 + 文档覆盖率；`pnpm check:api`。
