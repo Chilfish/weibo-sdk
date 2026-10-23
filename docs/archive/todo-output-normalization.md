@@ -1,6 +1,6 @@
 # 公开输出归一化（camelCase 契约）
 
-**状态**：实施中（2026-10-23）。
+**状态**：已完成并归档（2026-10-23）。历史记录，不主动读取。
 **目标**：下游从 SDK 拿到的所有数据都是归一化后的 camelCase 领域模型；上游 snake_case 只存在于显式的 `fetchRaw*` 低层入口。
 
 ## 1. 问题
@@ -241,7 +241,14 @@ interface SearchTweetPageResult {
 
 ## 6. DoD
 
-- [ ] 公开方法不再返回 snake_case 对象（`fetchRaw*` 除外）
-- [ ] 包根不再导出 `*Response` raw 类型
-- [ ] `pnpm typecheck` / `pnpm test` / `pnpm check:api` / `pnpm check:docs` / `pnpm docs:build` 全绿
-- [ ] `CHANGELOG.md` 有迁移说明
+- [x] 公开方法不再返回 snake_case 对象（`fetchRaw*` 除外）
+- [x] 包根不再导出 `*Response` raw 类型
+- [x] `pnpm typecheck` / `pnpm test` / `pnpm check:api` / `pnpm check:docs` / `pnpm docs:build` 全绿
+- [x] `CHANGELOG.md` 有迁移说明
+
+## 7. 结果（2026-10-23）
+
+- 新增 `UserBrief` / `ISelfProfile` / `TrendItem` / `FavoriteTag` 与 6 个 `*PageResult`。
+- 6 个 public service 的公开方法全部返回 camelCase 模型；raw 入口统一为 `fetchRaw*`。
+- 包根导出从 302 降到 267，raw 响应类型不再公开。
+- `pnpm test`：971 passed / 28 skipped；CLI 用真实 Cookie 冒烟通过。
