@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "tiers": {
     "stable": [
       "ARCHIVE_SCHEMA_ID",
@@ -169,7 +169,7 @@
       "fetchTransport",
       "mergeArchiveFiles"
     ],
-    "experimental": [
+    "evolving": [
       "AlbumPhotoListOptions",
       "AlbumPhotoStreamOptions",
       "AlbumStreamProgress",
@@ -218,14 +218,11 @@
       "NotificationStreamOptions",
       "NotificationStreamProgress",
       "PaginationProgress",
-      "ParsedTweetId",
       "PluginRequestInfo",
-      "SchemaDiffEntry",
       "StreamLimitOptions",
       "StreamRangeOptions",
       "SuperTopicListOptions",
       "SuperTopicStreamOptions",
-      "TWEET_CONTEXT_SCHEMA",
       "TransportFailure",
       "TransportFailureKind",
       "TweetCommentsOptions",
@@ -235,7 +232,6 @@
       "TweetEnrichOptions",
       "TweetFriendTimelineListOptions",
       "TweetFriendTimelineStreamOptions",
-      "TweetIdKind",
       "TweetLikersOptions",
       "TweetLikersStreamOptions",
       "TweetLikersStreamProgress",
@@ -256,24 +252,35 @@
       "VideoWaterfallListOptions",
       "VideoWaterfallStreamOptions",
       "WEIBO_CAPABILITIES",
-      "buildTweetContext",
-      "diffSchemaDigest",
       "formatArchiveProgress",
-      "formatSchemaDrift",
       "isArchiveProgress",
-      "listCapabilities",
-      "midToMblogId",
-      "migrateTweetV1toV2",
-      "normalizeComment",
-      "normalizeLiker",
-      "normalizeTweet",
-      "normalizeTweetIdInput",
-      "normalizeTweetUser",
-      "parseTweetIdInput",
-      "renderTweetContextMarkdown"
+      "listCapabilities"
     ]
   },
   "allowStablePatternExceptions": [],
+  "methodTiers": {
+    "evolving": [
+      "FavoriteService.fetchRawFavorites",
+      "FavoriteService.fetchRawTags",
+      "FollowingsService.fetchRawFans",
+      "FollowingsService.fetchRawFollowings",
+      "FollowingsService.fetchRawMyFollowings",
+      "MediaService.fetchRawImagePage",
+      "MediaService.fetchRawVideoPage",
+      "SearchService.fetchRawSearchTweets",
+      "SearchService.fetchRawSearchUsers",
+      "TrendsService.fetchRawBand",
+      "TweetService.fetchRawComments",
+      "TweetService.fetchRawLongText",
+      "TweetService.fetchRawReposts",
+      "TweetService.fetchRawReplies",
+      "TweetService.fetchRawSearchByDate",
+      "TweetService.fetchRawUserTimelinePage",
+      "UserService.fetchRawDetails",
+      "UserService.fetchRawInfo",
+      "UserService.fetchRawMyDetails"
+    ]
+  },
   "serviceDocs": {
     "WeiboSDK": [
       "website/api/sdk.md"

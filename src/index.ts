@@ -4,15 +4,7 @@ import pkg from '../package.json' with { type: 'json' }
 export const VERSION = pkg.version
 
 export * from './capabilities'
-export {
-  migrateTweetV1toV2,
-  normalizeComment,
-  normalizeLiker,
-  normalizeTweet,
-  normalizeTweetUser,
-} from './models/data'
 export * from './models/errors'
-export { buildTweetContext, renderTweetContextMarkdown } from './models/view/TweetContext'
 export type {
   Credential,
   CredentialResolveContext,
@@ -54,7 +46,6 @@ export type {
   JsonlLoggerOptions,
   LogWriteStream,
 } from './utils/logger'
-export * from './utils/schemaDrift'
 export {
   createJsonlTelemetry,
   formatArchiveProgress,
@@ -67,5 +58,4 @@ export type {
   JsonlTelemetryOptions,
   TelemetryJsonlInput,
 } from './utils/telemetryJsonl'
-export * from './utils/tweetId'
 export * from './WeiboSDK'
