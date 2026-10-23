@@ -30,11 +30,11 @@ pnpm play cli:home
 pnpm play cli:attachments RnQe6zQ70
 ```
 
-SDK 场景在仓库内通过 `tsconfig.json` 的 `paths` 把 `@chilfish/weibo-sdk` 指向 `src/index.ts`，所以不需要先构建。CLI 场景运行 `dist/cli-bin.mjs`，需要先执行 `pnpm build`，也可以用 `WEIBO_CLI_BIN` 指向已安装的 `weibo-cli`。
+SDK 场景通过 `tsconfig.json` 的 `paths` 指向 `src/index.ts`，可以直接运行。CLI 场景运行 `dist/cli-bin.mjs`，先执行 `pnpm build`；也可以用 `WEIBO_CLI_BIN` 指向已安装的 `weibo-cli`。
 
-## 访客模式（不需要 Cookie）
+## 访客模式
 
-只想看一眼公开数据时，连 `.env` 都不用准备。CLI 的每个命令都支持 `--guest`，直接在仓库根目录用 `pnpm tsx` 跑源码：
+只看公开数据时，CLI 的每个命令都支持 `--guest`，直接在仓库根目录用 `pnpm tsx` 跑源码：
 
 ```bash
 pnpm tsx src/cli.ts whoami --guest
@@ -44,13 +44,13 @@ pnpm tsx src/cli.ts trends --guest
 pnpm tsx src/cli.ts user timeline <uid> --guest   # 只有第一页，结果带 partial: true
 ```
 
-不传 `--guest` 又没有可用 Cookie 时，也会自动使用访客身份。访客读不到收藏、通知、@ 我、历史评论、首页关注时间线和归档；这些能力会返回 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）或 `CONFIG_INVALID`。
+没有可用 Cookie 时，也会自动使用访客身份。收藏、通知、@ 我、历史评论、首页关注时间线和归档需要 Cookie，访客调用会返回 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）或 `CONFIG_INVALID`。
 
 `playground/` 里的 SDK / CLI 场景都按登录态编写，会读取 `.env`，因此需要先准备 Cookie。
 
 ## Cookie 规则
 
-和 CLI 一致：只读 `.env` 文件，不读 shell 环境变量，避免旧 Cookie 静默覆盖新值。
+与 CLI 一致：只读 `.env` 文件，Cookie 只有一个来源。
 
 优先级从低到高：
 
@@ -106,7 +106,7 @@ pnpm play download-media QqsYymYOS --include pic,video --write
 
 ## 扩展：自定义 transport 与插件
 
-先跑离线示例，不需要 Cookie：
+先跑离线示例：
 
 ```bash
 pnpm play plugins
@@ -115,7 +115,7 @@ pnpm play plugins
 它演示了四件事：
 
 1. 用 `fetchTransport({ fetch })` 替换默认 axios（同一套代码可跑在 Worker / Edge / 测试替身里）。
-2. `transport` 中间件做缓存：第二次请求直接命中，不再调用 fetch。
+2. `transport` 中间件做缓存：第二次请求直接命中缓存。
 3. 生命周期钩子：`beforeRequest` 加请求头、`afterResponse` 看 raw、`beforeRetry` 改延迟（或返回 `{ retry: false }` 停止重试）。
 4. `observe` 收到 `request_start` / `request_retry` / `request_success`，`onError` 把上游 500 替换成业务错误。
 
@@ -150,7 +150,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-约束：插件只在 `new WeiboSDK()` 时组装（不支持 `sdk.use()` 热插拔）；同名插件或 `apiVersion !== 1` 会抛 `CONFIG_INVALID`；`observe` 是只读观察者，抛错不会影响请求。完整契约见 [插件与传输适配](../website/reference/plugins.md)。
+约束：插件只在 `new WeiboSDK()` 时组装，没有 `sdk.use()` 热插拔；同名插件或 `apiVersion !== 1` 会抛 `CONFIG_INVALID`；`observe` 是只读观察者，抛错会被吞掉。完整契约见 [插件与传输适配](../website/reference/plugins.md)。
 
 ## CLI 场景
 
@@ -177,16 +177,16 @@ const sdk = new WeiboSDK({
 ## 输出与安全
 
 - 产物写到 `playground/output/`，该目录已加入 `.gitignore`。包括归档 NDJSON、checkpoint、raw、媒体文件和 telemetry JSONL。
-- 所有示例默认有界：流式场景 `maxPages: 1`，归档默认 `--max-items 200`，不会无限翻页。
-- 媒体下载默认 dry-run，只有加 `--write` 才真正下载。
-- 只读，不提供发帖、点赞、转发、评论、关注等写操作。
+- 所有示例默认有界：流式场景 `maxPages: 1`，归档默认 `--max-items 200`。
+- 媒体下载默认 dry-run，加 `--write` 才下载。
+- 项目只读；发帖、点赞、转发、评论、关注等写操作不在范围内。
 - 媒体 URL 是短期签名地址，通常约一小时后失效，归档时需要及时下载。
 - 请只使用自己的账号 Cookie，并遵守微博条款和合理的请求频率。
 
 ## 新增 SDK 场景
 
 1. 在 `playground/sdk/` 新建文件，导出 `scenario: SdkScenario`，包含 `kind`、`id`、`title`、`summary`、`usage` 和 `run`。
-2. 从 `@chilfish/weibo-sdk` 导入，不要从 `src/` 的相对路径导入，保持用户视角。
+2. 从 `@chilfish/weibo-sdk` 导入，保持用户视角。
 3. 在 `playground/run.ts` 的 `SDK_SCENARIOS` 中注册。
 4. 运行 `pnpm run typecheck` 和 `pnpm play <id>`。
 5. 纯离线场景加上 `requiresCookie: false`。

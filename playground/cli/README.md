@@ -4,7 +4,7 @@
 
 CLI 默认从 `.env` 读取 Cookie，默认读取当前目录的 `.env`。可以用 `--env-file` 指定其他文件，或用 `--cookie` 临时覆盖。查询命令默认输出 JSON，多数命令可加 `--format markdown` 换成可读卡片 / 列表；`*-stream`、`archive` 和 `media download` 输出 NDJSON。
 
-没有 Cookie 时可以用 `--guest` 走访客身份，它不会读 `.env`。访客只能读公开数据：用户时间线、点赞、关注、粉丝只有第一页（`--page 2` 报 `CONFIG_INVALID`），收藏、通知、@ 我、历史评论、首页关注时间线和归档都不可用。
+没有 Cookie 时可以用 `--guest` 走访客身份，`.env` 不参与。访客可读公开数据；用户时间线、点赞、关注、粉丝只有第一页（`--page 2` 报 `CONFIG_INVALID`），收藏、通知、@ 我、历史评论、首页关注时间线和归档需要 Cookie。
 
 ```bash
 # 登录态 / 能力
@@ -12,7 +12,7 @@ weibo-cli whoami
 weibo-cli capabilities --status stable
 weibo-cli capabilities --status degraded
 
-# 访客模式（不读 .env，不需要 Cookie）
+# 访客模式：忽略 .env
 weibo-cli whoami --guest
 weibo-cli tweet detail <id> --guest
 weibo-cli tweet comments <id> --guest
@@ -105,4 +105,4 @@ weibo-cli archive 1111681197 --no-favorites --max-pages 1 >./output/archive.ndjs
 
 ## 有界运行
 
-示例默认都加了 `--max-pages 1`。去掉上限前，先确认账号规模和微博的限流情况。`archive` 的 `--max-pages` 限制的是每个阶段，不是整个归档任务。
+示例默认都加了 `--max-pages 1`。去掉上限前，先确认账号规模和微博的限流情况。`archive` 的 `--max-pages` 限制每个阶段。

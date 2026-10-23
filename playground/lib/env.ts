@@ -11,7 +11,7 @@ export const OUTPUT = join(PLAYGROUND, 'output')
 /**
  * 读取 `.env`：根目录 → `playground/.env` → 显式 `--env-file`，后者覆盖前者。
  *
- * 与 CLI 一样**不读取进程环境变量**，避免 shell 里的旧 Cookie 静默遮蔽文件里的新值。
+ * 与 CLI 一样只读 `.env`，Cookie 只有一个来源。
  */
 export function loadEnv(options: { envFile?: string } = {}): PlaygroundEnv {
   const explicit = options.envFile ? resolve(options.envFile) : undefined

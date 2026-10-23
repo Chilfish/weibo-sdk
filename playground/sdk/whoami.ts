@@ -27,7 +27,7 @@ export const scenario: SdkScenario = {
 
     const uid = session.uid
     if (!uid) {
-      log.warn('myDetails 未返回 verified_url，无法解析当前 uid；直接打印原始详情')
+      log.warn('myDetails 未返回 verified_url，当前 uid 未知；打印原始详情')
       log.json(details)
       return
     }

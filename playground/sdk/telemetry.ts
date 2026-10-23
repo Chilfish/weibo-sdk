@@ -76,7 +76,7 @@ export const scenario: SdkScenario = {
     log.kv('written', telemetry.written)
     log.kv('dropped', telemetry.dropped)
     log.kv('file', file)
-    log.info('接入真实 SDK：new WeiboSDK({ cookie, telemetry })；emit 失败不会影响业务。')
+    log.info('接入真实 SDK：new WeiboSDK({ cookie, telemetry })；emit 失败会被吞掉。')
     log.info('消费端可直接 `jq -c \'select(.event_name=="archive_progress")\' events.ndjson`。')
   },
 }

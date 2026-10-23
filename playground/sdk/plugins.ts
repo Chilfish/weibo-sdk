@@ -132,7 +132,7 @@ export const scenario: SdkScenario = {
     const first = await sdk.users.getById(UID)
     log.kv('user', first.name)
 
-    log.heading('第 2 次请求：命中 transport 缓存，不再调用 fetch')
+    log.heading('第 2 次请求：命中 transport 缓存')
     const second = await sdk.users.getById(UID)
     log.kv('sameUser', second.name)
 
@@ -178,6 +178,6 @@ export const scenario: SdkScenario = {
     log.heading('下一步')
     log.info('插件契约：website/reference/plugins.md（https://weibo-sdk.chilfish.top/reference/plugins）')
     log.info('同一套 API 也适用于 Worker / Edge：new WeiboSDK({ transport: fetchTransport({ fetch: myFetch }) })')
-    log.info('插件必须在构造期传入，不支持热插拔；observe 抛错不会影响请求。')
+    log.info('插件在构造期传入，没有热插拔；observe 抛错会被吞掉。')
   },
 }

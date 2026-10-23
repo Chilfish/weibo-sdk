@@ -18,7 +18,7 @@ export const scenario: SdkScenario = {
       log.kv('incremental tweets', page.tweets.length)
       for (const tweet of page.tweets.slice(0, 10))
         printTweet(tweet, log)
-      log.info('since_id 只返回比该微博更新的条目（单页），不是翻页游标。')
+      log.info('since_id 只返回比该微博更新的条目（单页），翻页请用 max_id。')
       return
     }
 
@@ -37,6 +37,6 @@ export const scenario: SdkScenario = {
 
     log.kv('tweets', count)
     log.kv('next page', '把本页返回的 maxId 传给 maxId / --max-id 可翻旧页')
-    log.warn('total_number 实测恒为 2000 上限值，不能当作剩余条数。')
+    log.warn('total_number 实测恒为 2000 上限值，只作观察。')
   },
 }
