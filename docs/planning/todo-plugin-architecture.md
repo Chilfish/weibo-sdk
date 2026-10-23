@@ -1,6 +1,6 @@
 # 行动计划：插件化、传输适配与包完整性（PF1–PF6）
 
-> **状态**：PF1–PF6 已完成（2026-10-21）。验收结果见 [development-log/2026-10-21.md](../development-log/2026-10-21.md)；后续扩展点见 [plugins.md](../engineering/plugins.md) §9 与 backlog EX1–EX9。
+> **状态**：PF1–PF6 已完成（2026-10-21）。验收结果见 [development-log/2026-10-21.md](../development-log/2026-10-21.md)；后续扩展点见 [plugins.md](../../website/reference/plugins.md) §9 与 backlog EX1–EX9。
 
 **来源**：[research-plugin-architecture-2026-10-21.md](./research-plugin-architecture-2026-10-21.md)、[package-integrity.md](../engineering/package-integrity.md)、[ADR-014 / ADR-015 / ADR-016](./architecture.md)。
 **目标**：在不改变默认路径（`new WeiboSDK({})`）行为的前提下，抽出可替换的传输端口、凭证解析端口与插件管线，并把发布产物核验升级为真实 tarball 门禁。
@@ -91,7 +91,7 @@
 
 ### PF6 零配置 DX 收口（P2，文档为主）
 
-- 新增 `docs/engineering/plugins.md`（插件 API、上下文、顺序、错误语义、示例）。
+- 新增 `website/reference/plugins.md`（插件 API、上下文、顺序、错误语义、示例）。
 - `README` / `playground` / `AGENTS.md` 增加 `transport` / `plugins` 示例。
 - 默认值表与 research §6.2 对齐；不新增 CLI flag。
 
@@ -176,4 +176,4 @@ scripts/test-bundle.mjs
 | B：CredentialResolver | `src/services/internal/CredentialResolver.ts`、`AuthProvider.ts` 删除、`WeiboSDK.ts` 引用 | A 完成后 |
 | C：插件管线 | `src/services/internal/plugins/**`、`FetcherService.ts` | B 完成后 |
 | D：包完整性门禁（并行） | `package.json`、`tsdown.config.ts`、`src/cli.ts`、`src/cli-bin.ts`、`scripts/*`、`tests/unit/entry/exports.test.ts` | 无 |
-| E：测试 / 文档（并行） | `tests/component/internal/TransportContract.test.ts`、`tests/testkit/fakeFetch.ts`、`docs/engineering/plugins.md` | A / C 接口稳定后 |
+| E：测试 / 文档（并行） | `tests/component/internal/TransportContract.test.ts`、`tests/testkit/fakeFetch.ts`、`website/reference/plugins.md` | A / C 接口稳定后 |

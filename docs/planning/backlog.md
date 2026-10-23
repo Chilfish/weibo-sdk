@@ -61,7 +61,7 @@
 
 ### 扩展点候选（2026-10-21）
 
-> 依据：[plugins.md](../engineering/plugins.md) §8 当前能力矩阵 / §9 后续候选。原则：只加可选端口与钩子，不改默认路径；不开放 retry / rate-limit / auth-refresh 顺序。
+> 依据：[plugins.md](../../website/reference/plugins.md) §8 当前能力矩阵 / §9 后续候选。原则：只加可选端口与钩子，不改默认路径；不开放 retry / rate-limit / auth-refresh 顺序。
 
 | # | 任务 | 状态 | 优先级 | 说明 |
 |---|---|---|---|---|

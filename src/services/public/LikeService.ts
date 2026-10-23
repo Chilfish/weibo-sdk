@@ -1,6 +1,7 @@
 import type { LikeListResponse } from '../endpoints/like'
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
+import type { ITweet } from '~/types/domain/ITweet'
 import type { StreamLimitOptions } from '~/utils/streamRange'
 import { isRawTweet, Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
@@ -21,7 +22,7 @@ export interface LikePageResult {
    */
   hasMore: boolean
   /** 本页归一化后的微博（已按 `mblogid` 去重） */
-  tweets: Tweet[]
+  tweets: ITweet[]
   /**
    * 是否为不完整采样。
    *
@@ -199,9 +200,9 @@ export class LikeService extends FetcherService {
    *   console.log(tweet.mblogId, tweet.text)
    * }
    */
-  async* streamByUserId(uid: string, options: LikeStreamOptions = {}): AsyncIterableIterator<Tweet> {
+  async* streamByUserId(uid: string, options: LikeStreamOptions = {}): AsyncIterableIterator<ITweet> {
     const maxPages = normalizeMaxPages(options.maxPages)
-    const range = createStreamRange<Tweet>(options)
+    const range = createStreamRange<ITweet>(options)
     let page = normalizePage(options.page)
     let pages = 0
     let processed = 0

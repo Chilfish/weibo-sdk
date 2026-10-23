@@ -7,18 +7,18 @@ export const scenario: SdkScenario = {
   kind: 'sdk',
   id: 'home-feed',
   title: '首页关注时间线',
-  summary: 'streamFriendTimeline（max_id 翻旧页）+ listFriendTimeline({ since_id }) 增量',
+  summary: 'streamFriendTimeline（max_id 翻旧页）+ listFriendTimeline({ sinceId }) 增量',
   usage: 'pnpm play home-feed [--max-pages 2] [--since-id <微博数字 id>]',
   async run({ sdk, args, log }) {
     const maxPages = flagNumber(args, 'max-pages', 1)
     const sinceId = flagString(args, 'since-id')
 
     if (sinceId) {
-      const page = await sdk.tweets.listFriendTimeline({ since_id: sinceId })
+      const page = await sdk.tweets.listFriendTimeline({ sinceId })
       log.kv('incremental tweets', page.tweets.length)
       for (const tweet of page.tweets.slice(0, 10))
         printTweet(tweet, log)
-      log.info('since_id 只返回比该微博更新的条目（单页），不是翻页游标。')
+      log.info('since_id 只返回比该微博更新的条目（单页），翻页请用 max_id。')
       return
     }
 
@@ -37,6 +37,6 @@ export const scenario: SdkScenario = {
 
     log.kv('tweets', count)
     log.kv('next page', '把本页返回的 maxId 传给 maxId / --max-id 可翻旧页')
-    log.warn('total_number 实测恒为 2000 上限值，不能当作剩余条数。')
+    log.warn('total_number 实测恒为 2000 上限值，只作观察。')
   },
 }

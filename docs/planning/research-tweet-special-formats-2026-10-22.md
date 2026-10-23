@@ -545,7 +545,7 @@ export interface TweetLotteryAttachment extends TweetAttachmentBase {
 ### 3.3 契约与发布约束
 
 - `ITweet` 新增 optional 字段：**minor**，但必须同步：
-  - `docs/engineering/contract-itweet-v2.md` 的字段冻结表；
+  - `website/reference/tweet-contract-v2.md` 的字段冻结表；
   - `schemas/weibo-user-archive/v2.json`（`pnpm schema:archive` + `pnpm schema:check`）；
   - 契约键集测试（若存在）与 `CHANGELOG.md`。
 - 不修改 `pageInfo` / `linkCards` / `media` / `audio` 的既有语义。
@@ -1246,7 +1246,7 @@ POST https://weibo.com/tv/api/component?page=%2Ftv%2Fhome&m=home
 - [ ] `pnpm run validate:fixtures`
 - [ ] `pnpm run schema:check`
 - [ ] `pnpm run build`
-- [ ] `docs/engineering/contract-itweet-v2.md` 与代码一致
+- [ ] `website/reference/tweet-contract-v2.md` 与代码一致
 
 ---
 
@@ -1292,7 +1292,7 @@ opencli browser open "https://weibo.com/ttarticle/p/show?id=<article id>" --sess
 
 ## 11. 参考
 
-- `ITweet` v2 契约：[contract-itweet-v2.md](../engineering/contract-itweet-v2.md)
+- `ITweet` v2 契约：[tweet-contract-v2.md](../../website/reference/tweet-contract-v2.md)
 - 端点开发流程：[endpoint-authoring.md](../engineering/endpoint-authoring.md)
 - Agent 视角上下文：[research-agent-view-2026-10-20.md](./research-agent-view-2026-10-20.md)
 - 现有 m 站容器归一化：`src/services/endpoints/mobile.ts`

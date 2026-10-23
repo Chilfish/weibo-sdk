@@ -1,6 +1,5 @@
 export type {
   MyCommentItem,
-  MyCommentsArgs,
   MyCommentsResponse,
 } from '../services/endpoints/commentHistory'
 export type {
@@ -13,33 +12,26 @@ export type {
 } from '../services/endpoints/follow'
 export type {
   FeedGroupsResponse,
-  MblogGroupsArgs,
   MblogGroupsResponse,
 } from '../services/endpoints/groups'
 export type {
   LikeItem,
-  LikeListArgs,
   LikeListResponse,
 } from '../services/endpoints/like'
-export type { LikersArgs, LikersResponse } from '../services/endpoints/likers'
+export type { LikersResponse } from '../services/endpoints/likers'
 export type {
   AlbumDetailResponse,
   ImageWallResponse,
   WaterfallResponse,
 } from '../services/endpoints/media'
-export type {
-  MentionsViewArgs,
-  MentionsViewResponse,
-} from '../services/endpoints/mentions'
+export type { MentionsViewResponse } from '../services/endpoints/mentions'
 export type {
   MobileCard,
   MobileCardPic,
-  MobileContainerArgs,
   MobileContainerResponse,
 } from '../services/endpoints/mobile'
 export type {
   AttitudeItem,
-  MessageArgs,
   MessageAttitudesResponse,
   MessageCommentsResponse,
 } from '../services/endpoints/notifications'
@@ -77,7 +69,6 @@ export type {
   ArchivePhase,
   ArchiveProgress,
   ArchiveRawMeta,
-  ArchiveServiceDeps,
   ArchiveStreamOptions,
   ArchiveTimelineSource,
   ArchiveUserItem,
@@ -99,6 +90,7 @@ export type {
   FollowingsSource,
   FollowingsStreamOptions,
   FollowingsStreamProgress,
+  FollowingUser,
 } from '../services/public/FollowingsService'
 export type {
   LikeListOptions,
@@ -115,7 +107,6 @@ export type {
   ImageWallListOptions,
   ImageWallPageResult,
   ImageWallStreamOptions,
-  MediaServiceDownloadDeps,
   MediaStreamProgress,
   VideoWaterfallListOptions,
   VideoWaterfallPageResult,
@@ -134,22 +125,27 @@ export type {
   SuperTopicStreamOptions,
 } from '../services/public/TopicService'
 export type {
+  TweetCommentsOptions,
   TweetCommentsStreamOptions,
   TweetCommentsStreamProgress,
-  TweetContextDeps,
   TweetContextOptions,
   TweetEnrichOptions,
   TweetEnrichResult,
+  TweetFriendTimelineListOptions,
   TweetFriendTimelineStreamOptions,
   TweetLikersOptions,
   TweetLikersPageResult,
   TweetLikersStreamOptions,
   TweetLikersStreamProgress,
+  TweetPageResult,
+  TweetRepliesOptions,
+  TweetRepostsListOptions,
   TweetRepostsStreamOptions,
   TweetRepostsStreamProgress,
+  TweetSearchByDateOptions,
+  TweetUserTimelineListOptions,
   TweetUserTimelineStreamOptions,
 } from '../services/public/TweetService'
-export type { UserArchiveServiceDeps } from '../services/public/UserArchiveService'
 export type {
   UserMentionsListOptions,
   UserMentionsPageResult,
@@ -157,8 +153,6 @@ export type {
   UserMentionsStreamProgress,
 } from '../services/public/UserService'
 export type {
-  PaginateOptions,
-  PaginationPage,
   PaginationProgress,
 } from '../utils/pagination'
 export type {
@@ -182,6 +176,5 @@ export * from './hooks'
 export * from './logging'
 export * from './media'
 
-export * from './resources'
 export * from './session'
 export * from './telemetry'

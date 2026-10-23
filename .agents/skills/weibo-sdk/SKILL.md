@@ -158,7 +158,7 @@ const sdk = new WeiboSDK({
 - 插件在构造期组装，按 `pre → normal → post` 排序；同名或 `apiVersion !== 1` 直接 `CONFIG_INVALID`。
 - `transport` 中间件可缓存 / mock / 熔断 / 签名；`beforeRequest` / `afterResponse` / `beforeRetry` / `onError` 可改请求、重试延迟或终态错误；`observe` 只读且吞异常。
 - 默认仍是 axios；`new WeiboSDK({})` 零配置行为不变。
-- 完整契约：`docs/engineering/plugins.md`；离线示例：`pnpm play plugins`。
+- 完整契约：`website/reference/plugins.md`（公开站点）；离线示例：`pnpm play plugins`。
 
 ### 6. 新增或修正端点
 
@@ -259,4 +259,4 @@ weibo tweet home --max-id <maxId>            # 往旧翻
 
 - `references/cli.md` — 完整命令树、分组、常用 flag、输出形态。
 - `references/sdk.md` — SDK 服务与方法、模型字段（`ITweet` / `IUser` / `ITweetContext`）、归档产物结构。
-- 仓库文档：`docs/engineering/cli.md`、`docs/engineering/technical-spec.md`、`docs/engineering/plugins.md`、`docs/engineering/endpoint-authoring.md`、`docs/engineering/error-diagnostics.md`、`docs/postmortem/README.md`（写码前必读高频雷区）。
+- 仓库文档：`website/cli/index.md`、`docs/engineering/cli-architecture.md`、`docs/engineering/technical-spec.md`、`website/reference/plugins.md`、`docs/engineering/endpoint-authoring.md`、`website/reference/troubleshooting.md`、`docs/postmortem/README.md`（写码前必读高频雷区）。

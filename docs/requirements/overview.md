@@ -43,9 +43,9 @@ export const mySpec = defineEndpoint({
 
 | 服务 | 门面属性 | 主要方法 |
 |---|---|---|
-| `UserService` | `sdk.users` | `info` / `details` / `myDetails` / `getById` / `listMentions` / `streamMentions` / `groups` / `mblogGroups` |
-| `TweetService` | `sdk.tweets` | `listByUserId` / `streamByUserId` / `getByMblogId` / `comments` / `streamComments` / `replies` / `getReposts` / `longText` / `searchByDate` / `listFriendTimeline` / `streamFriendTimeline` / `likers` |
-| `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` / `streamFollowings` / `streamFans` |
+| `UserService` | `sdk.users` | `fetchRawInfo` / `fetchRawDetails` / `myDetails` / `getById` / `listMentions` / `streamMentions` / `groups` / `mblogGroups` |
+| `TweetService` | `sdk.tweets` | `listByUserId` / `streamByUserId` / `getByMblogId` / `enrich` / `context` / `comments` / `streamComments` / `replies` / `streamReplies` / `getReposts` / `streamReposts` / `longText` / `searchByDate` / `listFriendTimeline` / `streamFriendTimeline` / `likers` / `streamLikers` |
+| `FollowingsService` | `sdk.followings` | `getFollowings` / `getFans` / `getMyFollowings` / `streamFollowings` / `streamFans` / `streamMyFollowings` |
 | `FavoriteService` | `sdk.favorites` | `getFavorites` / `listFavorites` / `streamFavorites` / `getTags` |
 | `LikeService` | `sdk.likes` | `listByUserId` / `streamByUserId` |
 | `CommentHistoryService` | `sdk.commentHistory` | `listMine` / `streamMine` |
@@ -55,14 +55,15 @@ export const mySpec = defineEndpoint({
 | `TrendsService` | `sdk.trends` | `hotBand` |
 | `SearchService` | `sdk.search` | `searchUsers` / `searchTweets`（微博公开搜索接口目前不可用） |
 | `ArchiveService` | `sdk.archive` | `streamArchive` / `streamUsersArchive` |
+| `UserArchiveService` | `sdk.userArchive` | `run` / `stream` |
 
 ## 数据与错误
 
 领域模型定义在 `src/types/domain`，例如 `ITweet`、`IUser`、`ITweetComment` 和 `ArchiveItem`。原始响应到领域模型的转换都在 `src/models/data` 中，使用纯函数，便于单独测试。
 
-`ITweet` 当前为 v2：同一契约版本内只增加可选字段，不重命名、不删除，也不改变已有字段的类型。具体规则见 [contract-itweet-v2.md](../engineering/contract-itweet-v2.md)。
+`ITweet` 当前为 v2：同一契约版本内只增加可选字段，不重命名、不删除，也不改变已有字段的类型。具体规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)。
 
-错误统一继承 `WeiboSDKError`，带有 `code`、`level`、`retryable` 和 `context`。HTTP 错误、业务错误和协议错误分别由不同子类表示，处理方式见 [error-diagnostics.md](../engineering/error-diagnostics.md)。
+错误统一继承 `WeiboSDKError`，带有 `code`、`level`、`retryable` 和 `context`。HTTP 错误、业务错误和协议错误分别由不同子类表示，处理方式见 [故障排查](../../website/reference/troubleshooting.md)。
 
 ## 测试
 
@@ -107,8 +108,8 @@ pnpm run typecheck
 ## 相关文档
 
 - [README](../../README.md)
-- [CLI 参考](../engineering/cli.md)
+- [CLI 参考](../../website/cli/index.md)
 - [端点开发指南](../engineering/endpoint-authoring.md)
-- [错误排障手册](../engineering/error-diagnostics.md)
+- [故障排查](../../website/reference/troubleshooting.md)
 - [技术规格](../engineering/technical-spec.md)
 - [开发路线图](../planning/roadmap.md)

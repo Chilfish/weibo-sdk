@@ -13,7 +13,7 @@ import { TWEET_CONTRACT_VERSION } from '~/types/domain/ITweet'
  * - 类型层：`keyof ITweet` 精确等于冻结键集（rename / remove / 新增必改此处，编译期即失败）
  * - 运行时层：真实 fixture（mymblog_page1.json，含 pic_infos 样本）归一化产物的键集快照
  *
- * 冻结规则与迁移策略见 docs/engineering/contract-itweet-v2.md。
+ * 冻结规则与迁移策略见 website/reference/tweet-contract.md。
  */
 describe('iTweet v2 contract freeze', () => {
   it('exports TWEET_CONTRACT_VERSION = 2', () => {

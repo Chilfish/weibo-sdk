@@ -182,7 +182,7 @@ export interface IWeiboConfig {
    * Wide Events 与生命周期事件映射成带级别的日志记录；不会额外埋点。
    *
    * 内置实现：`createConsoleLogger()` / `createJsonlLogger()` / `createMultiLogger()`；
-   * 也可以直接实现 `WeiboLogger`。详见 `docs/engineering/logging.md`。
+   * 也可以直接实现 `WeiboLogger`。详见 `website/reference/logging.md`。
    */
   logger?: WeiboLogger
 

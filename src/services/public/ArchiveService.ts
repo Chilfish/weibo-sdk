@@ -3,7 +3,7 @@ import type { FavoritesResponse } from '../endpoints/favorite'
 import type { LikeListResponse } from '../endpoints/like'
 import type { ImageWallResponse, WaterfallResponse } from '../endpoints/media'
 import type { BuildCommentsResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse } from '../endpoints/tweet'
-import type { ITweetComment, TweetContractVersion } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetContractVersion } from '~/types/domain/ITweet'
 import type { IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
 import type { WeiboSDKTelemetry } from '~/types/telemetry'
 import { normalizeImageWallItem, normalizeWaterfallVideo } from '~/models/data/Media'
@@ -125,7 +125,7 @@ export interface ArchiveCheckpoint {
  * 归档流产出项（磁盘条目信封，K1 / P0-1）。
  *
  * `schemaVersion` 为 ITweet 存档契约版本（与包版本解耦），落盘条目据此自描述、
- * 下游可按版本迁移（规则与迁移策略见 docs/engineering/contract-itweet-v2.md）；
+ * 下游可按版本迁移（规则与迁移策略见 website/reference/tweet-contract.md）；
  * `tweet` 为归一化模型；`schemaDigest` 为 raw 项的结构快照（A7，`stripVolatileKeys`），
  * 用于检测上游字段漂移（同一源同一时期 digest 应稳定）——注意与契约版本用途不同。
  */
@@ -143,7 +143,7 @@ export interface ArchiveItem {
    *
    * `source: 'image'` 时缺省（图片墙条目不是完整微博）；其余来源恒有。
    */
-  tweet?: Tweet
+  tweet?: ITweet
   /** `source: 'image' | 'video'` 时为对应的媒体资产 */
   asset?: IUserMediaAsset
   schemaDigest: unknown

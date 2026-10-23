@@ -84,7 +84,7 @@ console.log(
         '在 tests/fixtures/raw/INDEX.md 与 scripts/validate-fixtures.ts 的 FIXTURE_RULES 登记',
         '补全 argsSchema / responseSchema，并用 fixture 做 safeParse',
         '在对应 Service 中调用 this.request(spec, args)，补归一化（可选）',
-        '补 CLI 子命令、unit / component 测试与 docs/engineering/cli.md',
+        '补 CLI 子命令、unit / component 测试与 website/cli/index.md',
       ],
     },
     null,

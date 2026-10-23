@@ -13,6 +13,7 @@ interface PackageJson {
   bin?: Record<string, string>
   engines?: { node?: string }
   exports?: Record<string, unknown>
+  files?: string[]
   main?: string
   module?: string
   types?: string
@@ -52,6 +53,10 @@ describe('package exports', () => {
     // bin 入口是内部实现，不暴露为子路径
     expect(pkg.exports!['./cli-bin']).toBeUndefined()
     expect(pkg.exports!['./package.json']).toBe('./package.json')
+
+    // R10：归档 schema 随包发布，离线也能校验
+    expect(pkg.exports!['./schemas/*']).toBe('./schemas/*')
+    expect(pkg.files).toContain('schemas')
 
     // P2-1：浏览器安全入口（自包含 ESM，无 Node-only API），类型复用 node 入口
     expect(pkg.exports!['./browser']).toEqual({

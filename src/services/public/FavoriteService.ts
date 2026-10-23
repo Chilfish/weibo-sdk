@@ -1,5 +1,6 @@
 import type { FavoritesResponse, FavoritesTagsResponse } from '../endpoints/favorite'
 import type { IWeiboConfig } from '~/types/config'
+import type { ITweet } from '~/types/domain/ITweet'
 import type { StreamLimitOptions } from '~/utils/streamRange'
 import { matchesFavoriteTag } from '~/models/data/Favorite'
 import { Tweet } from '~/models/data/Tweet'
@@ -25,7 +26,7 @@ export interface FavoritePageResult {
   /** 上游顶层 `total_page`（缺失时省略） */
   totalPages?: number
   /** 本页归一化后的收藏（已按 `mblogId` 去重，并应用 `tag` 过滤） */
-  tweets: Tweet[]
+  tweets: ITweet[]
 }
 
 /** `listFavorites` 的选项。 */
@@ -186,9 +187,9 @@ export class FavoriteService extends FetcherService {
    *   console.log(tweet.mblogId, tweet.text)
    * }
    */
-  async* streamFavorites(uid: string, options: FavoriteStreamOptions = {}): AsyncIterableIterator<Tweet> {
+  async* streamFavorites(uid: string, options: FavoriteStreamOptions = {}): AsyncIterableIterator<ITweet> {
     const maxPages = options.maxPages ?? Number.POSITIVE_INFINITY
-    const range = createStreamRange<Tweet>(options)
+    const range = createStreamRange<ITweet>(options)
     const tag = options.tag
     let page = normalizePage(options.page) ?? 1
     let pages = 0

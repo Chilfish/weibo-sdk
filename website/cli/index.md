@@ -1,6 +1,11 @@
+---
+title: 命令参考
+outline: deep
+---
+
 # Weibo CLI（`weibo-cli`）
 
-`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令默认输出 JSON，流式命令输出 NDJSON，方便直接交给脚本、`jq` 或 Agent 处理；需要给人或 Agent 直接阅读时，可用 `--format markdown` 换成可读卡片。
+`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建，与 SDK 共用服务与参数校验。查询命令默认输出 JSON，流式命令输出 NDJSON，可以直接接脚本、`jq` 或 Agent；加 `--format markdown` 得到可读卡片。
 
 ## 安装
 
@@ -12,14 +17,14 @@ npm i -g @chilfish/weibo-sdk && weibo-cli --help
 
 # 本仓库开发
 pnpm build        # 构建 dist/
-node dist/cli.mjs --help
+node dist/cli-bin.mjs --help
 # 或开发模式直接运行
-npx tsx src/cli.ts --help
+npx tsx src/cli-bin.ts --help
 ```
 
 ## 配置 Cookie
 
-CLI 默认从 `.env` 文件读取 Cookie，不读取 shell 环境变量。默认读取当前目录的 `.env`，可以用 `--env-file <path>` 指定其他文件：
+CLI 只读取 `.env`，默认当前目录，用 `--env-file <path>` 指定其他文件。`--cookie` / `-c` 在每个子命令上临时覆盖，优先级高于 `.env`，取值规则与 `.env` 相同。
 
 ```bash
 # .env（项目根目录）
@@ -34,9 +39,7 @@ WEIBO_COOKIE="SUB=xxx; XSRF-TOKEN=xxx; ..."
 # WEIBO_COOKIE="./cookies.header.txt"
 ```
 
-相对路径按当前工作目录解析。Netscape 格式按 7 列 TSV 解析，支持 `#HttpOnly_` 前缀和 `#` 注释；只保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 域名的 Cookie，过期条目会被跳过，同名 Cookie 以文件中靠后的为准。路径不存在、读取失败或文件里没有可用 Cookie 时，CLI 会输出 `CONFIG_INVALID` 错误并以非零状态退出。完全没有 Cookie（`.env` 里没有 `WEIBO_COOKIE`、也没传 `--cookie`）不算错误，会走访客身份。
-
-之所以不读取 `WEIBO_COOKIE` 环境变量，是因为本机残留的旧值会静默遮蔽 `.env` 中的新 Cookie。每个子命令都支持 `--cookie` / `-c` 临时覆盖，优先级高于 `.env`，取值规则与 `.env` 相同。
+相对路径按当前工作目录解析。Netscape 格式按 7 列 TSV 解析，支持 `#HttpOnly_` 前缀和 `#` 注释；只保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 域名的 Cookie，过期条目会被跳过，同名 Cookie 以文件中靠后的为准。路径不存在、读取失败或文件里没有可用 Cookie 时，CLI 输出 `CONFIG_INVALID` 错误并以非零状态退出。`.env` 里没有 `WEIBO_COOKIE` 且未传 `--cookie` 时，按访客身份运行。
 
 普通命令输出格式化后的 JSON，可以接管道处理：
 
@@ -58,9 +61,9 @@ weibo-cli trends --guest
 weibo-cli user timeline 1111681197 --guest
 ```
 
-- `--guest` 完全不读 `.env`，也不看 `--cookie`（访客身份会忽略 Cookie）。
-- 不传 `--guest` 又没有可用 Cookie 时，同样会走访客身份，这是默认的 `auth: 'auto'` 行为。区别在于：Cookie 是「路径不存在 / 解析失败」这类非法输入时仍然报 `CONFIG_INVALID`，不会静默降级。
-- `whoami --guest` 不请求登录态，只输出访客 token 的元信息，并以状态码 0 退出：
+- `--guest` 使用访客身份，`.env` 与 `--cookie` 不参与。
+- 没有可用 Cookie 时同样使用访客身份，即默认的 `auth: 'auto'`。Cookie 路径不存在、解析失败这类非法输入报 `CONFIG_INVALID`。
+- `whoami --guest` 只读取访客 token 元信息，以状态码 0 退出：
 
   ```json
   {
@@ -71,28 +74,21 @@ weibo-cli user timeline 1111681197 --guest
   }
   ```
 
-  `source` 为 `mobile` / `desktop` / `preset`，`scope` 为 `all`（m 站与主站通用）或 `pc`。token 明文不会出现在任何输出里。
+  `source` 为 `mobile` / `desktop` / `preset`，`scope` 为 `all`（m 站与主站通用）或 `pc`。输出只包含 `issuedAt` / `scope` / `source`。
 
-访客能读的范围：
+访客可用范围：
 
-| 能力 | 访客可用性 |
-|---|---|
-| `user info`、`tweet detail` / `enrich` / `longtext`、`media download` | 可用 |
-| `tweet comments` / `comments-stream` | 可用，可翻页 |
-| `tweet reposts` / `reposts-stream`、`tweet likers` / `likers-stream` | 可用 |
-| `media images` / `videos` / `albums` / `album` | 可用 |
-| `topic`、`trends`、`user groups` | 可用 |
-| `user timeline`、`like list`、`follow list` / `follow fans` | **只有第一页**：时间线 / 点赞输出带 `partial: true`，关注 / 粉丝用 `next_cursor: 0` 表示到底；`--page 2` 会报 `CONFIG_INVALID`；对应的 `-stream` 命令也只产出这一页 |
-| `tweet home`、`tweet search-profile`、`user mentions`、`user mblog-groups`、`follow my`、`favorite`、`comment`、`notification` | 不可用，报 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'` |
-| `archive` | 不可用，报 `CONFIG_INVALID`（匿名只有首屏数据，无法保证归档完整） |
+- 可用：`user info`、`tweet detail` / `enrich` / `longtext` / `comments` / `reposts` / `likers`、`media`、`topic`、`trends`、`user groups`、`whoami --guest`。
+- 只有第一页：`user timeline`、`like list`、`follow list` / `follow fans`。时间线 / 点赞输出带 `partial: true`，关注 / 粉丝的 `next_cursor` 为 `0`，`--page 2` 报 `CONFIG_INVALID`。
+- 需要 Cookie：`tweet home`、`tweet search-profile`、`user mentions`、`user mblog-groups`、`follow my`、`favorite`、`comment`、`notification`、`archive`。前八项报 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'`；`archive` 需要完整时间线，报 `CONFIG_INVALID`。
 
-`search users` / `search tweets` 与 Cookie 模式一样仍是 `unavailable`，访客不能搜索。
+`search users` / `search tweets` 在两种身份下都返回 `unavailable`。完整边界见 [范围与限制](/guide/limitations)。
 
-访客 token 由 `visitor.passport.weibo.cn` 发放，按进程缓存；被上游拒绝时 SDK 会自动刷新一次再重试。遇到 432 / 429 只会退避重试，不会刷新 token。
+访客 token 由 `visitor.passport.weibo.cn` 发放，按进程缓存；上游拒绝 token 时 SDK 自动刷新一次再重试。遇到 432 / 429 时按退避重试。
 
 ## 输出格式（`--format`）
 
-查询命令默认输出 2 空格缩进的 JSON，保持脚本与 `jq` 兼容；需要直接阅读时加 `--format markdown`（`md` 同义）：
+查询命令默认输出 2 空格缩进的 JSON；直接阅读时加 `--format markdown`（`md` 同义）：
 
 ```bash
 weibo-cli user info 1111681197 --format markdown
@@ -102,13 +98,13 @@ weibo-cli user info 1111681197 -f json          # 显式指定默认值
 | 取值 | 输出 |
 |---|---|
 | `json`（默认） | `JSON.stringify(data, null, 2)` |
-| `markdown` / `md` | 该命令的 Markdown 卡片（确定性投影，不含总结） |
+| `markdown` / `md` | 该命令的 Markdown 卡片（确定性投影） |
 
-- 未知取值报 `CONFIG_INVALID`（`context.field = 'format'`），不会静默回退到 JSON；格式在发请求前校验。
-- 列表类 Markdown 只截取正文摘要（默认 200 字符），完整字段仍需 `--format json`；分页游标、总数、`partial` 采样会写在标题下。
-- 标注「原始响应」的命令（如 `tweet enrich`）在 Markdown 视图里会显式说明 raw 只在 JSON 中输出。
+- 未知取值报 `CONFIG_INVALID`（`context.field = 'format'`），格式在发请求前校验。
+- 列表类 Markdown 只截取正文摘要（默认 200 字符），完整字段用 `--format json`；分页游标、总数、`partial` 采样写在标题下。
+- 标注「原始响应」的命令（如 `tweet enrich`）在 Markdown 视图里会说明 raw 只在 JSON 中输出。
 
-已接入的查询命令：
+支持 `--format` 的查询命令：
 
 | 分组 | 命令 |
 |---|---|
@@ -123,9 +119,9 @@ weibo-cli user info 1111681197 -f json          # 显式指定默认值
 | `topic` | `cates` / `list` |
 | 其他 | `trends` / `whoami`（含 `--guest`） |
 
-未接入：`*-stream` / `archive` / `media download` 的 NDJSON 是逐行协议；`favorite tags` 的标签元素结构尚未抓包；`search users` / `search tweets` 上游不可用；`capabilities` / `schema diff` 是诊断输出。`tweet context` 保留自己的 `--format`（默认 `markdown`）。
+`*-stream`、`archive`、`media download` 输出 NDJSON，`--format` 只作用于查询命令；`tweet context` 使用自己的 `--format`（默认 `markdown`）。
 
-渲染器与数据模型同层（`src/models/view/`），是纯函数：新增格式 = 一个渲染函数 + 在命令里注册。
+渲染器与数据模型同层（`src/models/view/`），是纯函数：新增格式即一个渲染函数加在命令里注册。
 
 ## 命令参考
 
@@ -155,8 +151,7 @@ weibo-cli user groups
 weibo-cli user mblog-groups
 ```
 
-> `user mentions` 只读取当前登录用户的 @ 提及（身份由 Cookie 决定）；`mentions-stream` 输出 NDJSON `progress` / `item` / `done`。
-> `user groups` 拍平 `/ajax/feed/allGroups` 的分类结构，`user mblog-groups` 读取 `/ajax/mblog/querygroup` 的 `join_groups`。
+`user mentions` 读取当前登录用户（由 Cookie 决定）的 @ 提及。`user groups` 拍平 `/ajax/feed/allGroups` 的分类结构，`user mblog-groups` 读取 `/ajax/mblog/querygroup` 的 `join_groups`。
 
 ### 微博操作（`tweet`）
 
@@ -175,15 +170,15 @@ weibo-cli tweet context RnANTz33M --comments 5 --format json       # 转发链 +
 # 补拉原始响应 + 归一化模型（raw 由调用方自行保存；--longtext 额外补拉全文）
 weibo-cli tweet enrich <mblogId> [--longtext] [--no-longtext]
 
-# 获取微博评论（首屏约 20 条；count 目前被微博忽略；flow=1 时 SDK 自动把 mblogId 解析为数字 mid）
+# 获取微博评论（首屏约 20 条；count 当前被微博忽略；flow=1 时 SDK 自动把 mblogId 解析为数字 mid）
 # --max-id 为上一页响应顶层的 max_id（原始响应格式，含图片评论 url_struct 等字段）
 weibo-cli tweet comments <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
 
 # 流式遍历评论（max_id 游标 + 自动去重；NDJSON progress/item/done）
-# 结束条件：max_id=0 或空页；total_number 含楼中楼，不能当作剩余条数
+# 结束条件：max_id=0 或空页；total_number 只用于观察
 weibo-cli tweet comments-stream <mblogId> [--max-id <cursor>] [--count <n>] [--flow 0|1] [--max-pages <n>] [--max-items <n>]
 
-# 一级评论下的二级评论（is_reply=1 + fetch_level=1；请求 id=<rootCommentId>，不是 mblogId）
+# 一级评论下的二级评论（is_reply=1 + fetch_level=1；请求 id=<rootCommentId>）
 weibo-cli tweet replies <mblogId> <rootCommentId> [--max-id <cursor>] [--count <n>] [--flow 0|1]
 weibo-cli tweet replies-stream <mblogId> <rootCommentId> [--max-id <cursor>] [--max-pages <n>] [--max-items <n>]
 
@@ -204,30 +199,29 @@ weibo-cli tweet reposts-stream <mblogId> [--page <n>] [--count <n>] [--max-pages
 weibo-cli tweet search-profile <uid> [--page <n>] [--q <keyword>] [--starttime <unix秒|YYYY-MM-DD>] [--endtime <unix秒|YYYY-MM-DD>] \
   [--hasori 0|1] [--hasret 0|1] [--hastext 0|1] [--haspic 0|1] [--hasvideo 0|1] [--hasmusic 0|1]
 
-# 微博点赞者（按页；入参必须是数字 mid，不是字母 mblogid）
+# 微博点赞者（按页；入参为数字 mid）
 weibo-cli tweet likers <mid> [--page <n>]
 weibo-cli tweet likers-stream <mid> [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
-所有 `*-stream` 命令都支持 `--max-items <n>`，用于限制跨页去重后的产出条数；达到上限后不再请求下一页。时间倒序的流还支持 `--since <date>` / `--until <date>`，日期可以写 `YYYY-MM-DD`、`YYYYMMDD` 或 unix 秒：遇到更早的条目停止翻页，更晚的条目直接跳过。`--since-id` 是微博 id 或媒体游标，不是日期。起始页码和游标仍用 `--page` / `--max-id`，适合断点续传和增量拉取。
+所有 `*-stream` 命令都支持 `--max-items <n>`，用于限制跨页去重后的产出条数；达到上限后停止请求下一页。时间倒序的流还支持 `--since <date>` / `--until <date>`，日期可以写 `YYYY-MM-DD`、`YYYYMMDD` 或 unix 秒：遇到更早的条目停止翻页，更晚的条目直接跳过。`--since-id` 接受微博 id 或媒体游标。起始页码和游标用 `--page` / `--max-id`，适合断点续传和增量拉取。
 
-> `likers` 使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 仍返回正确
-> `total_number` 但 `data` 恒为空（隐私/风控门控）。越界页返回 `data: null`，按空页停止。
+`likers` 使用 `m.weibo.cn/api/attitudes/show`：网页端 `ajax/statuses/likeShow` 仍返回正确的 `total_number`，但 `data` 恒为空（隐私 / 风控门控）。越界页返回 `data: null`，按空页停止。
 
-`--starttime` / `--endtime` 既可以是 unix 秒，也可以是 `YYYY-MM-DD` / `YYYYMMDD`：前者原样透传，后者在请求前换算（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）。非法日期以非零退出码报错，不会静默返回未过滤结果。
+`--starttime` / `--endtime` 既可以是 unix 秒，也可以是 `YYYY-MM-DD` / `YYYYMMDD`：前者原样透传，后者在请求前换算（start 取当天 00:00:00、end 取当天 23:59:59，运行环境本地时区）。非法日期以非零退出码报错。
 
 #### `tweet context`：给 Agent 理解用的上下文
 
-`tweet context` 不是另一种详情格式，而是把「理解一条微博」需要的事实显式分开：
+`tweet context` 把理解一条微博所需的事实拆开：
 
-- `post.text` 只包含**当前作者本人**的发言。转发微博不会把 `//@` 链拍平塞进正文。
-- `mentions` 只保留当前作者正文里的 @，转发链上的作者不算提及。
+- `post.text` 只包含当前作者本人的发言，`//@` 链留在对应的转发微博里。
+- `mentions` 只含当前作者正文里的 @。
 - `quoted` 是转发的原微博；原微博的媒体在 `quoted.media[]`，`owner.relation = 'quoted'`。
 - `media[]` 按原顺序给出 `index`、类型、尺寸、`aspectRatio`、临时 URL、归属和确定性提示；`--download-media <dir>` 会回填 `download.path`，Agent 可以直接读取本地文件。
-- `unknowns` / `hints` 明确写出「图片未描述」「视频未转写」「正文可能截断」「评论是抽样」等，不用假默认值。
-- 默认不调用任何 LLM；OCR / 视觉描述 / 视频转写由调用方回填。
+- `unknowns` / `hints` 明确标出「图片未描述」「视频未转写」「正文可能截断」「评论是抽样」这类缺口。
+- OCR / 视觉描述 / 视频转写由调用方回填。
 
-请求预算（默认）：1 次 `statuses/show`；`--no-author` 可省 1 次 `profile/info`；长文 +1 次；`--comments n` 至少 +1 页；`--download-media` 会为每个媒体所属微博额外请求一次以刷新临时 URL。`--max-chars` 默认 4000，`0` 表示不限；`--max-media` 超出部分会写入 `unknowns`。
+请求预算（默认）：1 次 `statuses/show`；`--no-author` 省 1 次 `profile/info`；长文 +1 次；`--comments n` 至少 +1 页；`--download-media` 会为每个媒体所属微博额外请求一次以刷新临时 URL。`--max-chars` 默认 4000，`0` 表示不限；`--max-media` 超出部分写入 `unknowns`。
 
 ### 关注/粉丝（`follow`）
 
@@ -283,8 +277,7 @@ weibo-cli comment mine [--max-id <cursor>] [--page <n>]
 weibo-cli comment stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 ```
 
-> `comment` 只读取**当前登录用户自己**发表过的评论（身份由 Cookie 决定，端点不接受 uid）；
-> `myCmt` 的翻页参数是 `max_id=<上一页 next_cursor>`，`--page` 与其等价。
+`comment` 读取当前登录用户（由 Cookie 决定）自己发表过的评论，端点只接受登录身份。`myCmt` 的翻页参数是 `max_id=<上一页 next_cursor>`，`--page` 与其等价。
 
 ### 媒体集合（`media`）
 
@@ -304,7 +297,7 @@ weibo-cli media albums <uid>
 weibo-cli media album <containerId> [--since-id <cursor>] [--max-pages <n>] [--max-items <n>]
 ```
 
-`images` 的游标是 `sinceid`：首屏不传或传 `0`，下一页传上一页的 `sinceId`。`videos` 的游标是 `cursor`：首屏传 `0`，下一页传上一页的 `cursor`；不要传 `-1`，微博会返回 400。
+`images` 的游标是 `sinceid`：首屏传 `0` 或不传，下一页传上一页的 `sinceId`。`videos` 的游标是 `cursor`：首屏传 `0`，下一页传上一页的 `cursor`；传 `-1` 时微博返回 400。
 
 两者都输出 `IUserMediaAsset`：`id`、`type`、`url`、`coverUrl?`、`videoUrl?`、`duration?`、`createdAt?`、`sourceMblogId?`、`permanentPageUrl?`。
 
@@ -320,9 +313,7 @@ weibo-cli notification likes [--max-id <cursor>] [--page <n>]
 weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 ```
 
-> 两个消息端点都使用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 到底。
-> 评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博）；点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。
-> 被点赞或被评论的微博已删除时，对应条目会被跳过，因为微博不再返回 `status`。
+两个消息端点都用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 表示到底。评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博），点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。被点赞或被评论的微博已删除时没有 `status` 字段，对应条目会被跳过。
 
 ### 媒体下载（`media download`）
 
@@ -335,7 +326,7 @@ weibo-cli media download <mblogId> \
 
 - 输出扁平 `<out>/<mblogId>-<index>-<mediaId>.<ext>`；LivePhoto 动态帧加 `-motion`。
 - `--out` 默认 `<pwd>/weibo-media`；`--include` 缺省全部类型。
-- URL 过期（403/404/410）默认重新拉取微博换新 URL；`--no-refresh` 关闭。
+- URL 过期（403/404/410）默认重新拉取微博换新 URL；`--no-refresh` 关闭该行为。
 - NDJSON：`progress` / `item` / `item-error`（stderr）/ `done`；任一失败退出码 1，Ctrl+C 退出码 130。
 - 失败清单：`<out>/<mblogId>-media-errors.json`。
 
@@ -352,7 +343,7 @@ weibo-cli topic list [--sort-id <id>] [--keyword <kw>] [--page <n>]
 weibo-cli topic stream [--sort-id <id>] [--keyword <kw>] [--page <n>] [--max-pages <n>] [--max-items <n>]
 ```
 
-> `stopic/list` 的 `count` 是**总页数**（30 条/页）；`sort_id=0` + `keyword` 为搜索。
+`stopic/list` 的 `count` 是总页数（30 条/页）；`sort_id=0` 加 `keyword` 为搜索。
 
 ### 搜索（`search`）
 
@@ -372,7 +363,7 @@ weibo-cli trends [--type hot|topic|entertainment]
 
 # 验证 Cookie 有效性（getSession 复用自检 → uid → getById）
 weibo-cli whoami
-# 访客身份：不校验登录态，只输出 token 元信息（source / scope / issuedAt）
+# 访客身份：只输出 token 元信息（source / scope / issuedAt）
 weibo-cli whoami --guest
 
 # 镜像单个账号（timeline + 日期切片 + reposts + favorites + 媒体，可断点续传 / 增量 / 批量）
@@ -387,7 +378,7 @@ weibo-cli archive <uid> [--no-reposts] [--no-favorites] [--likes] [--comment-his
 weibo-cli archive <uid> --state .weibo-archive-state.json [--incremental-since <date|unix>] [--stop-at <mblogId>] [--skip-pinned]
 
 # 批量归档（每行一个 uid，# 开头为注释；单用户失败默认跳过）
-# 批量默认不含收藏（收藏是账号级数据）；归档他人时 --favorites / --comment-history 会报 CONFIG_INVALID
+# 批量默认关闭收藏（收藏是账号级数据）；归档他人时 --favorites / --comment-history 报 CONFIG_INVALID
 weibo-cli archive --uid-file uids.txt [--state .weibo-archive-state.json]
 
 # 范围归档：指定时间段 + 单条深度补全，输出单个 JSON，可断点续跑
@@ -410,57 +401,35 @@ weibo-cli capabilities --status stable | jq '.[] | {id, auth, guestPagination}'
 weibo-cli schema diff before.json after.json
 ```
 
-> `archive` 默认先翻 `mymblog`；翻到底后若 `total` 表明仍有剩余（或 total 不可用），
-> 自动从最旧一条继续用 `searchProfile` 做日期切片。`--source search` 可跳过 mymblog
-> 直接切片；`--no-date-slices` 关闭回填；`--since` 设置切片下界（unix 秒）。
->
-> `--comments` 会把评论挂到 `tweet.comments`（favorite 项不拉取）；`--comment-pages` 限制每条微博评论页数。
-> `--concurrency` 只并发同一页内条目之间互不依赖的子请求（评论链 / 转发首页），
-> 分页与产出顺序仍严格串行；默认 3，`1` 为完全串行，上限 8。实际并发仍受令牌桶与 432 暂停约束。
-> `--likes` / `--comment-history` 把「我赞过的微博」与「当前用户历史评论」接入归档：
-> `source='like'`（微博本体为 `item.tweet`）与 `source='comment'`（评论在 `item.comment`，`item.tweet` 为被评论微博）。
-> `--images` / `--videos` 把图片墙 / 视频瀑布接入归档：`source='image'`（资产在 `item.asset`，可能没有 `item.tweet`）与
-> `source='video'`（同时有 `item.tweet` 与 `item.asset`）。
-> `--favorites`（`all_fav`）与 `--comment-history`（`myCmt`）是**账号级**数据，只能读取登录账号自身；
-> 目标 uid 与登录账号不一致时会报 `CONFIG_INVALID`。`--likes`（`likelist?uid=`）按目标 uid 读取。
-> 阶段顺序为 timeline → likes → comments → favorites → images → videos。
-> **续跑会重复**：checkpoint 记录最后一条已完整处理项，续跑可能重复边界 1 条（图片墙 / 视频瀑布会重放整页）。
-> 消费 NDJSON 时请按 `mblogId`（媒体按 `asset.id`）幂等去重。
-> `--original-only` 跳过转发微博并关闭内联转发；`incremental` 只作用于 timeline（点赞/收藏/媒体仍完整遍历）。
-> 批量模式（`--uid-file`）为每个 uid 独立 checkpoint / state；单用户失败默认 `skip` 并继续。
-> 转发/评论单页失败默认 `skip` 并继续；`--max-retries` 仅对 `retryable` 错误生效。
-> 进度以 NDJSON `{ event: 'progress', phase, source, processed, total, remaining, page }` 输出，
-> `item` / `done` 事件也携带 `count/total/remaining`。
->
-> `capabilities` 的每条记录都带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）
-> 和 `guestNote`，可以直接判断某个能力在访客身份下能不能用、能不能翻页。
-> `archive` 不支持访客身份：`--guest`（或不带 Cookie）会在产出任何 item 之前报 `CONFIG_INVALID`。
-> 访客只有首屏数据，归档无法保证完整；需要归档请提供 Cookie。
->
-> `archive user` 是范围归档 + 深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、
-> 一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，
-> 重跑同一命令会按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。
-> `--merge` 把已存在的输出文件当基线，在抓取前校验 uid / 格式，结束后合并写回。
-> stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。
-> 完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。
-> 详细参数、SDK 接口与 store 端口见 [user-archive.md](./user-archive.md)。
->
-> `archive merge` 是纯本地操作，不请求微博：读入多份同账号归档，按 `mblogId` 合并后写出。
-> 输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。
-> 输入也可以是目录：只扫描顶层 `*.json`，逐份校验后跳过不可合并的文件并在 stderr 说明原因；目录中的输出文件会被排除，跨账号仍然报错。
-> 合并结果仍有未解决的 issue 时退出码为 1。规则见 [user-archive.md 的「合并归档」](./user-archive.md#合并归档)。
+`archive` 默认先翻 `mymblog`；翻到底后若 `total` 表明仍有剩余（或 `total` 不可用），从最旧一条起用 `searchProfile` 做日期切片。`--source search` 跳过 mymblog 直接切片，`--no-date-slices` 关闭回填，`--since` 设置切片下界（unix 秒）。
 
-CLI 默认不输出原始响应。需要 raw 时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并自行保存，具体规则见 [contract-itweet-v2.md §6](../engineering/contract-itweet-v2.md)。
+`--comments` 把评论挂到 `tweet.comments`（favorite 项跳过），`--comment-pages` 限制每条微博的评论页数。`--concurrency` 并发同一页内互不依赖的子请求（评论链、转发首页），分页与产出顺序保持串行；默认 3，`1` 为完全串行，上限 8，实际并发受令牌桶与 432 暂停约束。
+
+`--likes` / `--comment-history` 接入「我赞过的微博」与「当前用户历史评论」：前者 `source='like'`，微博本体在 `item.tweet`；后者 `source='comment'`，评论在 `item.comment`，`item.tweet` 为被评论微博。`--images` / `--videos` 接入图片墙与视频瀑布：`source='image'` 的资产在 `item.asset`，可能没有 `item.tweet`；`source='video'` 同时有 `item.tweet` 与 `item.asset`。`--favorites`（`all_fav`）与 `--comment-history`（`myCmt`）读账号级数据，目标 uid 与登录账号不一致时报 `CONFIG_INVALID`；`--likes`（`likelist?uid=`）按目标 uid 读取。
+
+阶段顺序为 timeline → likes → comments → favorites → images → videos。`--original-only` 跳过转发微博并关闭内联转发；`incremental` 只作用于 timeline，点赞 / 收藏 / 媒体仍完整遍历。批量模式（`--uid-file`）为每个 uid 建立独立 checkpoint / state，单用户失败默认 `skip` 并继续。转发 / 评论单页失败默认 `skip` 并继续，`--max-retries` 只对 `retryable` 错误生效。
+
+checkpoint 记录最后一条已完整处理项，续跑时边界 1 条可能重复，图片墙 / 视频瀑布会重放整页；消费 NDJSON 时按 `mblogId`（媒体按 `asset.id`）做幂等去重。进度事件形如 `{ event: 'progress', phase, source, processed, total, remaining, page }`，`item` / `done` 事件也带 `count/total/remaining`。
+
+`capabilities` 的每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）和 `guestNote`，可以直接判断某个能力在访客身份下的可用性与翻页范围。
+
+`archive` 需要 Cookie：`--guest` 或没有 Cookie 时，在产出任何 item 之前报 `CONFIG_INVALID`；访客只有首屏数据。
+
+`archive user` 是范围归档加深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，重跑同一命令按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。`--merge` 把已存在的输出文件当基线，抓取前校验 uid / 格式，结束后合并写回。stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。详细参数、SDK 接口与 store 端口见 [范围归档](/reference/user-archive)。
+
+`archive merge` 全程离线，读入多份同账号归档，按 `mblogId` 合并后写出。输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。输入也可以是目录：只扫描顶层 `*.json`，逐份校验后跳过不可合并的文件并在 stderr 说明原因；目录中的输出文件会被排除，跨账号报错。合并结果仍有未解决的 issue 时退出码为 1。规则见 [范围归档 · 合并](/reference/user-archive)。
+
+CLI 输出归一化结果。需要 raw 响应时，在 SDK 中使用 `config.hooks.onRaw` 或 `streamArchive({ onRaw })` 接收并保存，规则见 [ITweet 契约](/reference/tweet-contract)。
 
 ## 终端呈现（`archive user`）
 
-`archive user` 的进度与诊断默认按终端能力自动切换，数据契约不受影响：
+`archive user` 的进度与诊断按终端能力自动切换，stdout 的数据输出保持原样：
 
 | 场景 | 默认呈现 |
 |---|---|
 | stderr 是 TTY，且不在 CI / `TERM=dumb` | 原地刷新的单行状态 + 追加的切片 / issue 行 |
-| 管道、重定向、CI、`TERM=dumb` | NDJSON（与旧行为一致） |
-| `--log-format pretty` | 强制人类可读；非 TTY 时退化为普通行，不做光标控制 |
+| 管道、重定向、CI、`TERM=dumb` | NDJSON |
+| `--log-format pretty` | 强制人类可读；非 TTY 时按普通行输出 |
 | `--log-format ndjson` | 强制机器可读 |
 | `--log-format silent` / `--quiet` | 不输出诊断 |
 | `--no-progress` | `pretty` 下关闭动态状态行，只输出切片完成 / issue / 汇总 |
@@ -477,21 +446,18 @@ weibo-cli archive user 1111681197
   12:04:33  ✖ comments RATE_LIMITED 退避后继续
 ```
 
-状态行只有一行，用 `\r` + 清行原地刷新；切片完成、issue、raw 等日志追加在状态行上方，保留 scrollback。
+状态行占一行，用 `\r` 加清行原地刷新；切片完成、issue、raw 等日志追加在状态行上方，保留 scrollback。
 
 规则：
 
-- **stdout 只放结果**。`archive user` 的 stdout 仍是一行 `{ event: 'done', ... }`，管道消费不受影响。
-- **stderr 放诊断**。进度、切片完成、issue、raw 写入状态都在 stderr；TTY 下是状态行，非 TTY 下是 NDJSON。
-- **不做全屏 TUI**。不切 alternate screen，不接管滚动；状态行是可清除的临时行，日志仍然 append-only。
-- **自动降级优先**。`NO_COLOR` / `FORCE_COLOR` 只控制颜色；`CI` / `TERM=dumb` / 非 TTY 关闭动态刷新。`--log-format` 显式指定时优先。
-- **零依赖**。用 ANSI + `\r` / 清行实现，不引入 `ink` / `blessed` / `listr2`。
-
-当前只在 `archive user` 试点；`archive`、`media download`、`*-stream` 等命令保持原有输出，后续按同一 reporter 推广。
+- stdout 只放结果：`archive user` 的 stdout 是一行 `{ event: 'done', ... }`，管道消费不受影响。
+- stderr 放诊断：进度、切片完成、issue、raw 写入状态都在 stderr；TTY 下是状态行，非 TTY 下是 NDJSON。
+- `NO_COLOR` / `FORCE_COLOR` 只控制颜色；`CI`、`TERM=dumb`、非 TTY 关闭动态刷新；`--log-format` 显式指定时优先。
+- 状态行用 ANSI 转义加 `\r` 清行实现，零额外依赖。
 
 ## 输出形态速查
 
-下表是默认 JSON 形态；上方「输出格式」章节列出的查询命令都可以再加 `--format markdown`。
+下表为默认输出；上方「输出格式」列出的查询命令都可以再加 `--format markdown`。
 
 | 子命令 | 底层 Service 方法 | 输出 |
 |---|---|---|
@@ -535,31 +501,18 @@ weibo-cli archive user 1111681197
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 | `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |
 | `archive merge` | `mergeArchiveFiles()` | 写入 `--out` 指定的合并结果；stdout 一行 `{ event: 'done', out, inputs, tweets, comments, replies, errors, complete, deduped }` |
+| `tweet context` | `tweets.context()` | Markdown 上下文卡片（默认）；`-f json` 输出 `ITweetContext` |
+| `tweet replies` / `replies-stream` | `tweets.replies()` / `tweets.streamReplies()` | raw `BuildCommentsResponse` / NDJSON |
+| `user timeline-stream` | `tweets.streamByUserId()` | NDJSON `progress` / `item` / `done` |
+| `topic stream` | `topics.stream()` | NDJSON `progress` / `item` / `done` |
+| `media albums` / `album` | `media.listAlbums()` / `media.listAlbumPhotos()` | 相册列表 / 分页照片 |
+| `capabilities` | `capabilities()` | 能力表 JSON（可按 `--service` / `--status` 过滤） |
+| `schema diff` | `diffSchemaDigest()` | 两份 schema digest 的差异 |
 
-## 架构
+## 退出码
 
-```
-src/cli.ts              # 主入口，runMain()；顶层 trends / whoami / archive；子命令注册
-src/cli/
-  shared.ts             # getCookie / getEnvFilePath / createSDK / cookieArg（--cookie / --env-file / --guest）
-  commands/
-    archiveUser.ts      # archive user：参数映射、输出文件、退出码
-    archiveMerge.ts     # archive merge：读取多份归档、合并、原子写入
-    user.ts             # user info / timeline / mentions / groups
-    tweet.ts            # tweet detail / comments / home / likers / longtext / reposts / search-profile
-    follow.ts           # follow list / follow fans / follow my
-    favorite.ts         # favorite list / favorite stream / favorite tags
-    like.ts             # like list / like stream
-    comment.ts          # comment mine / comment stream
-    media.ts            # media images / media videos
-    notification.ts     # notification comments / comments-stream / likes / likes-stream
-    search.ts           # search users / search tweets
-src/utils/cookieInput.ts # Cookie header 串 / Netscape / header 文件的统一解析
-```
-
-基于 citty 的 `defineCommand` + `runMain` 模式：
-
-- 每个子命令独立定义，支持嵌套（`user`/`tweet`/`follow`/`favorite`/`search` 为分组，`trends`/`whoami`/`archive` 为顶层命令）
-- 自动生成 `--help` 文档
-- 零运行时依赖
-- 错误输出到 stderr 并以非零退出码退出（如 `whoami` 在 Cookie 无效或访客 token 发放失败时 `process.exit(1)`；没有 Cookie 时默认走访客身份，正常退出）
+| 退出码 | 含义 |
+|---|---|
+| 0 | 成功（`archive user` 表示完整结束且无遗留 issue） |
+| 1 | 参数 / 鉴权 / 网络错误；`archive user` 枚举中止、存在未补全项或 raw 写入失败 |
+| 非零 | 错误信封写入 stderr，stdout 只有结果 |

@@ -1,6 +1,6 @@
 # 用户归档能力的产品化（设计提案）
 
-> 状态：已实施（2026-10-22）。SDK 入口为 `sdk.userArchive.stream/run`，CLI 为 `weibo-cli archive user <uid>`；实现细节与用法见 [`docs/engineering/user-archive.md`](../engineering/user-archive.md)。
+> 状态：已实施（2026-10-22）。SDK 入口为 `sdk.userArchive.stream/run`，CLI 为 `weibo-cli archive user <uid>`；实现细节与用法见 [`website/reference/user-archive.md`](../../website/reference/user-archive.md)。
 
 ## 1. 背景
 

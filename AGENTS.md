@@ -28,6 +28,7 @@
 | `docs/README.md` | 文档中央索引（按分类导航 + 约定） |
 | `docs/requirements/requirements-spec.md` | 需求规格（产品愿景 = 个人数据归档） |
 | `docs/engineering/technical-spec.md` | 分层架构与契约定义（与实现对齐） |
+| `docs/engineering/api-stability.md` | 公开 API 稳定性政策（Stable / Experimental / Internal） |
 | `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |
@@ -38,10 +39,11 @@
 | `docs/reviews/review-apple-design-2026-08-10.md` | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布背景） |
 | `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
 | `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
-| `docs/engineering/cli.md` | CLI 命令参考与架构说明 |
+| `docs/engineering/cli-architecture.md` | CLI 内部架构（命令树 / bin 入口 / 新增子命令） |
+| `website/` | **公开文档站**（VitePress）：指南 / API 参考 / CLI / 契约与格式；`docs/` 只留内部文档 |
 | `playground/README.md` | 场景化可运行示例（SDK / CLI，`pnpm play`） |
 | `docs/engineering/endpoint-authoring.md` | 端点开发指南（新增/修改 endpoint 的标准流程、分页约定、高频雷区） |
-| `docs/engineering/error-diagnostics.md` | 错误排障手册（结构化错误码表、排查流程） |
+| [website/reference/troubleshooting.md](website/reference/troubleshooting.md) | 错误排障手册（结构化错误码表、排查流程；公开站点） |
 | `docs/engineering/skill.md` | SDD（规格驱动开发）、Wide Events、Structured Error 等工程规范 |
 | `docs/postmortem/README.md` | 尸检报告索引 + 高频雷区自查清单（写码前必读） |
 | `docs/development-log/` | 按天开发日志 |
@@ -96,7 +98,7 @@ WeiboSDK（门面）
 - 禁止直接 `throw new Error('...')`；必须使用结构化错误（继承 `WeiboSDKError`），携带 `code/level/retryable/context`。
 - 所有错误路径必须有测试覆盖。
 - 错误映射链：axios error → TransportError；ok !== 1 → BusinessError；Zod fail → ProtocolError。
-- 详见 `docs/engineering/error-diagnostics.md`。
+- 详见 [故障排查](website/reference/troubleshooting.md)（公开站点）。
 
 ## 可观测性 (Wide Events)
 
@@ -152,7 +154,7 @@ WeiboSDK（门面）
 3. 查询命令默认输出 JSON 格式（`JSON.stringify(data, null, 2)`），确保下游可管道处理；`--format markdown` 是可选的阅读视图，机器可读的默认值不能变。流式命令仍是 NDJSON。
 4. 错误必须输出到 stderr 并以非零退出码退出。
 
-基于 [citty](https://github.com/unjs/citty)。详细命令参考见 `docs/engineering/cli.md`。
+基于 [citty](https://github.com/unjs/citty)。命令参考见 [公开 CLI 文档](website/cli/index.md)，内部架构见 `docs/engineering/cli-architecture.md`。
 
 ## Agent 使用速查（SDK / CLI）
 
@@ -257,7 +259,7 @@ const sdk2 = new WeiboSDK({
 })
 ```
 
-`observe` 是只读观察者（不 await、吞异常）；transport 中间件可短路 / 缓存。默认仍是 `axiosTransport`，零配置行为不变。完整契约见 `docs/engineering/plugins.md`。
+`observe` 是只读观察者（不 await、吞异常）；transport 中间件可短路 / 缓存。默认仍是 `axiosTransport`，零配置行为不变。完整契约见 [公开插件文档](website/reference/plugins.md)。
 
 ### CLI
 

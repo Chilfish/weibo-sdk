@@ -2,7 +2,7 @@ import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, Fri
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweetComment, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetUser } from '~/types/domain/ITweet'
 import type { ITweetContext, TweetContextAuthor } from '~/types/domain/ITweetContext'
 import type { StreamLimitOptions, StreamRangeOptions } from '~/utils/streamRange'
 import { isRawTweet, normalizeComment, normalizeLiker, Tweet } from '~/models/data/Tweet'
@@ -74,7 +74,7 @@ export interface TweetCommentsStreamProgress {
   total?: number
 }
 
-/** `streamComments` 的选项。 */
+/** `streamComments` / `streamReplies` 的选项。 */
 export interface TweetCommentsStreamOptions extends StreamLimitOptions {
   /** 起始游标（上一页的 `max_id`；首屏省略） */
   maxId?: number
@@ -88,6 +88,36 @@ export interface TweetCommentsStreamOptions extends StreamLimitOptions {
   maxPages?: number
   /** 每页进度回调；回调抛错不会中断流 */
   onProgress?: (progress: TweetCommentsStreamProgress) => void | Promise<void>
+}
+
+/** `comments` 的选项。 */
+export interface TweetCommentsOptions {
+  /** 上一页返回的分页游标（来自响应顶层 `max_id`；首屏省略） */
+  maxId?: number
+  /** 每页条数（上游忽略） */
+  count?: number
+  /** 排序方式（0=热度 / 1=时间；时间序必须使用数字 mid，方法内自动解析） */
+  flow?: 0 | 1
+  /** 以哪个用户视角读取（影响「我的赞」等字段） */
+  uid?: string
+  /** 是否读取二级评论（1 = 是；此时第一个参数必须是一级评论 id） */
+  isReply?: number
+  /** 可选透传的根评论 id（二级评论不需要） */
+  rootId?: string | number
+  /** 拉取层级（0 = 一级评论，1 = 二级评论） */
+  fetchLevel?: number
+}
+
+/** `replies` 的选项。 */
+export interface TweetRepliesOptions {
+  /** 上一页返回的分页游标（首屏省略） */
+  maxId?: number
+  /** 每页条数 */
+  count?: number
+  /** 排序方式（0=热度 / 1=时间） */
+  flow?: 0 | 1
+  /** 以哪个用户视角读取 */
+  uid?: string
 }
 
 /** 单条微博转发流进度（每页触发一次）。 */
@@ -160,6 +190,38 @@ export interface TweetUserTimelineStreamOptions extends StreamRangeOptions {
   maxPages?: number
 }
 
+/** `listByUserId` 的选项。 */
+export interface TweetUserTimelineListOptions {
+  /** 页码（从 1 开始；缺省 = 第一页） */
+  page?: number
+  /** 每页条数（缺省由上游决定） */
+  count?: number
+}
+
+/** `getReposts` 的选项。 */
+export interface TweetRepostsListOptions {
+  /** 页码（从 1 开始；缺省 = 第一页） */
+  page?: number
+  /** 每页条数（上游实测忽略） */
+  count?: number
+}
+
+/** `listFriendTimeline` 的选项。 */
+export interface TweetFriendTimelineListOptions {
+  /** 翻旧页游标（上一页 `maxId`；首屏省略） */
+  maxId?: string | number
+  /** 增量过滤（只返回比该微博 id 更新的条目；单页） */
+  sinceId?: string | number
+  /** 关注分组 id（可选） */
+  listId?: string | number
+  /** 分组过滤参数（可选，与 `listId` 同时发送） */
+  fid?: string | number
+  /** 每页条数（上游实测忽略） */
+  count?: number
+  /** 刷新标记（仅首屏透传） */
+  refresh?: number
+}
+
 /** 首页 Feed 游标归一化：正数 / 非空非 0 字符串；其余（0 / -1 / 空串）视为没有下一页。 */
 function normalizeFeedCursor(value: unknown): string | undefined {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0)
@@ -182,6 +244,30 @@ function normalizeLikerMaxPages(maxPages?: number): number {
   if (maxPages === undefined || !Number.isFinite(maxPages))
     return Number.POSITIVE_INFINITY
   return Math.max(0, Math.floor(maxPages))
+}
+
+/** `searchByDate` 的选项。 */
+export interface TweetSearchByDateOptions {
+  /** 页码（从 1 开始；缺省 = 第一页） */
+  page?: number
+  /** 关键词（个人主页内搜索；缺省 = 不按关键词过滤） */
+  q?: string
+  /** 时间下界（unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，含当天） */
+  starttime?: number | string
+  /** 时间上界（unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，含当天） */
+  endtime?: number | string
+  /** 是否包含原创（0 / 1） */
+  hasori?: number
+  /** 是否包含转发（0 / 1） */
+  hasret?: number
+  /** 是否包含纯文字（0 / 1） */
+  hastext?: number
+  /** 是否包含图片（0 / 1） */
+  haspic?: number
+  /** 是否包含视频（0 / 1） */
+  hasvideo?: number
+  /** 是否包含音乐（0 / 1） */
+  hasmusic?: number
 }
 
 /**
@@ -207,7 +293,7 @@ export interface TweetPageResult {
    */
   partial?: boolean
   /** 本页归一化后的微博（已过滤广告等无效项） */
-  tweets: Tweet[]
+  tweets: ITweet[]
 }
 
 /**
@@ -228,7 +314,7 @@ export interface TweetEnrichOptions {
  */
 export interface TweetEnrichResult {
   /** 归一化微博（与 `getByMblogId` 同构） */
-  tweet: Tweet
+  tweet: ITweet
   /** `statuses/show` 原始响应（passthrough，含未映射字段），供下游自行落盘 */
   raw: StatusShowResponse
   /** 长微博全文（仅 `includeLongText: true` 时请求；优先 `longTextContent_raw`） */
@@ -375,7 +461,7 @@ export class TweetService extends FetcherService {
    * @returns 归一化后的本页微博 + 下一页页码（`page` 为**下一页**页码）
    * @throws `WeiboAPINotOkError` / `UnexpectedAPIResponseError` / 传输层错误
    */
-  public async listByUserId(uid: string, options?: { page?: number, count?: number }): Promise<TweetPageResult> {
+  public async listByUserId(uid: string, options?: TweetUserTimelineListOptions): Promise<TweetPageResult> {
     const { page, count } = options ?? {}
     const traceId = `${Date.now()}-listByUserId-${++normalizeSeq}`
 
@@ -450,9 +536,9 @@ export class TweetService extends FetcherService {
    *   console.log(tweet.id, tweet.text)
    * }
    */
-  async* streamByUserId(uid: string, options: TweetUserTimelineStreamOptions = {}): AsyncIterableIterator<Tweet> {
+  async* streamByUserId(uid: string, options: TweetUserTimelineStreamOptions = {}): AsyncIterableIterator<ITweet> {
     const maxPages = normalizeMaxPages(options.maxPages)
-    const range = createStreamRange<Tweet>(options, tweet => tweet.createdAt)
+    const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
     let page = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
     let pages = 0
 
@@ -494,10 +580,10 @@ export class TweetService extends FetcherService {
    *
    * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
    * @param isGetLongText 是否请求长文（默认 true）
-   * @returns `Tweet` 实例（与 `enrich` 的 `tweet` 字段同构）；同时发出 `normalize_done` 事件
+   * @returns 归一化微博（与 `enrich` 的 `tweet` 字段同构）；同时发出 `normalize_done` 事件
    * @throws `WeiboAPINotOkError`（微博不存在 / 被删）/ `UnexpectedAPIResponseError` / 传输层错误
    */
-  public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<Tweet> {
+  public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<ITweet> {
     const traceId = `${Date.now()}-getByMblogId-${++normalizeSeq}`
     const raw = await this.fetchRawStatus(mblogId, isGetLongText)
     const startAt = Date.now()
@@ -649,10 +735,10 @@ export class TweetService extends FetcherService {
    */
   private async resolveCommentsId(
     id: string,
-    options?: { flow?: 0 | 1, is_reply?: number },
+    options?: { flow?: 0 | 1, isReply?: number },
   ): Promise<string> {
     const normalized = normalizeTweetIdInput(id)
-    if (options?.flow !== 1 || options.is_reply === 1 || /^\d+$/.test(normalized))
+    if (options?.flow !== 1 || options.isReply === 1 || /^\d+$/.test(normalized))
       return normalized
     return await this.resolveTweetMid(normalized)
   }
@@ -695,44 +781,36 @@ export class TweetService extends FetcherService {
    * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）；
    *   读取二级评论时直接传一级评论 id（见 `replies`）
    * @param options 评论分页/过滤选项（全部可选）
-   * @param options.max_id 上一页返回的分页游标（首屏省略；来自响应顶层 `max_id`）
+   * @param options.maxId 上一页返回的分页游标（首屏省略；来自响应顶层 `max_id`）
    * @param options.count 每页条数（上游忽略）
    * @param options.flow 排序方式（0=热度 / 1=时间；时间序必须使用数字 mid，方法内自动解析）
    * @param options.uid 以哪个用户视角读取（影响「我的赞」等字段）
-   * @param options.is_reply 是否读取二级评论（1 = 是；此时 `mblogId` 必须是一级评论 id）
-   * @param options.rootid 可选透传；二级评论不需要（真实请求用 `id=<一级评论 id>`）
-   * @param options.fetch_level 拉取层级（0 = 一级评论，1 = 二级评论）
+   * @param options.isReply 是否读取二级评论（1 = 是；此时 `mblogId` 必须是一级评论 id）
+   * @param options.rootId 可选透传；二级评论不需要（真实请求用 `id=<一级评论 id>`）
+   * @param options.fetchLevel 拉取层级（0 = 一级评论，1 = 二级评论）
    * @returns 校验后的评论响应；`max_id === 0` 或空页即到底
    */
-  public async comments(mblogId: string, options?: {
-    max_id?: number
-    count?: number
-    flow?: 0 | 1
-    uid?: string
-    is_reply?: number
-    rootid?: string | number
-    fetch_level?: number
-  }): Promise<BuildCommentsResponse> {
+  public async comments(mblogId: string, options?: TweetCommentsOptions): Promise<BuildCommentsResponse> {
     const id = await this.resolveCommentsId(mblogId, options)
     const args: BuildCommentsArgs = {
       id,
       is_reload: 1,
       is_show_bulletin: 2,
       is_mix: 0,
-      fetch_level: options?.fetch_level ?? 0,
+      fetch_level: options?.fetchLevel ?? 0,
     }
-    if (options?.max_id)
-      args.max_id = options.max_id
+    if (options?.maxId)
+      args.max_id = options.maxId
     if (options?.count)
       args.count = options.count
     if (options?.flow !== undefined)
       args.flow = options.flow
     if (options?.uid)
       args.uid = options.uid
-    if (options?.is_reply !== undefined)
-      args.is_reply = options.is_reply
-    if (options?.rootid !== undefined)
-      args.rootid = options.rootid
+    if (options?.isReply !== undefined)
+      args.is_reply = options.isReply
+    if (options?.rootId !== undefined)
+      args.rootid = options.rootId
     return await this.request(buildCommentsSpec, args)
   }
 
@@ -747,21 +825,16 @@ export class TweetService extends FetcherService {
    * @param _mblogId 微博 mblogId（仅调用上下文，不进入请求）
    * @param rootCommentId 一级评论 id（`ITweetComment.id` / `idstr`）
    * @param options 分页 / 排序选项
-   * @param options.max_id 上一页返回的分页游标（首屏省略）
+   * @param options.maxId 上一页返回的分页游标（首屏省略）
    * @param options.count 每页条数
    * @param options.flow 排序方式（0 / 1）
    * @param options.uid 以哪个用户视角读取
    */
-  public async replies(_mblogId: string, rootCommentId: string, options?: {
-    max_id?: number
-    count?: number
-    flow?: 0 | 1
-    uid?: string
-  }): Promise<BuildCommentsResponse> {
+  public async replies(_mblogId: string, rootCommentId: string, options?: TweetRepliesOptions): Promise<BuildCommentsResponse> {
     return await this.comments(rootCommentId, {
       ...options,
-      is_reply: 1,
-      fetch_level: 1,
+      isReply: 1,
+      fetchLevel: 1,
     })
   }
 
@@ -786,7 +859,7 @@ export class TweetService extends FetcherService {
    * @param options.count 每页条数
    * @returns 校验后的转发响应；`data` 为转发微博数组，`total_number` 为总数
    */
-  public async getReposts(mblogId: string, options?: { page?: number, count?: number }): Promise<RepostTimelineResponse> {
+  public async getReposts(mblogId: string, options?: TweetRepostsListOptions): Promise<RepostTimelineResponse> {
     const args: { id: string, page?: number, count?: number } = { id: normalizeTweetIdInput(mblogId) }
     if (options?.page !== undefined)
       args.page = options.page
@@ -822,18 +895,7 @@ export class TweetService extends FetcherService {
    * @param options.hasmusic 是否包含音乐（0 / 1）
    * @returns 校验后的 searchProfile 响应（`data.total` 为 number | string，需自行解析）
    */
-  public async searchByDate(uid: string, options?: {
-    page?: number
-    q?: string
-    starttime?: number | string
-    endtime?: number | string
-    hasori?: number
-    hasret?: number
-    hastext?: number
-    haspic?: number
-    hasvideo?: number
-    hasmusic?: number
-  }): Promise<SearchProfileResponse> {
+  public async searchByDate(uid: string, options?: TweetSearchByDateOptions): Promise<SearchProfileResponse> {
     const args: SearchProfileArgs = { uid }
     if (options) {
       if (options.page !== undefined)
@@ -914,24 +976,24 @@ export class TweetService extends FetcherService {
    * （实测恒为 2000 上限值，不代表剩余条数）。
    *
    * @param options Feed 选项
-   * @param options.max_id 翻旧页游标（上一页 `maxId`；首屏省略）
-   * @param options.since_id 增量过滤（只返回比该微博 id 更新的条目）
-   * @param options.list_id 关注分组 id（可选）
+   * @param options.maxId 翻旧页游标（上一页 `maxId`；首屏省略）
+   * @param options.sinceId 增量过滤（只返回比该微博 id 更新的条目）
+   * @param options.listId 关注分组 id（可选）
    * @param options.fid 分组过滤参数（可选）
    * @param options.count 每页条数（上游实测忽略）
    * @param options.refresh 刷新标记（透传上游）
    * @returns 归一化后的本页微博 + 下一页游标（`maxId`）
    */
-  public async listFriendTimeline(options?: {
-    max_id?: string | number
-    since_id?: string | number
-    list_id?: string | number
-    fid?: string | number
-    count?: number
-    refresh?: number
-  }): Promise<TweetPageResult> {
+  public async listFriendTimeline(options?: TweetFriendTimelineListOptions): Promise<TweetPageResult> {
     const traceId = `${Date.now()}-friendTimeline-${++normalizeSeq}`
-    const raw = await this.fetchRawFriendTimeline(options)
+    const raw = await this.fetchRawFriendTimeline({
+      max_id: options?.maxId,
+      since_id: options?.sinceId,
+      list_id: options?.listId,
+      fid: options?.fid,
+      count: options?.count,
+      refresh: options?.refresh,
+    })
     const filtered = this.filterTweets(raw.statuses || [])
     const lastId = raw.statuses?.[raw.statuses.length - 1]?.id
     // 明确下发 max_id=0 / '' 表示到底，不能再用最后一条 status id 兜底（否则会多翻一页并重复）。
@@ -941,7 +1003,7 @@ export class TweetService extends FetcherService {
       : normalizeFeedCursor(lastId)
     const hasMore = filtered.length > 0
       && nextMaxId !== undefined
-      && (options?.max_id === undefined || String(options.max_id) !== nextMaxId)
+      && (options?.maxId === undefined || String(options.maxId) !== nextMaxId)
     const startAt = Date.now()
     const tweets = filtered.map(item => new Tweet(item))
     await this.emitTelemetry({
@@ -973,13 +1035,13 @@ export class TweetService extends FetcherService {
    *   console.log(tweet.mblogId, tweet.text)
    * }
    */
-  async* streamFriendTimeline(options: TweetFriendTimelineStreamOptions = {}): AsyncIterableIterator<Tweet> {
-    const range = createStreamRange<Tweet>(options, tweet => tweet.createdAt)
+  async* streamFriendTimeline(options: TweetFriendTimelineStreamOptions = {}): AsyncIterableIterator<ITweet> {
+    const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
 
     if (options.sinceId !== undefined) {
       const page = await this.listFriendTimeline({
-        since_id: options.sinceId,
-        list_id: options.listId,
+        sinceId: options.sinceId,
+        listId: options.listId,
         fid: options.fid,
         count: options.count,
         refresh: options.refresh,
@@ -995,10 +1057,10 @@ export class TweetService extends FetcherService {
       return
     }
 
-    yield* paginate<Tweet, string>(async (cursor, page) => {
+    yield* paginate<ITweet, string>(async (cursor, page) => {
       const result = await this.listFriendTimeline({
-        max_id: cursor,
-        list_id: options.listId,
+        maxId: cursor,
+        listId: options.listId,
         fid: options.fid,
         count: options.count,
         refresh: page === 1 ? options.refresh : undefined,
@@ -1180,7 +1242,7 @@ export class TweetService extends FetcherService {
       normalized,
       options,
       cursor => this.comments(id, {
-        max_id: cursor,
+        maxId: cursor,
         count: options.count,
         flow: options.flow,
         uid: options.uid,
@@ -1209,7 +1271,7 @@ export class TweetService extends FetcherService {
       normalized,
       options,
       cursor => this.replies(normalized, rootCommentId, {
-        max_id: cursor,
+        maxId: cursor,
         count: options.count,
         flow: options.flow,
         uid: options.uid,
@@ -1297,10 +1359,10 @@ export class TweetService extends FetcherService {
    *   console.log(repost.mblogId, repost.user.name)
    * }
    */
-  async* streamReposts(mblogId: string, options: TweetRepostsStreamOptions = {}): AsyncIterableIterator<Tweet> {
+  async* streamReposts(mblogId: string, options: TweetRepostsStreamOptions = {}): AsyncIterableIterator<ITweet> {
     const normalized = normalizeTweetIdInput(mblogId)
     const maxPages = normalizeMaxPages(options.maxPages)
-    const range = createStreamRange<Tweet>(options, tweet => tweet.createdAt)
+    const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
     const seen = new Set<string>()
     let page = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
     let pages = 0
