@@ -6,13 +6,12 @@ import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg } from '../shared'
 
 /** 去重后合并特别关注与普通关注（同一用户可能同时出现在两处）。 */
-function uniqueUsers<T extends { id?: string | number, idstr?: string }>(users: readonly T[]): T[] {
+function uniqueUsers<T extends { id: string }>(users: readonly T[]): T[] {
   const seen = new Set<string>()
   return users.filter((user) => {
-    const key = String(user.idstr ?? user.id ?? '')
-    if (seen.has(key))
+    if (seen.has(user.id))
       return false
-    seen.add(key)
+    seen.add(user.id)
     return true
   })
 }
@@ -111,7 +110,7 @@ export const followList = defineCommand({
     print(raw, {
       markdown: value => renderFollowingUserListMarkdown(value.users, {
         title: '关注列表',
-        notes: paginationNotes({ cursor: value.next_cursor, total: value.total_number }),
+        notes: paginationNotes({ cursor: value.cursor, total: value.total }),
       }),
     })
   },
@@ -134,7 +133,7 @@ export const followFans = defineCommand({
     print(raw, {
       markdown: value => renderFollowingUserListMarkdown(value.users, {
         title: '粉丝列表',
-        notes: paginationNotes({ cursor: value.next_cursor, total: value.total_number }),
+        notes: paginationNotes({ cursor: value.cursor, total: value.total }),
       }),
     })
   },
@@ -154,16 +153,13 @@ export const followMy = defineCommand({
     )
     print(raw, {
       markdown: (value) => {
-        const attention = value.data.specialAttention?.users ?? []
-        const users = uniqueUsers([...attention, ...value.data.follows.users])
+        const attention = value.specialAttention ?? []
+        const users = uniqueUsers([...attention, ...value.users])
         return renderFollowingUserListMarkdown(users, {
           title: '我的关注',
           notes: [
             ...(attention.length > 0 ? [`特别关注：${attention.length} 人（排在最前）`] : []),
-            ...paginationNotes({
-              cursor: value.data.follows.next_cursor,
-              total: value.data.total_number ?? value.data.follows.total_number,
-            }),
+            ...paginationNotes({ cursor: value.cursor, total: value.total }),
           ],
         })
       },

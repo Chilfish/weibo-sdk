@@ -1,5 +1,4 @@
 import { defineCommand } from 'citty'
-import { Tweet } from '~/models/data'
 import { formatCount } from '~/models/view/format'
 import { renderTweetListMarkdown } from '~/models/view/TweetList'
 import { createPrinter, outputFormatArg } from '../output'
@@ -16,15 +15,14 @@ export const favoriteList = defineCommand({
   },
   async run({ args }) {
     const print = createPrinter(args)
-    const raw = await createSDK(args).favorites.getFavorites(
-      args.id,
-      parsePositiveInt(args.page),
-    )
-    print(raw, {
-      markdown: value => renderTweetListMarkdown(value.data.status.map(item => new Tweet(item)), {
+    const page = await createSDK(args).favorites.listFavorites(args.id, {
+      page: parsePositiveInt(args.page),
+    })
+    print(page, {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
         title: '收藏夹',
-        notes: value.data.total_number !== undefined
-          ? [`总数：${formatCount(value.data.total_number)}`]
+        notes: value.total !== undefined
+          ? [`总数：${formatCount(value.total)}`]
           : [],
       }),
     })

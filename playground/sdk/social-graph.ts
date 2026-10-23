@@ -2,10 +2,8 @@ import type { SdkScenario } from '../lib/types'
 import { argument, flagNumber } from '../lib/args'
 import { defaultMblogId, defaultUid } from '../lib/defaults'
 
-function displayName(user: { idstr?: unknown, id?: unknown, screen_name?: unknown, name?: unknown }): string {
-  const id = user.idstr ?? user.id ?? '?'
-  const name = user.screen_name ?? user.name ?? ''
-  return `${id} ${name}`.trim()
+function displayName(user: { id: string, name: string }): string {
+  return `${user.id || '?'} ${user.name}`.trim()
 }
 
 /** 关注 / 粉丝 / @我 / 分组 / 点赞者：社交关系面。 */

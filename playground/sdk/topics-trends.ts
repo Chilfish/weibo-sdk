@@ -13,10 +13,9 @@ export const scenario: SdkScenario = {
 
     log.heading('热搜')
     const trends = await sdk.trends.hotBand('hot')
-    const realtime = trends.data.realtime ?? []
-    log.kv('realtime', realtime.length)
-    for (const item of realtime.slice(0, 5))
-      log.info(`- ${item.word}${item.num === undefined ? '' : ` (${item.num})`}`)
+    log.kv('realtime', trends.length)
+    for (const item of trends.slice(0, 5))
+      log.info(`- ${item.word}${item.heat === undefined ? '' : ` (${item.heat})`}`)
 
     log.heading('超话分类')
     const cates = await sdk.topics.cates()
