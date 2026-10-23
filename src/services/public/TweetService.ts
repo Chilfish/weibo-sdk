@@ -1,6 +1,8 @@
 import type { BuildCommentsArgs, BuildCommentsResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileArgs, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
 import type { TweetContextDeps, TweetContextOptions } from './tweet/context'
+import type { TweetDetailSource } from './tweet/detail'
 import type { TweetLikersSource } from './tweet/likers'
+import type { TweetRepostsSource } from './tweet/reposts'
 import type { TweetFriendTimelineSource, TweetUserTimelineSource } from './tweet/timeline'
 import type {
   TweetCommentsOptions,
@@ -27,10 +29,8 @@ import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
 import type { ITweet, ITweetComment, TweetLongText } from '~/types/domain/ITweet'
 import type { ITweetContext } from '~/types/domain/ITweetContext'
-import { normalizeLongText, Tweet } from '~/models/data/Tweet'
+import { normalizeLongText } from '~/models/data/Tweet'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
-import { normalizeMaxPages } from '~/utils/pagination'
-import { createStreamRange } from '~/utils/streamRange'
 import { resolveTimeInput } from '~/utils/timeInput'
 import { normalizeTweetIdInput } from '~/utils/tweetId'
 import { likersSpec } from '../endpoints/likers'
@@ -39,8 +39,10 @@ import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repo
 import { FetcherService } from '../internal/FetcherService'
 import { streamCommentPagesFrom } from './tweet/comments'
 import { loadTweetContext } from './tweet/context'
-import { commentsPageFromRaw, parseSearchTotal } from './tweet/helpers'
+import { enrichTweet, loadSearchByDatePage, loadTweetDetail } from './tweet/detail'
+import { commentsPageFromRaw } from './tweet/helpers'
 import { loadLikersPage, streamLikersFrom } from './tweet/likers'
+import { loadRepostsPage, streamRepostsFrom } from './tweet/reposts'
 import { loadFriendTimeline, loadUserTimeline, streamFriendTimelineFrom, streamUserTimelineFrom } from './tweet/timeline'
 
 export type { TweetContextDeps, TweetContextOptions } from './tweet/context'
@@ -217,19 +219,7 @@ export class TweetService extends FetcherService {
    * @throws `WeiboAPINotOkError`（微博不存在 / 被删）/ `UnexpectedAPIResponseError` / 传输层错误
    */
   public async getByMblogId(mblogId: string, isGetLongText: boolean = true): Promise<ITweet> {
-    const traceId = `${Date.now()}-getByMblogId-${++normalizeSeq}`
-    const raw = await this.fetchRawStatus(mblogId, isGetLongText)
-    const startAt = Date.now()
-    const tweet = new Tweet(raw)
-    await this.emitTelemetry({
-      event_name: 'normalize_done',
-      timestamp: Date.now(),
-      trace_id: traceId,
-      model: 'Tweet',
-      count: 1,
-      duration_ms: Date.now() - startAt,
-    })
-    return tweet
+    return await loadTweetDetail(this.detailSource(), mblogId, isGetLongText)
   }
 
   /**
@@ -246,28 +236,16 @@ export class TweetService extends FetcherService {
    * await saveRaw(tweet.mblogId, raw)
    */
   public async enrich(mblogId: string, options: TweetEnrichOptions = {}): Promise<TweetEnrichResult> {
-    const traceId = `${Date.now()}-enrich-${++normalizeSeq}`
-    const id = normalizeTweetIdInput(mblogId)
-    // 长文与详情互不依赖，同时发出；两者都只依赖归一化后的 id。
-    const [raw, longTextResponse] = await Promise.all([
-      this.fetchRawStatus(id, options.isGetLongText ?? true),
-      options.includeLongText ? this.longText(id) : undefined,
-    ])
-    const startAt = Date.now()
-    const tweet = new Tweet(raw)
+    return await enrichTweet(this.detailSource(), mblogId, options)
+  }
 
-    const longText = longTextResponse?.text
-
-    await this.emitTelemetry({
-      event_name: 'normalize_done',
-      timestamp: Date.now(),
-      trace_id: traceId,
-      model: 'Tweet',
-      count: 1,
-      duration_ms: Date.now() - startAt,
-    })
-
-    return { tweet, raw, longText }
+  private detailSource(): TweetDetailSource {
+    return {
+      fetchRawStatus: (id, isGetLongText) => this.fetchRawStatus(id, isGetLongText),
+      longText: id => this.longText(id),
+      emitNormalizeDone: params => this.emitNormalizeDone(params),
+      newTraceId: label => this.nextNormalizeTrace(label),
+    }
   }
 
   /**
@@ -480,19 +458,7 @@ export class TweetService extends FetcherService {
    * @returns 归一化转发微博 + 下一页判断
    */
   public async getReposts(mblogId: string, options?: TweetRepostsListOptions): Promise<TweetRepostsPageResult> {
-    const raw = await this.fetchRawReposts(mblogId, options)
-    const page = options?.page !== undefined && Number.isFinite(options.page) ? Math.max(1, Math.floor(options.page)) : 1
-    const reposts = (raw.data ?? []).map(item => new Tweet(item))
-    const result: TweetRepostsPageResult = {
-      reposts,
-      page,
-      hasMore: reposts.length > 0 && (raw.max_page === undefined || page < raw.max_page),
-    }
-    if (raw.total_number !== undefined)
-      result.total = raw.total_number
-    if (raw.max_page !== undefined)
-      result.maxPage = raw.max_page
-    return result
+    return await loadRepostsPage(this.repostsSource(), mblogId, options)
   }
 
   /**
@@ -557,18 +523,7 @@ export class TweetService extends FetcherService {
    * @returns 归一化微博 + 上游报告总数 + 下一页判断
    */
   public async searchByDate(uid: string, options?: TweetSearchByDateOptions): Promise<TweetSearchByDatePageResult> {
-    const raw = await this.fetchRawSearchByDate(uid, options)
-    const page = options?.page !== undefined && Number.isFinite(options.page) ? Math.max(1, Math.floor(options.page)) : 1
-    const tweets = raw.data.list.map(item => new Tweet(item))
-    const total = parseSearchTotal(raw.data.total)
-    const result: TweetSearchByDatePageResult = {
-      tweets,
-      page,
-      hasMore: tweets.length > 0 && (total === undefined || page * tweets.length < total),
-    }
-    if (total !== undefined)
-      result.total = total
-    return result
+    return loadSearchByDatePage(await this.fetchRawSearchByDate(uid, options), options)
   }
 
   /**
@@ -734,63 +689,12 @@ export class TweetService extends FetcherService {
    * }
    */
   async* streamReposts(mblogId: string, options: TweetRepostsStreamOptions = {}): AsyncIterableIterator<ITweet> {
-    const normalized = normalizeTweetIdInput(mblogId)
-    const maxPages = normalizeMaxPages(options.maxPages)
-    const range = createStreamRange<ITweet>(options, tweet => tweet.createdAt)
-    const seen = new Set<string>()
-    let page = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
-    let pages = 0
-    let processed = 0
+    yield* streamRepostsFrom(this.repostsSource(), mblogId, options)
+  }
 
-    while (pages < maxPages) {
-      const raw = await this.fetchRawReposts(normalized, { page, count: options.count })
-      pages += 1
-
-      const items = raw.data ?? []
-      if (items.length === 0)
-        break
-
-      const fresh: typeof items = []
-      for (const item of items) {
-        if (item.mblogid) {
-          if (seen.has(item.mblogid))
-            continue
-          seen.add(item.mblogid)
-        }
-        fresh.push(item)
-      }
-      if (fresh.length === 0)
-        break
-
-      for (const item of fresh) {
-        const tweet = new Tweet(item)
-        const decision = range.decide(tweet)
-        if (decision === 'stop')
-          break
-        if (decision === 'skip')
-          continue
-        processed += 1
-        yield tweet
-      }
-
-      try {
-        await options.onProgress?.({
-          mblogId: normalized,
-          page,
-          processed,
-          pageSize: items.length,
-          total: raw.total_number,
-        })
-      }
-      catch {
-        // 进度回调异常不影响流
-      }
-
-      if (range.stopped)
-        break
-      if (raw.total_number !== undefined && raw.total_number > 0 && processed >= raw.total_number)
-        break
-      page += 1
+  private repostsSource(): TweetRepostsSource {
+    return {
+      fetchPage: (mblogId, options) => this.fetchRawReposts(mblogId, options),
     }
   }
 }
