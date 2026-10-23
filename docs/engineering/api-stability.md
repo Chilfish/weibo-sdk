@@ -9,7 +9,7 @@
 | 层级 | 含义 | 变更规则 | 文档 |
 |---|---|---|---|
 | **Stable** | 下游可以依赖的契约 | 破坏性变更必须升包 major；0.x 内至少 `CHANGELOG` 迁移说明 | 必须在 `website/api/**` 有完整说明 |
-| **Experimental** | 可用，但形状可能随上游漂移 | minor 内可改，需在 `CHANGELOG` 标注 | 在 `website/api/types/experimental-raw.md` 登记 |
+| **Experimental** | 可用，但形状可能随上游漂移 | minor 内可改，需在 `CHANGELOG` 标注 | 在 `website/api/types/raw.md` 登记 |
 | **Internal** | 仓库内部实现 | 不承诺，不导出 | 不写公开文档 |
 
 凡包根导出且未归入任何一层的符号，`pnpm check:api` 直接失败——新增导出必须同时决定层级。
@@ -40,8 +40,8 @@
 
 ### 冻结机制
 
-- `ITweet` 继续用 `TWEET_CONTRACT_VERSION` 管理，规则见 [contract-itweet-v2.md](../../website/reference/tweet-contract-v2.md)。
-- 归档格式继续用 `weibo-user-archive/vN` 管理，规则见 [archive-format-v2.md](../../website/reference/archive-format-v2.md)。
+- `ITweet` 继续用 `TWEET_CONTRACT_VERSION` 管理，规则见 [ITweet 契约](../../website/reference/tweet-contract.md)。
+- 归档格式继续用 `weibo-user-archive/vN` 管理，规则见 [归档格式](../../website/reference/archive-format.md)。
 - 其余 Stable 类型不做独立版本号，跟随包 SemVer。
 
 ## 3. Experimental 子集

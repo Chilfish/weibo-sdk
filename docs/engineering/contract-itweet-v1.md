@@ -1,6 +1,6 @@
 # ITweet 存档契约 v1（冻结）
 
-> **历史文档**：v1 已于 2026-10-21 升级为 [v2](../../website/reference/tweet-contract-v2.md)（删除 `textHtml`）。
+> **历史文档**：v1 已于 2026-10-21 升级为 [v2](../../website/reference/tweet-contract.md)（删除 `textHtml`）。
 > 本文件仅用于理解 v1 落盘记录与迁移背景，当前契约以 v2 为准。
 
 **项目**: weibo-sdk | **冻结日期**: 2026-09-04 | **状态**: v1 已归档 | **来源**: [todo-contract-freeze P0-1](../archive/todo-contract-freeze.md) / [review K1/K3](../reviews/review-apple-design-2026-08-10.md)

@@ -4,7 +4,7 @@ import type { VerificationType } from './IUser'
  * ITweet 存档契约版本（v2，2026-10-21）。
  *
  * `ITweet` 是下游（Weibo-archiver web-v3 / monkey / CLI）的 UI 展示与磁盘存档终局契约
- * （ADR-007/008）。版本规则（与包版本解耦，见 website/reference/tweet-contract-v2.md）：
+ * （ADR-007/008）。版本规则（与包版本解耦，见 website/reference/tweet-contract.md）：
  * - **v2 内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
  * - **v3**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
  *
@@ -180,7 +180,7 @@ export interface ITweetComment {
  * 评论配图（图片评论）。
  *
  * 上游图片不在评论顶层 `pic`，而是藏在 `url_struct[].pic_infos` 的「查看图片」卡片里；
- * `imageUrl` 与微博媒体一样是**临时签名 URL**（见 website/reference/tweet-contract-v2.md §5）。
+ * `imageUrl` 与微博媒体一样是**临时签名 URL**（见 website/reference/tweet-contract.md §4）。
  */
 export interface TweetCommentPic {
   /** 图片 id（`pic_infos` 键 / `pic_id`） */
@@ -417,7 +417,7 @@ export enum MediaType {
  * 【契约（P0-2 裁定，2026-09-04）】`imageUrl` / `videoUrl` 是上游**临时签名 URL**：
  * 有效期 = 请求时间 + 1 小时、一次性（再次下发新 URL 后旧链接作废），**不是长期存档资产**。
  * SDK 不下载媒体；持久化由存档消费方（archiver）在归档时及时完成，
- * 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 website/reference/tweet-contract-v2.md。
+ * 过期后可经 SDK 重新拉取单条微博获取新 URL。详见 website/reference/tweet-contract.md。
  */
 export interface TweetMedia {
   /** 媒体 id（上游 `pid` / 视频 id） */

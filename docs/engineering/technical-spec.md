@@ -146,7 +146,7 @@ request(spec, args)
 
 **不变性**：`id`/`mblogId` 非空；`media` 为数组（可为空）；`stats.*` ≥ 0。
 
-> 当前契约版本为 v2（`TWEET_CONTRACT_VERSION = 2`）。v2 删除了 `ITweet.textHtml` / `ITweetComment.textHtml`；v1 落盘记录可用 `migrateTweetV1toV2` 迁移。完整规则见 [ITweet 契约 v2](../../website/reference/tweet-contract-v2.md)。
+> 当前契约版本为 v2（`TWEET_CONTRACT_VERSION = 2`）。v2 删除了 `ITweet.textHtml` / `ITweetComment.textHtml`；v1 落盘记录可用 `migrateTweetV1toV2` 迁移。完整规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)。
 
 **媒体**（`TweetMedia`）：`id` / `type`（`pic|video|livephoto|gif|unknown`）/ `imageUrl` / `videoUrl?` / `duration?` / `width` / `height`。视频 URL 带签名与过期时间，一次性有效。`page_info.media_info` 形态的视频（视频瀑布 / 部分详情页）也会归一化进 `media`。
 
@@ -403,9 +403,9 @@ interface IWeiboConfig {
 | `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（mymblog + 可选 searchProfile 日期切片，内联 reposts）→ likes → comments → favorites → images → videos 一条可恢复流 |
 | `streamUsersArchive` | `(uids, options?) => AsyncIterableIterator<{ uid, item }>` | 多账号串行归档；按 uid 读取 checkpoint / incremental，单用户失败可 `skip` |
 
-- `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博；`source: 'image'` 时 `tweet` 缺省、资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `2`，规则见 [ITweet 契约 v2](../../website/reference/tweet-contract-v2.md)）；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`）；`checkpoint` 为进度快照（A6）。
+- `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博；`source: 'image'` 时 `tweet` 缺省、资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `2`，规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)）；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`）；`checkpoint` 为进度快照（A6）。
 - `ArchiveStreamOptions`（0.2）：`includeImages` / `includeVideos`（默认 `false`，需注入媒体原始页依赖）；`incremental: { since?, stopAtMblogId?, skipPinned? }`（仅 timeline）；`originalOnly`（跳过转发并关闭内联转发）；`searchQuery`（日期切片 `q`）。
-- `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [ITweet 契约 v2 §6](../../website/reference/tweet-contract-v2.md)）。
+- `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [ITweet 契约 §5](../../website/reference/tweet-contract.md)）。
 - `ArchiveStreamOptions`（P1-5）：`timelineSource?: 'mymblog' | 'search'`（默认 `mymblog`）；`includeDateSlices?: boolean`（默认 `true`）；`since?: number`（unix 秒，默认 2009-08-14）；`until?: number`（unix 秒，默认当前时间）；`sliceWindow?: number`（初始自适应窗口秒数，默认 30 天）；`maxSliceItems?: number`（单片超过该条数就对半缩小窗口，默认 800）。
 - `ArchiveStreamOptions`（P1-3/P1-4/P1-6）：`onProgress(progress)`（每页/每阶段一次，`ArchiveProgress = { uid, phase, processed, total?, remaining?, source?, page? }`）；`onItemError(error, context)` 返回 `'abort' | 'skip' | 'retry'`；`repostErrorPolicy` / `commentsErrorPolicy` / `likesErrorPolicy` / `commentHistoryErrorPolicy`（转发/评论默认 `skip`，点赞/历史评论默认 `abort`）；`maxRetries`（默认 1，仅 `retryable` 错误）/ `retryDelayMs`；`includeComments`（默认 `false`）、`commentCount`（默认 20）、`maxCommentPagesPerTweet`（默认不限）；`includeLikes` / `includeCommentHistory`（默认 `false`）。`onProgress` 与 telemetry 异常不影响归档。
 - `ArchiveCheckpoint = { uid, phase, page?, lastTimelineMblogId?, favoritesPage?, likesPage?, imagesCursor?, videosCursor?, commentHistoryCursor?, sliceEnd?, slicePage?, sliceWindow? }`（0.2）：**不再携带 `visitedMblogIds` / `lastMblogId`**。`page` 语义 = mymblog 阶段**当前页**；`lastTimelineMblogId` = 已完整处理的最后一条微博；`likesPage` / `imagesCursor` / `videosCursor` 为对应阶段游标；`commentHistoryCursor` = comments 阶段当前页使用的 `max_id`；`sliceEnd` / `slicePage` / `sliceWindow` 为日期切片游标。

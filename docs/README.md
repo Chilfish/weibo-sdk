@@ -19,7 +19,7 @@
 | API 参考（每个服务一页，含签名 / 参数 / 返回 / 错误 / 访客限制） | [`website/api/`](../website/api/) |
 | CLI 命令参考 | [`website/cli/index.md`](../website/cli/index.md) |
 | 契约与格式（`ITweet` v2、归档 v2、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
-| 导出索引（Stable / Experimental + 全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
+| 导出索引（全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
 
 **约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的同步由 `pnpm check:api` / `pnpm check:docs` 强制。
 
