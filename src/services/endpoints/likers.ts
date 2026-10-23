@@ -40,6 +40,38 @@ const LikersArgsSchema = z.object({
 export type LikersArgs = z.infer<typeof LikersArgsSchema>
 
 /**
+ * m 站空结果文案。
+ *
+ * 2026-10-23 实测：微博还没有人点赞时返回 `{ ok: 0, msg: '还没有人赞过' }`，
+ * 且**不带 `data` 字段**。这是正常空页，不应报 `API_NOT_OK`。
+ */
+const EMPTY_RESULT_MESSAGES = new Set(['还没有人赞过', '暂无数据', '这里还没有内容'])
+
+export function isEmptyLikersPage(raw: unknown): boolean {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
+    return false
+  const record = raw as Record<string, unknown>
+  return record.ok === 0
+    && typeof record.msg === 'string'
+    && EMPTY_RESULT_MESSAGES.has(record.msg)
+}
+
+const LikersResponseSchema = z.object({
+  ok: z.number(),
+  msg: z.string().optional(),
+  /** 空结果响应不带 `data`；正常页 / 越界页才有。 */
+  data: z.object({
+    /** 当前请求页码（上游回显；仅用于诊断） */
+    max: z.union([z.number(), z.string()]).optional(),
+    total_number: z.number().optional(),
+    /** 越界页为 null；正常页为数组 */
+    data: z.array(LikerItemSchema).nullable().optional(),
+  }).loose().optional(),
+}).loose()
+
+export type LikersResponse = z.infer<typeof LikersResponseSchema>
+
+/**
  * 微博点赞者列表（D8）。
  *
  * **端点漂移（2026-10-20 实测）**：网页端 `weibo.com/ajax/statuses/likeShow?id=<mid>&page=<n>`
@@ -49,20 +81,6 @@ export type LikersArgs = z.infer<typeof LikersArgsSchema>
  *
  * 分页为 page 型（1 基）；越界页返回 `data: null`（仍 `ok: 1`），服务层按空页处理。
  */
-const LikersResponseSchema = z.object({
-  ok: z.number(),
-  msg: z.string().optional(),
-  data: z.object({
-    /** 当前请求页码（上游回显；仅用于诊断） */
-    max: z.union([z.number(), z.string()]).optional(),
-    total_number: z.number().optional(),
-    /** 越界页为 null；正常页为数组 */
-    data: z.array(LikerItemSchema).nullable().optional(),
-  }).loose(),
-}).loose()
-
-export type LikersResponse = z.infer<typeof LikersResponseSchema>
-
 export const likersSpec: EndpointSpec<'TWEET_LIKERS', typeof LikersArgsSchema> = defineEndpoint({
   resourceType: 'TWEET_LIKERS',
   endpoint: 'api/attitudes/show',
@@ -74,6 +92,9 @@ export const likersSpec: EndpointSpec<'TWEET_LIKERS', typeof LikersArgsSchema> =
   }),
   // m 站点赞者公开可读：访客 token 可用（研究实测含翻页）
   auth: 'guest',
-  okPolicy: { mode: 'require_ok_1' },
+  okPolicy: {
+    mode: 'require_ok_1',
+    isEmptyResult: ({ raw }) => isEmptyLikersPage(raw),
+  },
   schema: LikersResponseSchema,
 })

@@ -12,6 +12,12 @@ export const scenario: SdkScenario = {
   async run({ sdk, args, log }) {
     const maxPages = flagNumber(args, 'max-pages', 1)
 
+    log.heading('单页接口')
+    const commentPage = await sdk.notifications.listComments({ page: 1 })
+    log.kv('listComments', `items=${commentPage.items.length} cursor=${commentPage.cursor} hasMore=${commentPage.hasMore}`)
+    const likePage = await sdk.notifications.listLikes({ page: 1 })
+    log.kv('listLikes', `items=${likePage.items.length} cursor=${likePage.cursor} hasMore=${likePage.hasMore}`)
+
     log.heading('评论通知')
     let comments = 0
     for await (const item of sdk.notifications.streamComments({

@@ -35,6 +35,26 @@ export const scenario: SdkScenario = {
     log.kv('sliceDays', sliceDays)
     log.kv('out', outPath)
 
+    if (flagBool(args, 'stream', false)) {
+      let events = 0
+      for await (const event of sdk.userArchive.stream(uid, {
+        since,
+        until,
+        sliceDays,
+        includeComments,
+        includeReplies,
+        includeReposts,
+        concurrency,
+      })) {
+        events += 1
+        if (events <= 5)
+          log.info(`- event ${event.type}`)
+      }
+      log.kv('stream events', events)
+      log.info('流式事件：meta / slice-start / record / issue / slice-done / done；适合边跑边写自己的存储。')
+      return
+    }
+
     const result = await sdk.userArchive.run(uid, {
       since,
       until,

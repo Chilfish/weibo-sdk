@@ -1,5 +1,6 @@
 import type { SdkScenario } from '../lib/types'
 import { flagString } from '../lib/args'
+import { describeError } from '../lib/log'
 
 /** 热搜 + 超话分类 / 关键词搜索；顺便展示「公开搜索不可用」的能力状态。 */
 export const scenario: SdkScenario = {
@@ -30,6 +31,30 @@ export const scenario: SdkScenario = {
         log.info(`- ${topic.pageId} ${topic.title}`)
     }
     log.kv('topics', topics)
+
+    log.heading('超话列表（单页）')
+    const topicPage = await sdk.topics.list({ keyword, page: 1 })
+    log.kv('list', `topics=${topicPage.topics.length} page=${topicPage.page} hasMore=${topicPage.hasMore}`)
+
+    log.heading('热搜 raw')
+    const rawBand = await sdk.trends.fetchRawBand('hot')
+    log.kv('fetchRawBand', rawBand && typeof rawBand === 'object' ? Object.keys(rawBand).join(',') : typeof rawBand)
+
+    log.heading(`公开关键词搜索（上游已失效）：${keyword}`)
+    try {
+      const users = await sdk.search.searchUsers(keyword)
+      log.kv('searchUsers', `users=${users.users.length}`)
+    }
+    catch (error) {
+      log.warn(`searchUsers: ${describeError(error).code ?? 'UNKNOWN'}（预期失败）`)
+    }
+    try {
+      const tweets = await sdk.search.searchTweets(keyword)
+      log.kv('searchTweets', `tweets=${tweets.tweets.length}`)
+    }
+    catch (error) {
+      log.warn(`searchTweets: ${describeError(error).code ?? 'UNKNOWN'}（预期失败）`)
+    }
 
     const searchCaps = sdk.capabilities({ service: 'search' })
     log.warn(`公开关键词搜索：${searchCaps.map(item => `${item.id}=${item.status}`).join(', ')}（产品暂缓）`)

@@ -8,6 +8,10 @@ export const scenario: SdkScenario = {
   summary: 'getSession（复用启动自检）→ uid → getById',
   usage: 'pnpm play whoami',
   async run({ sdk, log }) {
+    log.kv('checkSession', await sdk.checkSession())
+    const guestToken = await sdk.getGuestTokenStatus()
+    log.kv('guestTokenStatus', guestToken ?? '（cookie 模式不发放 guest token）')
+
     const session = await sdk.getSession()
     log.kv('getSession.authMode', session.authMode)
     log.kv('getSession.uid', session.uid ?? '(未解析)')

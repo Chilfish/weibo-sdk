@@ -65,6 +65,7 @@
     "lint": "eslint . --fix",
     "lint:package": "node scripts/lint-package.mjs",
     "play": "tsx playground/run.ts",
+    "play:coverage": "tsx scripts/playground-coverage.ts",
     "prepublishOnly": "node scripts/verify-publish-tool.mjs && nr build",
     "release": "node scripts/release.mjs",
     "schema:archive": "ts-json-schema-generator --path src/types/archive/IArchiveFile.ts --type ArchiveFile --tsconfig tsconfig.json --no-type-check --additional-properties --markdown-description --no-top-ref --id https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json -o schemas/weibo-user-archive/v2.json",

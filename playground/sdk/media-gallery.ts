@@ -20,6 +20,13 @@ export const scenario: SdkScenario = {
     for (const asset of images.assets.slice(0, 5))
       printAsset(asset, log)
 
+    let streamedImages = 0
+    for await (const asset of sdk.media.streamImages(uid, { maxPages })) {
+      if (++streamedImages <= 3)
+        printAsset(asset, log)
+    }
+    log.kv('streamImages', streamedImages)
+
     log.heading('视频瀑布（cursor 游标）')
     let videos = 0
     for await (const asset of sdk.media.streamVideos(uid, {
@@ -30,6 +37,9 @@ export const scenario: SdkScenario = {
         printAsset(asset, log)
     }
     log.kv('videos', videos)
+
+    const videosPage = await sdk.media.listVideos(uid)
+    log.kv('listVideos', `assets=${videosPage.assets.length} cursor=${videosPage.cursor ?? 'n/a'} hasMore=${videosPage.hasMore}`)
 
     log.heading('相册')
     const { albums } = await sdk.media.listAlbums(uid)
@@ -43,6 +53,14 @@ export const scenario: SdkScenario = {
       log.kv(`album ${album.title}`, `photos=${photos.assets.length} hasMore=${photos.hasMore}`)
       for (const photo of photos.assets.slice(0, 5))
         printAsset(photo, log)
+
+      log.heading('相册流（streamAlbumPhotos）')
+      let streamed = 0
+      for await (const photo of sdk.media.streamAlbumPhotos(album.containerId, { maxPages })) {
+        if (++streamed <= 3)
+          printAsset(photo, log)
+      }
+      log.kv('streamAlbumPhotos', streamed)
     }
     else {
       log.info('该账号没有可用相册；可换一个 uid 再试。')

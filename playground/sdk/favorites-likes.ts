@@ -18,6 +18,14 @@ export const scenario: SdkScenario = {
     const tags = await sdk.favorites.getTags()
     log.kv('favorite tags', `tags=${tags.tags.length} total=${tags.total ?? 'n/a'}`)
 
+    log.heading('单页接口')
+    const favoritesPage = await sdk.favorites.listFavorites(uid, { page: 1 })
+    log.kv('listFavorites', `tweets=${favoritesPage.tweets.length} totalPages=${favoritesPage.totalPages ?? 'n/a'} hasMore=${favoritesPage.hasMore}`)
+    const likesPage = await sdk.likes.listByUserId(uid, { page: 1 })
+    log.kv('likes.listByUserId', `tweets=${likesPage.tweets.length} hasMore=${likesPage.hasMore}`)
+    const historyPage = await sdk.commentHistory.listMine()
+    log.kv('commentHistory.listMine', `comments=${historyPage.comments.length} cursor=${historyPage.cursor} hasMore=${historyPage.hasMore}`)
+
     log.heading('收藏夹')
     let favorites = 0
     for await (const tweet of sdk.favorites.streamFavorites(uid, {

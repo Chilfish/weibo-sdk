@@ -53,5 +53,15 @@ export const scenario: SdkScenario = {
 
     if (!write)
       log.warn('默认 dry-run（只规划不落盘）；加 --write 才会真正下载。')
+
+    log.heading('downloadTweetMedia（从已归一化的 ITweet 出发）')
+    const tweet = await sdk.tweets.getByMblogId(mblogId)
+    const fromTweet = await sdk.media.downloadTweetMedia(tweet, {
+      dir: join(paths.output, 'media-tweet'),
+      dryRun: !write,
+    })
+    log.kv('items', fromTweet.items.length)
+    log.kv('totals', JSON.stringify(fromTweet.totals))
+    log.info('已有 ITweet（例如来自归档文件）时用这个入口，不必重新拉微博。')
   },
 }
