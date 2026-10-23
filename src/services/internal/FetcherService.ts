@@ -174,11 +174,25 @@ export class FetcherService {
     this.auth = deps?.auth ?? createAuthContext(config, {
       telemetry: this.telemetry,
     })
-    if (config.delay !== undefined && typeof config.delay !== 'number')
-      throw new InvalidConfigError('config.delay must be a number of milliseconds.', { field: 'delay', value: config.delay })
+    const burst = config.burst ?? 3
+    const delay = config.delay ?? 1000
+    // 这里校验后仍交给 RateLimitService（它自己也守同一组不变量），
+    // 保证注入替身之外的路径都拿不到非法桶。
+    if (!Number.isInteger(burst) || burst < 1) {
+      throw new InvalidConfigError('config.burst must be an integer >= 1.', {
+        field: 'burst',
+        value: config.burst,
+      })
+    }
+    if (typeof delay !== 'number' || !Number.isFinite(delay) || delay < 0) {
+      throw new InvalidConfigError('config.delay must be a finite number of milliseconds >= 0 (0 = unlimited).', {
+        field: 'delay',
+        value: config.delay,
+      })
+    }
     this.rateLimitService = deps?.rateLimitService ?? new RateLimitService(
-      config.burst || 3,
-      typeof config.delay === 'number' ? config.delay : 1000,
+      burst,
+      delay,
       undefined,
       this.telemetry,
     )

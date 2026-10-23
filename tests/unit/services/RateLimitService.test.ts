@@ -1,6 +1,28 @@
 import { FakeClock, TelemetryCollector } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { RateLimitService } from '~/services/internal/RateLimitService'
+
+describe('rateLimitService invariants', () => {
+  it.each([0, -1, 1.5, Number.NaN])('rejects invalid burst %s instead of hanging later', (burst) => {
+    expect(() => new RateLimitService(burst, 1000, new FakeClock())).toThrowError(InvalidConfigError)
+  })
+
+  it.each([-1, -100, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid delay %s instead of hanging later', (delay) => {
+    expect(() => new RateLimitService(1, delay, new FakeClock())).toThrowError(InvalidConfigError)
+  })
+
+  it('treats delay 0 as explicit no-throttle', async () => {
+    const clock = new FakeClock()
+    const rl = new RateLimitService(1, 0, clock)
+
+    // 远超 burst 的次数也不应等待或挂起
+    for (let i = 0; i < 5; i++)
+      await rl.acquire()
+
+    expect(clock.sleepCalls).toHaveLength(0)
+  })
+})
 
 describe('rateLimitService', () => {
   it('acquires immediately when tokens are available', async () => {
