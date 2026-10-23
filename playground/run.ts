@@ -6,6 +6,7 @@ import { parseScenarioArgs } from './lib/args'
 import { runCli } from './lib/cli'
 import { loadEnv, OUTPUT, PLAYGROUND, requireCookie, ROOT } from './lib/env'
 import { createLogger, describeError } from './lib/log'
+import { scenario as agentDigest } from './sdk/agent-digest'
 import { scenario as archive } from './sdk/archive'
 import { scenario as archiveBatch } from './sdk/archive-batch'
 import { scenario as archiveMerge } from './sdk/archive-merge'
@@ -17,11 +18,14 @@ import { scenario as mediaGallery } from './sdk/media-gallery'
 import { scenario as notifications } from './sdk/notifications'
 import { scenario as plugins } from './sdk/plugins'
 import { scenario as rawEnrich } from './sdk/raw-enrich'
+import { scenario as rawSnapshot } from './sdk/raw-snapshot'
 import { scenario as socialGraph } from './sdk/social-graph'
 import { scenario as telemetry } from './sdk/telemetry'
 import { scenario as topicsTrends } from './sdk/topics-trends'
 import { scenario as tweetAttachments } from './sdk/tweet-attachments'
 import { scenario as tweetComments } from './sdk/tweet-comments'
+import { scenario as tweetEngagements } from './sdk/tweet-engagements'
+import { scenario as typedConsumer } from './sdk/typed-consumer'
 import { scenario as userArchive } from './sdk/user-archive'
 import { scenario as userTimeline } from './sdk/user-timeline'
 import { scenario as whoami } from './sdk/whoami'
@@ -29,8 +33,10 @@ import { scenario as whoami } from './sdk/whoami'
 const SDK_SCENARIOS: SdkScenario[] = [
   whoami,
   userTimeline,
+  agentDigest,
   homeFeed,
   tweetComments,
+  tweetEngagements,
   tweetAttachments,
   mediaGallery,
   downloadMedia,
@@ -42,6 +48,8 @@ const SDK_SCENARIOS: SdkScenario[] = [
   archiveBatch,
   archiveMerge,
   userArchive,
+  rawSnapshot,
+  typedConsumer,
   telemetry,
   diagnose,
   plugins,

@@ -70,21 +70,25 @@ pnpm play whoami --cookie "SUB=...; SUBP=...; XSRF-TOKEN=..."
 
 | id | 文件 | 内容 |
 |---|---|---|
-| `whoami` | [`sdk/whoami.ts`](./sdk/whoami.ts) | `getSession`（复用自检）、`getById`、`capabilities` |
+| `whoami` | [`sdk/whoami.ts`](./sdk/whoami.ts) | `checkSession`、`getGuestTokenStatus`、`getSession`、`getById`、`capabilities` |
 | `user-timeline` | [`sdk/user-timeline.ts`](./sdk/user-timeline.ts) | 用户资料、`listByUserId`、有界 `streamByUserId` |
+| `agent-digest` | [`sdk/agent-digest.ts`](./sdk/agent-digest.ts) | Feed → `tweets.context` → 本地 Markdown 摘要（Agent 视角） |
 | `home-feed` | [`sdk/home-feed.ts`](./sdk/home-feed.ts) | 首页 Feed 的 `max_id` 翻页和 `since_id` 增量 |
 | `tweet-comments` | [`sdk/tweet-comments.ts`](./sdk/tweet-comments.ts) | 详情、评论流、图片评论和楼中楼 |
+| `tweet-engagements` | [`sdk/tweet-engagements.ts`](./sdk/tweet-engagements.ts) | 单页评论 / 楼中楼 / 转发 / 点赞者 / 长文 / 日期检索 |
 | `tweet-attachments` | [`sdk/tweet-attachments.ts`](./sdk/tweet-attachments.ts) | `tweet.attachments` / `context.post.attachments`：文章、投票、直播、抽奖（默认跑 4 条公开样本） |
-| `media-gallery` | [`sdk/media-gallery.ts`](./sdk/media-gallery.ts) | 图片墙、视频瀑布和相册 |
-| `download-media` | [`sdk/download-media.ts`](./sdk/download-media.ts) | `downloadByMblogId`、dry-run、逐项状态 |
-| `favorites-likes` | [`sdk/favorites-likes.ts`](./sdk/favorites-likes.ts) | 收藏标签和流、点赞、历史评论 |
-| `social-graph` | [`sdk/social-graph.ts`](./sdk/social-graph.ts) | 关注、粉丝、@ 我、分组、点赞者 |
-| `notifications` | [`sdk/notifications.ts`](./sdk/notifications.ts) | 评论通知和点赞通知 |
-| `topics-trends` | [`sdk/topics-trends.ts`](./sdk/topics-trends.ts) | 热搜、超话分类和关键词搜索 |
+| `media-gallery` | [`sdk/media-gallery.ts`](./sdk/media-gallery.ts) | 图片墙、视频瀑布、相册（单页 + 流式） |
+| `download-media` | [`sdk/download-media.ts`](./sdk/download-media.ts) | `downloadByMblogId`、`downloadTweetMedia`、dry-run、逐项状态 |
+| `favorites-likes` | [`sdk/favorites-likes.ts`](./sdk/favorites-likes.ts) | 收藏 / 点赞 / 历史评论的单页与流式口径 |
+| `social-graph` | [`sdk/social-graph.ts`](./sdk/social-graph.ts) | 关注、粉丝、@ 我、分组、点赞者的 `get*` / `stream*` 对比 |
+| `notifications` | [`sdk/notifications.ts`](./sdk/notifications.ts) | 评论通知和点赞通知（单页 + 流式） |
+| `topics-trends` | [`sdk/topics-trends.ts`](./sdk/topics-trends.ts) | 热搜、超话分类 / 搜索 / 列表、`fetchRawBand` |
 | `archive` | [`sdk/archive.ts`](./sdk/archive.ts) | `streamArchive`、checkpoint、增量、多数据源、`onRaw` |
 | `archive-batch` | [`sdk/archive-batch.ts`](./sdk/archive-batch.ts) | `streamUsersArchive`、每用户 checkpoint、失败隔离 |
-| `user-archive` | [`sdk/user-archive.ts`](./sdk/user-archive.ts) | `userArchive.run`：范围归档、评论 / 楼中楼 / 转发补全、单文件产出 |
+| `user-archive` | [`sdk/user-archive.ts`](./sdk/user-archive.ts) | `userArchive.run` / `stream`：范围归档、补全、单文件产出 |
 | `archive-merge` | [`sdk/archive-merge.ts`](./sdk/archive-merge.ts) | `mergeArchiveFiles`：多份归档按 `mblogId` 合并、评论 / 楼中楼 / 转发取并集（离线） |
+| `raw-snapshot` | [`sdk/raw-snapshot.ts`](./sdk/raw-snapshot.ts) | 全部 `fetchRaw*` 端点：信封形状 + 可选落盘 JSON 做 schema diff |
+| `typed-consumer` | [`sdk/typed-consumer.ts`](./sdk/typed-consumer.ts) | Stable 类型的下游映射（离线，`typecheck` 验证字段形状） |
 | `telemetry` | [`sdk/telemetry.ts`](./sdk/telemetry.ts) | `createJsonlTelemetry` 和进度摘要（离线） |
 | `diagnose` | [`sdk/diagnose.ts`](./sdk/diagnose.ts) | 能力清单和结构化错误（离线，加 `--probe` 会请求真实接口） |
 | `plugins` | [`sdk/plugins.ts`](./sdk/plugins.ts) | `fetchTransport`、transport 缓存中间件、生命周期 hooks、observer、`onError` 替换（离线） |
@@ -102,7 +106,28 @@ pnpm play user-archive 1111681197 --since 2025-01-01 --until 2025-01-31 --no-com
 pnpm play archive-merge playground/output/user-archive/1111681197.json
 pnpm play archive-batch --uid-file playground/uids.example.txt
 pnpm play download-media QqsYymYOS --include pic,video --write
+pnpm play agent-digest --max-items 3 --comments 2
+pnpm play user-archive 1111681197 --since 2025-01-01 --until 2025-01-31 --stream
+pnpm play raw-snapshot 1111681197 QqsYymYOS --write
 ```
+
+## 覆盖报告
+
+`pnpm play:coverage` 扫描 playground 里对 `@chilfish/weibo-sdk` 的 import 和 `sdk.<service>.<method>()` 调用，
+对照 `api-surface.json` 输出：
+
+- Stable 导出的显式引用率与未引用清单；
+- 每个 Service 的公开方法调用覆盖率与缺口；
+- `WeiboSDK` 门面方法覆盖率。
+
+```bash
+pnpm play:coverage          # 人类可读报告
+pnpm play:coverage --json   # 机器可读
+pnpm play:coverage --strict # 有缺口时退出码 1（可接 CI）
+```
+
+运行时覆盖只统计显式调用；类型字段由 `typed-consumer` 在 `pnpm typecheck` 时验证。
+两者的共同目标是：**新增导出/方法时，playground 能先于下游发现问题**。
 
 ## 扩展：自定义 transport 与插件
 
