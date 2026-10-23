@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 24 是当前 LTS，26 是即将在 2026-10-28 进入 LTS 的当前版本。
-        node: [24, 26]
+        # 20 是 engines.node 声称的下限（>=20.16），必须实测；24 是当前 LTS，26 是即将进入 LTS 的当前版本。
+        node: [20, 24, 26]
 
     steps:
       - uses: actions/checkout@v7
@@ -46,5 +46,7 @@ jobs:
       - run: pnpm check:docs
       - run: pnpm run schema:check
       - run: pnpm run build
+      - run: pnpm run verify:package
+      - run: pnpm run test:bundle
       - run: pnpm docs:build
       - run: node scripts/browser-smoke.mjs --no-browser
