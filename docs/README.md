@@ -71,6 +71,7 @@
 |---|---|---|
 | [review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md) | Apple 产品/研发视角设计审查（F/C/E/D 问题清单 + 评分 + 根因） | 了解已知设计问题、行动依据 |
 | [review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布 + 真实消费者背景） | 了解发布前必须解决的契约/归档问题 |
+| [review-2026-10-23-maintainability.md](reviews/review-2026-10-23-maintainability.md) | 可维护性审查（归档上帝对象 / Stable 承诺 / 门禁盲区 + 处理结论） | 了解归档分层、API 分层判据、门禁为何这样设计 |
 
 ## engineering/ — 工程规范与子系统
 

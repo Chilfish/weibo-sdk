@@ -15,7 +15,7 @@
 
 ## 开发纪律（强制）
 
-1. **文档先行（docs-first）**：每个任务第一步先更新相关文档（开发日志 `docs/development-log/`、任务状态、方案文档），再开始写代码；实施过程中随实际反馈同步修改文档，而非事后补记。完成阶段的规划文档移入 `docs/archive/`（历史记录，不主动读取）。
+1. **文档先行（只限三类）**：只有「公开契约变化 / 新增或修改 endpoint / 事故与可靠性修复」必须先写文档（契约与端点说明、postmortem、方案），再写代码。其余改动（内部重构、测试、常规 bugfix）不要求先写文档，当天在 `docs/development-log/` 补一条即可。完成阶段的规划文档移入 `docs/archive/`（历史记录，不主动读取）。
 2. **先写 commit message 再写代码**：动工前用 Conventional Commit 格式确定提交信息，围绕该 message 的范围编码；diff >10 文件或 >200 行时必须拆分。模块创建、功能实现、配置修改、文档更新分开 commit。
 3. **开写前先读 postmortem 高频雷区**（`docs/postmortem/README.md`）：对照「高频雷区」自查，避免重复踩坑。写码期间同步跑本地质量门禁（typecheck/lint），不要等 CI 才发现。
 
@@ -37,6 +37,7 @@
 | `docs/planning/backlog.md` | 跨阶段候选任务清单 |
 | `docs/reviews/review-apple-design-2026-08-09.md` | Apple 视角设计审查（问题清单 + 行动依据） |
 | `docs/reviews/review-apple-design-2026-08-10.md` | 第二轮 Apple 视角审查（下游契约 K / 归档硬化 R，npm 发布背景） |
+| `docs/reviews/review-2026-10-23-maintainability.md` | 可维护性审查（归档上帝对象 / Stable 承诺 / 门禁盲区，含处理结论） |
 | `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
 | `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
 | `docs/engineering/cli-architecture.md` | CLI 内部架构（命令树 / bin 入口 / 新增子命令） |
