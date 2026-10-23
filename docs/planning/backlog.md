@@ -27,6 +27,8 @@
 | C5 | 错误分类统一（level 与类名解耦） | ⏸️ | P2 | `level` 由实例声明而非类继承决定，两套真相；选一个明显且唯一的系统 | review C5 |
 | E1 | 框架层瘦身评估 | ⏸️ | P2 | EndpointSpec/IResource 是否过度泛化：先承接 P0 契约卫生（消 `as any`、schema 回归）后，用真实使用量评估抽象是否成立 | review E1 |
 | — | 领域模型继续精确化 | ⏸️ | P2 | 更多变种字段（`annotations` 异构、`page_info` 类型漂移）的 fallback 链补充，随真实 fixture 驱动 | 渐进式开发计划 Phase 2 |
+| C6 | God Service 拆分（TweetService / MediaService） | 🟢 | P2 | 已抽出 `tweet/context.ts`（上下文投影与类型，TweetService 1472 → 1364 行）。下一步按域拆：likers / comments / timeline 各成模块，Service 只保留薄委托；公开 API 与导出路径不变，每步跑全家桶 | review 2026-10-23 #9 |
+| C7 | 归档双管线收敛 | ⏸️ | P2 | ADR-017 已冻结边界（`streamArchive` 唯一枚举状态机，新能力只进 `userArchive`）。只有出现「新枚举源 / 新续跑语义」时才启动合并评估 | review 2026-10-23 #8 / [architecture.md](architecture.md) ADR-017 |
 
 ### 端点扩展（暂缓，非归档优先）
 
