@@ -36,7 +36,7 @@
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`schemas/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
-- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.5.0`，2026-10-22）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.6.0`，2026-10-23）
 
 ## 公共导出面核验
 
@@ -91,7 +91,17 @@
 12. npm 页面显示 provenance，GitHub Release 内容与 CHANGELOG 一致
 13. 回填冒烟勾选日期与开发日志
 
-> 本地核验注意：`pnpm release` 的门禁 build 在 bump 前执行，发布后 `dist` 仍嵌入旧 `VERSION`；跑 `verify:package` / tarball 核验前先 `pnpm build`。CI 从 tag 重建，发布产物不受影响（0.5.0 已确认）。
+## 0.6.0 发布记录（2026-10-23）
+
+- 发布提交 `8c45cd8 chore(release): v0.6.0`，tag `v0.6.0`；`publish.yml` 全步骤通过（typecheck / eslint /
+  test / validate:fixtures / check:api / check:docs / schema:check / build / verify:package / test:bundle /
+  docs:build / browser-smoke / publish / verify registry）。
+- 离线：1023 passed / 28 skipped；fixtures 114（103 ok / 11 unmodeled / 0 fail）；真实 E2E 28 passed（含 guest）。
+- registry：`latest = 0.6.0`，`dependencies` 为 `axios` / `zod`；临时目录安装后 `--version` = `0.6.0`，
+  产物只含 `dist` / `schemas`。
+- GitHub Release v0.6.0 已创建；文档站 `schemas/weibo-user-archive/v2.json` 返回 200。
+
+> 本地核验注意：`pnpm release` 的门禁 build 在 bump 前执行，发布后 `dist` 仍嵌入旧 `VERSION`；跑 `verify:package` / tarball 核验前先 `pnpm build`。CI 从 tag 重建，发布产物不受影响（0.5.0 / 0.6.0 已确认）。
 
 > 真实外网验证由维护者在发布前执行，勾选并记录日期。
 
