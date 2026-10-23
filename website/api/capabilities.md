@@ -5,7 +5,7 @@ outline: deep
 
 # 能力清单
 
-`capabilities()` 是离线静态注册表，不发起网络请求。它说明每项能力是否存在、鉴权要求、访客翻页范围、数据归属与对应的 CLI 命令。
+`capabilities()` 是本地静态注册表。它说明每项能力是否存在、鉴权要求、访客翻页范围、数据归属与对应的 CLI 命令。
 
 ```ts
 const caps = sdk.capabilities({ service: 'tweets' })

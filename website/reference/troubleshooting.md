@@ -211,7 +211,7 @@ void new WeiboSDK({
 
 `FetcherService` 对可重试的结构化错误做指数退避加 jitter。默认最大重试次数 2（不含首次请求），基础延迟 500ms，单次延迟上限 8000ms。
 
-第 n 次重试的延迟约为 `min(maxDelayMs, baseDelayMs * 2^(n-1))`，再乘以 `0.5` 到 `1.0` 之间的 jitter。上游返回 `Retry-After` 时直接采用该值，同样受 `maxDelayMs` 截断，不再叠加 jitter。
+第 n 次重试的延迟约为 `min(maxDelayMs, baseDelayMs * 2^(n-1))`，再乘以 `0.5` 到 `1.0` 之间的 jitter。上游返回 `Retry-After` 时直接采用该值，同样受 `maxDelayMs` 截断；jitter 只用于没有 `Retry-After` 的情况。
 
 每次退避发出 `request_retry` 事件，包含 `attempt`、`max_attempts`、`delay_ms`、`reason`、`status`。最终失败才发 `request_error`，hooks 的 `onError` 也只在最终失败时触发。
 

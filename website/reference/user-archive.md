@@ -228,7 +228,7 @@ weibo-cli archive merge ./archives ./extra.json -o ./merged.json     # 目录与
 
 `tweet.stats.comments === 0` 时 SDK 跳过评论请求，`tweet.stats.reposts === 0` 时跳过转发请求。
 
-评论与楼中楼默认各翻 2 页，避免高互动微博阻塞整个任务。需要完整评论区时加 `--all-comments` / `--all-replies`（或 `--max-comment-pages 0` / `--max-reply-pages 0`）。条数上限 `--max-comments` / `--max-replies` 同时生效，两个条件先到先停。
+高互动微博会拖慢整个任务，评论与楼中楼因此默认各翻 2 页。需要完整评论区时加 `--all-comments` / `--all-replies`（或 `--max-comment-pages 0` / `--max-reply-pages 0`）。条数上限 `--max-comments` / `--max-replies` 同时生效，两个条件先到先停。
 
 ## 吞吐建议
 

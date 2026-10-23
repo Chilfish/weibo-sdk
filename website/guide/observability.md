@@ -18,7 +18,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-`telemetry.emit()` 的异常会被吞掉，不影响业务。
+`telemetry.emit()` 的异常会被吞掉。
 
 ## 原始响应
 

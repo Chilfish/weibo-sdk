@@ -71,7 +71,7 @@ await sdk.checkSession({ refresh: true }) // 返回 boolean
 
 ## 能力边界
 
-`capabilities()` 是离线静态表，用来判断某个能力在访客下能不能用：
+`capabilities()` 是离线静态表，用于判断某个能力在访客身份下是否可用：
 
 ```ts
 const caps = sdk.capabilities({ service: 'tweets' })

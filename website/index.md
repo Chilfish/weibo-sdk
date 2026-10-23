@@ -19,13 +19,13 @@ hero:
       link: https://github.com/Chilfish/weibo-sdk
 features:
   - title: 访客可用
-    details: 不传 Cookie 就以访客身份读取用户资料、单条微博、评论、媒体和热搜。
+    details: 不传 Cookie 时使用访客身份，读取用户资料、单条微博、评论、媒体和热搜。
   - title: 归档可续跑
     details: streamArchive 按 checkpoint 续跑；userArchive 按时间段补全详情、评论、楼中楼和转发。
   - title: 结构化输出
     details: 读取方法返回归一化领域模型，归档文件有 JSON Schema，字段含义写在文档里。
   - title: 离线测试
-    details: 默认测试不访问网络；每个端点用真实响应 fixture 校验 Zod schema。
+    details: 默认测试全程离线；每个端点都用真实接口响应校验数据结构。
 ---
 
 ## 30 秒上手

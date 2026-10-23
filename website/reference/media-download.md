@@ -54,7 +54,7 @@ outline: deep
 - 空闲超时（默认 20s）：长时间无数据则中止，并按可重试错误处理。
 - 校验 `Content-Length`（截断）与 0 字节响应。
 - 重试：408 / 429 / 5xx / 超时 / 连接错误 / 截断 / 空响应；指数退避 + jitter，复用 `RetryPolicy`。
-- URL 过期：403/404/410 时重新拉取该微博换新 URL；记忆化 Promise 保证每条微博最多刷新一次，且不重置重试预算。
+- URL 过期：403/404/410 时重新拉取该微博换新 URL；记忆化 Promise 保证每条微博最多刷新一次，刷新沿用原重试预算。
 - 存储错误（`ENOSPC` / `EACCES` / `EPERM` / `EBUSY`）标记 fatal，停止调度后续媒体，已完成文件保留。
 - 取消：`signal` / CLI `SIGINT` 中止在途下载、清理临时文件，原有失败清单保留。
 
@@ -62,9 +62,9 @@ outline: deep
 
 | code | level | retryable | 语义 |
 |---|---|---|---|
-| `MEDIA_DOWNLOAD_FAILED` | transport | ✅ | 5xx / 429 / 408 / 超时 / 连接错误 / 空闲超时 / 截断 / 0 字节 |
-| `MEDIA_BAD_RESPONSE` | protocol | ❌ | HTML/JSON、类型族不符、超过上限、非法重定向、非 2xx 不可重试码 |
-| `MEDIA_STORAGE_FAILED` | storage | ❌ | mkdir / write / rename / unlink 失败 |
+| `MEDIA_DOWNLOAD_FAILED` | transport | 是 | 5xx / 429 / 408 / 超时 / 连接错误 / 空闲超时 / 截断 / 0 字节 |
+| `MEDIA_BAD_RESPONSE` | protocol | 否 | HTML/JSON、类型族不符、超过上限、非法重定向、非 2xx 不可重试码 |
+| `MEDIA_STORAGE_FAILED` | storage | 否 | mkdir / write / rename / unlink 失败 |
 
 ## 7. 失败清单
 

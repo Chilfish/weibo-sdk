@@ -19,15 +19,15 @@ outline: deep
 
 | 变更类型 | 当前契约内 | 版本动作 |
 |---|---|---|
-| 新增 optional 字段 | 允许，老读取方忽略未知键 | minor，同时更新冻结表与契约测试键集 |
+| 新增 optional 字段 | 允许，老读取方忽略未知键 | minor，同时更新字段表与契约测试键集 |
 | 注释 / 文档完善 | 允许 | patch |
 | 字段 rename / remove | 需升契约版本 | major |
 | 字段类型或语义变更 | 需升契约版本 | major |
 | 枚举纯新增值（`TweetVisible` / `MediaType`） | 追加新值允许；重定义既有值语义需升契约版本 | minor / major |
 
-判断口径：一年前落盘的记录，用今天的代码读仍然正确。任何让这个结果变化的改动都升契约版本。
+判断口径：已落盘的记录用当前代码读取时字段与语义保持一致；改变这一结果的改动升契约版本。
 
-## 3. 字段冻结表
+## 3. 字段表
 
 ### ITweet（`src/types/domain/ITweet.ts`）
 
@@ -256,7 +256,7 @@ SDK 另提供显式调用的单条微博媒体下载能力，调用方式见 [�
 | 谁消费 | SDK 侧回归与排障（对比同期同端点 digest） | 下游存档读取方（按 `schemaVersion` 分派读取逻辑） |
 | 变更时机 | 随上游任意变化 | 仅契约破坏性变更（见 §2） |
 
-## 8. 契约锁定手段
+## 8. 契约测试
 
 - 类型层：`tests/unit/contract/itweet-v2.test.ts` 断言 `keyof ITweet` 精确键集，rename / remove / 新增都会在编译期失败。
 - 运行时层：真实 fixture（`mymblog_page1.json`，含 `pic_infos` 样本）归一化键集快照，防止实现悄悄改形状。

@@ -5,7 +5,7 @@ outline: deep
 
 # Weibo CLI（`weibo-cli`）
 
-`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建。它和 SDK 使用同一套服务与参数校验：查询命令默认输出 JSON，流式命令输出 NDJSON，可以直接接脚本、`jq` 或 Agent；需要阅读时加 `--format markdown` 换成可读卡片。
+`weibo-cli` 是 SDK 附带的命令行工具，基于 [citty](https://github.com/unjs/citty) 构建，与 SDK 共用服务与参数校验。查询命令默认输出 JSON，流式命令输出 NDJSON，可以直接接脚本、`jq` 或 Agent；加 `--format markdown` 得到可读卡片。
 
 ## 安装
 
@@ -61,8 +61,8 @@ weibo-cli trends --guest
 weibo-cli user timeline 1111681197 --guest
 ```
 
-- `--guest` 使用访客身份，`.env` 与 `--cookie` 的内容被忽略。
-- 不传 `--guest` 且没有可用 Cookie 时同样走访客身份，即默认的 `auth: 'auto'`。Cookie 路径不存在、解析失败这类非法输入报 `CONFIG_INVALID`。
+- `--guest` 使用访客身份，`.env` 与 `--cookie` 不参与。
+- 没有可用 Cookie 时同样使用访客身份，即默认的 `auth: 'auto'`。Cookie 路径不存在、解析失败这类非法输入报 `CONFIG_INVALID`。
 - `whoami --guest` 只读取访客 token 元信息，以状态码 0 退出：
 
   ```json
@@ -88,7 +88,7 @@ weibo-cli user timeline 1111681197 --guest
 
 ## 输出格式（`--format`）
 
-查询命令默认输出 2 空格缩进的 JSON，保持脚本与 `jq` 兼容；需要直接阅读时加 `--format markdown`（`md` 同义）：
+查询命令默认输出 2 空格缩进的 JSON；直接阅读时加 `--format markdown`（`md` 同义）：
 
 ```bash
 weibo-cli user info 1111681197 --format markdown
@@ -119,7 +119,7 @@ weibo-cli user info 1111681197 -f json          # 显式指定默认值
 | `topic` | `cates` / `list` |
 | 其他 | `trends` / `whoami`（含 `--guest`） |
 
-`*-stream`、`archive`、`media download` 输出 NDJSON 协议，不使用 `--format`；`tweet context` 有自己的 `--format`（默认 `markdown`）。
+`*-stream`、`archive`、`media download` 输出 NDJSON，`--format` 只作用于查询命令；`tweet context` 使用自己的 `--format`（默认 `markdown`）。
 
 渲染器与数据模型同层（`src/models/view/`），是纯函数：新增格式即一个渲染函数加在命令里注册。
 
@@ -313,7 +313,7 @@ weibo-cli notification likes [--max-id <cursor>] [--page <n>]
 weibo-cli notification likes-stream [--max-id <cursor>] [--page <n>] [--max-pages <n>] [--max-items <n>] [--since <date>] [--until <date>]
 ```
 
-两个消息端点都用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 表示到底。评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博），点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。被点赞或被评论的微博已删除时，微博不再返回 `status`，对应条目会被跳过。
+两个消息端点都用 `max_id=<上一页 data.next_cursor>` 翻页（`--page` 等价），`next_cursor === 0` 表示到底。评论通知输出 `{ comment, tweet }`（评论本体 + 被评论微博），点赞通知输出 `{ id, createdAt, attitude, source, user, tweet }`。被点赞或被评论的微博已删除时没有 `status` 字段，对应条目会被跳过。
 
 ### 媒体下载（`media download`）
 
@@ -411,9 +411,9 @@ weibo-cli schema diff before.json after.json
 
 checkpoint 记录最后一条已完整处理项，续跑时边界 1 条可能重复，图片墙 / 视频瀑布会重放整页；消费 NDJSON 时按 `mblogId`（媒体按 `asset.id`）做幂等去重。进度事件形如 `{ event: 'progress', phase, source, processed, total, remaining, page }`，`item` / `done` 事件也带 `count/total/remaining`。
 
-`capabilities` 的每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）和 `guestNote`，可以直接判断某个能力在访客身份下能否使用、能否翻页。
+`capabilities` 的每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination`（`none` / `first_page` / `full`）和 `guestNote`，可以直接判断某个能力在访客身份下的可用性与翻页范围。
 
-`archive` 需要 Cookie：带 `--guest` 或不带 Cookie 时，在产出任何 item 之前报 `CONFIG_INVALID`。访客只有首屏数据，归档请提供 Cookie。
+`archive` 需要 Cookie：`--guest` 或没有 Cookie 时，在产出任何 item 之前报 `CONFIG_INVALID`；访客只有首屏数据。
 
 `archive user` 是范围归档加深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，重跑同一命令按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。`--merge` 把已存在的输出文件当基线，抓取前校验 uid / 格式，结束后合并写回。stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。详细参数、SDK 接口与 store 端口见 [范围归档](/reference/user-archive)。
 
@@ -423,7 +423,7 @@ CLI 输出归一化结果。需要 raw 响应时，在 SDK 中使用 `config.hoo
 
 ## 终端呈现（`archive user`）
 
-`archive user` 的进度与诊断按终端能力自动切换，数据契约不受影响：
+`archive user` 的进度与诊断按终端能力自动切换，stdout 的数据输出保持原样：
 
 | 场景 | 默认呈现 |
 |---|---|
@@ -452,7 +452,6 @@ weibo-cli archive user 1111681197
 
 - stdout 只放结果：`archive user` 的 stdout 是一行 `{ event: 'done', ... }`，管道消费不受影响。
 - stderr 放诊断：进度、切片完成、issue、raw 写入状态都在 stderr；TTY 下是状态行，非 TTY 下是 NDJSON。
-- 状态行占用当前终端最后一行，日志向上追加，保留 scrollback。
 - `NO_COLOR` / `FORCE_COLOR` 只控制颜色；`CI`、`TERM=dumb`、非 TTY 关闭动态刷新；`--log-format` 显式指定时优先。
 - 状态行用 ANSI 转义加 `\r` 清行实现，零额外依赖。
 

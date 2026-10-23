@@ -75,7 +75,7 @@ for await (const item of sdk.archive.streamArchive(uid, { checkpoint })) {
 | `includeVideos` | false | 视频瀑布（同时有 `tweet` 与 `asset`） |
 | `count` | 20 | timeline 每页条数 |
 | `maxPagesPerPhase` | 不限 | 每阶段最多翻页数 |
-| `concurrency` | 3 | 页内预取并发，clamp 1 到 8；`1` 完全串行 |
+| `concurrency` | 3 | 页内预取并发，限制在 1–8；`1` 完全串行 |
 | `checkpoint` | 无 | 断点续传 |
 | `onRaw` | 无 | 归一化前的 raw 通过该回调传出，`ArchiveItem` 只带归一化字段 |
 | `timelineSource` | `'mymblog'` | `'mymblog'` 翻到底 + 日期切片；`'search'` 直接日期切片 |

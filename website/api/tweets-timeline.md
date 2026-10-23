@@ -42,7 +42,7 @@ interface TweetPageResult {
 }
 ```
 
-广告（`isAd`）会被过滤；`hasMore` 依据过滤后是否有内容，与 `total` 无关。
+广告（`isAd`）会被过滤；`hasMore` 依据过滤后的内容判断。
 
 ## `streamByUserId(uid, options?)`
 

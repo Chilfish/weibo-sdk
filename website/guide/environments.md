@@ -38,7 +38,7 @@ import { WeiboSDK } from '@chilfish/weibo-sdk/browser'
 ```bash
 pnpm test          # 默认离线；mock 传输
 pnpm test:e2e      # 需要 .env 中的 WEIBO_COOKIE（WEIBO_E2E=1）
-WEIBO_GUEST_E2E=1 pnpm test:e2e  # 访客链路，不需要 Cookie
+WEIBO_GUEST_E2E=1 pnpm test:e2e  # 访客链路冒烟
 ```
 
 ## 构建产物

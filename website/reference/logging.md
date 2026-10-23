@@ -9,13 +9,13 @@ outline: deep
 
 ```
 Wide Events（事实）        TelemetryEvent：request_* / archive_* / media_* / guest_token_* / rate_limit_wait
-      │                    SDK 内部只在事件发生点 emit 一次
+      │                    事件在发生点发出一次
       ▼
 Logger port（消费）        WeiboLogger：level / 格式化 / 落盘 / 上报
-      │                    默认 no-op；显式配置后由 bridge 把事件映射成日志记录
+      │                    默认关闭；显式配置后由 bridge 把事件映射成日志记录
       ▼
 CLI Output（协议）         stdout 数据 / NDJSON progress-item-done
-                           绕过 logger，日志级别与格式化不影响管道契约
+                           由 CLI 直接输出；logger 只负责 stderr 诊断
 ```
 
 日志由已有的 Wide Events 与生命周期事件消费，核心代码只发出事件，由 logger 负责投递。字段、`trace_id`、错误摘要因此只有一份事实源。
@@ -34,15 +34,15 @@ CLI Output（协议）         stdout 数据 / NDJSON progress-item-done
 
 ## 2. 默认行为
 
-未配置 logger 时不产生日志输出。
+logger 默认关闭。
 
 | 配置 | 默认 | 说明 |
 |---|---|---|
-| `config.logger` | 未设置 | 保持库入口零副作用，不产生 console / 文件输出 |
+| `config.logger` | 未设置 | 库入口保持静默 |
 | `config.telemetry` | 未设置 | 默认关闭 |
 | `plugins` 中的 logger | 按需 | logger 是一等配置；已用插件的调用方可用 `createLoggerPlugin()` |
 
-CLI 是否打开日志由 CLI 自己决定。
+CLI 的日志开关由 CLI 自己控制。
 
 ## 3. 契约
 

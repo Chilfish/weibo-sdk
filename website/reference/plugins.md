@@ -58,7 +58,7 @@ const sdk2 = new WeiboSDK({
 })
 ```
 
-`config.fetch` 供 `GuestTokenService` 发放访客 token 使用。只注入 `fetch` 时主请求仍走默认 axios transport；主请求要用 fetch 需显式传 `transport`。
+`config.fetch` 供 `GuestTokenService` 发放访客 token 使用。`fetch` 只用于访客 token 发放；主请求使用 fetch 时显式传 `transport: fetchTransport({ fetch })`。
 
 自定义 transport 示例：
 
@@ -229,7 +229,7 @@ const slowRetry: WeiboPlugin = {
 | 配置 | 默认值 | 说明 |
 |---|---|---|
 | `transport` | `AxiosTransport` | 显式替换才改变行为 |
-| `plugins` | `[]` | 无插件时走 identity 快路径 |
+| `plugins` | `[]` | 无插件时直接执行 |
 | `fetch` | `globalThis.fetch` | guest token 发放使用；主 transport 需显式传 `fetchTransport({ fetch })` |
 | `hooks` | 未设置 | `onRaw` / `onError` / `onLifecycle` 在原调用点触发 |
 | `telemetry` | 关闭 | `emit` 失败被吞掉，不影响业务 |
@@ -237,7 +237,7 @@ const slowRetry: WeiboPlugin = {
 ## 7. 约束
 
 1. 插件在 `new WeiboSDK()` 时组装一次，运行期沿用该配置。
-2. 插件通过 `plugins` 显式传入，模块加载时不注册任何插件，`sideEffects: false` 保持有效。
+2. 插件只通过 `plugins` 传入，模块加载时保持无副作用，`sideEffects: false` 有效。
 3. 插件使用公共类型 `WeiboTransport` 与上下文类型，与 `axios` / `zod` 的内部类型解耦。
 4. 新增公开导出时同步更新 `api-surface.json`、`api-surface.snapshot.json` 与 [导出索引](/api/types/)。
 5. `observe` 同步返回；耗时的投递由实现方自己排队。
