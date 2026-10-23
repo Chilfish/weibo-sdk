@@ -1,14 +1,14 @@
 import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, FriendstimelineResponse, LongtextResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileArgs, SearchProfileResponse, StatusShowResponse } from '../endpoints/tweet'
+import type { TweetContextDeps, TweetContextOptions } from './tweet/context'
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetLongText, TweetUser } from '~/types/domain/ITweet'
-import type { ITweetContext, TweetContextAuthor } from '~/types/domain/ITweetContext'
+import type { ITweet, ITweetComment, TweetLongText } from '~/types/domain/ITweet'
+import type { ITweetContext } from '~/types/domain/ITweetContext'
 import type { StreamLimitOptions, StreamRangeOptions } from '~/utils/streamRange'
 import { isRawTweet, normalizeComment, normalizeLiker, normalizeLongText, Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
-import { buildTweetContext } from '~/models/view/TweetContext'
 import { normalizeMaxPages, paginate } from '~/utils/pagination'
 import { createStreamRange } from '~/utils/streamRange'
 import { resolveTimeInput } from '~/utils/timeInput'
@@ -17,6 +17,9 @@ import { likersSpec } from '../endpoints/likers'
 import { extractMobileMblogs, mobileContainerSpec } from '../endpoints/mobile'
 import { buildCommentsSpec, friendstimelineSpec, longtextSpec, myMblogSpec, repostTimelineSpec, searchProfileSpec, statusShowSpec } from '../endpoints/tweet'
 import { FetcherService } from '../internal/FetcherService'
+import { loadTweetContext } from './tweet/context'
+
+export type { TweetContextDeps, TweetContextOptions } from './tweet/context'
 
 let normalizeSeq = 0
 
@@ -364,71 +367,6 @@ export interface TweetEnrichResult {
   longText?: string
 }
 
-/**
- * `context()` 的可选行为开关。
- *
- * 默认只发 1 次请求（`statuses/show`）；以下开关会按需增加请求：
- * `longText`（+1，仅 `isLongText` 时）、`author`（+1）、`comments`（≥1 页）。
- */
-export interface TweetContextOptions {
-  /** 是否补拉作者资料（简介 / 粉丝数 / 认证说明 / 关注关系）；默认 `true` */
-  author?: boolean
-  /** 抽样评论条数；默认 `0`（不拉评论） */
-  comments?: number
-  /** 评论排序；默认 `hot`（上游 `flow=0`） */
-  commentFlow?: 'hot' | 'time'
-  /** `isLongText` 时是否补拉长文全文；默认 `true` */
-  longText?: boolean
-  /** 单个文本字段字符上限；缺省 = 不限 */
-  maxChars?: number
-  /** 最多列出的媒体数；缺省 = 全部 */
-  maxMedia?: number
-  /** 是否展开转发的原微博（只展开一层）；默认 `true` */
-  includeQuoted?: boolean
-  /** 是否展开转发链；默认 `true` */
-  includeRepostChain?: boolean
-  /** 测试注入的当前时间（毫秒时间戳） */
-  now?: number
-  /** 鉴权模式（仅用于 provenance，不改变请求行为） */
-  authMode?: 'cookie' | 'guest'
-}
-
-/** `context()` 的跨领域依赖（由 `WeiboSDK` 注入，避免 TweetService 直接依赖 UserService）。 */
-export interface TweetContextDeps {
-  /** 拉取作者资料（`ajax/profile/info` 的 `data.user`） */
-  authorProfile?: (uid: string) => Promise<unknown>
-}
-
-/** 把作者 raw 资料归一化为 `TweetContextAuthor`；缺失字段省略，不填假值。 */
-function normalizeContextAuthor(raw: unknown, fallback: TweetUser): TweetContextAuthor {
-  const record = raw !== null && typeof raw === 'object' && !Array.isArray(raw)
-    ? raw as Record<string, unknown>
-    : {}
-  const author: TweetContextAuthor = {
-    id: String(record.idstr || record.id || fallback.id),
-    name: String(record.screen_name || fallback.name),
-    verified: typeof record.verified === 'boolean' ? record.verified : fallback.verified,
-    verifiedType: typeof record.verified_type === 'number' ? record.verified_type : fallback.verifiedType,
-  }
-
-  const profileUrl = typeof record.profile_url === 'string' ? record.profile_url : ''
-  if (profileUrl)
-    author.url = /^https?:\/\//.test(profileUrl) ? profileUrl : `https://weibo.com${profileUrl}`
-  if (typeof record.verified_reason === 'string' && record.verified_reason.length > 0)
-    author.verifiedReason = record.verified_reason
-  if (typeof record.description === 'string' && record.description.length > 0)
-    author.description = record.description
-  const followers = Number(record.followers_count)
-  if (Number.isFinite(followers))
-    author.followers = followers
-  if (typeof record.following === 'boolean')
-    author.following = record.following
-  if (typeof record.follow_me === 'boolean')
-    author.followedBy = record.follow_me
-
-  return author
-}
-
 /** 评论 raw 页 → 归一化分页。 */
 function commentsPageFromRaw(raw: BuildCommentsResponse): TweetCommentsPageResult {
   const comments = (raw.data ?? []).map(item => normalizeComment(item))
@@ -748,66 +686,11 @@ export class TweetService extends FetcherService {
    * console.log(context.media.map(media => media.url))
    */
   public async context(mblogId: string, options: TweetContextOptions = {}): Promise<ITweetContext> {
-    const id = normalizeTweetIdInput(mblogId)
-    const raw = await this.fetchRawStatus(id, true)
-    const tweet = new Tweet(raw)
-    const rawRecord = raw as unknown as Record<string, unknown>
-
-    // show 之后的长文 / 作者 / 评论互不依赖，并行拉取；评论自身分页仍是串行游标。
-    const wantsLongText = options.longText !== false && rawRecord.isLongText === true
-    const longTextPromise = wantsLongText
-      ? this.longText(id).then(response => response.text)
-      : undefined
-
-    const authorProfile = this.contextDeps.authorProfile
-    const authorPromise: Promise<{ author?: TweetContextAuthor, authorError?: string }> | undefined
-      = options.author !== false && tweet.user.id && authorProfile
-        ? authorProfile(tweet.user.id)
-            .then(profile => ({ author: normalizeContextAuthor(profile, tweet.user) }))
-            .catch((error: unknown) => ({ authorError: error instanceof Error ? error.message : String(error) }))
-        : undefined
-
-    const limit = options.comments !== undefined && Number.isFinite(options.comments)
-      ? Math.max(0, Math.floor(options.comments))
-      : 0
-    const commentsPromise = limit > 0
-      ? (async () => {
-          const collected: ITweetComment[] = []
-          // 时间序需要数字 mid；直接用 idstr 可避免 streamComments 内部的第二次 show 请求。
-          const commentsId = options.commentFlow === 'time' ? tweet.id : tweet.mblogId
-          for await (const comment of this.streamComments(commentsId, {
-            maxItems: limit,
-            flow: options.commentFlow === 'time' ? 1 : 0,
-          })) {
-            collected.push(comment)
-          }
-          return collected
-        })()
-      : undefined
-
-    const [longText, authorResult, comments] = await Promise.all([
-      longTextPromise,
-      authorPromise,
-      commentsPromise,
-    ])
-    const author = authorResult?.author
-    const authorError = authorResult?.authorError
-
-    return buildTweetContext(tweet, {
-      ...(author ? { author } : {}),
-      ...(comments && comments.length > 0 ? { comments } : {}),
-      raw,
-      quotedRaw: rawRecord.retweeted_status,
-      ...(longText !== undefined ? { longText } : {}),
-      ...(wantsLongText ? { longTextFetched: true } : {}),
-      ...(options.maxChars !== undefined ? { maxChars: options.maxChars } : {}),
-      ...(options.maxMedia !== undefined ? { maxMedia: options.maxMedia } : {}),
-      ...(options.includeQuoted !== undefined ? { includeQuoted: options.includeQuoted } : {}),
-      ...(options.includeRepostChain !== undefined ? { includeRepostChain: options.includeRepostChain } : {}),
-      ...(options.now !== undefined ? { now: options.now } : {}),
-      ...(options.authMode ? { authMode: options.authMode } : {}),
-      ...(authorError ? { authorError } : {}),
-    })
+    return await loadTweetContext({
+      fetchRawStatus: (id, isGetLongText) => this.fetchRawStatus(id, isGetLongText),
+      longText: id => this.longText(id),
+      streamComments: (id, streamOptions) => this.streamComments(id, streamOptions),
+    }, this.contextDeps, mblogId, options)
   }
 
   /**
