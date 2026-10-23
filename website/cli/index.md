@@ -507,7 +507,7 @@ weibo-cli archive user 1111681197
 | `topic stream` | `topics.stream()` | NDJSON `progress` / `item` / `done` |
 | `media albums` / `album` | `media.listAlbums()` / `media.listAlbumPhotos()` | 相册列表 / 分页照片 |
 | `capabilities` | `capabilities()` | 能力表 JSON（可按 `--service` / `--status` 过滤） |
-| `schema diff` | `diffSchemaDigest()` | 两份 schema digest 的差异 |
+| `schema diff` | 内部实现（不对外导出） | 两份 schema digest 的差异 |
 
 ## 退出码
 

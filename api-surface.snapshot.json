@@ -110,10 +110,6 @@
       "kind": "interface"
     },
     {
-      "name": "buildTweetContext",
-      "kind": "function"
-    },
-    {
       "name": "CapabilityAuth",
       "kind": "type"
     },
@@ -202,10 +198,6 @@
       "kind": "interface"
     },
     {
-      "name": "diffSchemaDigest",
-      "kind": "function"
-    },
-    {
       "name": "ErrorContext",
       "kind": "interface"
     },
@@ -263,10 +255,6 @@
     },
     {
       "name": "formatArchiveProgress",
-      "kind": "function"
-    },
-    {
-      "name": "formatSchemaDrift",
       "kind": "function"
     },
     {
@@ -466,36 +454,8 @@
       "kind": "interface"
     },
     {
-      "name": "midToMblogId",
-      "kind": "function"
-    },
-    {
-      "name": "migrateTweetV1toV2",
-      "kind": "function"
-    },
-    {
       "name": "NetworkRequestError",
       "kind": "class"
-    },
-    {
-      "name": "normalizeComment",
-      "kind": "function"
-    },
-    {
-      "name": "normalizeLiker",
-      "kind": "function"
-    },
-    {
-      "name": "normalizeTweet",
-      "kind": "function"
-    },
-    {
-      "name": "normalizeTweetIdInput",
-      "kind": "function"
-    },
-    {
-      "name": "normalizeTweetUser",
-      "kind": "function"
     },
     {
       "name": "NotificationListOptions",
@@ -514,24 +474,12 @@
       "kind": "interface"
     },
     {
-      "name": "ParsedTweetId",
-      "kind": "interface"
-    },
-    {
-      "name": "parseTweetIdInput",
-      "kind": "function"
-    },
-    {
       "name": "PluginRequestInfo",
       "kind": "interface"
     },
     {
       "name": "RateLimitError",
       "kind": "class"
-    },
-    {
-      "name": "renderTweetContextMarkdown",
-      "kind": "function"
     },
     {
       "name": "RequestContext",
@@ -543,10 +491,6 @@
     },
     {
       "name": "RetryContext",
-      "kind": "interface"
-    },
-    {
-      "name": "SchemaDiffEntry",
       "kind": "interface"
     },
     {
@@ -628,10 +572,6 @@
     {
       "name": "TrendItem",
       "kind": "interface"
-    },
-    {
-      "name": "TWEET_CONTEXT_SCHEMA",
-      "kind": "const"
     },
     {
       "name": "TWEET_CONTRACT_VERSION",
@@ -760,10 +700,6 @@
     {
       "name": "TweetGeo",
       "kind": "interface"
-    },
-    {
-      "name": "TweetIdKind",
-      "kind": "type"
     },
     {
       "name": "TweetLiker",

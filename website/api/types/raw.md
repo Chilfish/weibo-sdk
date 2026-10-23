@@ -29,14 +29,6 @@ outline: deep
 
 所有端点、归档流与传输层都支持 `config.hooks.onRaw`，用于在不改变返回类型的前提下旁路保存 raw。
 
-## 辅助函数
-
-| 函数 | 说明 |
-|---|---|
-| `normalizeTweet` / `normalizeComment` / `normalizeLiker` / `normalizeTweetUser` | 原始对象 → 领域模型 |
-| `buildTweetContext` | 由已抓取的数据构造 `ITweetContext` |
-| `renderTweetContextMarkdown` | 渲染 Markdown 卡片 |
-| `diffSchemaDigest` / `formatSchemaDrift` | 对比两份 raw 结构快照 |
-| `parseTweetIdInput` / `normalizeTweetIdInput` / `midToMblogId` | 微博 id 解析 |
+把原始对象转成领域模型的归一化函数属于仓库内部实现，不从包根导出；应用代码应直接使用归一化方法。
 
 完整名单见 [导出索引](/api/types/)。

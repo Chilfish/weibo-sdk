@@ -1,7 +1,7 @@
 # 文档索引
 
 > `weibo-sdk`（npm: `@chilfish/weibo-sdk`，CLI: `weibo-cli`）文档中央索引。所有文档按分类组织，新增文档请登记到对应分类。
-> 约定：**文档即事实** —— 文档必须与代码一致，不一致以代码为准并修正文档；**文档先行** —— 写码前先更新文档。
+> 约定：**文档即事实** —— 文档必须与代码一致，不一致以代码为准并修正文档；**文档先行（只限三类）** —— 只有「公开契约变化 / 新增或修改 endpoint / 事故与可靠性修复」必须先写文档，其余改动当天在 `development-log/` 补一条即可。完整约束见 [AGENTS.md](../AGENTS.md)。
 
 ## 产品定位
 
@@ -21,7 +21,7 @@
 | 契约与格式（`ITweet` v2、归档 v2、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
 | 导出索引（全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
 
-**约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的同步由 `pnpm check:api` / `pnpm check:docs` 强制。
+**约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的一致性由门禁**部分**保证，不是「强制同步」：`pnpm check:api` 只校验导出面分层（Stable / Evolving）、方法层级与「Stable 导出在 `website/**` 代码片段中有说明」，`pnpm check:docs` 只校验 `website/**` + 根 `README.md` 无内部引用、且代码片段里的 `session.*` / `sdk.*` 是真实公开成员。语义是否一致仍需人工评审（政策见 [engineering/api-stability.md](engineering/api-stability.md) §6）。
 
 ---
 
@@ -78,7 +78,7 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [technical-spec.md](engineering/technical-spec.md) | 架构与契约规格（分层、实体契约、接口定义、错误体系、可测试性） | 任何实现/契约变更 |
-| [api-stability.md](engineering/api-stability.md) | 公开 API 稳定性政策：Stable / Experimental / Internal 分层、变更流程、门禁 | 新增/修改公开导出、评审 breaking change |
+| [api-stability.md](engineering/api-stability.md) | 公开 API 稳定性政策：Stable / Evolving / Experimental / Internal 分层、shape 维度、变更流程、门禁 | 新增/修改公开导出、评审 breaking change |
 | [cli-architecture.md](engineering/cli-architecture.md) | CLI 内部架构：命令树、bin 入口、新增子命令流程 | 添加/修改 CLI 子命令 |
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
@@ -125,7 +125,7 @@
 ## 约定
 
 - 内部文档使用中文；公开站点同样以中文为主，API 名与字段保留英文。
-- **文档先行**：每个任务第一步先更新相关文档（开发日志、任务状态、方案文档），再开始写代码；实施中随反馈同步修改，而非事后补记。
+- **文档先行（只限三类）**：只有「公开契约变化 / 新增或修改 endpoint / 事故与可靠性修复」必须先写文档（契约与端点说明、postmortem、方案），再写代码；内部重构、测试、常规 bugfix 不要求先写文档，当天在 `development-log/` 补一条即可（与 [AGENTS.md](../AGENTS.md)「开发纪律」一致）。
 - **文档即事实**：发现文档与代码不一致，以代码为准并修正文档。
 - **归档**：完成阶段的规划文档移入 `archive/`——存档 = 历史记录，不主动读取；活跃文档只留在对应分类下。
 - **Postmortem**：遇到返工/事故，按 `postmortem/TEMPLATE.md` 沉淀一条，并更新「高频雷区」。

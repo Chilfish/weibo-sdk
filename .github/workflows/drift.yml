@@ -1,0 +1,132 @@
+name: Upstream Drift
+
+# 上游漂移巡检。
+# `ci.yml` 只在 push / PR 触发，而 tests/e2e/** 默认是 describe.skip，
+# 因此上游字段变化只能靠这个定时任务发现：每周跑一次访客冒烟（无 Cookie），
+# 仓库配置了 WEIBO_COOKIE 时再跑一遍完整 E2E。
+on:
+  schedule:
+    # 每周一 01:00 UTC（北京时间 09:00）
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+# 同一分支上的巡检互相覆盖：手动重跑会取消还在跑的旧任务
+concurrency:
+  group: drift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guest:
+    name: Guest smoke (live upstream, no secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 访客接口不需要 Cookie；命中上游 432/429 限流时测试自身会 skip，
+      # 所以绿灯 = 结构没漂移，红灯 = 断言真的对不上。
+      - name: Run guest smoke against live Weibo
+        run: WEIBO_GUEST_E2E=1 pnpm exec vitest run --config vitest.e2e.config.ts tests/e2e/guest.e2e.test.ts
+
+      - name: Summarize drift failure
+        if: failure()
+        run: |
+          {
+            echo "## Upstream drift: guest smoke failed"
+            echo
+            echo "这些测试直连真实上游（不依赖 Cookie）。失败通常是 **上游响应结构漂移** 或 **限流**，不是本地逻辑回归。"
+            echo
+            echo "- 先读上面的失败断言：是 schema / 字段变化，还是 432 / 429 限流？"
+            echo "- 如果字段变了：更新 \`src/types/**\` 与 \`tests/fixtures/**\`，然后跑 \`pnpm validate:fixtures\`"
+            echo "- 如果只是限流：重跑本 workflow（workflow_dispatch）即可"
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 只在 guest job 里开 issue，避免两个 job 并发重复创建。
+      # continue-on-error：缺 issues 权限 / gh 不可用时也不能把巡检本身判失败。
+      - name: Open or refresh drift issue
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          TITLE='[drift] upstream API drift detected'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json title --jq '.[].title' | grep -Fxq "$TITLE"; then
+            echo "已有未关闭的漂移 issue，跳过创建"
+          else
+            BODY=$'定时巡检（Upstream Drift / guest job）失败，疑似上游响应结构漂移。\n\n'
+            BODY+=$'- Run: '"$RUN_URL"$'\n'
+            BODY+=$'- 排查方向：失败的 fixture / 字段名，`src/types/**` 的 zod schema，`pnpm validate:fixtures`\n'
+            BODY+=$'- 如果只是 432 / 429 限流：重跑本 workflow 后关闭此 issue'
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
+          fi
+
+  cookie:
+    name: Full E2E suite (requires WEIBO_COOKIE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # GitHub 的 `jobs.<job_id>.if` 与 `steps[*].if` 都不支持 `secrets` 上下文
+    # （见 contexts 可用性表）；在 `if` 里引用会让整个 workflow 编译失败。
+    # 因此先把 secret 映到 job 级 env，再用 `env.WEIBO_COOKIE` 门控。
+    # 未配置 Cookie 时这些 step 全部跳过（全绿）。
+    env:
+      WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - if: env.WEIBO_COOKIE != ''
+        run: pnpm install --frozen-lockfile
+
+      # 用 printf 写 .env（不做 echo，避免 secret 进日志 / 引号被展开出错）；
+      # tests/e2e/setup-env.ts 只从 .env 读取 Cookie，不继承同名环境变量。
+      # 注意：WEIBO_COOKIE secret 必须是单行（.env 是逐行的 KEY=VALUE）。
+      - name: Write .env with cookie
+        if: env.WEIBO_COOKIE != ''
+        run: |
+          umask 077
+          printf 'WEIBO_COOKIE=%s\n' "$WEIBO_COOKIE" > .env
+
+      - name: Run full E2E suite
+        if: env.WEIBO_COOKIE != ''
+        run: pnpm test:e2e --run
+
+      - name: Summarize drift failure
+        if: failure()
+        run: |
+          {
+            echo "## Upstream drift: full E2E suite failed"
+            echo
+            echo "带 Cookie 的完整 E2E 失败：上游契约（字段 / 结构）漂移，或账号侧限流。"
+            echo
+            echo "- 检查失败用例对应的 fixture 与 \`src/types/**\` 的 schema"
+            echo "- 更新 fixture：\`pnpm capture:endpoint\` / \`pnpm capture\`，再跑 \`pnpm validate:fixtures\`"
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } >> "$GITHUB_STEP_SUMMARY"

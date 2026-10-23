@@ -118,7 +118,24 @@ export * from './domain/INotification'
 export * from './domain/ISuperTopic'
 export * from './domain/ITrend'
 export * from './domain/ITweet'
-export * from './domain/ITweetContext'
+export type {
+  ITweetContext,
+  TweetContextAttachment,
+  TweetContextAttachmentKind,
+  TweetContextAuthor,
+  TweetContextComment,
+  TweetContextFlags,
+  TweetContextKind,
+  TweetContextLink,
+  TweetContextMedia,
+  TweetContextMediaDownload,
+  TweetContextMediaRelation,
+  TweetContextPost,
+  TweetContextProvenance,
+  TweetContextRepostEntry,
+  TweetContextStats,
+  TweetContextVisibility,
+} from './domain/ITweetContext'
 export * from './domain/IUser'
 export * from './domain/IUserMediaAsset'
 export * from './hooks'

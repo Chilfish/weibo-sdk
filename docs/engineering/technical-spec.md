@@ -287,7 +287,7 @@ interface IWeiboConfig {
 
 > **公开方法签名、参数、返回与错误以文档站为单一事实源**：<https://weibo-sdk.chilfish.top/api/>。本节只保留内部实现要点与跨服务约束；新增/修改方法时先改 `website/api/**`，再改代码。
 
-> **raw 数据源（2026-10-23）**：公开读取方法统一返回归一化 camelCase 模型。需要原始响应时用 `tweets.enrich`、`hooks.onRaw` 或显式的 `fetchRaw*` 方法；上游响应类型不从包根导出。`fetchRaw*` 的稳定性标记为 Experimental。
+> **raw 数据源（2026-10-23）**：公开读取方法统一返回归一化 camelCase 模型。需要原始响应时用 `tweets.enrich`、`hooks.onRaw` 或显式的 `fetchRaw*` 方法；上游响应类型不从包根导出。`fetchRaw*` 的方法层级为 Evolving。
 
 **UserService**（`sdk.users`）
 
@@ -525,11 +525,11 @@ interface EndpointSpec<TResource, TArgsSchema> {
 
 公开导出面**不再在本文件逐项维护**，单一事实源是：
 
-- [`api-surface.json`](../../api-surface.json)：Stable / Experimental 分层（人工评审入口）；
+- [`api-surface.json`](../../api-surface.json)：Stable / Evolving 分层与方法层级（人工评审入口）；
 - [`api-surface.snapshot.json`](../../api-surface.snapshot.json)：实际导出面快照（名称 + kind）；
 - [导出索引](https://weibo-sdk.chilfish.top/api/types/)：公开文档视图。
 
-`pnpm check:api` 会校验「每个根导出都已分层」「Stable/Experimental 都有文档」「service 方法都有文档」。新增导出必须同时更新上述清单与文档，否则 CI 失败。
+`pnpm check:api` 会校验「每个根导出都已分层」「Stable 导出有文档」「service 方法都有文档」「`fetchRaw*` 已登记为方法级 Evolving」。新增导出必须同时更新上述清单与文档，否则 CI 失败。
 
 **构建产物**：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli-bin.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxy` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 

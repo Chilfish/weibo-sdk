@@ -5,85 +5,50 @@ outline: deep
 
 # 导出索引
 
-包根共导出 267 个名称。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+包根共导出 251 个名称：Stable 166 / Evolving 85。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+
+Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能随 minor 版本演进，不属于破坏性承诺。
+
+## Stable（166）
 
 | 名称 | 种类 |
 |---|---|
 | `AlbumListResult` | interface |
-| `AlbumPhotoListOptions` | interface |
 | `AlbumPhotoPageResult` | interface |
-| `AlbumPhotoStreamOptions` | interface |
-| `AlbumStreamProgress` | interface |
 | `ARCHIVE_SCHEMA_ID` | const |
 | `ARCHIVE_SCHEMA_URL` | const |
 | `ArchiveCheckpoint` | interface |
 | `ArchivedTweet` | interface |
-| `ArchiveErrorAction` | type |
-| `ArchiveErrorStage` | type |
 | `ArchiveFile` | interface |
-| `ArchiveIncrementalOptions` | interface |
 | `ArchiveIssue` | interface |
 | `ArchiveIssueStage` | type |
 | `ArchiveItem` | interface |
-| `ArchiveItemErrorContext` | interface |
-| `ArchivePhase` | type |
-| `ArchiveProgress` | interface |
-| `ArchiveProgressEvent` | type |
-| `ArchiveProgressSummary` | interface |
-| `ArchiveRawMeta` | interface |
-| `ArchiveStreamOptions` | interface |
-| `ArchiveTimelineSource` | type |
 | `ArchiveUserItem` | interface |
-| `ArchiveUsersOptions` | interface |
 | `BeforeRetryResult` | interface |
-| `buildTweetContext` | function |
-| `CapabilityAuth` | type |
 | `CapabilityFilter` | interface |
-| `CapabilityGuestPagination` | type |
-| `CapabilityPagination` | type |
-| `CapabilityStatus` | type |
-| `CommentHistoryListOptions` | interface |
 | `CommentHistoryPageResult` | interface |
-| `CommentHistoryStreamOptions` | interface |
-| `CommentHistoryStreamProgress` | interface |
 | `CommentNotification` | interface |
 | `CommentNotificationPageResult` | interface |
 | `ConnectionTimeoutError` | class |
-| `ConsoleLoggerOptions` | interface |
 | `createConsoleLogger` | function |
 | `createJsonlLogger` | function |
 | `createJsonlTelemetry` | function |
 | `createLoggerPlugin` | function |
 | `createMemoryUserArchiveStore` | function |
 | `createMultiLogger` | function |
-| `Credential` | interface |
-| `CredentialResolveContext` | interface |
-| `CredentialResolver` | interface |
-| `diffSchemaDigest` | function |
 | `ErrorContext` | interface |
-| `FavoriteListOptions` | interface |
 | `FavoritePageResult` | interface |
-| `FavoriteStreamOptions` | interface |
-| `FavoriteStreamProgress` | interface |
 | `FavoriteTag` | interface |
 | `FavoriteTagList` | interface |
 | `FetchLike` | type |
 | `FetchResponseLike` | interface |
 | `fetchTransport` | function |
 | `FollowingPageResult` | interface |
-| `FollowingsSource` | type |
-| `FollowingsStreamOptions` | interface |
-| `FollowingsStreamProgress` | interface |
-| `formatArchiveProgress` | function |
-| `formatSchemaDrift` | function |
 | `Gender` | enum |
-| `ImageWallListOptions` | interface |
 | `ImageWallPageResult` | interface |
-| `ImageWallStreamOptions` | interface |
 | `InvalidConfigError` | class |
 | `IProxyProvider` | interface |
 | `IProxyRequestContext` | interface |
-| `isArchiveProgress` | function |
 | `ISelfProfile` | interface |
 | `ITweet` | interface |
 | `ITweetComment` | interface |
@@ -97,86 +62,49 @@ outline: deep
 | `IWeiboGuestConfig` | interface |
 | `IWeiboRetryConfig` | interface |
 | `JsonlLogger` | interface |
-| `JsonlLoggerOptions` | interface |
 | `JsonlTelemetry` | interface |
-| `JsonlTelemetryOptions` | interface |
-| `LikeListOptions` | interface |
 | `LikeNotification` | interface |
 | `LikeNotificationPageResult` | interface |
 | `LikePageResult` | interface |
-| `LikeStreamOptions` | interface |
-| `LikeStreamProgress` | interface |
-| `listCapabilities` | function |
-| `LogWriteStream` | interface |
 | `MblogGroup` | interface |
 | `MediaDownloadError` | class |
 | `MediaDownloadItem` | type |
 | `MediaDownloadItemBase` | interface |
-| `MediaDownloadOptions` | interface |
-| `MediaDownloadProgress` | interface |
 | `MediaDownloadTotals` | interface |
 | `MediaInvalidResponseError` | class |
 | `MediaItemErrorContext` | interface |
 | `MediaSkipReason` | type |
 | `MediaStorageError` | class |
-| `MediaStreamProgress` | interface |
 | `MediaType` | enum |
 | `MediaVariant` | type |
 | `mergeArchiveFiles` | function |
-| `MergeArchiveOptions` | interface |
 | `MergeArchiveResult` | interface |
-| `midToMblogId` | function |
-| `migrateTweetV1toV2` | function |
 | `NetworkRequestError` | class |
-| `normalizeComment` | function |
-| `normalizeLiker` | function |
-| `normalizeTweet` | function |
-| `normalizeTweetIdInput` | function |
-| `normalizeTweetUser` | function |
-| `NotificationListOptions` | interface |
-| `NotificationStreamOptions` | interface |
-| `NotificationStreamProgress` | interface |
-| `PaginationProgress` | interface |
-| `ParsedTweetId` | interface |
-| `parseTweetIdInput` | function |
-| `PluginRequestInfo` | interface |
 | `RateLimitError` | class |
-| `renderTweetContextMarkdown` | function |
 | `RequestContext` | type |
 | `ResponseContext` | interface |
 | `RetryContext` | interface |
-| `SchemaDiffEntry` | interface |
 | `SearchTweetPageResult` | interface |
 | `SearchUserPageResult` | interface |
-| `StreamLimitOptions` | interface |
-| `StreamRangeOptions` | interface |
 | `SuperTopic` | interface |
 | `SuperTopicCategory` | interface |
-| `SuperTopicListOptions` | interface |
 | `SuperTopicPageResult` | interface |
-| `SuperTopicStreamOptions` | interface |
 | `TelemetryEvent` | type |
 | `TelemetryEventBase` | interface |
 | `TelemetryJsonlInput` | type |
 | `TelemetryPrimitive` | type |
-| `TransportFailure` | class |
-| `TransportFailureKind` | type |
 | `TransportMethod` | type |
 | `TransportRequest` | interface |
 | `TransportRequestMeta` | interface |
 | `TransportResponse` | interface |
 | `TrendItem` | interface |
-| `TWEET_CONTEXT_SCHEMA` | const |
 | `TWEET_CONTRACT_VERSION` | const |
 | `TweetArticleAttachment` | interface |
 | `TweetAttachment` | type |
 | `TweetAtUser` | interface |
 | `TweetAudio` | interface |
 | `TweetCommentPic` | interface |
-| `TweetCommentsOptions` | interface |
 | `TweetCommentsPageResult` | interface |
-| `TweetCommentsStreamOptions` | interface |
-| `TweetCommentsStreamProgress` | interface |
 | `TweetContextAttachment` | interface |
 | `TweetContextAttachmentKind` | type |
 | `TweetContextAuthor` | interface |
@@ -187,24 +115,16 @@ outline: deep
 | `TweetContextMedia` | interface |
 | `TweetContextMediaDownload` | interface |
 | `TweetContextMediaRelation` | type |
-| `TweetContextOptions` | interface |
 | `TweetContextPost` | interface |
 | `TweetContextProvenance` | interface |
 | `TweetContextRepostEntry` | interface |
 | `TweetContextStats` | interface |
 | `TweetContextVisibility` | type |
 | `TweetContractVersion` | type |
-| `TweetEnrichOptions` | interface |
 | `TweetEnrichResult` | interface |
-| `TweetFriendTimelineListOptions` | interface |
-| `TweetFriendTimelineStreamOptions` | interface |
 | `TweetGeo` | interface |
-| `TweetIdKind` | type |
 | `TweetLiker` | interface |
-| `TweetLikersOptions` | interface |
 | `TweetLikersPageResult` | interface |
-| `TweetLikersStreamOptions` | interface |
-| `TweetLikersStreamProgress` | interface |
 | `TweetLinkCard` | interface |
 | `TweetLiveAttachment` | interface |
 | `TweetLongText` | interface |
@@ -213,27 +133,16 @@ outline: deep
 | `TweetMediaDownloadResult` | interface |
 | `TweetPageCard` | interface |
 | `TweetPageResult` | interface |
-| `TweetRepliesOptions` | interface |
 | `TweetRepostEntry` | interface |
-| `TweetRepostsListOptions` | interface |
 | `TweetRepostsPageResult` | interface |
-| `TweetRepostsStreamOptions` | interface |
-| `TweetRepostsStreamProgress` | interface |
-| `TweetSearchByDateOptions` | interface |
 | `TweetSearchByDatePageResult` | interface |
 | `TweetUser` | interface |
-| `TweetUserTimelineListOptions` | interface |
-| `TweetUserTimelineStreamOptions` | interface |
 | `TweetVisible` | enum |
 | `TweetVoteAttachment` | interface |
 | `TweetVoteOption` | interface |
 | `UnexpectedAPIResponseError` | class |
 | `USER_ARCHIVE_JOURNAL_SCHEMA` | const |
-| `UserArchiveContentOptions` | interface |
-| `UserArchiveEvent` | type |
 | `UserArchiveMeta` | interface |
-| `UserArchiveOptions` | interface |
-| `UserArchiveProgress` | interface |
 | `UserArchiveRecord` | interface |
 | `UserArchiveResult` | interface |
 | `UserArchiveRunConfig` | interface |
@@ -243,16 +152,10 @@ outline: deep
 | `UserArchiveSummary` | interface |
 | `UserBrief` | interface |
 | `UserGroup` | interface |
-| `UserMentionsListOptions` | interface |
 | `UserMentionsPageResult` | interface |
-| `UserMentionsStreamOptions` | interface |
-| `UserMentionsStreamProgress` | interface |
 | `VerificationType` | enum |
 | `VERSION` | const |
-| `VideoWaterfallListOptions` | interface |
 | `VideoWaterfallPageResult` | interface |
-| `VideoWaterfallStreamOptions` | interface |
-| `WEIBO_CAPABILITIES` | const |
 | `WeiboAPINotOkError` | class |
 | `WeiboAuthMode` | type |
 | `WeiboCapability` | interface |
@@ -276,4 +179,113 @@ outline: deep
 | `WeiboSessionContext` | interface |
 | `WeiboSessionExpiredError` | class |
 | `WeiboTransport` | interface |
+
+## Evolving（85）
+
+按 shape 分组；shape 由名字推导，只用于说明「这是什么形状」，不构成额外承诺。
+
+### 选项类型（Options）（45）
+
+| 名称 | 种类 |
+|---|---|
+| `AlbumPhotoListOptions` | interface |
+| `AlbumPhotoStreamOptions` | interface |
+| `ArchiveIncrementalOptions` | interface |
+| `ArchiveStreamOptions` | interface |
+| `ArchiveUsersOptions` | interface |
+| `CommentHistoryListOptions` | interface |
+| `CommentHistoryStreamOptions` | interface |
+| `ConsoleLoggerOptions` | interface |
+| `FavoriteListOptions` | interface |
+| `FavoriteStreamOptions` | interface |
+| `FollowingsStreamOptions` | interface |
+| `ImageWallListOptions` | interface |
+| `ImageWallStreamOptions` | interface |
+| `JsonlLoggerOptions` | interface |
+| `JsonlTelemetryOptions` | interface |
+| `LikeListOptions` | interface |
+| `LikeStreamOptions` | interface |
+| `MediaDownloadOptions` | interface |
+| `MergeArchiveOptions` | interface |
+| `NotificationListOptions` | interface |
+| `NotificationStreamOptions` | interface |
+| `StreamLimitOptions` | interface |
+| `StreamRangeOptions` | interface |
+| `SuperTopicListOptions` | interface |
+| `SuperTopicStreamOptions` | interface |
+| `TweetCommentsOptions` | interface |
+| `TweetCommentsStreamOptions` | interface |
+| `TweetContextOptions` | interface |
+| `TweetEnrichOptions` | interface |
+| `TweetFriendTimelineListOptions` | interface |
+| `TweetFriendTimelineStreamOptions` | interface |
+| `TweetLikersOptions` | interface |
+| `TweetLikersStreamOptions` | interface |
+| `TweetRepliesOptions` | interface |
+| `TweetRepostsListOptions` | interface |
+| `TweetRepostsStreamOptions` | interface |
+| `TweetSearchByDateOptions` | interface |
+| `TweetUserTimelineListOptions` | interface |
+| `TweetUserTimelineStreamOptions` | interface |
+| `UserArchiveContentOptions` | interface |
+| `UserArchiveOptions` | interface |
+| `UserMentionsListOptions` | interface |
+| `UserMentionsStreamOptions` | interface |
+| `VideoWaterfallListOptions` | interface |
+| `VideoWaterfallStreamOptions` | interface |
+
+### 进度类型（Progress）（19）
+
+| 名称 | 种类 |
+|---|---|
+| `AlbumStreamProgress` | interface |
+| `ArchiveProgress` | interface |
+| `ArchiveProgressEvent` | type |
+| `ArchiveProgressSummary` | interface |
+| `CommentHistoryStreamProgress` | interface |
+| `FavoriteStreamProgress` | interface |
+| `FollowingsStreamProgress` | interface |
+| `formatArchiveProgress` | function |
+| `isArchiveProgress` | function |
+| `LikeStreamProgress` | interface |
+| `MediaDownloadProgress` | interface |
+| `MediaStreamProgress` | interface |
+| `NotificationStreamProgress` | interface |
+| `PaginationProgress` | interface |
+| `TweetCommentsStreamProgress` | interface |
+| `TweetLikersStreamProgress` | interface |
+| `TweetRepostsStreamProgress` | interface |
+| `UserArchiveProgress` | interface |
+| `UserMentionsStreamProgress` | interface |
+
+### 运行时标签（14）
+
+| 名称 | 种类 |
+|---|---|
+| `ArchiveErrorAction` | type |
+| `ArchiveErrorStage` | type |
+| `ArchiveItemErrorContext` | interface |
+| `ArchivePhase` | type |
+| `ArchiveRawMeta` | interface |
+| `ArchiveTimelineSource` | type |
+| `CapabilityAuth` | type |
+| `CapabilityGuestPagination` | type |
+| `CapabilityPagination` | type |
+| `CapabilityStatus` | type |
+| `FollowingsSource` | type |
+| `listCapabilities` | function |
+| `UserArchiveEvent` | type |
+| `WEIBO_CAPABILITIES` | const |
+
+### 扩展点形状（Credential / Plugin / Transport）（7）
+
+| 名称 | 种类 |
+|---|---|
+| `Credential` | interface |
+| `CredentialResolveContext` | interface |
+| `CredentialResolver` | interface |
+| `LogWriteStream` | interface |
+| `PluginRequestInfo` | interface |
+| `TransportFailure` | class |
+| `TransportFailureKind` | type |
 

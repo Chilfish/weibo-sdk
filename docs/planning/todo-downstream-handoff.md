@@ -8,7 +8,7 @@
 
 | 决策 | 结论 |
 |---|---|
-| 稳定策略 | 0.x + 明确 Stable / Experimental / Internal 子集；不立即发 1.0 |
+| 稳定策略 | 0.x + 明确 Stable / Evolving / Experimental / Internal 子集；不立即发 1.0 |
 | 稳定性承诺 | Stable 子集破坏性变更 → 包 major；0.x 内至少 CHANGELOG 迁移说明 |
 | API 参考 | 手写服务级参考 + CI 覆盖率校验；不引入 TypeDoc |
 | 语言 | 中文为主，API 名与字段保留英文 |
@@ -21,8 +21,8 @@
 见 [api-stability.md](../engineering/api-stability.md)。
 
 - **Stable**：门面与配置、返回领域模型的读取/流方法、领域模型、归档契约、扩展端口、错误体系。
-- **Experimental**：返回原始上游形状的 `fetchRaw*` 方法、辅助函数。
-- **Internal**：所有上游响应类型（`*Response` / `*Item`）、endpoint `*Args`、`*Deps`、`IResource`、分页/日志/遥测内部工具、`Tweet`/`User` 类等，从包根移除。
+- **Evolving**：返回原始上游形状的 `fetchRaw*` 方法、辅助形状（`*Options` / `*Progress*` / 运行时标签 / 扩展点形状）。`Experimental` 为预留档（当前无条目）。
+- **Internal**：所有上游响应类型（`*Response` / `*Item`）、endpoint `*Args`、`*Deps`、`IResource`、分页/日志/遥测内部工具、`Tweet`/`User` 类、归一化 / id 解析 / 上下文渲染 helper 等，从包根移除。
 
 ## P0 公开面收口
 

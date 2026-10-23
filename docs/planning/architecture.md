@@ -181,3 +181,25 @@
   - 新增 `lint:package` / `verify:package` / `test:bundle` 三个 CI 门禁。
   - `schemas/` 是否随包发布需要明确决策；`$schema` 不能只指向可变的 `main` 分支。
   - 任何新增公共导出 / 子路径 / 运行时依赖，都要同步更新导出测试与产物门禁。
+
+## ADR-017: 归档双管线的边界与收敛方向
+
+- **日期**: 2026-10-23
+- **状态**: accepted
+- **决策**:
+  1. `ArchiveService.streamArchive` 是**唯一的枚举 / 分页 / checkpoint 状态机**。`UserArchiveService` 只能通过注入的 `streamArchive` 复用切片枚举，禁止再实现一套枚举、游标或阶段推进逻辑。
+  2. 两条管线继续并存，但输出契约不合并：
+     - `archive`：`ArchiveItem` 流 + 游标 checkpoint（at-least-once，按 `mblogId` 去重）；
+     - `userArchive`：单个 `ArchiveFile` + 按日期切片的 journal（`weibo-user-archive/v2`）。
+  3. 新的归档能力（新的数据源、深度补全、单文件产出）只进 `userArchive`；`archive` 冻结在现有阶段集合（timeline / likes / comments / favorites / images / videos），不再新增阶段。
+  4. 两种 checkpoint 类型不兼容，禁止互传。`UserArchiveOptions` 不暴露 `ArchiveCheckpoint`；`userArchive` 内部的切片 checkpoint 只由 `streamArchive` 产生并回传给它自己。
+  5. 收敛触发条件：任一管线需要新的枚举源或新的续跑语义时，先扩展 `streamArchive` 的参数，或新增 ADR；不允许复制现有循环。
+- **背景**: `ArchiveService`（608 行）+ `archive/phases/*` + `ArchiveRuntime` 与 `UserArchiveService`（497 行）+ `userArchive/*` 两套状态机长期并存，checkpoint / 续跑 / 去重语义不同。两者都在演进，是最容易分叉出错的地方。
+- **理由**:
+  - 一次性合并两套状态机是 breaking redesign，风险高于收益；当前用户已分别依赖「全量镜像」与「范围归档」两种产物。
+  - `userArchive` 已经单向依赖 `streamArchive`（切片枚举），保持这个方向可以把分叉点收敛到一个地方。
+  - 用类型（不共享 checkpoint）与静态守卫（禁止 import 阶段实现）比文档约定更可靠。
+- **后果**:
+  - `UserArchiveService` 的依赖面固定为 `streamArchive` / `enrich` / `streamComments` / `streamReplies` / `streamReposts` / `getUser`。
+  - 新增 `tests/unit/services/ArchivePipelines.test.ts` 静态守卫：`userArchive` 不得出现 `archive/phases`、`ArchiveRuntime`、`resolveEnabledPhases`。
+  - README 的「两条管线不要混用」选择表是公开契约的一部分；改动需同步 `website/`。

@@ -47,6 +47,7 @@ jobs:
       - if: env.FULL_TOOLCHAIN == 'true'
         run: pnpm exec eslint .
       - run: pnpm test --run
+      - run: pnpm run test:coverage
       - run: pnpm run validate:fixtures
       - run: pnpm check:api
       - run: pnpm check:docs
