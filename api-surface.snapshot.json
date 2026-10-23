@@ -2,10 +2,6 @@
   "schemaVersion": 1,
   "exports": [
     {
-      "name": "AlbumDetailResponse",
-      "kind": "type"
-    },
-    {
       "name": "AlbumListResult",
       "kind": "interface"
     },
@@ -110,20 +106,8 @@
       "kind": "interface"
     },
     {
-      "name": "AttitudeItem",
-      "kind": "type"
-    },
-    {
-      "name": "BandUnifiedResponse",
-      "kind": "type"
-    },
-    {
       "name": "BeforeRetryResult",
       "kind": "interface"
-    },
-    {
-      "name": "BuildCommentsResponse",
-      "kind": "type"
     },
     {
       "name": "buildTweetContext",
@@ -234,14 +218,6 @@
       "kind": "interface"
     },
     {
-      "name": "FavoritesResponse",
-      "kind": "type"
-    },
-    {
-      "name": "FavoritesTagsResponse",
-      "kind": "type"
-    },
-    {
       "name": "FavoriteStreamOptions",
       "kind": "interface"
     },
@@ -250,8 +226,12 @@
       "kind": "interface"
     },
     {
-      "name": "FeedGroupsResponse",
-      "kind": "type"
+      "name": "FavoriteTag",
+      "kind": "interface"
+    },
+    {
+      "name": "FavoriteTagList",
+      "kind": "interface"
     },
     {
       "name": "FetchLike",
@@ -266,8 +246,8 @@
       "kind": "function"
     },
     {
-      "name": "FollowContentResponse",
-      "kind": "type"
+      "name": "FollowingPageResult",
+      "kind": "interface"
     },
     {
       "name": "FollowingsSource",
@@ -282,24 +262,12 @@
       "kind": "interface"
     },
     {
-      "name": "FollowingUser",
-      "kind": "type"
-    },
-    {
       "name": "formatArchiveProgress",
       "kind": "function"
     },
     {
       "name": "formatSchemaDrift",
       "kind": "function"
-    },
-    {
-      "name": "FriendshipsResponse",
-      "kind": "type"
-    },
-    {
-      "name": "FriendstimelineResponse",
-      "kind": "type"
     },
     {
       "name": "Gender",
@@ -312,10 +280,6 @@
     {
       "name": "ImageWallPageResult",
       "kind": "interface"
-    },
-    {
-      "name": "ImageWallResponse",
-      "kind": "type"
     },
     {
       "name": "ImageWallStreamOptions",
@@ -336,6 +300,10 @@
     {
       "name": "isArchiveProgress",
       "kind": "function"
+    },
+    {
+      "name": "ISelfProfile",
+      "kind": "interface"
     },
     {
       "name": "ITweet",
@@ -398,16 +366,8 @@
       "kind": "interface"
     },
     {
-      "name": "LikeItem",
-      "kind": "type"
-    },
-    {
       "name": "LikeListOptions",
       "kind": "interface"
-    },
-    {
-      "name": "LikeListResponse",
-      "kind": "type"
     },
     {
       "name": "LikeNotification",
@@ -420,10 +380,6 @@
     {
       "name": "LikePageResult",
       "kind": "interface"
-    },
-    {
-      "name": "LikersResponse",
-      "kind": "type"
     },
     {
       "name": "LikeStreamOptions",
@@ -442,16 +398,8 @@
       "kind": "interface"
     },
     {
-      "name": "LongtextResponse",
-      "kind": "type"
-    },
-    {
       "name": "MblogGroup",
       "kind": "interface"
-    },
-    {
-      "name": "MblogGroupsResponse",
-      "kind": "type"
     },
     {
       "name": "MediaDownloadError",
@@ -506,10 +454,6 @@
       "kind": "type"
     },
     {
-      "name": "MentionsViewResponse",
-      "kind": "type"
-    },
-    {
       "name": "mergeArchiveFiles",
       "kind": "function"
     },
@@ -522,44 +466,12 @@
       "kind": "interface"
     },
     {
-      "name": "MessageAttitudesResponse",
-      "kind": "type"
-    },
-    {
-      "name": "MessageCommentsResponse",
-      "kind": "type"
-    },
-    {
       "name": "midToMblogId",
       "kind": "function"
     },
     {
       "name": "migrateTweetV1toV2",
       "kind": "function"
-    },
-    {
-      "name": "MobileCard",
-      "kind": "interface"
-    },
-    {
-      "name": "MobileCardPic",
-      "kind": "interface"
-    },
-    {
-      "name": "MobileContainerResponse",
-      "kind": "type"
-    },
-    {
-      "name": "MyCommentItem",
-      "kind": "type"
-    },
-    {
-      "name": "MyCommentsResponse",
-      "kind": "type"
-    },
-    {
-      "name": "MyMblogResponse",
-      "kind": "type"
     },
     {
       "name": "NetworkRequestError",
@@ -622,10 +534,6 @@
       "kind": "function"
     },
     {
-      "name": "RepostTimelineResponse",
-      "kind": "type"
-    },
-    {
       "name": "RequestContext",
       "kind": "type"
     },
@@ -642,28 +550,12 @@
       "kind": "interface"
     },
     {
-      "name": "SearchProfileResponse",
-      "kind": "type"
+      "name": "SearchTweetPageResult",
+      "kind": "interface"
     },
     {
-      "name": "SearchTweetsResponse",
-      "kind": "type"
-    },
-    {
-      "name": "SearchUsersResponse",
-      "kind": "type"
-    },
-    {
-      "name": "StatusShowResponse",
-      "kind": "type"
-    },
-    {
-      "name": "STopicCatesResponse",
-      "kind": "type"
-    },
-    {
-      "name": "STopicListResponse",
-      "kind": "type"
+      "name": "SearchUserPageResult",
+      "kind": "interface"
     },
     {
       "name": "StreamLimitOptions",
@@ -734,6 +626,10 @@
       "kind": "interface"
     },
     {
+      "name": "TrendItem",
+      "kind": "interface"
+    },
+    {
       "name": "TWEET_CONTEXT_SCHEMA",
       "kind": "const"
     },
@@ -763,6 +659,10 @@
     },
     {
       "name": "TweetCommentsOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetCommentsPageResult",
       "kind": "interface"
     },
     {
@@ -894,6 +794,10 @@
       "kind": "interface"
     },
     {
+      "name": "TweetLongText",
+      "kind": "interface"
+    },
+    {
       "name": "TweetLotteryAttachment",
       "kind": "interface"
     },
@@ -926,6 +830,10 @@
       "kind": "interface"
     },
     {
+      "name": "TweetRepostsPageResult",
+      "kind": "interface"
+    },
+    {
       "name": "TweetRepostsStreamOptions",
       "kind": "interface"
     },
@@ -935,6 +843,10 @@
     },
     {
       "name": "TweetSearchByDateOptions",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetSearchByDatePageResult",
       "kind": "interface"
     },
     {
@@ -1018,16 +930,12 @@
       "kind": "interface"
     },
     {
-      "name": "UserDetailsResponse",
-      "kind": "type"
+      "name": "UserBrief",
+      "kind": "interface"
     },
     {
       "name": "UserGroup",
       "kind": "interface"
-    },
-    {
-      "name": "UserInfoResponse",
-      "kind": "type"
     },
     {
       "name": "UserMentionsListOptions",
@@ -1064,10 +972,6 @@
     {
       "name": "VideoWaterfallStreamOptions",
       "kind": "interface"
-    },
-    {
-      "name": "WaterfallResponse",
-      "kind": "type"
     },
     {
       "name": "WEIBO_CAPABILITIES",

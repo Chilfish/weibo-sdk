@@ -5,11 +5,10 @@ outline: deep
 
 # 导出索引
 
-包根共导出 291 个名称。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+包根共导出 267 个名称。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
 
 | 名称 | 种类 |
 |---|---|
-| `AlbumDetailResponse` | type |
 | `AlbumListResult` | interface |
 | `AlbumPhotoListOptions` | interface |
 | `AlbumPhotoPageResult` | interface |
@@ -36,10 +35,7 @@ outline: deep
 | `ArchiveTimelineSource` | type |
 | `ArchiveUserItem` | interface |
 | `ArchiveUsersOptions` | interface |
-| `AttitudeItem` | type |
-| `BandUnifiedResponse` | type |
 | `BeforeRetryResult` | interface |
-| `BuildCommentsResponse` | type |
 | `buildTweetContext` | function |
 | `CapabilityAuth` | type |
 | `CapabilityFilter` | interface |
@@ -67,32 +63,28 @@ outline: deep
 | `ErrorContext` | interface |
 | `FavoriteListOptions` | interface |
 | `FavoritePageResult` | interface |
-| `FavoritesResponse` | type |
-| `FavoritesTagsResponse` | type |
 | `FavoriteStreamOptions` | interface |
 | `FavoriteStreamProgress` | interface |
-| `FeedGroupsResponse` | type |
+| `FavoriteTag` | interface |
+| `FavoriteTagList` | interface |
 | `FetchLike` | type |
 | `FetchResponseLike` | interface |
 | `fetchTransport` | function |
-| `FollowContentResponse` | type |
+| `FollowingPageResult` | interface |
 | `FollowingsSource` | type |
 | `FollowingsStreamOptions` | interface |
 | `FollowingsStreamProgress` | interface |
-| `FollowingUser` | type |
 | `formatArchiveProgress` | function |
 | `formatSchemaDrift` | function |
-| `FriendshipsResponse` | type |
-| `FriendstimelineResponse` | type |
 | `Gender` | enum |
 | `ImageWallListOptions` | interface |
 | `ImageWallPageResult` | interface |
-| `ImageWallResponse` | type |
 | `ImageWallStreamOptions` | interface |
 | `InvalidConfigError` | class |
 | `IProxyProvider` | interface |
 | `IProxyRequestContext` | interface |
 | `isArchiveProgress` | function |
+| `ISelfProfile` | interface |
 | `ITweet` | interface |
 | `ITweetComment` | interface |
 | `ITweetContext` | interface |
@@ -108,20 +100,15 @@ outline: deep
 | `JsonlLoggerOptions` | interface |
 | `JsonlTelemetry` | interface |
 | `JsonlTelemetryOptions` | interface |
-| `LikeItem` | type |
 | `LikeListOptions` | interface |
-| `LikeListResponse` | type |
 | `LikeNotification` | interface |
 | `LikeNotificationPageResult` | interface |
 | `LikePageResult` | interface |
-| `LikersResponse` | type |
 | `LikeStreamOptions` | interface |
 | `LikeStreamProgress` | interface |
 | `listCapabilities` | function |
 | `LogWriteStream` | interface |
-| `LongtextResponse` | type |
 | `MblogGroup` | interface |
-| `MblogGroupsResponse` | type |
 | `MediaDownloadError` | class |
 | `MediaDownloadItem` | type |
 | `MediaDownloadItemBase` | interface |
@@ -135,20 +122,11 @@ outline: deep
 | `MediaStreamProgress` | interface |
 | `MediaType` | enum |
 | `MediaVariant` | type |
-| `MentionsViewResponse` | type |
 | `mergeArchiveFiles` | function |
 | `MergeArchiveOptions` | interface |
 | `MergeArchiveResult` | interface |
-| `MessageAttitudesResponse` | type |
-| `MessageCommentsResponse` | type |
 | `midToMblogId` | function |
 | `migrateTweetV1toV2` | function |
-| `MobileCard` | interface |
-| `MobileCardPic` | interface |
-| `MobileContainerResponse` | type |
-| `MyCommentItem` | type |
-| `MyCommentsResponse` | type |
-| `MyMblogResponse` | type |
 | `NetworkRequestError` | class |
 | `normalizeComment` | function |
 | `normalizeLiker` | function |
@@ -164,17 +142,12 @@ outline: deep
 | `PluginRequestInfo` | interface |
 | `RateLimitError` | class |
 | `renderTweetContextMarkdown` | function |
-| `RepostTimelineResponse` | type |
 | `RequestContext` | type |
 | `ResponseContext` | interface |
 | `RetryContext` | interface |
 | `SchemaDiffEntry` | interface |
-| `SearchProfileResponse` | type |
-| `SearchTweetsResponse` | type |
-| `SearchUsersResponse` | type |
-| `StatusShowResponse` | type |
-| `STopicCatesResponse` | type |
-| `STopicListResponse` | type |
+| `SearchTweetPageResult` | interface |
+| `SearchUserPageResult` | interface |
 | `StreamLimitOptions` | interface |
 | `StreamRangeOptions` | interface |
 | `SuperTopic` | interface |
@@ -192,6 +165,7 @@ outline: deep
 | `TransportRequest` | interface |
 | `TransportRequestMeta` | interface |
 | `TransportResponse` | interface |
+| `TrendItem` | interface |
 | `TWEET_CONTEXT_SCHEMA` | const |
 | `TWEET_CONTRACT_VERSION` | const |
 | `TweetArticleAttachment` | interface |
@@ -200,6 +174,7 @@ outline: deep
 | `TweetAudio` | interface |
 | `TweetCommentPic` | interface |
 | `TweetCommentsOptions` | interface |
+| `TweetCommentsPageResult` | interface |
 | `TweetCommentsStreamOptions` | interface |
 | `TweetCommentsStreamProgress` | interface |
 | `TweetContextAttachment` | interface |
@@ -232,6 +207,7 @@ outline: deep
 | `TweetLikersStreamProgress` | interface |
 | `TweetLinkCard` | interface |
 | `TweetLiveAttachment` | interface |
+| `TweetLongText` | interface |
 | `TweetLotteryAttachment` | interface |
 | `TweetMedia` | interface |
 | `TweetMediaDownloadResult` | interface |
@@ -240,9 +216,11 @@ outline: deep
 | `TweetRepliesOptions` | interface |
 | `TweetRepostEntry` | interface |
 | `TweetRepostsListOptions` | interface |
+| `TweetRepostsPageResult` | interface |
 | `TweetRepostsStreamOptions` | interface |
 | `TweetRepostsStreamProgress` | interface |
 | `TweetSearchByDateOptions` | interface |
+| `TweetSearchByDatePageResult` | interface |
 | `TweetUser` | interface |
 | `TweetUserTimelineListOptions` | interface |
 | `TweetUserTimelineStreamOptions` | interface |
@@ -263,9 +241,8 @@ outline: deep
 | `UserArchiveSliceState` | interface |
 | `UserArchiveStore` | interface |
 | `UserArchiveSummary` | interface |
-| `UserDetailsResponse` | type |
+| `UserBrief` | interface |
 | `UserGroup` | interface |
-| `UserInfoResponse` | type |
 | `UserMentionsListOptions` | interface |
 | `UserMentionsPageResult` | interface |
 | `UserMentionsStreamOptions` | interface |
@@ -275,7 +252,6 @@ outline: deep
 | `VideoWaterfallListOptions` | interface |
 | `VideoWaterfallPageResult` | interface |
 | `VideoWaterfallStreamOptions` | interface |
-| `WaterfallResponse` | type |
 | `WEIBO_CAPABILITIES` | const |
 | `WeiboAPINotOkError` | class |
 | `WeiboAuthMode` | type |
