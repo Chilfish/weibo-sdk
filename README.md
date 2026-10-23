@@ -14,7 +14,7 @@
 - 流式分页，支持 `maxPages`、`maxItems`；时间倒序的接口还支持 `since` / `until` 日期边界
 - 归档流带 checkpoint，可以在中断后继续；支持增量、多账号、仅原创和媒体
 - SDK 与 CLI 共用同一套能力；CLI 默认输出 JSON 或 NDJSON，方便 `jq` 和脚本消费，查询命令还可以用 `--format markdown` 换成可读视图
-- 结构化错误、令牌桶限流和自动重试；默认测试离线运行，不依赖微博网络
+- 结构化错误、令牌桶限流和自动重试；默认测试全程离线
 
 ## 安装
 
@@ -24,11 +24,11 @@ pnpm add @chilfish/weibo-sdk
 npm install @chilfish/weibo-sdk
 ```
 
-需要 Node.js 20.16+（与 `process.getBuiltinModule` 对齐）。包是 ESM-only；CommonJS 调用方请使用 `await import('@chilfish/weibo-sdk')`。
+需要 Node.js 20.16+。包是 ESM-only；CommonJS 调用方请使用 `await import('@chilfish/weibo-sdk')`。
 
 安装后可以用 `npx weibo-cli` 调用命令行工具，也可以全局安装：`npm i -g @chilfish/weibo-sdk`。
 
-浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口会把 axios 和 zod 一起打包，不需要额外的模块解析。
+浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口自带 axios 与 zod，可以直接 import。
 
 ## 登录 Cookie（可选）
 
@@ -45,9 +45,9 @@ new WeiboSDK({ cookie: './cookies.txt' })        // Netscape cookies.txt
 new WeiboSDK({ cookie: './cookies.header.txt' }) // 文件内容是 Cookie header
 ```
 
-读取文件时只会保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 的 Cookie，过期条目会被跳过。路径不存在或文件里没有可用 Cookie 时会抛出 `InvalidConfigError`。
+读取文件时保留 `weibo.com`、`weibo.cn`、`sina.com.cn` 的 Cookie，过期条目跳过。路径不存在或文件里没有可用 Cookie 时抛出 `InvalidConfigError`。
 
-CLI 不读取 shell 环境变量，只从 `.env` 文件读取。默认读取当前目录的 `.env`，也可以用 `--env-file` 指定：
+CLI 只从 `.env` 文件读取 Cookie。默认读取当前目录的 `.env`，也可以用 `--env-file` 指定：
 
 ```env
 WEIBO_COOKIE="SUB=...; SUBP=...; XSRF-TOKEN=..."
@@ -55,9 +55,9 @@ WEIBO_COOKIE="SUB=...; SUBP=...; XSRF-TOKEN=..."
 
 `--cookie` / `-c` 可以临时覆盖。开始之前建议先运行 `weibo-cli whoami` 确认登录状态。
 
-## 没有 Cookie？访客模式
+## 访客模式
 
-不提供 Cookie 也能读公开数据，SDK 会自动使用访客身份：
+不传 Cookie 时，SDK 自动使用访客身份读取公开数据：
 
 ```ts
 import { WeiboSDK } from '@chilfish/weibo-sdk'
@@ -71,7 +71,7 @@ new WeiboSDK({ auth: 'guest' })
 new WeiboSDK({ auth: 'guest', guest: { issuer: 'mobile', autoRefresh: true } })
 ```
 
-CLI 的每个命令都支持 `--guest`，它不会读取 `.env`：
+CLI 的每个命令都支持 `--guest`，使用访客身份并忽略 `.env`：
 
 ```bash
 weibo-cli whoami --guest
@@ -83,7 +83,7 @@ weibo-cli user timeline 1111681197 --guest   # 只有第一页，结果带 parti
 
 访客能读用户资料、单条微博、长文、评论、转发、点赞者、图片墙、视频、相册、超话和热搜。用户时间线、点赞、关注和粉丝只能拿到第一页；收藏、通知、@ 我、历史评论、首页关注时间线、日期搜索和归档仍然需要 Cookie，访客模式调用它们会返回 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）或 `CONFIG_INVALID`。
 
-`auth: 'auto'` 只在构造时判断：没有 Cookie 就用访客，Cookie 过期不会静默切换成访客，会照常报错。访客 token 会自动刷新一次，遇到限流（432 / 429）只退避重试。
+`auth: 'auto'` 在构造时确定身份：没有 Cookie 就用访客。Cookie 过期后请求返回 `AUTH_SESSION_EXPIRED`，需要访客身份时显式传 `auth: 'guest'`。访客 token 会自动刷新一次，遇到限流（432 / 429）按退避重试。
 
 ## 快速开始
 
@@ -126,7 +126,7 @@ for await (const comment of sdk.tweets.streamComments('QqsYymYOS', {
 }
 ```
 
-所有 `stream*` 方法都支持 `maxItems` 和 `maxPages`。用户时间线、首页、转发、@ 我、历史评论和通知这些时间倒序的流还支持 `since` / `until`，可以传 `YYYY-MM-DD` 或 unix 秒。评论热度序、点赞和收藏不提供日期边界，因为条目顺序和操作时间并不一致。
+所有 `stream*` 方法都支持 `maxItems` 和 `maxPages`。用户时间线、首页、转发、@ 我、历史评论和通知这些时间倒序的流还支持 `since` / `until`，可以传 `YYYY-MM-DD` 或 unix 秒。评论热度序、点赞和收藏的条目顺序与操作时间不一致，因此没有日期边界。
 
 ### 当前会话
 
@@ -137,7 +137,7 @@ session.uid        // 登录账号 uid（从 profile/detail 的 verified_url 解
 session.details    // profile/detail 原始响应（访客缺省）
 ```
 
-`getSession()` 复用启动自检已经发出的请求，按实例缓存，不会额外探测；需要重新确认登录态时传 `{ refresh: true }`。访客模式下它只确认访客 token 可用，并返回 `guestTokenIssuedAt`。
+`getSession()` 复用启动自检的请求，按实例缓存；需要重新确认登录态时传 `{ refresh: true }`。访客模式下它返回访客 token 的 `guestTokenIssuedAt`。
 
 ### 归档账号
 
@@ -160,7 +160,7 @@ for await (const item of sdk.archive.streamArchive('1111681197', {
 
 `ArchiveItem.source` 可能是 `timeline`、`repost`、`favorite`、`like`、`comment`、`image` 或 `video`。图片项可能没有 `tweet`，只有 `asset`。
 
-归档需要登录 Cookie：访客身份调用 `streamArchive` 会抛 `CONFIG_INVALID`，因为匿名列表只有第一页，无法保证完整。
+归档需要登录 Cookie。访客调用 `streamArchive` 会抛 `CONFIG_INVALID`：匿名列表只有第一页。
 
 续跑是 **at-least-once**：`checkpoint` 记录最后一条已完整处理的项，中断后重跑可能重复边界 1 条；图片墙和视频瀑布的游标按整页写回，续跑会重放整页。请按 `mblogId`（媒体按 `asset.id`）幂等去重。
 
@@ -239,7 +239,7 @@ weibo-cli media download QqsYymYOS --out ./media --dry-run
 weibo-cli media download QqsYymYOS --out ./media --include pic,video
 ```
 
-下载器使用独立的 CDN 客户端，只带微博 Referer，不带 Cookie。支持重试、URL 过期刷新、临时文件原子落盘和失败清单。
+下载器使用独立的 CDN 客户端，请求只带微博 Referer。支持重试、URL 过期刷新、临时文件原子落盘和失败清单。
 
 ### 命令行
 
@@ -258,7 +258,7 @@ weibo-cli media images <uid> --max-pages 1
 weibo-cli notification comments-stream --max-pages 1
 ```
 
-查询命令默认输出 JSON，需要用眼睛读时加 `--format markdown`（用户、微博、评论、关注、点赞、收藏、通知、超话、热搜等）；`*-stream`、`archive` 和 `media download` 输出 NDJSON，每行一个事件：
+查询命令默认输出 JSON，需要直接阅读时加 `--format markdown`（用户、微博、评论、关注、点赞、收藏、通知、超话、热搜等）；`*-stream`、`archive` 和 `media download` 输出 NDJSON，每行一个事件：
 
 ```json
 {"event":"progress","page":1,"processed":25}
@@ -302,21 +302,11 @@ await sdk.tweets.getByMblogId('https://m.weibo.cn/status/5356120103455672')
 | 范围归档（指定时间段 + 深度补全） | `sdk.userArchive` | `weibo-cli archive user` |
 | 公开关键词搜索（当前不可用） | `sdk.search` | `weibo-cli search` |
 
-完整命令和参数见 [CLI 参考](https://weibo-sdk.chilfish.top/cli/)。SDK 的方法签名、参数、返回类型、错误与访客限制见 [API 参考](https://weibo-sdk.chilfish.top/api/)；根导出按 Stable / Experimental 分层，见 [导出索引](https://weibo-sdk.chilfish.top/api/types/)。
-
-## 稳定性
-
-包根公开面分三层：
-
-- **Stable**：门面与配置、返回领域模型的读取/流方法、领域模型、归档契约、扩展端口、错误体系。破坏性变更升包 major；0.x 内至少给 `CHANGELOG` 迁移说明。
-- **Experimental**：返回原始上游形状的方法、`z.infer` 端点响应类型、辅助函数。可能随上游漂移。
-- **Internal**：不从包根导出。
-
-`pnpm check:api` 会校验导出面快照、分层完整性与文档覆盖率；新增公开导出必须同时更新 `api-surface.json` 与文档。
+完整命令和参数见 [CLI 参考](https://weibo-sdk.chilfish.top/cli/)。SDK 的方法签名、参数、返回类型、错误与访客限制见 [API 参考](https://weibo-sdk.chilfish.top/api/)；全部根导出见 [导出索引](https://weibo-sdk.chilfish.top/api/types/)。
 
 ## 诊断
 
-`capabilities()` 可以查看当前支持的能力、登录要求和分页方式。每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination` 和 `guestNote`，能直接看出访客身份下能不能用、能不能翻页：
+`capabilities()` 列出当前支持的能力、登录要求和分页方式。每条记录带 `auth`（`cookie` / `guest` / `none`）、`guestPagination` 和 `guestNote`，可以直接看出访客身份下的可用性与翻页范围：
 
 ```ts
 const caps = sdk.capabilities({ service: 'tweets' })
@@ -327,20 +317,20 @@ weibo-cli capabilities --status degraded
 weibo-cli schema diff before-digest.json after-digest.json
 ```
 
-错误对象带有 `code`、`level`、`retryable`、`context`，部分错误还有 `hint` 和 `next`。建议先判断 `code`，不要匹配错误文案：
+错误对象带有 `code`、`level`、`retryable`、`context`，部分错误还有 `hint` 和 `next`。先判断 `code`；`message` 会随上游文案变化：
 
 - `AUTH_SESSION_EXPIRED`：Cookie 无效或过期；访客模式下表示该能力需要登录（`context.requiredAuth === 'cookie'`）
 - `RATE_LIMITED`：HTTP 432 / 429，SDK 会自动退避
 - `NET_TIMEOUT` / `NET_REQUEST_FAILED`：网络问题，可重试
 - `API_NOT_OK`：微博接口返回 `ok !== 1`
-- `API_BAD_RESPONSE`：返回的不是 JSON，或字段结构与预期不符
+- `API_BAD_RESPONSE`：返回 HTML 等非 JSON 内容，或字段结构与预期不符
 - `CONFIG_INVALID`：Cookie、代理或参数配置有误（例如 `auth: 'cookie'` 却没有 Cookie、访客请求第 2 页、访客调用归档）
 
 完整的错误码和处理方式见 [错误排障手册](https://weibo-sdk.chilfish.top/reference/troubleshooting)。
 
 ## 原始响应与遥测
 
-`ArchiveItem` 只包含归一化后的数据，不携带 raw。需要原始 JSON 时，可以通过 hook 或 `enrich` 单独获取：
+`ArchiveItem` 只包含归一化后的数据。需要原始 JSON 时，可以通过 hook 或 `enrich` 单独获取：
 
 ```ts
 const sdk = new WeiboSDK({
@@ -359,7 +349,7 @@ const { tweet, raw, longText } = await sdk.tweets.enrich('QqsYymYOS', {
 
 请求、限流、重试和归一化过程会产生结构化遥测事件。可以接入自己的 `telemetry.emit()`，也可以使用 `createJsonlTelemetry()` 直接写到 JSONL 文件。
 
-需要分级、格式化或落盘时，显式接入 logger（默认关闭，SDK 不产生 console / 文件 IO）：
+需要分级、格式化或落盘时，显式接入 logger（默认关闭）：
 
 ```ts
 import { appendFileSync } from 'node:fs'
@@ -374,7 +364,7 @@ const sdk = new WeiboSDK({
 })
 ```
 
-日志来自已有的 Wide Events 与 `sdk_init` / `self_check_*`，不会额外埋点；内置 sink 默认替换 Cookie / token 等敏感字段。详见 [日志](https://weibo-sdk.chilfish.top/reference/logging)。
+日志来自已有的 Wide Events 与 `sdk_init` / `self_check_*`，没有额外埋点；内置 sink 默认替换 Cookie / token 等敏感字段。详见 [日志](https://weibo-sdk.chilfish.top/reference/logging)。
 
 ## 扩展：自定义传输与插件
 
@@ -390,7 +380,7 @@ const sdkWithCustomFetch = new WeiboSDK({
 })
 ```
 
-插件在 `new WeiboSDK()` 时组装，按 `pre → normal → post` 排序；`observe` 是只读观察者，抛错不会影响请求：
+插件在 `new WeiboSDK()` 时组装，按 `pre → normal → post` 排序；`observe` 是只读观察者，抛错会被吞掉：
 
 ```ts
 const sdk = new WeiboSDK({
@@ -417,13 +407,13 @@ pnpm run lint
 pnpm test
 ```
 
-真实网络测试默认跳过。需要时在项目根目录 `.env` 里配置 `WEIBO_COOKIE`，再运行：
+真实网络测试在项目根目录 `.env` 里配置 `WEIBO_COOKIE` 后运行：
 
 ```bash
 pnpm test:e2e
 ```
 
-访客链路的冒烟用例不需要 Cookie，用独立开关开启：
+访客链路的冒烟用例用独立开关开启：
 
 ```bash
 WEIBO_GUEST_E2E=1 pnpm test:e2e
@@ -447,15 +437,13 @@ pnpm play cli:home
 - [鉴权与访客模式](https://weibo-sdk.chilfish.top/guide/authentication)
 - [API 参考](https://weibo-sdk.chilfish.top/api/)
 - [CLI 参考](https://weibo-sdk.chilfish.top/cli/)
-- [ITweet 契约 v2](https://weibo-sdk.chilfish.top/reference/tweet-contract-v2)
-- [归档格式 v2](https://weibo-sdk.chilfish.top/reference/archive-format-v2)
+- [ITweet 契约](https://weibo-sdk.chilfish.top/reference/tweet-contract)
+- [归档格式](https://weibo-sdk.chilfish.top/reference/archive-format)
 - [故障排查](https://weibo-sdk.chilfish.top/reference/troubleshooting)
-
-仓库内部的开发约定见 [AGENTS.md](./AGENTS.md)，端点开发流程见 [endpoint-authoring.md](https://github.com/Chilfish/weibo-sdk/blob/main/docs/engineering/endpoint-authoring.md)。
 
 ## 边界
 
-这个项目只做只读数据读取和归档，不提供发帖、点赞、转发、评论、关注等写操作。私信、仅粉丝可见和付费内容不在范围内。
+项目只读取和归档数据。发帖、点赞、转发、评论、关注等写操作，以及私信、仅粉丝可见和付费内容，都在范围之外。
 
 媒体 URL 是微博的短期签名地址，通常约一小时后失效。归档时需要及时下载，或者只保存 URL 和元数据。
 
