@@ -49,14 +49,31 @@ describe('searchProfile', () => {
       starttime: '2024-01-01',
       endtime: '2024-12-31',
     })
-    expect(data.ok).toBe(1)
-    expect(data.data.list[0].mblogid).toBe('Abc')
+    expect(data.tweets).toHaveLength(1)
+    expect(data.tweets[0].mblogId).toBe('Abc')
+    expect(data.page).toBe(1)
+    expect(data.total).toBe(185)
+    expect(data.hasMore).toBe(true)
     const cfg = getLastConfig()
     expect(cfg?.params?.uid).toBe('111')
     expect(cfg?.params?.page).toBe(1)
     expect(cfg?.params?.starttime).toBe(Math.floor(new Date(2024, 0, 1).getTime() / 1000))
     expect(cfg?.params?.endtime).toBe(Math.floor(new Date(2024, 11, 31, 23, 59, 59, 999).getTime() / 1000))
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/111')
+  })
+
+  it('keeps the raw searchProfile shape behind fetchRawSearchByDate', async () => {
+    const { transport } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const raw = await service.fetchRawSearchByDate('111', { page: 1 })
+    expect(raw.ok).toBe(1)
+    expect(raw.data.list[0].mblogid).toBe('Abc')
+    expect(raw.data.total).toBe(185)
+    expect(raw.data.absstr).toBe('2024 range')
   })
 
   it('works with minimal params', async () => {

@@ -84,10 +84,20 @@ describe('userService', () => {
     expect(cfg?.headers?.referer).toBe('https://weibo.com/u/222')
   })
 
-  it('calls myDetails endpoint without uid', async () => {
+  it('calls myDetails endpoint without uid and returns a normalized profile', async () => {
     const response = {
       ok: 1,
-      data: { created_at: 'x', desc_text: '' },
+      data: {
+        created_at: 'x',
+        desc_text: 'bio',
+        ip_location: 'IP属地：上海',
+        gender: 'f',
+        verified_url: 'https://verified.weibo.com/verify?fr=myverified?uid=222',
+        education: { school: 'SCUT' },
+        sunshine_credit: { level: '7' },
+        followers: { total_number: 12 },
+        links: [{ title: 'blog', url: 'https://example.com' }],
+      },
     } as any as UserDetailsResponse
 
     const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
@@ -100,12 +110,43 @@ describe('userService', () => {
       { transport, rateLimitService: { acquire: vi.fn() } as any },
     )
 
-    const data = await service.myDetails()
-    expect(data.ok).toBe(1)
+    const profile = await service.myDetails()
+    // 归一化 ISelfProfile：不再有 ok / data 包装
+    expect(profile).not.toHaveProperty('ok')
+    expect(profile).not.toHaveProperty('data')
+    expect(profile).toEqual({
+      uid: '222',
+      createdAt: 'x',
+      description: 'bio',
+      ipLocation: '上海',
+      gender: 'f',
+      school: 'SCUT',
+      creditLevel: '7',
+      followers: 12,
+      links: [{ title: 'blog', url: 'https://example.com' }],
+    })
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({})
     expect(cfg?.headers?.referer).toBe('https://weibo.com/')
+  })
+
+  it('fetchRawMyDetails keeps the raw response envelope', async () => {
+    const response = {
+      ok: 1,
+      data: { created_at: 'x', desc_text: '' },
+    } as any as UserDetailsResponse
+
+    const { transport } = createFakeAxios(async () => response)
+
+    const service = new UserService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: { acquire: vi.fn() } as any },
+    )
+
+    const raw = await service.fetchRawMyDetails()
+    expect(raw.ok).toBe(1)
+    expect(raw.data.created_at).toBe('x')
   })
 
   it('myDetails throws WeiboSessionExpiredError when ok != 1', async () => {

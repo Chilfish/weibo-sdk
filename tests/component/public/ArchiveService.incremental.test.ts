@@ -27,11 +27,11 @@ function createDeps(items: MyMBlogItem[]): { deps: ArchiveServiceDeps, myMblog: 
   const deps: ArchiveServiceDeps = {
     tweets: {
       fetchRawUserTimelinePage: myMblog,
-      getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
-      searchByDate: vi.fn(),
+      fetchRawReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
+      fetchRawSearchByDate: vi.fn(),
     },
     favorites: {
-      getFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
+      fetchRawFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
     },
   }
   return { deps, myMblog }
@@ -61,7 +61,7 @@ describe('archiveService incremental', () => {
     }))
 
     expect(items.map(item => item.mblogId)).toEqual(['P', 'A'])
-    expect((deps.tweets as any).searchByDate).not.toHaveBeenCalled()
+    expect((deps.tweets as any).fetchRawSearchByDate).not.toHaveBeenCalled()
   })
 
   it('stops when an item is older than incremental.since', async () => {
@@ -119,7 +119,7 @@ describe('archiveService incremental', () => {
     }))
 
     expect(items.map(item => item.mblogId)).toEqual(['A'])
-    expect((deps.tweets as any).getReposts).not.toHaveBeenCalled()
+    expect((deps.tweets as any).fetchRawReposts).not.toHaveBeenCalled()
   })
 })
 
@@ -129,10 +129,10 @@ describe('archiveService multi-account', () => {
     const deps: ArchiveServiceDeps = {
       tweets: {
         fetchRawUserTimelinePage: myMblog,
-        getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
+        fetchRawReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
       },
       favorites: {
-        getFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
+        fetchRawFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
       },
     }
     const done: Array<[string, number]> = []
@@ -164,10 +164,10 @@ describe('archiveService multi-account', () => {
     const deps: ArchiveServiceDeps = {
       tweets: {
         fetchRawUserTimelinePage: myMblog,
-        getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
+        fetchRawReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
       },
       favorites: {
-        getFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
+        fetchRawFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
       },
     }
 

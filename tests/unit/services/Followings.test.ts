@@ -42,9 +42,26 @@ describe('followings/friends', () => {
       { cookie: 'SUB=abc' },
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    const data = await service.getFollowings('111', 0)
-    expect(data.ok).toBe(1)
-    expect(data.users[0].screen_name).toBe('test')
+    const page = await service.getFollowings('111', 0)
+    expect(page.users[0]).toMatchObject({
+      // 上游同时下发 `screen_name` / `name` 时以 `screen_name` 为准
+      id: '123',
+      name: 'test',
+      avatar: 'https://x.jpg',
+      url: 'https://weibo.com/u/123',
+      description: 'd',
+      location: 'BJ',
+      gender: 'm',
+      stats: { followers: 100, friends: 50, statuses: 200 },
+      verified: true,
+      verifiedType: 0,
+      verifiedReason: 'v',
+      following: true,
+      followedBy: false,
+    })
+    expect(page.cursor).toBe(20)
+    expect(page.hasMore).toBe(true)
+    expect(page.total).toBe(176)
     expect(getLastConfig()?.params).toEqual({ uid: '111', page: 0 })
     expect(getLastConfig()?.headers?.referer).toBe('https://weibo.com/u/111')
   })
@@ -55,8 +72,22 @@ describe('followings/friends', () => {
       { cookie: 'SUB=abc' },
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    await service.getFollowings('222')
+    const page = await service.getFollowings('222')
+    expect(page.users[0].name).toBe('test')
     expect(getLastConfig()?.params).toEqual({ uid: '222' })
+  })
+
+  it('fetchRawFollowings returns the raw upstream response', async () => {
+    const { transport } = createFakeAxios(async () => fixture)
+    const service = new FollowingsService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+    const raw = await service.fetchRawFollowings('111', 0)
+    expect(raw.ok).toBe(1)
+    expect(raw.users[0].screen_name).toBe('test')
+    expect(raw.next_cursor).toBe(20)
+    expect(raw.total_number).toBe(176)
   })
 })
 
@@ -102,9 +133,27 @@ describe('followContent', () => {
       { cookie: 'SUB=abc' },
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    const data = await service.getMyFollowings(0)
-    expect(data.ok).toBe(1)
-    expect(data.data.follows.users[0].screen_name).toBe('my')
+    const page = await service.getMyFollowings(0)
+    expect(page.users[0]).toMatchObject({
+      id: '456',
+      name: 'my',
+      avatar: 'https://y.jpg',
+      url: 'https://weibo.com/u/456',
+      location: 'SH',
+      gender: 'f',
+      stats: { followers: 200, friends: 100, statuses: 50 },
+      verified: false,
+      verifiedType: -1,
+      following: true,
+      followedBy: true,
+    })
+    // 空 `description` / `verified_reason` / 缺省 `specialAttention` 不下发字段
+    expect(page.users[0].description).toBeUndefined()
+    expect(page.users[0].verifiedReason).toBeUndefined()
+    expect(page.specialAttention).toBeUndefined()
+    expect(page.cursor).toBe(50)
+    expect(page.hasMore).toBe(true)
+    expect(page.total).toBe(227)
     expect(getLastConfig()?.params).toEqual({ page: 0 })
     expect(getLastConfig()?.headers?.referer).toBe('https://weibo.com/')
   })
@@ -115,8 +164,21 @@ describe('followContent', () => {
       { cookie: 'SUB=abc' },
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    await service.getMyFollowings()
+    const page = await service.getMyFollowings()
+    expect(page.users[0].name).toBe('my')
     expect(getLastConfig()?.params).toEqual({})
+  })
+
+  it('fetchRawMyFollowings returns the raw upstream response', async () => {
+    const { transport } = createFakeAxios(async () => fixture)
+    const service = new FollowingsService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+    const raw = await service.fetchRawMyFollowings(0)
+    expect(raw.ok).toBe(1)
+    expect(raw.data.follows.users[0].screen_name).toBe('my')
+    expect(raw.data.follows.total_number).toBe(227)
   })
 
   it('validates real followContent fixtures against schema (offline contract regression)', () => {

@@ -464,7 +464,7 @@ describe('tweetService', () => {
     expect(calls).toBe(1)
   })
 
-  it('getReposts calls repostTimeline with correct params and parses data', async () => {
+  it('getReposts calls repostTimeline with correct params and returns a normalized page', async () => {
     const response = {
       ok: 1,
       data: [
@@ -493,10 +493,13 @@ describe('tweetService', () => {
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const raw = await service.getReposts('QEV15en4k', { page: 2 })
-    expect(raw.data).toHaveLength(1)
-    expect(raw.data[0].mblogid).toBe('QEV9ajb8x')
-    expect(raw.total_number).toBe(10299)
+    const page = await service.getReposts('QEV15en4k', { page: 2 })
+    expect(page.reposts).toHaveLength(1)
+    expect(page.reposts[0].mblogId).toBe('QEV9ajb8x')
+    expect(page.page).toBe(2)
+    expect(page.total).toBe(10299)
+    expect(page.maxPage).toBe(515)
+    expect(page.hasMore).toBe(true)
 
     const cfg = getLastConfig()
     expect(cfg?.params).toEqual({ id: 'QEV15en4k', page: 2 })
@@ -825,10 +828,13 @@ describe('tweetService', () => {
     )
 
     const res = await service.comments('5356101843289999')
-    expect(res.data).toHaveLength(20)
-    expect(res.total_number).toBe(56)
-    expect(res.max_id).toBe(5356111457943584)
-    expect(res.trendsText).toBe('已加载全部评论')
+    expect(res.comments).toHaveLength(20)
+    expect(res.total).toBe(56)
+    // 游标来自上游顶层 max_id
+    expect(res.cursor).toBe(5356111457943584)
+    expect(res.hasMore).toBe(true)
+    // 提示文案来自 trendsText / tip_msg
+    expect(res.notice).toBe('已加载全部评论')
   })
 
   it('comments exposes partial-visibility markers from firewall fixture', async () => {
@@ -840,9 +846,10 @@ describe('tweetService', () => {
     )
 
     const res = await service.comments('5356103541982971')
-    expect(res.data.length).toBeLessThan(res.total_number!)
-    expect(res.max_id).toBe(0)
-    expect(res.trendsText).toContain('防火墙')
+    expect(res.comments.length).toBeLessThan(res.total!)
+    expect(res.cursor).toBe(0)
+    expect(res.hasMore).toBe(false)
+    expect(res.notice).toContain('防火墙')
   })
 
   it('comments resolves mblogId to numeric mid when flow=1', async () => {

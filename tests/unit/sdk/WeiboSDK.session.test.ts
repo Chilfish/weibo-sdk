@@ -1,26 +1,29 @@
+import type { ISelfProfile } from '~/types/domain/IUser'
 import { describe, expect, it, vi } from 'vitest'
 import { WeiboSessionExpiredError } from '~/models/errors/BusinessError'
 import { ConnectionTimeoutError } from '~/models/errors/TransportError'
+import { Gender } from '~/types/domain/IUser'
 import { WeiboSDK } from '~/WeiboSDK'
 
-function details(verifiedUrl?: string) {
+/** `users.myDetails()` 现在返回归一化 `ISelfProfile`（uid 为字符串）。 */
+function profile(uid?: string): ISelfProfile {
   return {
-    ok: 1,
-    data: {
-      ...(verifiedUrl === undefined ? {} : { verified_url: verifiedUrl }),
-    },
-  } as any
+    gender: Gender.Unknown,
+    links: [],
+    ...(uid === undefined ? {} : { uid }),
+  }
 }
 
 describe('weiboSDK session context', () => {
   it('parses uid and caches the session (single-flight)', async () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'none' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
-      .mockResolvedValue(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+      .mockResolvedValue(profile('42'))
 
     const [first, second] = await Promise.all([sdk.getSession(), sdk.getSession()])
 
     expect(first.uid).toBe('42')
+    expect(first.profile).toEqual(profile('42'))
     expect(second).toBe(first)
     expect(first.checkedAt).toEqual(expect.any(Number))
     expect(myDetails).toHaveBeenCalledTimes(1)
@@ -31,20 +34,21 @@ describe('weiboSDK session context', () => {
   it('shares the request with lazy self-check', async () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'lazy' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
-      .mockResolvedValue(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+      .mockResolvedValue(profile('42'))
 
     await sdk.selfCheck()
     const session = await sdk.getSession()
 
     expect(session.uid).toBe('42')
+    expect(session.profile).toEqual(profile('42'))
     expect(myDetails).toHaveBeenCalledTimes(1)
   })
 
   it('forces a fresh probe with refresh and reuses it afterwards', async () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'none' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
-      .mockResolvedValueOnce(details('https://verified.weibo.com/verify?fr=myverified?uid=1'))
-      .mockResolvedValueOnce(details('https://verified.weibo.com/verify?fr=myverified?uid=2'))
+      .mockResolvedValueOnce(profile('1'))
+      .mockResolvedValueOnce(profile('2'))
 
     expect((await sdk.getSession()).uid).toBe('1')
     expect((await sdk.getSession({ refresh: true })).uid).toBe('2')
@@ -52,11 +56,21 @@ describe('weiboSDK session context', () => {
     expect(myDetails).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps uid undefined when the profile does not expose it', async () => {
+    const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'none' } })
+    vi.spyOn(sdk.users, 'myDetails').mockResolvedValue(profile())
+
+    const session = await sdk.getSession()
+
+    expect(session.uid).toBeUndefined()
+    expect(session.profile).toEqual(profile())
+  })
+
   it('does not cache failures', async () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'none' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
       .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+      .mockResolvedValueOnce(profile('42'))
 
     await expect(sdk.getSession()).rejects.toThrow('network')
     await expect(sdk.getSession()).resolves.toMatchObject({ uid: '42' })
@@ -67,7 +81,7 @@ describe('weiboSDK session context', () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'lazy' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
       .mockRejectedValueOnce(new ConnectionTimeoutError('timeout'))
-      .mockResolvedValueOnce(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+      .mockResolvedValueOnce(profile('42'))
 
     await expect(sdk.selfCheck()).rejects.toBeInstanceOf(ConnectionTimeoutError)
     await expect(sdk.selfCheck()).resolves.toBeUndefined()
@@ -89,7 +103,7 @@ describe('weiboSDK session context', () => {
   it('reuses the cached session in checkSession', async () => {
     const sdk = new WeiboSDK({ cookie: 'SUB=abc', selfCheck: { mode: 'none' } })
     const myDetails = vi.spyOn(sdk.users, 'myDetails')
-      .mockResolvedValue(details('https://verified.weibo.com/verify?fr=myverified?uid=42'))
+      .mockResolvedValue(profile('42'))
 
     expect(await sdk.checkSession()).toBe(true)
     expect(await sdk.checkSession()).toBe(true)

@@ -45,10 +45,10 @@ function createDeps(): {
   const deps: ArchiveServiceDeps = {
     tweets: {
       fetchRawUserTimelinePage: vi.fn().mockResolvedValue(mkEmptyTimeline()),
-      getReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
+      fetchRawReposts: vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0 }),
     },
     favorites: {
-      getFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
+      fetchRawFavorites: vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } }),
     },
     media: {
       fetchRawImagePage: imagePage,

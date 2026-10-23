@@ -47,8 +47,28 @@ describeGuest('e2e:guest', () => {
   it('reads the first page of comments', async (ctx) => {
     await tolerant(ctx, async () => {
       const page = await createGuestSdk().tweets.comments(MID)
-      expect(page.ok).toBe(1)
-      expect(Array.isArray(page.data)).toBe(true)
+      // 新契约：{ comments, cursor, hasMore, total?, notice? }，不再是上游信封（ok / data）
+      expect(Array.isArray(page.comments)).toBe(true)
+      expect(page.comments.length).toBeGreaterThan(0)
+      expect(typeof page.cursor).toBe('number')
+      expect(typeof page.hasMore).toBe('boolean')
+      // 游标为 0 表示到底
+      if (page.cursor === 0)
+        expect(page.hasMore).toBe(false)
+      if (page.total !== undefined)
+        expect(typeof page.total).toBe('number')
+      if (page.notice !== undefined)
+        expect(typeof page.notice).toBe('string')
+      expect(page).not.toHaveProperty('ok')
+      expect(page).not.toHaveProperty('data')
+
+      const [comment] = page.comments
+      expect(typeof comment.id).toBe('string')
+      expect(typeof comment.text).toBe('string')
+      expect(typeof comment.createdAt).toBe('string')
+      expect(typeof comment.user.id).toBe('string')
+      expect(comment).not.toHaveProperty('floor_number')
+      expect(comment).not.toHaveProperty('created_at')
     })
   })
 
@@ -63,8 +83,23 @@ describeGuest('e2e:guest', () => {
   it('reads hot trends', async (ctx) => {
     await tolerant(ctx, async () => {
       const trends = await createGuestSdk().trends.hotBand('hot')
-      expect(trends.ok).toBe(1)
-      expect(Array.isArray(trends.data.realtime)).toBe(true)
+      // 新契约：直接返回归一化 TrendItem[]，不再是 { ok, data: { realtime } }
+      expect(Array.isArray(trends)).toBe(true)
+      expect(trends.length).toBeGreaterThan(0)
+
+      const [first] = trends
+      expect(typeof first.word).toBe('string')
+      expect(first.word.length).toBeGreaterThan(0)
+      if (first.heat !== undefined)
+        expect(typeof first.heat).toBe('number')
+      if (first.label !== undefined)
+        expect(typeof first.label).toBe('string')
+      if (first.schemeUrl !== undefined)
+        expect(typeof first.schemeUrl).toBe('string')
+      // 上游字段名不再泄漏
+      expect(first).not.toHaveProperty('label_name')
+      expect(first).not.toHaveProperty('icon_desc')
+      expect(first).not.toHaveProperty('word_scheme')
     })
   })
 
