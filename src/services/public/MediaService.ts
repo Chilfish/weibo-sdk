@@ -205,14 +205,20 @@ function resolveInclude(values?: MediaType[]): ReadonlySet<MediaType> {
   return result
 }
 
-function resolveReferer(value?: string): string {
-  const referer = typeof value === 'string' && value.trim() !== '' ? value.trim() : 'https://weibo.com/'
+/** 解析 URL 字符串；非法输入返回 undefined（错误语义由调用方决定）。 */
+function tryParseUrl(input: string): URL | undefined {
   try {
-    const parsed = new URL(referer)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
-      throw new Error('invalid protocol')
+    return new URL(input)
   }
   catch {
+    return undefined
+  }
+}
+
+function resolveReferer(value?: string): string {
+  const referer = typeof value === 'string' && value.trim() !== '' ? value.trim() : 'https://weibo.com/'
+  const parsed = tryParseUrl(referer)
+  if (parsed === undefined || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
     throw new InvalidConfigError(`Media download referer must be an http(s) URL: ${referer}`, {
       field: 'referer',
       value,

@@ -2,6 +2,7 @@ import type { UserArchivePaths } from './store'
 import type { WeiboSDKRawMeta } from '~/types/hooks'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
+import { InvalidConfigError } from '~/models/errors/ConfigError'
 
 export interface RawRecorder {
   hooks?: {
@@ -48,12 +49,23 @@ export function prepareRawPath(options: RawPathOptions): string | undefined {
     || rawOutPath === paths.metaPath
     || rawOutPath.startsWith(`${paths.partsDir}${sep}`)
   ) {
-    throw new Error('raw 路径不能与归档 JSON / 切片进度目录相同')
+    throw new InvalidConfigError('raw 路径不能与归档 JSON / 切片进度目录相同', {
+      field: 'raw',
+      value: rawOutPath,
+      archive: paths.outPath,
+      parts: paths.partsDir,
+    })
   }
 
   if (!options.resuming) {
-    if (existsSync(rawOutPath) && !options.force)
-      throw new Error(`raw 文件已存在：${rawOutPath}（加 --force 覆盖）`)
+    if (existsSync(rawOutPath) && !options.force) {
+      throw new InvalidConfigError(`raw 文件已存在：${rawOutPath}（加 --force 覆盖）`, {
+        field: 'raw',
+        value: rawOutPath,
+        archive: paths.outPath,
+        next: '--force',
+      })
+    }
     mkdirSync(dirname(rawOutPath), { recursive: true })
     writeFileSync(rawOutPath, '', 'utf8')
   }

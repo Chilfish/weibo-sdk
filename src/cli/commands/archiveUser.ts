@@ -164,12 +164,27 @@ export async function runArchiveUser(
   const loadedRecords = resuming ? (await store.loadRecords()).length : 0
   const merge = args.merge === true
   if (!resuming) {
-    if (existsSync(outPath) && args.force !== true && !merge)
-      throw new Error(`输出文件已存在：${outPath}（加 --force 覆盖，或加 --merge 合并到已有归档）`)
+    if (existsSync(outPath) && args.force !== true && !merge) {
+      throw new InvalidConfigError(
+        `输出文件已存在：${outPath}（加 --force 覆盖，或加 --merge 合并到已有归档）`,
+        {
+          field: 'out',
+          value: outPath,
+          hint: '输出文件已存在；--force 覆盖，或 --merge 合并到已有归档',
+          next: '--force',
+        },
+      )
+    }
     if (existsSync(store.paths.legacyJournalPath)) {
-      throw new Error(
+      throw new InvalidConfigError(
         `检测到旧版单文件 journal：${store.paths.legacyJournalPath}\n`
         + `切片进度现在按 ${store.paths.partsDir}/<slice>.journal.jsonl 存放。加 --fresh 重新开始（旧进度不会自动迁移）。`,
+        {
+          field: 'resume',
+          value: store.paths.legacyJournalPath,
+          hint: '旧版单文件 journal 不会自动迁移到切片进度目录',
+          next: '--fresh',
+        },
       )
     }
   }
