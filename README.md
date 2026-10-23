@@ -134,7 +134,8 @@ for await (const comment of sdk.tweets.streamComments('QqsYymYOS', {
 const session = await sdk.getSession()
 session.authMode   // 'cookie' 或 'guest'
 session.uid        // 登录账号 uid（从 profile/detail 的 verified_url 解析；访客为 undefined）
-session.details    // profile/detail 原始响应（访客缺省）
+session.profile    // ajax/profile/detail 归一化后的资料；访客为 undefined
+session.checkedAt  // 本次解析时间（unix 毫秒）
 ```
 
 `getSession()` 复用启动自检的请求，按实例缓存；需要重新确认登录态时传 `{ refresh: true }`。访客模式下它返回访客 token 的 `guestTokenIssuedAt`。

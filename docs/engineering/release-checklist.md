@@ -24,7 +24,7 @@
 - [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped；2026-10-22 / 0.4.0：956 passed / 23 skipped；2026-10-22 / 0.5.0：958 passed / 23 skipped；2026-10-23 / 输出归一化：971 passed / 28 skipped）
 - [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail；2026-10-22 / 0.4.0、0.5.0：113 fixtures，102 ok / 11 unmodeled / 0 fail；2026-10-23 复跑一致）
 - [x] `pnpm check:api` 通过（导出面快照 + Stable/Experimental 分层 + 文档覆盖率；2026-10-23：267 exports / 25 docs pages）
-- [x] `pnpm check:docs` 通过（公开站点无内部路径 / 内部文档链接；2026-10-23：47 页）
+- [x] `pnpm check:docs` 通过（`website/**` + 根 `README.md` 无内部路径 / 内部文档链接，且代码片段里的 `session.*` / `sdk.*` 是真实公开成员；2026-10-23：47 页）
 - [x] `pnpm schema:check` 通过（归档 schema 无漂移；2026-10-23）
 - [x] `pnpm docs:build` 通过（VitePress 构建 + 死链检查；2026-10-23）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 / 0.5.0 提交均正常触发 lint-staged）

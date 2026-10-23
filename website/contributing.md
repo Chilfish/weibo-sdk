@@ -33,4 +33,4 @@ pnpm docs:build
 - 只写当前版本的行为；历史版本和旧接口对比留在仓库内部文档。
 - 所有已发布能力按同一套文档描述。
 - 修改公开 API 时，同步更新 `api-surface.json`、`api-surface.snapshot.json` 与对应 `website/api/**` 页面，`pnpm check:api` 必须通过。
-- `pnpm check:docs` 会检查公开文档中的内部路径和内部文档链接。
+- `pnpm check:docs` 会检查公开文档（`website/**` 与根 `README.md`）中的内部路径和内部文档链接，并校验代码片段里的 `session.*` / `sdk.*` 都是真实存在的公开成员——字段改名后忘记同步文档会直接失败。

@@ -64,21 +64,21 @@ new WeiboSDK({ transport: fetchTransport() })   // Worker / Edge
 
 触发一次 `ajax/profile/detail` 会话检查。`selfCheck.mode` 为 `'eager'` 时在构造阶段调用。失败时抛结构化错误；可重试的失败在下次请求时重新探测。
 
-### `getSession(options?: SessionOptions): Promise<WeiboSessionContext>`
+### `getSession(options?: { refresh?: boolean }): Promise<WeiboSessionContext>`
 
 ```ts
 const session = await sdk.getSession({ refresh: true })
 session.authMode   // 'cookie' | 'guest'
-session.uid        // Cookie 模式下解析出的 uid；访客为 undefined
+session.uid        // Cookie 模式下解析出的 uid（来自 verified_url）；guest 模式或上游未返回时为 undefined
+session.profile    // ajax/profile/detail 归一化后的资料（访客为 undefined）
 session.checkedAt
-session.details    // raw profile/detail（访客缺省）
 session.guestTokenIssuedAt?
 ```
 
 - 复用启动自检的请求，按实例 single-flight 缓存。
 - 传 `refresh: true` 重新探测。
 
-### `checkSession(options?: SessionOptions): Promise<boolean>`
+### `checkSession(options?: { refresh?: boolean }): Promise<boolean>`
 
 共享 `getSession` 的缓存，返回 boolean，失败时为 `false`。
 
