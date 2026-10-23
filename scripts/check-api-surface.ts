@@ -8,7 +8,9 @@ const ROOT = path.resolve(import.meta.dirname, '..')
 const ENTRY = path.join(ROOT, 'src/index.ts')
 const CONFIG_PATH = path.join(ROOT, 'api-surface.json')
 const SNAPSHOT_PATH = path.join(ROOT, 'api-surface.snapshot.json')
-const DOCS_ROOT = path.join(ROOT, 'website/api')
+const DOCS_ROOT = path.join(ROOT, 'website')
+/** 生成页：列出全部导出，不能作为「有说明」的证据。 */
+const GENERATED_DOC_PAGES = new Set(['api/types/index.md'])
 
 interface ApiSurfaceConfig {
   schemaVersion: number
@@ -174,8 +176,22 @@ function findServiceFiles(): Map<string, string> {
   return out
 }
 
-function hasWord(text: string, name: string): boolean {
-  return new RegExp(`(?<![\\w$])${name.replaceAll('$', '\\$')}(?![\\w$])`).test(text)
+/**
+ * 文档覆盖判定：名称必须出现在代码片段中（行内 code 或 fenced block）。
+ *
+ * 散文里顺带提一句不算「有说明」；`api/types/index.md` 是生成页，会列出全部导出，
+ * 因此不参与覆盖判定。
+ */
+function hasDocumentedName(text: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const inline = new RegExp(`\`[^\`\\n]*${escaped}[^\`\\n]*\``)
+  if (inline.test(text))
+    return true
+  for (const block of text.matchAll(/```[\s\S]*?```/g)) {
+    if (new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`).test(block[0]))
+      return true
+  }
+  return false
 }
 
 function writeExportIndex(exports: ExportInfo[]): void {
@@ -253,12 +269,15 @@ function main(): void {
   }
 
   const docsFiles = listMarkdownFiles(DOCS_ROOT)
+    .filter(file => !GENERATED_DOC_PAGES.has(path.relative(DOCS_ROOT, file).replaceAll('\\', '/'))
+      && !file.includes(`${path.sep}node_modules${path.sep}`)
+      && !file.includes(`${path.sep}.vitepress${path.sep}`))
   const docsText = docsFiles.map(file => readFileSync(file, 'utf8')).join('\n')
   for (const [name, tier] of classified) {
-    if (tier !== 'stable' && tier !== 'experimental')
+    if (tier !== 'stable')
       continue
-    if (!hasWord(docsText, name))
-      failures.push(`[${tier}] "${name}" 未出现在 website/api/**`)
+    if (!hasDocumentedName(docsText, name))
+      failures.push(`[${tier}] "${name}" 未在 website/** 的代码片段中说明`)
   }
 
   const serviceFiles = findServiceFiles()
@@ -284,8 +303,8 @@ function main(): void {
       .join('\n')
 
     for (const method of publicMembers(file, className)) {
-      if (!hasWord(pageText, method))
-        failures.push(`${className}.${method}() 未出现在 ${pages.join(' / ')}`)
+      if (!hasDocumentedName(pageText, `${method}`))
+        failures.push(`${className}.${method}() 未在 ${pages.join(' / ')} 的代码片段中说明`)
     }
   }
 

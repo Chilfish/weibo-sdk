@@ -8,11 +8,13 @@
 
 | 层级 | 含义 | 变更规则 | 文档 |
 |---|---|---|---|
-| **Stable** | 下游可以依赖的契约 | 破坏性变更必须升包 major；0.x 内至少 `CHANGELOG` 迁移说明 | 必须在 `website/api/**` 有完整说明 |
-| **Experimental** | 可用，但形状可能随上游漂移 | minor 内可改，需在 `CHANGELOG` 标注 | 在 `website/api/types/raw.md` 登记 |
+| **Stable** | 下游可以依赖的契约 | 破坏性变更必须升包 major；0.x 内至少 `CHANGELOG` 迁移说明 | 必须在 `website/**` 的代码片段中有说明；`api/types/index.md`（生成页）不计入 |
+| **Experimental** | 可用，但形状可能随上游漂移 | minor 内可改，需在 `CHANGELOG` 标注 | 在 `website/api/types/raw.md` 或对应方法页登记 |
 | **Internal** | 仓库内部实现 | 不承诺，不导出 | 不写公开文档 |
 
 凡包根导出且未归入任何一层的符号，`pnpm check:api` 直接失败——新增导出必须同时决定层级。
+
+层级不是主观贴标签：**Stable 的判据是「文档站有可被门禁验证的说明」，不是「我们打算不改」**。0.x 阶段 `check:api` 会把无法证明有说明的导出拒之门外；它们只能待在 Experimental。
 
 ## 2. Stable 子集
 
@@ -40,7 +42,13 @@
 
 ### 类型
 
-领域模型（`ITweet` 家族、`IUser` / `UserBrief` / `ISelfProfile`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`TrendItem`、`FavoriteTag` / `FavoriteTagList`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchive*`）、能力清单类型、错误类与错误码、各方法的 `*Options` / `*PageResult` / `*Progress`（含 `FollowingPageResult`、`TweetCommentsPageResult`、`TweetRepostsPageResult`、`TweetLongText`、`TweetSearchByDatePageResult`、`SearchUserPageResult`、`SearchTweetPageResult`）。
+领域模型（`ITweet` 家族、`IUser` / `UserBrief` / `ISelfProfile`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`TrendItem`、`FavoriteTag` / `FavoriteTagList`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchive*`）、错误类与错误码、各方法的 `*PageResult`。
+
+> **Options / Progress / StreamLimit / 辅助常量不属于 Stable。**
+> `*Options`、`*StreamOptions`、`*Progress`、`StreamLimitOptions`、`StreamRangeOptions`、`PaginationProgress`、`Capability*` 枚举、`ArchivePhase` / `ArchiveErrorAction` 等运行时标签，
+> 以及 `WEIBO_CAPABILITIES` / `listCapabilities` / `formatArchiveProgress` / `isArchiveProgress` / `TWEET_CONTEXT_SCHEMA`，
+> 在 0.x 内默认 **Experimental**：方法签名本身稳定，但这些辅助形状可以随 minor 演进（会写进 `CHANGELOG`）。
+> 把它们升回 Stable 的唯一条件是在文档站补上可被 `check:api` 验证的代码片段。
 
 ### 冻结机制
 
@@ -82,7 +90,7 @@ Experimental 不承诺字段稳定，但必须保持可调用并给出迁移说�
 
 | 门禁 | 内容 |
 |---|---|
-| `pnpm check:api` | 导出面快照、层级分类完整性、Stable/Experimental 文档覆盖率、service 方法覆盖率 |
+| `pnpm check:api` | 导出面快照、层级分类完整性、Stable 文档覆盖率（代码片段级别，生成索引页不计入）、service 方法覆盖率 |
 | `pnpm check:docs` | `website/**` 不含内部路径、内部文档链接、postmortem/规划引用 |
 | `pnpm schema:check` | 归档 JSON Schema 与类型定义一致 |
 | `pnpm docs:build` | VitePress 构建与死链检查 |
