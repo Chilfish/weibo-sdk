@@ -3,6 +3,7 @@ import type { FavoritesResponse } from '../endpoints/favorite'
 import type { LikeListResponse } from '../endpoints/like'
 import type { ImageWallResponse, WaterfallResponse } from '../endpoints/media'
 import type { BuildCommentsResponse, MyMblogResponse, RepostTimelineResponse, SearchProfileResponse } from '../endpoints/tweet'
+import type { TweetCommentsOptions, TweetSearchByDateOptions } from './TweetService'
 import type { ITweet, ITweetComment, TweetContractVersion } from '~/types/domain/ITweet'
 import type { IUserMediaAsset } from '~/types/domain/IUserMediaAsset'
 import type { WeiboSDKTelemetry } from '~/types/telemetry'
@@ -172,29 +173,20 @@ export interface ArchiveRawMeta {
 export interface ArchiveServiceDeps {
   tweets: {
     fetchRawUserTimelinePage: (uid: string, page?: number, count?: number) => Promise<MyMblogResponse>
-    getReposts: (mblogId: string, options?: { page?: number }) => Promise<RepostTimelineResponse>
+    fetchRawReposts: (mblogId: string, options?: { page?: number }) => Promise<RepostTimelineResponse>
     /**
      * P1-5 日期切片数据源。`starttime` / `endtime` 为 unix 秒。
      * 未提供时：显式 `timelineSource: 'search'` 会抛 `InvalidConfigError`；
      * 默认 `mymblog` 模式则只跳过切片回填。
      */
-    searchByDate?: (uid: string, options?: {
-      page?: number
-      starttime?: number | string
-      endtime?: number | string
-    }) => Promise<SearchProfileResponse>
+    fetchRawSearchByDate?: (uid: string, options?: TweetSearchByDateOptions) => Promise<SearchProfileResponse>
     /**
      * P1-6 评论数据源。未提供时 `includeComments: true` 会抛 `InvalidConfigError`。
      */
-    comments?: (mblogId: string, options?: {
-      max_id?: number
-      count?: number
-      flow?: 0 | 1
-      uid?: string
-    }) => Promise<BuildCommentsResponse>
+    fetchRawComments?: (mblogId: string, options?: TweetCommentsOptions) => Promise<BuildCommentsResponse>
   }
   favorites: {
-    getFavorites: (uid: string, page?: number) => Promise<FavoritesResponse>
+    fetchRawFavorites: (uid: string, page?: number) => Promise<FavoritesResponse>
   }
   /**
    * D1 点赞数据源。未提供时 `includeLikes: true` 会抛 `InvalidConfigError`。
@@ -259,7 +251,7 @@ export interface ArchiveIncrementalOptions {
  * `streamArchive` 的选项总表（全部可选；仅 `checkpoint` / `onRaw` / `onProgress` 影响调用方契约）。
  *
  * 只复制已知字段的 checkpoint 语义见 `ArchiveCheckpoint`；依赖缺失（如
- * `timelineSource: 'search'` 但未注入 `searchByDate`）会在**首次迭代时**抛 `InvalidConfigError`。
+ * `timelineSource: 'search'` 但未注入 `fetchRawSearchByDate`）会在**首次迭代时**抛 `InvalidConfigError`。
  */
 export interface ArchiveStreamOptions {
   /** 是否归档每条微博的转发（默认 true） */
@@ -566,8 +558,8 @@ export class ArchiveService {
    *
    * @param uid 归档用户 UID
    * @param options 归档选项，见 `ArchiveStreamOptions`
-   * @throws `InvalidConfigError` 选项与注入依赖不匹配（`timelineSource: 'search'` 缺 `searchByDate`、
-   * `includeComments: true` 缺 `comments`），在首次迭代时抛出
+   * @throws `InvalidConfigError` 选项与注入依赖不匹配（`timelineSource: 'search'` 缺 `fetchRawSearchByDate`、
+   * `includeComments: true` 缺 `fetchRawComments`），在首次迭代时抛出
    * @throws 原始错误（当错误策略为 `abort`，或 `retry` 已达上限且阶段默认为 `abort`）
    */
   async* streamArchive(uid: string, options: ArchiveStreamOptions = {}): AsyncIterableIterator<ArchiveItem> {
@@ -605,11 +597,11 @@ export class ArchiveService {
     const stopAtMblogId = options.incremental?.stopAtMblogId
     const skipPinned = options.incremental?.skipPinned ?? false
     // 解构方法会丢失 this：显式绑定到 tweets 实例。
-    const searchByDate = this.deps.tweets.searchByDate?.bind(this.deps.tweets)
+    const searchByDate = this.deps.tweets.fetchRawSearchByDate?.bind(this.deps.tweets)
 
     if (timelineSource === 'search' && !searchByDate) {
-      throw new InvalidConfigError('ArchiveService timelineSource="search" requires deps.tweets.searchByDate.', {
-        field: 'tweets.searchByDate',
+      throw new InvalidConfigError('ArchiveService timelineSource="search" requires deps.tweets.fetchRawSearchByDate.', {
+        field: 'tweets.fetchRawSearchByDate',
       })
     }
 
@@ -649,10 +641,10 @@ export class ArchiveService {
 
     // P1-3/P1-4/P1-6：进度、错误策略、评论。
     const includeComments = options.includeComments ?? false
-    const commentsDep = this.deps.tweets.comments?.bind(this.deps.tweets)
+    const commentsDep = this.deps.tweets.fetchRawComments?.bind(this.deps.tweets)
     if (includeComments && !commentsDep) {
-      throw new InvalidConfigError('ArchiveService includeComments=true requires deps.tweets.comments.', {
-        field: 'tweets.comments',
+      throw new InvalidConfigError('ArchiveService includeComments=true requires deps.tweets.fetchRawComments.', {
+        field: 'tweets.fetchRawComments',
       })
     }
 
@@ -881,7 +873,7 @@ export class ArchiveService {
         const response = await runWithPolicy(
           () => commentsDep(mblogId, {
             count: options.commentCount ?? 20,
-            max_id: maxId,
+            maxId,
             uid,
           }),
           { ...context, stage: 'comments', mblogId },
@@ -954,7 +946,7 @@ export class ArchiveService {
     }
 
     const fetchRepostPage = (parentMblogId: string, repostPage: number): Promise<RepostTimelineResponse | undefined> => runWithPolicy(
-      () => this.deps.tweets.getReposts(parentMblogId, { page: repostPage }),
+      () => this.deps.tweets.fetchRawReposts(parentMblogId, { page: repostPage }),
       { stage: 'reposts', source: 'repost', parentMblogId, page: repostPage },
       repostErrorPolicy,
     )
@@ -1502,7 +1494,7 @@ export class ArchiveService {
 
       while (pages < maxPages) {
         const favs = await runWithPolicy(
-          () => this.deps.favorites.getFavorites(uid, currentPage),
+          () => this.deps.favorites.fetchRawFavorites(uid, currentPage),
           { stage: 'favorites', source: 'favorite', page: currentPage },
           'abort',
         )

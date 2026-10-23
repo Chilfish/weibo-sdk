@@ -1,7 +1,9 @@
 import type { FollowContentResponse, FriendshipsResponse } from '../endpoints/follow'
 import type { MobileContainerResponse } from '../endpoints/mobile'
 import type { IWeiboConfig } from '~/types/config'
+import type { UserBrief } from '~/types/domain/IUser'
 import type { StreamLimitOptions } from '~/utils/streamRange'
+import { normalizeUserBrief } from '~/models/data/User'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { normalizeMaxPages, paginate } from '../../utils/pagination'
 import { followContentSpec, friendshipsSpec } from '../endpoints/follow'
@@ -37,23 +39,28 @@ export interface FollowingsStreamOptions extends StreamLimitOptions {
   onProgress?: (progress: FollowingsStreamProgress) => void | Promise<void>
 }
 
-/** 关注 / 粉丝列表中的用户（`friendships.users[]`）。 */
-export type FollowingUser = FriendshipsResponse['users'][number]
-
-function userKey(user: FollowingUser): string | undefined {
-  const id = user.idstr ?? (user.id === undefined ? undefined : String(user.id))
-  return id || undefined
+/** 一页关注 / 粉丝（`getFollowings` / `getFans` / `getMyFollowings` 的返回值）。 */
+export interface FollowingPageResult {
+  /** 本页归一化用户（已按 id 去重） */
+  users: UserBrief[]
+  /** 特别关注分组（仅 `getMyFollowings`；无该分组时缺省） */
+  specialAttention?: UserBrief[]
+  /** 下一页游标（上游 `next_cursor`；`0` / 缺省 = 到底） */
+  cursor?: number
+  /** 是否可能还有下一页 */
+  hasMore: boolean
+  /** 上游 `total_number`（可用时） */
+  total?: number
 }
 
-function usersFromFriendships(raw: FriendshipsResponse): { users: FollowingUser[], total?: number } {
-  return { users: raw.users ?? [], total: raw.total_number }
-}
-
-function usersFromFollowContent(raw: FollowContentResponse): { users: FollowingUser[], total?: number } {
-  return {
-    users: raw.data.follows.users ?? [],
-    total: raw.data.follows.total_number ?? raw.data.total_number,
+function normalizeUsers(raw: readonly unknown[]): UserBrief[] {
+  const users: UserBrief[] = []
+  for (const item of raw) {
+    const user = normalizeUserBrief(item)
+    if (user.id !== '')
+      users.push(user)
   }
+  return users
 }
 
 function assertFirstPage(page: number | undefined, source: string): void {
@@ -96,7 +103,7 @@ function normalizeMobileId(user: Record<string, unknown>): { id?: string | numbe
 }
 
 /** 把 m 站用户对象归一化成 Cookie 路径 `friendships.users[]` 的字段形状。 */
-function normalizeMobileUser(user: Record<string, unknown>): FollowingUser {
+function normalizeMobileUser(user: Record<string, unknown>): FriendshipsResponse['users'][number] {
   const ids = normalizeMobileId(user)
   const name = typeof user.name === 'string' && user.name !== '' ? user.name : user.screen_name
   const followers = parseMobileCount(user.followers_count)
@@ -111,7 +118,7 @@ function normalizeMobileUser(user: Record<string, unknown>): FollowingUser {
     ...(followers === undefined ? {} : { followers_count: followers }),
     ...(friends === undefined ? {} : { friends_count: friends }),
     ...(statuses === undefined ? {} : { statuses_count: statuses }),
-  } as FollowingUser
+  } as FriendshipsResponse['users'][number]
 }
 
 /** 把 m 站 container 第一页的 `card.user` 适配成 `friendships` 响应形状。 */
@@ -126,11 +133,42 @@ function mobileUsersToFriendships(raw: MobileContainerResponse): FriendshipsResp
   }
 }
 
+function pageFromFriendships(raw: FriendshipsResponse): FollowingPageResult {
+  const users = normalizeUsers(raw.users ?? [])
+  const cursor = raw.next_cursor
+  return {
+    users,
+    ...(cursor === undefined ? {} : { cursor }),
+    hasMore: cursor !== undefined && cursor !== 0 && users.length > 0,
+    ...(raw.total_number === undefined ? {} : { total: raw.total_number }),
+  }
+}
+
+function pageFromFollowContent(raw: FollowContentResponse): FollowingPageResult {
+  const follows = raw.data.follows
+  const users = normalizeUsers(follows.users ?? [])
+  const specialAttention = normalizeUsers(raw.data.specialAttention?.users ?? [])
+  const cursor = follows.next_cursor
+  const total = raw.data.total_number ?? follows.total_number
+
+  const page: FollowingPageResult = {
+    users,
+    ...(specialAttention.length > 0 ? { specialAttention } : {}),
+    ...(cursor === undefined ? {} : { cursor }),
+    hasMore: cursor !== undefined && cursor !== 0 && users.length > 0,
+  }
+  if (total !== undefined)
+    page.total = total
+  return page
+}
+
 /**
  * 关注关系领域服务。
  *
  * 覆盖三条路径：指定用户的关注列表、指定用户的粉丝列表、当前登录用户自己的关注列表
  * （后者走上游 `followContent`，分页语义与 friendships 略有差异）。
+ *
+ * 公开方法返回 `UserBrief`；`fetchRaw*` 保留上游响应。
  */
 export class FollowingsService extends FetcherService {
   /**
@@ -142,13 +180,12 @@ export class FollowingsService extends FetcherService {
   }
 
   /**
-   * 获取用户关注列表 (cursor 分页)
+   * 拉取用户关注列表原始响应（低层数据源，公开使用请走 `getFollowings`）
    *
    * @param uid 目标用户 UID
    * @param page 页码（从 1 开始；缺省 = 第一页）
-   * @returns 校验后的 friendships 响应（`data.users` 为用户数组，含 `next_cursor`）
    */
-  public async getFollowings(uid: string, page?: number): Promise<FriendshipsResponse> {
+  public async fetchRawFollowings(uid: string, page?: number): Promise<FriendshipsResponse> {
     if (this.authMode === 'guest') {
       assertFirstPage(page, 'followings')
       // 上游命名与直觉相反：`followers` 容器返回「他的全部关注」
@@ -163,13 +200,12 @@ export class FollowingsService extends FetcherService {
   }
 
   /**
-   * 获取用户粉丝列表 (relate=fans, cursor 分页)
+   * 拉取用户粉丝列表原始响应（低层数据源，公开使用请走 `getFans`）
    *
    * @param uid 目标用户 UID
    * @param page 页码（从 1 开始；缺省 = 第一页）
-   * @returns 校验后的 friendships 响应（`data.users` 为粉丝数组）
    */
-  public async getFans(uid: string, page?: number): Promise<FriendshipsResponse> {
+  public async fetchRawFans(uid: string, page?: number): Promise<FriendshipsResponse> {
     if (this.authMode === 'guest') {
       assertFirstPage(page, 'fans')
       // 上游命名与直觉相反：`follows` 容器返回「他的全部粉丝」
@@ -184,14 +220,11 @@ export class FollowingsService extends FetcherService {
   }
 
   /**
-   * 获取自己关注列表 (cursor 分页)
-   *
-   * 说明：不需要 uid，使用当前 Cookie 的登录用户；响应结构与 `getFollowings` 不同（走 followContent 端点）。
+   * 拉取自己关注列表原始响应（低层数据源，公开使用请走 `getMyFollowings`）
    *
    * @param page 页码（从 1 开始；缺省 = 第一页）
-   * @returns 校验后的 `followContent` 响应（`data.list` 为关注关系条目）
    */
-  public async getMyFollowings(page?: number): Promise<FollowContentResponse> {
+  public async fetchRawMyFollowings(page?: number): Promise<FollowContentResponse> {
     const args: { page?: number } = {}
     if (page !== undefined)
       args.page = page
@@ -199,25 +232,59 @@ export class FollowingsService extends FetcherService {
   }
 
   /**
+   * 获取用户关注列表（cursor 分页）
+   *
+   * @param uid 目标用户 UID
+   * @param page 页码（从 1 开始；缺省 = 第一页）
+   * @returns 归一化用户 + 下一页游标
+   */
+  public async getFollowings(uid: string, page?: number): Promise<FollowingPageResult> {
+    return pageFromFriendships(await this.fetchRawFollowings(uid, page))
+  }
+
+  /**
+   * 获取用户粉丝列表（relate=fans，cursor 分页）
+   *
+   * @param uid 目标用户 UID
+   * @param page 页码（从 1 开始；缺省 = 第一页）
+   * @returns 归一化用户 + 下一页游标
+   */
+  public async getFans(uid: string, page?: number): Promise<FollowingPageResult> {
+    return pageFromFriendships(await this.fetchRawFans(uid, page))
+  }
+
+  /**
+   * 获取自己关注列表（cursor 分页）
+   *
+   * 说明：不需要 uid，使用当前 Cookie 的登录用户；上游单独下发「特别关注」分组。
+   *
+   * @param page 页码（从 1 开始；缺省 = 第一页）
+   * @returns 归一化用户 + 特别关注 + 下一页游标
+   */
+  public async getMyFollowings(page?: number): Promise<FollowingPageResult> {
+    return pageFromFollowContent(await this.fetchRawMyFollowings(page))
+  }
+
+  /**
    * 流式遍历用户关注列表（page 游标 + 跨页按用户 id 去重）。
    *
-   * 停止条件（任一命中）：空页、整页重复、达到 `total_number`、`maxPages`。
+   * 停止条件（任一命中）：空页、整页重复、达到 `total`、`maxPages`。
    *
    * @example
    * for await (const user of sdk.followings.streamFollowings('1111681197', { maxPages: 2 })) {
-   *   console.log(user.id, user.screen_name)
+   *   console.log(user.id, user.name)
    * }
    */
-  async* streamFollowings(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+  async* streamFollowings(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<UserBrief> {
     if (this.authMode === 'guest') {
-      yield* this.streamMobileUsers('following', uid, await this.getFollowings(uid, options.page), options)
+      const page = await this.getFollowings(uid, options.page)
+      yield* this.streamPageUsers('following', uid, page, options)
       return
     }
     yield* this.streamUsers(
       'following',
       uid,
       cursor => this.getFollowings(uid, cursor),
-      usersFromFriendships,
       options,
     )
   }
@@ -227,19 +294,19 @@ export class FollowingsService extends FetcherService {
    *
    * @example
    * for await (const fan of sdk.followings.streamFans('1111681197', { maxPages: 2 })) {
-   *   console.log(fan.id, fan.screen_name)
+   *   console.log(fan.id, fan.name)
    * }
    */
-  async* streamFans(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+  async* streamFans(uid: string, options: FollowingsStreamOptions = {}): AsyncIterableIterator<UserBrief> {
     if (this.authMode === 'guest') {
-      yield* this.streamMobileUsers('fans', uid, await this.getFans(uid, options.page), options)
+      const page = await this.getFans(uid, options.page)
+      yield* this.streamPageUsers('fans', uid, page, options)
       return
     }
     yield* this.streamUsers(
       'fans',
       uid,
       cursor => this.getFans(uid, cursor),
-      usersFromFriendships,
       options,
     )
   }
@@ -249,29 +316,28 @@ export class FollowingsService extends FetcherService {
    *
    * @example
    * for await (const user of sdk.followings.streamMyFollowings({ maxPages: 2 })) {
-   *   console.log(user.id, user.screen_name)
+   *   console.log(user.id, user.name)
    * }
    */
-  async* streamMyFollowings(options: FollowingsStreamOptions = {}): AsyncIterableIterator<FollowingUser> {
+  async* streamMyFollowings(options: FollowingsStreamOptions = {}): AsyncIterableIterator<UserBrief> {
     yield* this.streamUsers(
       'my',
       undefined,
       cursor => this.getMyFollowings(cursor),
-      usersFromFollowContent,
       options,
     )
   }
 
   /** guest 模式：只产出一页用户（上游匿名只有第一页）。 */
-  private async* streamMobileUsers(
+  private async* streamPageUsers(
     source: FollowingsSource,
     uid: string,
-    raw: FriendshipsResponse,
+    page: FollowingPageResult,
     options: FollowingsStreamOptions,
-  ): AsyncIterableIterator<FollowingUser> {
+  ): AsyncIterableIterator<UserBrief> {
     const limit = options.maxItems
     let processed = 0
-    for (const user of raw.users) {
+    for (const user of page.users) {
       if (limit !== undefined && processed >= limit)
         break
       processed += 1
@@ -283,8 +349,8 @@ export class FollowingsService extends FetcherService {
         source,
         page: 1,
         processed,
-        pageSize: raw.users.length,
-        total: raw.total_number,
+        pageSize: page.users.length,
+        total: page.total,
       })
     }
     catch {
@@ -292,32 +358,30 @@ export class FollowingsService extends FetcherService {
     }
   }
 
-  private async* streamUsers<TRaw>(
+  private async* streamUsers(
     source: FollowingsSource,
     uid: string | undefined,
-    fetch: (page: number) => Promise<TRaw>,
-    extract: (raw: TRaw) => { users: FollowingUser[], total?: number },
+    fetch: (page: number) => Promise<FollowingPageResult>,
     options: FollowingsStreamOptions,
-  ): AsyncIterableIterator<FollowingUser> {
+  ): AsyncIterableIterator<UserBrief> {
     const initialCursor = options.page !== undefined ? Math.max(1, Math.floor(options.page)) : 1
     const maxPages = normalizeMaxPages(options.maxPages)
 
-    for await (const user of paginate<FollowingUser, number>(
+    for await (const user of paginate<UserBrief, number>(
       async (cursor) => {
         const page = cursor ?? 1
-        const raw = await fetch(page)
-        const { users, total } = extract(raw)
+        const result = await fetch(page)
         return {
-          items: users,
+          items: result.users,
           next: page + 1,
-          total,
+          total: result.total,
         }
       },
       {
         initialCursor,
         maxPages,
         maxItems: options.maxItems,
-        getKey: userKey,
+        getKey: user => user.id === '' ? undefined : user.id,
         onProgress: progress => options.onProgress?.({
           uid,
           source,

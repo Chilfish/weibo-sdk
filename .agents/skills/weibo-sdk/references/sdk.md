@@ -24,7 +24,7 @@ new WeiboSDK({ proxy: 'http://127.0.0.1:7890' })   // 或 { getProxy: ctx => ...
 | `sdk.users` | `myDetails()` / `fetchRawInfo()` / `fetchRawDetails()` / `getById(uid)` / `listMentions()` / `streamMentions()` / `groups()` / `mblogGroups()` | cookie（`fetchRawInfo` / `getById` 访客可读） | max_id |
 | `sdk.tweets` | `getByMblogId()` / `context()` / `enrich()` / `longText()` / `listByUserId()` / `streamByUserId()` / `comments()` / `streamComments()` / `replies()` / `streamReplies()` / `getReposts()` / `streamReposts()` / `likers()` / `streamLikers()` / `listFriendTimeline()` / `streamFriendTimeline()` / `searchByDate()` | 多数访客可读；`listFriendTimeline` / `searchByDate` 需 cookie | max_id / page |
 | `sdk.followings` | `getFollowings()` / `streamFollowings()` / `getFans()` / `streamFans()` / `getMyFollowings()` / `streamMyFollowings()` | cookie | page |
-| `sdk.favorites` | `getFavorites()` / `listFavorites()` / `streamFavorites()` / `getTags()` | cookie | page |
+| `sdk.favorites` | `listFavorites()` / `streamFavorites()` / `getTags()` | cookie | page |
 | `sdk.likes` | `listByUserId()` / `streamByUserId()` | cookie | page |
 | `sdk.commentHistory` | `listMine()` / `streamMine()` | cookie | max_id |
 | `sdk.media` | `listImages()` / `streamImages()` / `listVideos()` / `streamVideos()` / `listAlbums()` / `listAlbumPhotos()` / `streamAlbumPhotos()` / `downloadTweetMedia()` / `downloadByMblogId()` | 访客可读；下载无需 Cookie | since_id / cursor |

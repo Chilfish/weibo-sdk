@@ -123,27 +123,29 @@ describe('guest first-page reads (real fixtures)', () => {
 
     const result = await service.getFollowings('2365795232')
 
-    expect(result.ok).toBe(1)
+    // 归一化分页：不再有 ok / total_number / next_cursor
+    expect(result).not.toHaveProperty('ok')
     expect(result.users.length).toBeGreaterThan(0)
-    expect(result.total_number).toBe(2385)
-    expect(result.next_cursor).toBe(0)
+    expect(result.total).toBe(2385)
+    expect(result.cursor).toBe(0)
   })
 
-  it('normalizes mobile following users to the friendships field shape', async () => {
+  it('normalizes mobile following users to the UserBrief shape', async () => {
     const service = serviceFor(FollowingsService, () => fixture('mobile_followings_p1.json'))
 
     const result = await service.getFollowings('2365795232')
-    const user = result.users[0] as Record<string, unknown>
+    const user = result.users[0]!
 
-    expect(user.id).toBe(5662034879)
-    expect(user.idstr).toBe('5662034879')
-    expect(user.screen_name).toBe('河图阿洛')
+    expect(user.id).toBe('5662034879')
     expect(user.name).toBe('河图阿洛')
-    expect(user.followers_count).toBe(27000)
-    expect(user.friends_count).toBe(26)
-    expect(user.statuses_count).toBe(5366)
-    expect(user.followers_count_str).toBe('2.7万')
-    expect(user.user_token).toBeUndefined()
+    expect(user.description).toBe('微信公众号：河图阿洛')
+    expect(user.stats).toEqual({ followers: 27000, friends: 26, statuses: 5366 })
+    // 上游 snake_case 字段不对外暴露
+    const asRecord = user as unknown as Record<string, unknown>
+    expect(asRecord.screen_name).toBeUndefined()
+    expect(asRecord.followers_count).toBeUndefined()
+    expect(asRecord.followers_count_str).toBeUndefined()
+    expect(asRecord.user_token).toBeUndefined()
   })
 
   it('reads fans from the follows container', async () => {
@@ -156,7 +158,7 @@ describe('guest first-page reads (real fixtures)', () => {
     const result = await service.getFans('2365795232')
 
     expect(result.users.length).toBeGreaterThan(0)
-    expect(result.next_cursor).toBe(0)
+    expect(result.cursor).toBe(0)
   })
 
   it('stops followings streams after the first page', async () => {
@@ -178,8 +180,8 @@ describe('guest first-page reads (real fixtures)', () => {
 
 describe('guest archive guard', () => {
   const archiveDeps = {
-    tweets: { fetchRawUserTimelinePage: vi.fn(), getReposts: vi.fn() },
-    favorites: { getFavorites: vi.fn() },
+    tweets: { fetchRawUserTimelinePage: vi.fn(), fetchRawReposts: vi.fn() },
+    favorites: { fetchRawFavorites: vi.fn() },
     authMode: 'guest' as const,
   } satisfies ArchiveServiceDeps
 

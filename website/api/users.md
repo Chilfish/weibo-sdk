@@ -11,7 +11,8 @@ outline: deep
 |---|---|---|---|
 | `fetchRawInfo(id)` | `UserInfoResponse` | - | 可用 |
 | `fetchRawDetails(id)` | `UserDetailsResponse` | - | 可用 |
-| `myDetails()` | `UserDetailsResponse` | - | 需 Cookie |
+| `fetchRawMyDetails()` | `UserDetailsResponse` | - | 需 Cookie |
+| `myDetails()` | `ISelfProfile` | - | 需 Cookie |
 | `getById(id)` | `IUser` | - | 可用 |
 | `listMentions(options?)` | `UserMentionsPageResult` | `maxId` / `page` | 需 Cookie |
 | `streamMentions(options?)` | `ITweet` 流 | `maxId` | 需 Cookie |
@@ -36,6 +37,17 @@ raw.data.user.screen_name
 ## `myDetails()`
 
 不带 uid，读取当前登录用户详情，会话自检也走它。内部以 `skipPreflight` 发出，避免递归自检。
+
+返回归一化的 `ISelfProfile`：
+
+```ts
+const profile = await sdk.users.myDetails()
+profile.uid          // 从 verified_url 解析
+profile.ipLocation
+profile.labelDesc
+```
+
+该端点只返回详情侧字段（IP 属地 / 教育 / 公司 / 标签等），不含昵称、头像与计数；完整资料用 `getById(profile.uid)`。需要上游原始响应时用 `fetchRawMyDetails()`。
 
 - 错误：`AUTH_SESSION_EXPIRED`、`API_NOT_OK`、`API_BAD_RESPONSE`、传输层错误。
 

@@ -117,6 +117,7 @@
 | [todo-archive-mvp.md](archive/todo-archive-mvp.md) | 归档 MVP 计划（已完成，承接见 [todo-contract-freeze.md](archive/todo-contract-freeze.md)） |
 | [todo-contract-freeze.md](archive/todo-contract-freeze.md) | 上一阶段行动计划：契约冻结 + 归档硬化（P0/P1/P2 + DoD 全部完成，0.1.0 已发布）——历史记录，不主动读取 |
 | [todo-post-0.1.0.md](archive/todo-post-0.1.0.md) | 上一阶段行动计划：0.1.0 发布 + 0.2 数据面 / 可靠性 / DX（已完成并归档，含不再推进项说明）——历史记录，不主动读取 |
+| [todo-output-normalization.md](archive/todo-output-normalization.md) | 公开输出归一化：公开方法返回 camelCase 领域模型，raw 只留在 `fetchRaw*`（已完成并归档）——历史记录，不主动读取 |
 
 ---
 

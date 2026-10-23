@@ -12,6 +12,18 @@
 
 ### 变更
 
+- **破坏性**：公开方法统一返回 camelCase 领域模型；上游 snake_case 响应只通过显式 `fetchRaw*` 获取。
+  - `tweets.comments` / `replies` → `TweetCommentsPageResult`
+  - `tweets.getReposts` → `TweetRepostsPageResult`
+  - `tweets.longText` → `TweetLongText`
+  - `tweets.searchByDate` → `TweetSearchByDatePageResult`
+  - `followings.getFollowings` / `getFans` / `getMyFollowings` → `FollowingPageResult`；流产出 `UserBrief`
+  - `favorites.getFavorites` 删除（raw 用 `fetchRawFavorites`）；`getTags` → `FavoriteTagList`
+  - `trends.hotBand` → `TrendItem[]`
+  - `users.myDetails` → `ISelfProfile`（raw 用 `fetchRawMyDetails`）
+  - `search.searchUsers` / `searchTweets` → `SearchUserPageResult` / `SearchTweetPageResult`
+  - `WeiboSessionContext.details` 改名为 `profile`
+- 包根不再导出上游响应类型；需要 raw 时使用对应的 `fetchRaw*` 方法或 `config.hooks.onRaw`。
 - 读取方法统一返回领域模型（`IUser` / `ITweet`）。
 - 公开选项统一 camelCase，CLI 参数名保持原样。
 - 包根只导出公开 API。

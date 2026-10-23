@@ -9,27 +9,39 @@ outline: deep
 
 | 方法 | 返回 | 分页 | 访客 |
 |---|---|---|---|
-| `getFollowings(uid, page?)` | `FriendshipsResponse` | `page` | 第一页 |
-| `getFans(uid, page?)` | `FriendshipsResponse` | `page` | 第一页 |
-| `getMyFollowings(page?)` | `FollowContentResponse` | `page` | 需 Cookie |
-| `streamFollowings(uid, options?)` | `FollowingUser` 流 | `page` | 第一页 |
-| `streamFans(uid, options?)` | `FollowingUser` 流 | `page` | 第一页 |
-| `streamMyFollowings(options?)` | `FollowingUser` 流 | `page` | 需 Cookie |
+| `getFollowings(uid, page?)` | `FollowingPageResult` | `page` | 第一页 |
+| `getFans(uid, page?)` | `FollowingPageResult` | `page` | 第一页 |
+| `getMyFollowings(page?)` | `FollowingPageResult` | `page` | 需 Cookie |
+| `streamFollowings(uid, options?)` | `UserBrief` 流 | `page` | 第一页 |
+| `streamFans(uid, options?)` | `UserBrief` 流 | `page` | 第一页 |
+| `streamMyFollowings(options?)` | `UserBrief` 流 | `page` | 需 Cookie |
+| `fetchRawFollowings(uid, page?)` | `FriendshipsResponse` | `page` | 第一页 |
+| `fetchRawFans(uid, page?)` | `FriendshipsResponse` | `page` | 第一页 |
+| `fetchRawMyFollowings(page?)` | `FollowContentResponse` | `page` | 需 Cookie |
 
-访客走 m 站容器，只拿到第一页，`next_cursor` 为 `0`，`page > 1` 抛 `CONFIG_INVALID`；`getMyFollowings` / `streamMyFollowings` 需要 Cookie。详见 [访客限制](/guide/limitations)。
+访客走 m 站容器，只拿到第一页，`cursor` 为 `0`，`page > 1` 抛 `CONFIG_INVALID`；`getMyFollowings` / `streamMyFollowings` 需要 Cookie。详见 [访客限制](/guide/limitations)。
 
-`FollowingUser` 是 `friendships.users[]` 的条目，保留上游字段（`id` / `idstr` / `screen_name` / `followers_count` 等）。
+```ts
+interface FollowingPageResult {
+  users: UserBrief[]
+  specialAttention?: UserBrief[]   // 仅 getMyFollowings
+  cursor?: number                  // 下一页游标；0 / 缺省 = 到底
+  hasMore: boolean
+  total?: number
+}
+```
+
+`UserBrief` 字段见 [领域模型](/api/types/domain#userbrief)。
 
 ## `getFollowings(uid, page?)`
 
 ```ts
 const page = await sdk.followings.getFollowings('1111681197', 1)
-page.users
-page.total_number
-page.next_cursor
+page.users[0].name
+page.users[0].stats.followers
+page.cursor
+page.total
 ```
-
-返回校验后的上游原始响应；需要归一化字段时用 `streamFollowings`。
 
 ## `getFans(uid, page?)`
 
@@ -37,7 +49,12 @@ page.next_cursor
 
 ## `getMyFollowings(page?)`
 
-读取当前登录账号的关注列表（`followContent` 端点），响应结构与 `getFollowings` 不同（`data.follows.users`）。
+读取当前登录账号的关注列表（`followContent` 端点）。除 `users` 外还会返回上游单独下发的「特别关注」分组：
+
+```ts
+const page = await sdk.followings.getMyFollowings()
+const all = [...(page.specialAttention ?? []), ...page.users]
+```
 
 ## `streamFollowings(uid, options?)`
 
@@ -47,7 +64,7 @@ for await (const user of sdk.followings.streamFollowings('1111681197', {
   maxPages: 2,
   onProgress: progress => console.log(progress.page, progress.processed, progress.total),
 })) {
-  console.log(user.id, user.screen_name)
+  console.log(user.id, user.name)
 }
 ```
 
@@ -60,7 +77,7 @@ for await (const user of sdk.followings.streamFollowings('1111681197', {
 | `maxItems` | 最多产出用户数 |
 | `onProgress` | 每页回调，回调抛错时流继续 |
 
-停止条件：空页、整页重复（按用户 id）、达到 `total_number`、`maxPages` / `maxItems`。
+停止条件：空页、整页重复（按用户 id）、`hasMore === false`、`maxPages` / `maxItems`。
 
 ## `streamFans(uid, options?)`
 
@@ -68,7 +85,11 @@ for await (const user of sdk.followings.streamFollowings('1111681197', {
 
 ## `streamMyFollowings(options?)`
 
-读取当前登录账号的关注列表，参数里没有 uid。
+读取当前登录账号的关注列表，参数里没有 uid。流只产出 `users`，特别关注用 `getMyFollowings` 读取。
+
+## raw 入口
+
+需要上游原始字段（`screen_name` / `followers_count` / `next_cursor`）时用 `fetchRawFollowings` / `fetchRawFans` / `fetchRawMyFollowings`。这些方法返回与微博接口同形的 snake_case 数据。
 
 ## CLI
 

@@ -6,6 +6,7 @@ import {
   normalizeMblogGroups,
   normalizeSuperTopic,
   normalizeSuperTopicCategory,
+  normalizeTrendItem,
   normalizeUserGroups,
 } from '~/models/data'
 import {
@@ -79,7 +80,9 @@ describe('album renderer', () => {
 
 describe('trend renderer', () => {
   it('renders the hot search ranking from a real fixture', () => {
-    const items = loadFixture('hot_trends.json').data.realtime
+    const items = (loadFixture('hot_trends.json').data.realtime as unknown[])
+      .map(normalizeTrendItem)
+      .filter((item): item is NonNullable<ReturnType<typeof normalizeTrendItem>> => item !== undefined)
 
     const markdown = renderTrendListMarkdown(items, { title: '热搜榜（hot）' })
 

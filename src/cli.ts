@@ -73,7 +73,6 @@ import {
   formatCliError,
   resolveArchiveIncludeFlags,
 } from './cli/shared'
-import { WeiboSessionExpiredError } from './models/errors/BusinessError'
 import { renderTrendListMarkdown } from './models/view/Collections'
 import { renderGuestSessionMarkdown } from './models/view/Session'
 import { renderUserMarkdown } from './models/view/User'
@@ -97,9 +96,9 @@ const trends = defineCommand({
   async run({ args }) {
     const print = createPrinter(args)
     const type = args.type as 'hot' | 'topic' | 'entertainment' | undefined
-    const raw = await createSDK(args).trends.hotBand(type)
-    print(raw, {
-      markdown: value => renderTrendListMarkdown(value.data.realtime ?? [], {
+    const items = await createSDK(args).trends.hotBand(type)
+    print(items, {
+      markdown: value => renderTrendListMarkdown(value, {
         title: `热搜榜（${type ?? 'hot'}）`,
       }),
     })
@@ -134,23 +133,18 @@ const whoami = defineCommand({
       return
     }
 
-    const details = session.details ?? (await sdk.users.myDetails())
-    if (details.ok !== 1) {
-      throw new WeiboSessionExpiredError('Cookie 无效或已过期', {
-        endpoint: 'ajax/profile/info',
-      })
-    }
+    const profile = session.profile ?? (await sdk.users.myDetails())
 
-    // uid 由 SDK 会话解析（`data.verified_url` 的 `uid=`），避免 CLI 重复解析。
+    // uid 由 SDK 会话解析（`verified_url` 的 `uid=`），避免 CLI 重复解析。
     if (session.uid) {
       const user = await sdk.users.getById(session.uid)
       print(user, { markdown: renderUserMarkdown })
       return
     }
 
-    // 极少数会话无法解析 uid：没有 User 模型可渲染，把 raw 详情放进代码块。
-    print(details, {
-      markdown: value => `# 当前登录账号\n\n无法从会话解析 uid，原始详情：\n\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``,
+    // 极少数会话无法解析 uid：仍输出归一化资料，不回落 raw。
+    print(profile, {
+      markdown: value => `# 当前登录账号\n\n无法从会话解析 uid，已获取的资料：\n\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``,
     })
   },
 })

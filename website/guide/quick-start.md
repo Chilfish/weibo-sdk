@@ -20,7 +20,7 @@ const tweet = await sdk.tweets.getByMblogId('QqsYymYOS')
 console.log(tweet.text, tweet.media)
 
 const page = await sdk.tweets.comments('QqsYymYOS', { count: 20 })
-console.log(page.total_number, page.data.length)
+console.log(page.total, page.comments.length)
 ```
 
 ## 使用 Cookie

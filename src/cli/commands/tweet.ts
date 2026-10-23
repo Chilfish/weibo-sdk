@@ -1,6 +1,5 @@
 import { isAbsolute, join } from 'node:path'
 import { defineCommand } from 'citty'
-import { normalizeComment, normalizeTweet } from '~/models/data'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { formatCount, paginationNotes } from '~/models/view/format'
 import { renderTweetCardMarkdown } from '~/models/view/TweetCard'
@@ -33,19 +32,19 @@ function parseContextFormat(value: unknown): 'markdown' | 'json' {
   })
 }
 
-/** 评论页的说明行：`total_number` 含楼中楼，不能当作剩余条数。 */
+/** 评论页的说明行：`total` 含楼中楼，不能当作剩余条数。 */
 function commentPageNotes(page: {
-  total_number?: number
-  max_id?: number
-  trendsText?: string
+  total?: number
+  cursor?: number
+  notice?: string
 }): string[] {
   const notes: string[] = []
-  if (page.total_number !== undefined)
-    notes.push(`总数（含楼中楼）：${formatCount(page.total_number)}`)
-  if (page.max_id !== undefined)
-    notes.push(`下一页游标（max_id）：${page.max_id}`)
-  if (page.trendsText)
-    notes.push(page.trendsText)
+  if (page.total !== undefined)
+    notes.push(`总数（含楼中楼）：${formatCount(page.total)}`)
+  if (page.cursor !== undefined)
+    notes.push(`下一页游标：${page.cursor}`)
+  if (page.notice)
+    notes.push(page.notice)
   return notes
 }
 
@@ -224,7 +223,7 @@ export const tweetComments = defineCommand({
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
     print(raw, {
-      markdown: value => renderCommentListMarkdown(value.data.map(normalizeComment), {
+      markdown: value => renderCommentListMarkdown(value.comments, {
         title: '微博评论',
         notes: commentPageNotes(value),
       }),
@@ -309,7 +308,7 @@ export const tweetReplies = defineCommand({
       flow: args.flow ? (Number(args.flow) as 0 | 1) : undefined,
     })
     print(raw, {
-      markdown: value => renderCommentListMarkdown(value.data.map(normalizeComment), {
+      markdown: value => renderCommentListMarkdown(value.comments, {
         title: '二级评论',
         notes: commentPageNotes(value),
       }),
@@ -421,10 +420,7 @@ export const tweetLongtext = defineCommand({
     const print = createPrinter(args)
     const raw = await createSDK(args).tweets.longText(args.id)
     print(raw, {
-      markdown: (value) => {
-        const text = value.data.longTextContent_raw || value.data.longTextContent || ''
-        return cleanTweetText(text) || '（长文为空）'
-      },
+      markdown: value => cleanTweetText(value.text) || '（长文为空）',
     })
   },
 })
@@ -443,11 +439,11 @@ export const tweetReposts = defineCommand({
       page: args.page ? Number(args.page) : undefined,
     })
     print(raw, {
-      markdown: value => renderTweetListMarkdown(value.data.map(item => normalizeTweet(item)), {
+      markdown: value => renderTweetListMarkdown(value.reposts, {
         title: '转发列表',
         notes: [
-          ...(value.total_number !== undefined ? [`总数：${formatCount(value.total_number)}`] : []),
-          ...(value.max_page !== undefined ? [`总页数：${value.max_page}`] : []),
+          ...(value.total !== undefined ? [`总数：${formatCount(value.total)}`] : []),
+          ...(value.maxPage !== undefined ? [`总页数：${value.maxPage}`] : []),
         ],
       }),
     })
@@ -534,9 +530,9 @@ export const tweetSearchProfile = defineCommand({
       hasmusic: args.hasmusic ? Number(args.hasmusic) : undefined,
     })
     print(raw, {
-      markdown: value => renderTweetListMarkdown(value.data.list.map(item => normalizeTweet(item)), {
+      markdown: value => renderTweetListMarkdown(value.tweets, {
         title: '微博搜索结果',
-        notes: [`总计：${value.data.total}`],
+        notes: value.total === undefined ? [] : [`总计：${value.total}`],
       }),
     })
   },

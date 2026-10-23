@@ -18,17 +18,17 @@ export const scenario: SdkScenario = {
       return
     }
 
-    const details = session.details
-    if (!details) {
-      log.warn('会话没有 profile/detail 响应')
+    const profile = session.profile
+    if (!profile) {
+      log.warn('会话没有 profile/detail 数据')
       return
     }
-    log.kv('myDetails.ok', details.ok)
+    log.kv('profile.gender', profile.gender)
 
     const uid = session.uid
     if (!uid) {
-      log.warn('myDetails 未返回 verified_url，当前 uid 未知；打印原始详情')
-      log.json(details)
+      log.warn('profile/detail 未返回 verified_url，当前 uid 未知；打印归一化资料')
+      log.json(profile)
       return
     }
 

@@ -22,10 +22,12 @@ title: 指南
 
 | 前缀 | 行为 | 返回 |
 |---|---|---|
-| `get*` | 读取单个实体 | 领域模型（`ITweet` / `IUser` / …） |
+| `get*` | 读取实体或一页数据 | 领域模型（`ITweet` / `IUser` / `*PageResult`） |
 | `list*` | 读取一页 | `*PageResult`，带下一页游标 |
 | `stream*` | 自动翻页 | `AsyncIterableIterator<T>` |
 | `fetchRaw*` | 读取上游原始响应 | 与微博接口同形的 snake_case 数据 |
+
+`get*` / `list*` / `stream*` 返回归一化后的 camelCase 领域模型；`fetchRaw*` 是唯一会返回上游 snake_case 数据的入口。
 
 时间倒序的流支持 `since` / `until`；所有流支持 `maxItems` / `maxPages` / `onProgress`。参数使用 camelCase，上游原始查询参数（例如 `searchByDate` 的 `starttime`）保持原样。接受 `mblogId` 的方法同时接受数字 mid 与微博状态 URL。
 

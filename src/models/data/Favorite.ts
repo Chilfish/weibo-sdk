@@ -1,3 +1,5 @@
+import type { FavoriteTag } from '~/types/domain/IFavorite'
+
 type UnknownRecord = Record<string, unknown>
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -44,4 +46,43 @@ export function matchesFavoriteTag(raw: unknown, tag: string | number): boolean 
       return (typeof value === 'string' || typeof value === 'number') && String(value) === wanted
     })
   })
+}
+
+/**
+ * 归一化收藏标签（`favorites/tags` 的 `tags[]`）。
+ *
+ * 上游标签元素结构尚未抓包，按常见键做 best-effort 映射：
+ * 字符串 / 数字元素同时作为 id 与名称；对象元素读取已知键。
+ * 两者都取不到时返回 `undefined`，由服务层跳过。
+ */
+export function normalizeFavoriteTag(raw: unknown): FavoriteTag | undefined {
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const value = String(raw)
+    return value === '' ? undefined : { id: value, name: value }
+  }
+  if (!isRecord(raw))
+    return undefined
+
+  const valueOf = (keys: readonly string[]): string | undefined => {
+    for (const key of keys) {
+      const value = raw[key]
+      if (typeof value === 'string' && value !== '')
+        return value
+      if (typeof value === 'number' && Number.isFinite(value))
+        return String(value)
+    }
+    return undefined
+  }
+
+  const id = valueOf(TAG_ID_KEYS)
+  const name = valueOf(TAG_NAME_KEYS)
+  if (id === undefined && name === undefined)
+    return undefined
+
+  const tag: FavoriteTag = {}
+  if (id !== undefined)
+    tag.id = id
+  if (name !== undefined)
+    tag.name = name
+  return tag
 }

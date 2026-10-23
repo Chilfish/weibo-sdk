@@ -24,14 +24,21 @@ describe('followings streams', () => {
       return { ok: 1, users: [mkUser('2'), mkUser('3')], total_number: 3 }
     })
 
-    const out: string[] = []
+    const ids: string[] = []
+    const names: string[] = []
     for await (const user of service.streamFollowings('111', {
       onProgress: (p) => { progress.push(p) },
     })) {
-      out.push(String(user.idstr ?? user.id))
+      // 流产出归一化 `UserBrief`：`id` / `name` / `stats`，没有上游 `idstr` / `screen_name`
+      expect((user as any).idstr).toBeUndefined()
+      expect((user as any).screen_name).toBeUndefined()
+      expect(user.stats).toEqual({ followers: 0, friends: 0, statuses: 0 })
+      ids.push(user.id)
+      names.push(user.name)
     }
 
-    expect(out).toEqual(['1', '2', '3'])
+    expect(ids).toEqual(['1', '2', '3'])
+    expect(names).toEqual(['u1', 'u2', 'u3'])
     expect(progress).toHaveLength(2)
     expect(progress[0]).toMatchObject({
       uid: '111',
@@ -52,7 +59,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamFans('111'))
-      out.push(String(user.idstr ?? user.id))
+      out.push(user.id)
 
     expect(out).toEqual(['1'])
   })
@@ -71,7 +78,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamMyFollowings())
-      out.push(String(user.idstr ?? user.id))
+      out.push(user.id)
 
     expect(out).toEqual(['1'])
   })
@@ -85,7 +92,7 @@ describe('followings streams', () => {
 
     const out: string[] = []
     for await (const user of service.streamFollowings('111', { maxPages: 5 }))
-      out.push(String(user.idstr ?? user.id))
+      out.push(user.id)
 
     expect(out).toEqual(['1'])
     expect(calls).toBe(2)

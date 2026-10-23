@@ -1,65 +1,4 @@
 export type {
-  MyCommentItem,
-  MyCommentsResponse,
-} from '../services/endpoints/commentHistory'
-export type {
-  FavoritesResponse,
-  FavoritesTagsResponse,
-} from '../services/endpoints/favorite'
-export type {
-  FollowContentResponse,
-  FriendshipsResponse,
-} from '../services/endpoints/follow'
-export type {
-  FeedGroupsResponse,
-  MblogGroupsResponse,
-} from '../services/endpoints/groups'
-export type {
-  LikeItem,
-  LikeListResponse,
-} from '../services/endpoints/like'
-export type { LikersResponse } from '../services/endpoints/likers'
-export type {
-  AlbumDetailResponse,
-  ImageWallResponse,
-  WaterfallResponse,
-} from '../services/endpoints/media'
-export type { MentionsViewResponse } from '../services/endpoints/mentions'
-export type {
-  MobileCard,
-  MobileCardPic,
-  MobileContainerResponse,
-} from '../services/endpoints/mobile'
-export type {
-  AttitudeItem,
-  MessageAttitudesResponse,
-  MessageCommentsResponse,
-} from '../services/endpoints/notifications'
-export type {
-  SearchTweetsResponse,
-  SearchUsersResponse,
-} from '../services/endpoints/search'
-export type { BandUnifiedResponse } from '../services/endpoints/side'
-export type {
-  STopicCatesResponse,
-  STopicListResponse,
-} from '../services/endpoints/topic'
-export type {
-  BuildCommentsResponse,
-  FriendstimelineResponse,
-  LongtextResponse,
-  MyMblogResponse,
-  RepostTimelineResponse,
-  SearchProfileResponse,
-  StatusShowResponse,
-} from '../services/endpoints/tweet'
-// src/types/index.ts
-// Endpoint 响应类型（zod-inferred，服务的实际返回类型）
-export type {
-  UserDetailsResponse,
-  UserInfoResponse,
-} from '../services/endpoints/user'
-export type {
   ArchiveCheckpoint,
   ArchiveErrorAction,
   ArchiveErrorStage,
@@ -85,12 +24,13 @@ export type {
   FavoritePageResult,
   FavoriteStreamOptions,
   FavoriteStreamProgress,
+  FavoriteTagList,
 } from '../services/public/FavoriteService'
 export type {
+  FollowingPageResult,
   FollowingsSource,
   FollowingsStreamOptions,
   FollowingsStreamProgress,
-  FollowingUser,
 } from '../services/public/FollowingsService'
 export type {
   LikeListOptions,
@@ -120,12 +60,17 @@ export type {
   NotificationStreamProgress,
 } from '../services/public/NotificationService'
 export type {
+  SearchTweetPageResult,
+  SearchUserPageResult,
+} from '../services/public/SearchService'
+export type {
   SuperTopicListOptions,
   SuperTopicPageResult,
   SuperTopicStreamOptions,
 } from '../services/public/TopicService'
 export type {
   TweetCommentsOptions,
+  TweetCommentsPageResult,
   TweetCommentsStreamOptions,
   TweetCommentsStreamProgress,
   TweetContextOptions,
@@ -140,9 +85,11 @@ export type {
   TweetPageResult,
   TweetRepliesOptions,
   TweetRepostsListOptions,
+  TweetRepostsPageResult,
   TweetRepostsStreamOptions,
   TweetRepostsStreamProgress,
   TweetSearchByDateOptions,
+  TweetSearchByDatePageResult,
   TweetUserTimelineListOptions,
   TweetUserTimelineStreamOptions,
 } from '../services/public/TweetService'
@@ -164,10 +111,12 @@ export * from './archive/IArchiveFile'
 export * from './archive/IArchiveMerge'
 export * from './archive/IUserArchive'
 export * from './config'
+export * from './domain/IFavorite'
 export * from './domain/IGroup'
 export * from './domain/ILiker'
 export * from './domain/INotification'
 export * from './domain/ISuperTopic'
+export * from './domain/ITrend'
 export * from './domain/ITweet'
 export * from './domain/ITweetContext'
 export * from './domain/IUser'

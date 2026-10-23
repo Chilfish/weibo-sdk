@@ -12,7 +12,8 @@ outline: deep
 | `getByMblogId(mblogId, isGetLongText?)` | `ITweet` | 可用 |
 | `enrich(mblogId, options?)` | `TweetEnrichResult` | 可用 |
 | `context(mblogId, options?)` | `ITweetContext` | 可用 |
-| `longText(mblogId)` | `LongtextResponse` | 可用 |
+| `longText(mblogId)` | `TweetLongText` | 可用 |
+| `fetchRawLongText(mblogId)` | `LongtextResponse` | 可用 |
 
 访客可读取单条微博，边界见 [访客限制](/guide/limitations)。
 
@@ -77,7 +78,16 @@ context.unknowns         // 图片未描述 / 视频未转写 / 评论为抽样�
 
 ## `longText(mblogId)`
 
-返回上游 `ajax/statuses/longtext` 原始响应，含 `data.longTextContent` 与 `data.longTextContent_raw`。`enrich` / `context` 在需要全文时自动拉取，通常直接使用这两个方法即可。
+返回归一化全文：
+
+```ts
+interface TweetLongText {
+  text: string
+  isMarkdown?: boolean
+}
+```
+
+`text` 优先取上游 `longTextContent_raw`，缺失时退回 `longTextContent`。`enrich` / `context` 在需要全文时自动拉取，通常直接使用这两个方法即可。需要上游原始响应时用 `fetchRawLongText(mblogId)`。
 
 ## CLI
 

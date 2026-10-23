@@ -1,46 +1,33 @@
 ---
-title: 原始响应类型
+title: 原始响应
 outline: deep
 ---
 
-# 原始响应类型
+# 原始响应
 
-以下导出是上游响应的 `z.infer` 形状（snake_case），字段与微博接口同形。它们用于排障、落盘 raw 和一次性脚本；应用代码使用对应的归一化方法。
+公开读取方法统一返回归一化后的 camelCase 领域模型。需要上游原始响应时，使用显式的 `fetchRaw*` 方法：它们返回与微博接口同形的 snake_case 数据。
 
-## 响应类型
+原始响应类型不从包根导出，字段随上游漂移。应用代码优先使用归一化方法；`fetchRaw*` 适合排障、落盘 raw 和 schema 快照。
 
-| 类型 | 对应端点 |
+## `fetchRaw*` 方法
+
+| 方法 | 对应端点 |
 |---|---|
-| `MyMblogResponse` | `ajax/statuses/mymblog` |
-| `StatusShowResponse` | `ajax/statuses/show` |
-| `UserInfoResponse` / `UserDetailsResponse` | `ajax/profile/info` / `ajax/profile/detail` |
-| `BuildCommentsResponse` | `ajax/statuses/buildComments` |
-| `RepostTimelineResponse` | `ajax/statuses/repostTimeline` |
-| `LongtextResponse` | `ajax/statuses/longtext` |
-| `SearchProfileResponse` | `ajax/statuses/searchProfile` |
-| `FriendstimelineResponse` | `ajax/feed/friendstimeline` |
-| `FavoritesResponse` / `FavoritesTagsResponse` | `ajax/statuses/favorites` / 标签 |
-| `LikeListResponse` / `LikeItem` | `ajax/statuses/likelist` |
-| `LikersResponse` | `m.weibo.cn/api/attitudes/show` |
-| `MyCommentsResponse` / `MyCommentItem` | `ajax/statuses/myCmt` |
-| `MessageCommentsResponse` / `MessageAttitudesResponse` / `AttitudeItem` | 通知 |
-| `ImageWallResponse` / `WaterfallResponse` / `AlbumDetailResponse` | 媒体集合 |
-| `FriendshipsResponse` / `FollowContentResponse` | 关注 / 粉丝 |
-| `FeedGroupsResponse` / `MblogGroupsResponse` | 分组 |
-| `MentionsViewResponse` | @ 我 |
-| `SearchUsersResponse` / `SearchTweetsResponse` | 公开搜索（不可用） |
-| `STopicCatesResponse` / `STopicListResponse` | 超话 |
-| `BandUnifiedResponse` | 热搜 |
-| `MobileCard` / `MobileCardPic` / `MobileContainerResponse` | m 站容器 |
+| `users.fetchRawInfo` / `users.fetchRawDetails` / `users.fetchRawMyDetails` | 用户资料 |
+| `tweets.fetchRawUserTimelinePage` | `ajax/statuses/mymblog` |
+| `tweets.fetchRawComments` / `tweets.fetchRawReplies` | `ajax/statuses/buildComments` |
+| `tweets.fetchRawReposts` | `ajax/statuses/repostTimeline` |
+| `tweets.fetchRawLongText` | `ajax/statuses/longtext` |
+| `tweets.fetchRawSearchByDate` | `ajax/statuses/searchProfile` |
+| `followings.fetchRawFollowings` / `fetchRawFans` / `fetchRawMyFollowings` | 关注 / 粉丝 |
+| `favorites.fetchRawFavorites` / `fetchRawTags` | 收藏夹 |
+| `trends.fetchRawBand` | 热搜榜 |
+| `search.fetchRawSearchUsers` / `fetchRawSearchTweets` | 公开搜索（不可用） |
+| `likes.fetchRawPage` | 点赞列表 |
+| `commentHistory.fetchRawPage` | 我的历史评论 |
+| `media.fetchRawImagePage` / `fetchRawVideoPage` | 图片墙 / 视频瀑布 |
 
-## 方法选项
-
-| 类型 | 方法 |
-|---|---|
-| `TweetCommentsOptions` | `tweets.comments` |
-| `TweetRepliesOptions` | `tweets.replies` |
-| `TweetRepostsListOptions` | `tweets.getReposts` |
-| `TweetSearchByDateOptions` | `tweets.searchByDate` |
+所有端点、归档流与传输层都支持 `config.hooks.onRaw`，用于在不改变返回类型的前提下旁路保存 raw。
 
 ## 辅助函数
 

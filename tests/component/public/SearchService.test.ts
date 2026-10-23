@@ -30,8 +30,8 @@ describe('searchService', () => {
     await expect(service.searchTweets('TypeScript', 1)).rejects.toBeInstanceOf(UnexpectedAPIResponseError)
   })
 
-  it('searchUsers still parses valid m.weibo.cn JSON when available', async () => {
-    // 若上游恢复/提供 JSON：schema 应能解析（保持契约）
+  it('searchUsers still normalizes valid m.weibo.cn JSON when available', async () => {
+    // 若上游恢复/提供 JSON：schema 应能解析，公开面返回归一化 camelCase 结果（保持契约）
     const response = {
       ok: 1,
       data: {
@@ -53,7 +53,53 @@ describe('searchService', () => {
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
 
-    const raw = await service.searchUsers('u', 1)
+    // raw 形状仍通过 fetchRaw* 可访问
+    const raw = await service.fetchRawSearchUsers('u', 1)
     expect(raw.data.cards[0].card_group).toHaveLength(1)
+
+    const page = await service.searchUsers('u', 1)
+    expect(page.users).toHaveLength(1)
+    expect(page.users[0].id).toBe('1')
+    expect(page.users[0].name).toBe('u1')
+    expect(page.page).toBe(1)
+    expect(page.total).toBe(10)
+    expect(page.hasMore).toBe(true)
+  })
+
+  it('searchTweets still normalizes valid m.weibo.cn JSON when available', async () => {
+    const response = {
+      ok: 1,
+      data: {
+        cards: [
+          {
+            card_type: 9,
+            mblog: {
+              id: 1,
+              idstr: '1',
+              mblogid: 'AbCdEf',
+              created_at: 'now',
+              text: '',
+              text_raw: 'hello',
+              user: { id: 2, idstr: '2', screen_name: 'u' },
+            },
+          },
+        ],
+        cardlistInfo: { page: 1, total: 25 },
+      },
+    } as any
+
+    const { transport } = createFakeAxios(async () => response)
+    const service = new SearchService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.searchTweets('TypeScript', 1)
+    expect(page.tweets).toHaveLength(1)
+    expect(page.tweets[0].mblogId).toBe('AbCdEf')
+    expect(page.tweets[0].text).toBe('hello')
+    expect(page.page).toBe(1)
+    expect(page.total).toBe(25)
+    expect(page.hasMore).toBe(true)
   })
 })

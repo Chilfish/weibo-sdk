@@ -36,44 +36,54 @@ describe('favorites/all_fav', () => {
     },
   }
 
-  it('calls favorites/all_fav with correct params', async () => {
-    const { transport, getLastConfig } = createFakeAxios(async (cfg) => {
-      expect(cfg.url).toBe('https://weibo.com/ajax/favorites/all_fav')
-      return fixture
-    })
+  function createService(handler: Parameters<typeof createFakeAxios>[0]) {
+    const { transport, getLastConfig } = createFakeAxios(handler)
     const service = new FavoriteService(
       { cookie: 'SUB=abc' },
       { transport, rateLimitService: new NoopRateLimitService() as any },
     )
-    const data = await service.getFavorites('111', 1)
+    return { service, getLastConfig }
+  }
+
+  it('calls favorites/all_fav with correct params', async () => {
+    const { service, getLastConfig } = createService(async (cfg) => {
+      expect(cfg.url).toBe('https://weibo.com/ajax/favorites/all_fav')
+      return fixture
+    })
+
+    const data = await service.fetchRawFavorites('111', 1)
     expect(data.ok).toBe(1)
     expect(data.data.status[0].mblogid).toBe('F001')
     expect(getLastConfig()?.params).toEqual({ uid: '111', page: 1, with_total: true })
     expect(getLastConfig()?.headers?.referer).toBe('https://weibo.com/u/111')
   })
 
+  it('listFavorites returns normalized tweets', async () => {
+    const { service, getLastConfig } = createService(async () => fixture)
+
+    const page = await service.listFavorites('111', { page: 1 })
+    expect(page.tweets).toHaveLength(1)
+    expect(page.tweets[0].mblogId).toBe('F001')
+    expect(page.tweets[0].user.name).toBe('author')
+    expect(page.page).toBe(2)
+    expect(getLastConfig()?.params).toEqual({ uid: '111', page: 1, with_total: true })
+  })
+
   it('works without optional page', async () => {
-    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
-    const service = new FavoriteService(
-      { cookie: 'SUB=abc' },
-      { transport, rateLimitService: new NoopRateLimitService() as any },
-    )
-    await service.getFavorites('222')
+    const { service, getLastConfig } = createService(async () => fixture)
+
+    await service.fetchRawFavorites('222')
     expect(getLastConfig()?.params).toEqual({ uid: '222', with_total: true })
   })
 
   it('drops invalid page values instead of letting upstream 400', async () => {
-    const { transport, getLastConfig } = createFakeAxios(async () => fixture)
-    const service = new FavoriteService(
-      { cookie: 'SUB=abc' },
-      { transport, rateLimitService: new NoopRateLimitService() as any },
-    )
+    const { service, getLastConfig } = createService(async () => fixture)
 
     // 上游 page 从 1 开始：page=0 实测返回 HTTP 400，必须按未指定处理
-    await service.getFavorites('333', 0)
+    await service.fetchRawFavorites('333', 0)
     expect(getLastConfig()?.params).toEqual({ uid: '333', with_total: true })
 
-    await service.getFavorites('333', Number.NaN)
+    await service.fetchRawFavorites('333', Number.NaN)
     expect(getLastConfig()?.params).toEqual({ uid: '333', with_total: true })
   })
 
@@ -106,12 +116,13 @@ describe('favorites/all_fav', () => {
         }],
       },
     }
-    const { transport } = createFakeAxios(async () => fixtureRT)
-    const service = new FavoriteService(
-      { cookie: 'SUB=abc' },
-      { transport, rateLimitService: new NoopRateLimitService() as any },
-    )
-    const data = await service.getFavorites('111')
-    expect(data.data.status[0].retweeted_status!.mblogid).toBe('RT001')
+    const { service } = createService(async () => fixtureRT)
+
+    const raw = await service.fetchRawFavorites('111')
+    expect(raw.data.status[0].retweeted_status!.mblogid).toBe('RT001')
+
+    const page = await service.listFavorites('111')
+    expect(page.tweets[0].retweetedStatus!.mblogId).toBe('RT001')
+    expect(page.tweets[0].retweetedStatus!.user.name).toBe('rta')
   })
 })

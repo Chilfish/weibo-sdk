@@ -79,7 +79,7 @@ weibo-cli user timeline 1111681197 --guest
 访客可用范围：
 
 - 可用：`user info`、`tweet detail` / `enrich` / `longtext` / `comments` / `reposts` / `likers`、`media`、`topic`、`trends`、`user groups`、`whoami --guest`。
-- 只有第一页：`user timeline`、`like list`、`follow list` / `follow fans`。时间线 / 点赞输出带 `partial: true`，关注 / 粉丝的 `next_cursor` 为 `0`，`--page 2` 报 `CONFIG_INVALID`。
+- 只有第一页：`user timeline`、`like list`、`follow list` / `follow fans`。时间线 / 点赞输出带 `partial: true`，关注 / 粉丝的 `cursor` 为 `0`，`--page 2` 报 `CONFIG_INVALID`。
 - 需要 Cookie：`tweet home`、`tweet search-profile`、`user mentions`、`user mblog-groups`、`follow my`、`favorite`、`comment`、`notification`、`archive`。前八项报 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'`；`archive` 需要完整时间线，报 `CONFIG_INVALID`。
 
 `search users` / `search tweets` 在两种身份下都返回 `unavailable`。完整边界见 [范围与限制](/guide/limitations)。
@@ -469,20 +469,20 @@ weibo-cli archive user 1111681197
 | `user mblog-groups` | `users.mblogGroups()` | `MblogGroup[]`（`id`/`name`/`systemName?`/`pageObjectId?`） |
 | `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
 | `tweet enrich` | `tweets.enrich()` | `{ tweet, raw, longText? }`（raw 为 `statuses/show` 原始响应） |
-| `tweet comments` | `tweets.comments()` | raw `BuildCommentsResponse` |
+| `tweet comments` | `tweets.comments()` | `TweetCommentsPageResult`（`comments`/`cursor`/`hasMore`/`total?`/`notice?`） |
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult`（`maxId` 翻旧页；`since_id` 仅增量） |
 | `tweet home-stream` | `tweets.streamFriendTimeline()` | NDJSON `progress` / `item` / `done`（`max_id` 自动翻页 + 去重） |
-| `tweet longtext` | `tweets.longText()` | raw `LongtextResponse` |
-| `tweet reposts` | `tweets.getReposts()` | raw `RepostTimelineResponse` |
-| `tweet search-profile` | `tweets.searchByDate()` | raw `SearchProfileResponse`（`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒） |
+| `tweet longtext` | `tweets.longText()` | `TweetLongText`（`text`/`isMarkdown?`） |
+| `tweet reposts` | `tweets.getReposts()` | `TweetRepostsPageResult`（`reposts`/`page`/`hasMore`/`total?`/`maxPage?`） |
+| `tweet search-profile` | `tweets.searchByDate()` | `TweetSearchByDatePageResult`（`tweets`/`page`/`total?`/`hasMore`；`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`） |
 | `tweet likers` | `tweets.likers()` | `TweetLikersPageResult`（`page`/`hasMore`/`total?`/`likers[]`） |
 | `tweet likers-stream` | `tweets.streamLikers()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, liker }` / `{ event: 'done', mblogId, count }` |
-| `follow list` | `followings.getFollowings()` | raw `FriendshipsResponse` |
-| `follow fans` | `followings.getFans()` | raw `FriendshipsResponse` |
-| `follow my` | `followings.getMyFollowings()` | raw `FollowContentResponse` |
-| `favorite list` | `favorites.getFavorites()` | raw `FavoritesResponse` |
+| `follow list` | `followings.getFollowings()` | `FollowingPageResult`（`users`/`cursor?`/`hasMore`/`total?`） |
+| `follow fans` | `followings.getFans()` | `FollowingPageResult` |
+| `follow my` | `followings.getMyFollowings()` | `FollowingPageResult`（额外含 `specialAttention?`） |
+| `favorite list` | `favorites.listFavorites()` | `FavoritePageResult`（`tweets`/`page`/`hasMore`/`total?`/`totalPages?`） |
 | `favorite stream` | `favorites.streamFavorites()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
-| `favorite tags` | `favorites.getTags()` | raw `FavoritesTagsResponse` |
+| `favorite tags` | `favorites.getTags()` | `FavoriteTagList`（`tags`/`total?`） |
 | `media download` | `media.downloadByMblogId()` | NDJSON `progress` / `item` / `item-error` / `done` |
 | `like list` | `likes.listByUserId()` | `LikePageResult`（`page`/`hasMore`/`tweets[]`） |
 | `like stream` | `likes.streamByUserId()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', uid, count }` |
@@ -494,15 +494,15 @@ weibo-cli archive user 1111681197
 | `notification comments-stream` | `notifications.streamComments()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, notification }` / `{ event: 'done', count }` |
 | `notification likes` | `notifications.listLikes()` | `LikeNotificationPageResult`（`cursor`/`hasMore`/`total?`/`items[]`） |
 | `notification likes-stream` | `notifications.streamLikes()` | 同上（`notification.user` 为点赞者） |
-| `search users` | `search.searchUsers()` | raw `SearchUsersResponse` |
-| `search tweets` | `search.searchTweets()` | raw `SearchTweetsResponse` |
-| `trends` | `trends.hotBand(type?)` | raw `BandUnifiedResponse` |
+| `search users` | `search.searchUsers()` | `SearchUserPageResult`（`users`/`page`/`total?`/`hasMore`） |
+| `search tweets` | `search.searchTweets()` | `SearchTweetPageResult`（`tweets`/`page`/`total?`/`hasMore`） |
+| `trends` | `trends.hotBand(type?)` | `TrendItem[]`（`word`/`heat?`/`label?`/…） |
 | `whoami` | `getSession()` + `users.getById()` | `User` 领域模型；`--guest` 时输出 `{ auth: 'guest', login: false, tokenIssuedAt, token: { issuedAt, scope, source } }` |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 | `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |
 | `archive merge` | `mergeArchiveFiles()` | 写入 `--out` 指定的合并结果；stdout 一行 `{ event: 'done', out, inputs, tweets, comments, replies, errors, complete, deduped }` |
 | `tweet context` | `tweets.context()` | Markdown 上下文卡片（默认）；`-f json` 输出 `ITweetContext` |
-| `tweet replies` / `replies-stream` | `tweets.replies()` / `tweets.streamReplies()` | raw `BuildCommentsResponse` / NDJSON |
+| `tweet replies` / `replies-stream` | `tweets.replies()` / `tweets.streamReplies()` | `TweetCommentsPageResult` / NDJSON |
 | `user timeline-stream` | `tweets.streamByUserId()` | NDJSON `progress` / `item` / `done` |
 | `topic stream` | `topics.stream()` | NDJSON `progress` / `item` / `done` |
 | `media albums` / `album` | `media.listAlbums()` / `media.listAlbumPhotos()` | 相册列表 / 分页照片 |

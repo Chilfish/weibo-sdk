@@ -27,7 +27,6 @@ import { UserArchiveService } from './services/public/UserArchiveService'
 import { UserService } from './services/public/UserService'
 import { resolveCookieInput } from './utils/cookieInput'
 import { combineTelemetry, createLoggerBridge } from './utils/logger'
-import { parseSessionUid } from './utils/sessionUid'
 
 let sdkTraceSeq = 0
 function createSdkTraceId(): string {
@@ -333,11 +332,11 @@ export class WeiboSDK {
           return context
         }
 
-        const details = await this.users.myDetails()
+        const profile = await this.users.myDetails()
         const context: WeiboSessionContext = {
           authMode: 'cookie',
-          uid: parseSessionUid(details.data),
-          details,
+          uid: profile.uid,
+          profile,
           checkedAt: Date.now(),
         }
         this.session = context

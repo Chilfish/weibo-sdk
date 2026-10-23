@@ -26,22 +26,22 @@ function mkRepostPage() {
 function createDeps(sessionUid: () => Promise<string | undefined>): {
   deps: ArchiveServiceDeps
   myMblog: ReturnType<typeof vi.fn>
-  getFavorites: ReturnType<typeof vi.fn>
-  getReposts: ReturnType<typeof vi.fn>
+  fetchRawFavorites: ReturnType<typeof vi.fn>
+  fetchRawReposts: ReturnType<typeof vi.fn>
   commentHistory: ReturnType<typeof vi.fn>
 } {
   const myMblog = vi.fn((_uid: string, page?: number) =>
     Promise.resolve(page === undefined || page === 1 ? mkPage([mkRaw('A')]) : mkPage([])))
-  const getReposts = vi.fn(() => Promise.resolve(mkRepostPage()))
-  const getFavorites = vi.fn(() => Promise.resolve({ ok: 1, data: { status: [], total_number: 0 } }))
+  const fetchRawReposts = vi.fn(() => Promise.resolve(mkRepostPage()))
+  const fetchRawFavorites = vi.fn(() => Promise.resolve({ ok: 1, data: { status: [], total_number: 0 } }))
   const commentHistory = vi.fn(() => Promise.resolve({ ok: 1, data: { comments: [], next_cursor: 0 } }))
   const deps: ArchiveServiceDeps = {
-    tweets: { fetchRawUserTimelinePage: myMblog, getReposts },
-    favorites: { getFavorites },
+    tweets: { fetchRawUserTimelinePage: myMblog, fetchRawReposts },
+    favorites: { fetchRawFavorites },
     commentHistory: { fetchRawPage: commentHistory },
     sessionUid,
   }
-  return { deps, myMblog, getFavorites, getReposts, commentHistory }
+  return { deps, myMblog, fetchRawFavorites, fetchRawReposts, commentHistory }
 }
 
 async function collect(stream: AsyncIterableIterator<any>) {
@@ -76,23 +76,23 @@ describe('archiveService account-level sources', () => {
   })
 
   it('allows account-level sources for the signed-in uid', async () => {
-    const { deps, getFavorites } = createDeps(() => Promise.resolve('111'))
+    const { deps, fetchRawFavorites } = createDeps(() => Promise.resolve('111'))
     const service = new ArchiveService(deps)
 
     const items = await collect(service.streamArchive('111', { includeFavorites: true }))
 
     expect(items.map(item => item.mblogId)).toEqual(['A'])
-    expect(getFavorites).toHaveBeenCalledTimes(1)
+    expect(fetchRawFavorites).toHaveBeenCalledTimes(1)
   })
 
   it('skips the guard when session uid cannot be resolved', async () => {
-    const { deps, getFavorites } = createDeps(() => Promise.resolve(undefined))
+    const { deps, fetchRawFavorites } = createDeps(() => Promise.resolve(undefined))
     const service = new ArchiveService(deps)
 
     const items = await collect(service.streamArchive('111', { includeFavorites: true }))
 
     expect(items.map(item => item.mblogId)).toEqual(['A'])
-    expect(getFavorites).toHaveBeenCalledTimes(1)
+    expect(fetchRawFavorites).toHaveBeenCalledTimes(1)
   })
 
   it('fails a batch before yielding any item when uids include another account', async () => {

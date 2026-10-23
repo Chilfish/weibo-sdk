@@ -1,6 +1,6 @@
-import type { MyMBlogItem, StatusShowResponse } from '~/services/endpoints/tweet'
+import type { LongtextResponse, MyMBlogItem, StatusShowResponse } from '~/services/endpoints/tweet'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetLongText, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import { MediaType, TweetVisible } from '~/types/domain/ITweet'
 import { extractAttachments, pageObjectType } from './TweetAttachments'
@@ -989,6 +989,20 @@ export function normalizeLiker(raw: unknown): TweetLiker {
   if (typeof record.source === 'string' && record.source.length > 0)
     liker.source = record.source
   return liker
+}
+
+/**
+ * 归一化长微博全文（`ajax/statuses/longtext`）。
+ *
+ * 纯函数；`text` 优先 `longTextContent_raw`，缺失时退回 `longTextContent`。
+ */
+export function normalizeLongText(raw: LongtextResponse): TweetLongText {
+  const longText: TweetLongText = {
+    text: raw.data.longTextContent_raw ?? raw.data.longTextContent ?? '',
+  }
+  if (typeof raw.data.isMarkdown === 'boolean')
+    longText.isMarkdown = raw.data.isMarkdown
+  return longText
 }
 
 export class Tweet implements ITweet {

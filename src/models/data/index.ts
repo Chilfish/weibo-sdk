@@ -1,9 +1,11 @@
+export { normalizeFavoriteTag } from './Favorite'
 export { normalizeMblogGroups, normalizeUserGroups } from './Group'
 export { normalizeAlbum, normalizeImageWallItem, normalizeWaterfallVideo } from './Media'
 export { migrateTweetV1toV2 } from './migrateTweet'
 export { normalizeCommentNotification, normalizeLikeNotification } from './Notification'
 export { normalizeSuperTopic, normalizeSuperTopicCategory } from './SuperTopic'
-export { normalizeComment, normalizeLiker, normalizeTweet, normalizeTweetUser, Tweet } from './Tweet'
+export { normalizeTrendItem } from './Trend'
+export { normalizeComment, normalizeLiker, normalizeLongText, normalizeTweet, normalizeTweetUser, Tweet } from './Tweet'
 export type { RawTweet } from './Tweet'
 // src/models/data/index.ts
-export { User } from './User'
+export { normalizeSelfProfile, normalizeUserBrief, parseCompactCount, User } from './User'

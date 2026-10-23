@@ -14,7 +14,8 @@ outline: deep
 | `streamByUserId(uid, options?)` | `ITweet` 流 | `page` | 第一页 |
 | `listFriendTimeline(options?)` | `TweetPageResult` | `maxId` | 需 Cookie |
 | `streamFriendTimeline(options?)` | `ITweet` 流 | `maxId` | 需 Cookie |
-| `searchByDate(uid, options?)` | `SearchProfileResponse` | `page` | 需 Cookie |
+| `searchByDate(uid, options?)` | `TweetSearchByDatePageResult` | `page` | 需 Cookie |
+| `fetchRawSearchByDate(uid, options?)` | `SearchProfileResponse` | `page` | 需 Cookie |
 
 访客只拿到 m 站第一页，`page > 1` 抛 `CONFIG_INVALID`；首页时间线与日期检索需要 Cookie。详见 [访客限制](/guide/limitations)。
 
@@ -93,7 +94,7 @@ for await (const tweet of sdk.tweets.streamFriendTimeline({ sinceId: lastSeenId 
 
 ## `searchByDate(uid, options?)`
 
-个人主页内按日期/关键词检索（`searchProfile`），返回上游原始响应：
+个人主页内按日期/关键词检索（`searchProfile`），返回归一化结果：
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
@@ -102,7 +103,16 @@ for await (const tweet of sdk.tweets.streamFriendTimeline({ sinceId: lastSeenId 
 | `starttime` / `endtime` | `number \| string` | unix 秒，或 `YYYY-MM-DD` / `YYYYMMDD`（本地时区，含当天） |
 | `hasori` / `hasret` / `hastext` / `haspic` / `hasvideo` / `hasmusic` | `0 \| 1` | 过滤位，语义未经上游文档确认 |
 
-非法日期抛 `CONFIG_INVALID`。`data.total` 可能是 `number | string`，调用方自行解析。
+```ts
+interface TweetSearchByDatePageResult {
+  tweets: ITweet[]
+  page: number
+  total?: number   // 上游 data.total 已解析为 number
+  hasMore: boolean
+}
+```
+
+非法日期抛 `CONFIG_INVALID`。需要上游原始响应（含 `absstr` 等字段）时用 `fetchRawSearchByDate`。
 
 > 上游行为：`page > 1` 会复用最近一次 `page=1` 的日期窗口，并发请求不同区间会互相覆盖。归档层因此串行枚举日期切片。
 

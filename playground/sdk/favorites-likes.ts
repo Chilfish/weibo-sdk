@@ -16,7 +16,7 @@ export const scenario: SdkScenario = {
     const tag = flagString(args, 'tag')
 
     const tags = await sdk.favorites.getTags()
-    log.kv('favorite tags', `tags=${tags.tags.length} total=${tags.total_number ?? 'n/a'}`)
+    log.kv('favorite tags', `tags=${tags.tags.length} total=${tags.total ?? 'n/a'}`)
 
     log.heading('收藏夹')
     let favorites = 0

@@ -1,17 +1,9 @@
 import type { MarkdownListOptions } from './format'
 import type { MblogGroup, UserGroup } from '~/types/domain/IGroup'
 import type { SuperTopic, SuperTopicCategory } from '~/types/domain/ISuperTopic'
+import type { TrendItem } from '~/types/domain/ITrend'
 import type { IUserAlbum } from '~/types/domain/IUserMediaAsset'
 import { formatCount, renderListHeader, summarizeText } from './format'
-
-/** 热搜榜条目（`data.realtime[]` 的渲染子集）。 */
-export interface TrendItemLike {
-  word: string
-  num?: number
-  category?: string
-  label_name?: string
-  icon_desc?: string
-}
 
 /** 关注分组（`user groups`）。 */
 export function renderUserGroupListMarkdown(
@@ -119,7 +111,7 @@ export function renderAlbumListMarkdown(
 
 /** 热搜榜（`trends`）。 */
 export function renderTrendListMarkdown(
-  items: readonly TrendItemLike[],
+  items: readonly TrendItem[],
   options: Partial<MarkdownListOptions> = {},
 ): string {
   const lines = renderListHeader({ title: options.title ?? '热搜榜', notes: options.notes })
@@ -130,11 +122,11 @@ export function renderTrendListMarkdown(
 
   items.forEach((item, index) => {
     const meta: string[] = []
-    if (item.num !== undefined)
-      meta.push(`热度 ${formatCount(item.num)}`)
+    if (item.heat !== undefined)
+      meta.push(`热度 ${formatCount(item.heat)}`)
     if (item.category)
       meta.push(item.category)
-    const label = item.label_name || item.icon_desc
+    const label = item.label || item.icon
     if (label)
       meta.push(label)
     lines.push(`${index + 1}. ${item.word}${meta.length > 0 ? ` · ${meta.join(' · ')}` : ''}`)

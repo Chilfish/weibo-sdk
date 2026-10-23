@@ -47,24 +47,24 @@ function mkCommentsPage(comments: unknown[], nextCursor: number) {
 function createDeps(overrides?: Partial<ArchiveServiceDeps>): {
   deps: ArchiveServiceDeps
   myMblog: ReturnType<typeof vi.fn>
-  getReposts: ReturnType<typeof vi.fn>
-  getFavorites: ReturnType<typeof vi.fn>
+  fetchRawReposts: ReturnType<typeof vi.fn>
+  fetchRawFavorites: ReturnType<typeof vi.fn>
   likesFetch: ReturnType<typeof vi.fn>
   commentFetch: ReturnType<typeof vi.fn>
 } {
   const myMblog = vi.fn().mockResolvedValue(mkPage([]))
-  const getReposts = vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
-  const getFavorites = vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
+  const fetchRawReposts = vi.fn().mockResolvedValue({ ok: 1, data: [], total_number: 0, max_page: 0, next_cursor: 0, empty_tip: '' })
+  const fetchRawFavorites = vi.fn().mockResolvedValue({ ok: 1, data: { status: [], total_number: 0 } })
   const likesFetch = vi.fn()
   const commentFetch = vi.fn()
   const deps: ArchiveServiceDeps = {
-    tweets: { fetchRawUserTimelinePage: myMblog, getReposts },
-    favorites: { getFavorites },
+    tweets: { fetchRawUserTimelinePage: myMblog, fetchRawReposts },
+    favorites: { fetchRawFavorites },
     likes: { fetchRawPage: likesFetch },
     commentHistory: { fetchRawPage: commentFetch },
     ...overrides,
   }
-  return { deps, myMblog, getReposts, getFavorites, likesFetch, commentFetch }
+  return { deps, myMblog, fetchRawReposts, fetchRawFavorites, likesFetch, commentFetch }
 }
 
 async function collect(stream: AsyncIterableIterator<any>) {
@@ -134,7 +134,7 @@ describe('archiveService D1/D2 sources', () => {
   })
 
   it('runs timeline → likes → comments → favorites in order', async () => {
-    const { deps, myMblog, likesFetch, commentFetch, getFavorites } = createDeps()
+    const { deps, myMblog, likesFetch, commentFetch, fetchRawFavorites } = createDeps()
     myMblog.mockImplementation((_uid: string, page?: number) =>
       Promise.resolve(page === 1 || page === undefined ? mkPage([mkRaw('T1')]) : mkPage([])),
     )
@@ -142,7 +142,7 @@ describe('archiveService D1/D2 sources', () => {
       Promise.resolve(page === 1 ? mkLikePage([mkRaw('L1')]) : mkLikePage([])),
     )
     commentFetch.mockResolvedValue(mkCommentsPage([mkComment('C1', 'P1')], 0))
-    getFavorites.mockResolvedValue({ ok: 1, data: { status: [mkRaw('F1')], total_number: 1 } })
+    fetchRawFavorites.mockResolvedValue({ ok: 1, data: { status: [mkRaw('F1')], total_number: 1 } })
 
     const service = new ArchiveService(deps)
     const items = await collect(service.streamArchive('111', {
@@ -215,7 +215,7 @@ describe('archiveService D1/D2 sources', () => {
   })
 
   it('finishes as done when resuming a favorites checkpoint with favorites disabled', async () => {
-    const { deps, myMblog, getFavorites } = createDeps()
+    const { deps, myMblog, fetchRawFavorites } = createDeps()
     const phases: string[] = []
     const checkpoint: ArchiveCheckpoint = { uid: '111', phase: 'favorites', favoritesPage: 2 }
 
@@ -228,7 +228,7 @@ describe('archiveService D1/D2 sources', () => {
 
     expect(items).toEqual([])
     expect(myMblog).not.toHaveBeenCalled()
-    expect(getFavorites).not.toHaveBeenCalled()
+    expect(fetchRawFavorites).not.toHaveBeenCalled()
     expect(phases).toContain('done')
   })
 
