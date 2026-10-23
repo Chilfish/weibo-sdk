@@ -44,8 +44,8 @@ const sdk = new WeiboSDK({ cookie })
 | `transport` | `WeiboTransport` | `axiosTransport()` | 自定义传输；`fetchTransport()` 用于 Worker / Edge / 测试 |
 | `fetch` | `FetchLike` | `globalThis.fetch` | 访客 token 发放使用的 fetch；主传输默认用 axios |
 | `plugins` | `WeiboPlugin[]` | - | 构造期组装，`apiVersion: 1`，名称唯一 |
-| `maxConcurrent` | `number` | `3` | 令牌桶最大并发 |
-| `delay` | `number \| (retryCount) => number` | `1000` | 请求间隔毫秒 |
+| `burst` | `number` | `3` | 令牌桶容量：同一瞬间的最大突发请求数，也是实际并发上限 |
+| `delay` | `number` | `1000` | 令牌补充间隔毫秒；持续吞吐由它决定 |
 | `retry` | `IWeiboRetryConfig` | 见下 | `retries`（2，上限 10）、`baseDelayMs`（500）、`maxDelayMs`（8000）、`retryOn` |
 | `hooks` | `WeiboSDKHooks` | - | `onLifecycle` / `onRaw` / `onError` |
 | `telemetry` | `WeiboSDKTelemetry` | - | Wide Events sink；sink 抛出的错误被忽略 |

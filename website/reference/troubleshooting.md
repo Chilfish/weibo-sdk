@@ -200,7 +200,7 @@ void new WeiboSDK({
 
 处理：
 
-- 降低并发：`maxConcurrent: 1`、拉长 `delay`（例如 `delay: 3000`）
+- 降低并发：`burst: 1`、拉长 `delay`（例如 `delay: 3000`）
 - 加大退避：调高 `retry.retries` 与 `maxDelayMs`
 - 换用浏览器同 IP 的 Cookie 或网络；长时间 432 说明风控已生效，暂停归档数小时
 - 命中 432 后 SDK 自动暂停全局令牌桶（`RateLimitService.pause`），并发请求依次排队
@@ -249,7 +249,7 @@ void new WeiboSDK({
 
 访客模式下 432 / 429 仍然映射为 `RATE_LIMITED`，SDK 按 `config.retry` 退避并暂停令牌桶，访客 token 保持不变：限流与身份无关，换 token 会再次命中限流。事件里的 `guest_refresh_count` 保持 `0`。
 
-处理方式与 Cookie 模式相同：降低并发（`maxConcurrent: 1`）、拉长 `delay`，或停一段时间。
+处理方式与 Cookie 模式相同：降低并发（`burst: 1`）、拉长 `delay`，或停一段时间。
 
 ### guest 端点返回空对象 `{}`
 
@@ -320,7 +320,7 @@ if (errors.length > 0) {
 │  └─ 增加 timeout 或检查代理（默认已自动退避重试）
 ├─ error.code === 'RATE_LIMITED'（432 / 429）
 │  ├─ 看 request_retry 事件的 attempt / delay_ms 是否已耗尽 retries
-│  ├─ 降低 maxConcurrent / 拉长 delay，或加大 retry 退避
+│  ├─ 降低 burst / 拉长 delay，或加大 retry 退避
 │  └─ 持续 432 → 停一段时间（风控生效），必要时换出口 IP / Cookie
 └─ error.code === 'NET_REQUEST_FAILED'
    ├─ status 4xx → 检查 URL（直接返回错误）

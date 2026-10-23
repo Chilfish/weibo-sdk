@@ -242,7 +242,7 @@ export async function runArchiveUser(
 
     const sdk = createSDK(sdkArgs, {
       delay,
-      maxConcurrent: burst,
+      burst,
       telemetry,
       ...(rawRecorder.hooks === undefined ? {} : { hooks: rawRecorder.hooks }),
     })

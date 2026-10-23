@@ -81,7 +81,7 @@ for await (const event of sdk.userArchive.stream(uid, options)) {
 | `store` | 内存 | 持久化端口，见下 |
 | `signal` | 无 | `AbortSignal`；中止后按未完成处理 |
 
-实际 HTTP 速率由 SDK 的令牌桶控制（`new WeiboSDK({ delay, maxConcurrent })`），`concurrency` 决定同时排队的补全数。CLI 的 `archive user` 默认用 `concurrency=20`、`delay=300`、`burst=8`，`--delay` / `--burst` 是吞吐的主要旋钮。
+实际 HTTP 速率由 SDK 的令牌桶控制（`new WeiboSDK({ delay, burst })`），`concurrency` 决定同时排队的补全数。CLI 的 `archive user` 默认用 `concurrency=20`、`delay=300`、`burst=8`，`--delay` / `--burst` 是吞吐的主要旋钮。
 
 ### 断点续跑与 store 端口
 

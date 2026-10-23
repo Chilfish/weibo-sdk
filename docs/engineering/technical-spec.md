@@ -237,8 +237,8 @@ interface IWeiboConfig {
   xsrfToken?: string                          // 可选，X-XSRF-TOKEN
   proxy?: string | false | { getProxy: (ctx) => string | null | undefined | false | Promise<string | null | undefined | false> }  // 静态 URL / 动态 Provider / false 直连；媒体下载同样生效
   timeout?: number                            // 默认 30000ms
-  maxConcurrent?: number                      // 默认 3（令牌桶容量）
-  delay?: number | ((retryCount: number) => number)   // 默认 1000ms
+  burst?: number                              // 默认 3（令牌桶容量）
+  delay?: number                              // 默认 1000ms
   retry?: {                                   // 请求级重试（P1 可靠性），全部可选
     retries?: number                          // 默认 2（不含首次请求；0 = 不重试；硬上限 10）
     baseDelayMs?: number                      // 默认 500（指数退避起点）
@@ -586,7 +586,7 @@ Guest 模式额外写入的 `context` 字段（便于区分「该换 Cookie」�
 
 `RateLimitService` 基于令牌桶：
 
-- 容量：`config.maxConcurrent`（默认 3）
+- 容量：`config.burst`（默认 3）
 - 补充速率：`config.delay`（默认 1000ms）
 - 等待时发出 `rate_limit_wait` 事件（含 `wait_ms/refill_rate_ms/max_tokens/tokens/reason`）
 - 支持注入 `now()` / `sleep()`（FakeClock）以便离线测试
