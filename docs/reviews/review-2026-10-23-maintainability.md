@@ -108,3 +108,26 @@ followContent 50/100/150），而抓包用的是 `page=1/2/3`。`FollowingPageRe
 - **没有**把 66 个 catch 都加 debug 事件：收益不确定，噪声确定。
 - **没有**给 `burst` 实现 semaphore：令牌桶已经限制突发并发，新增闸门会改变默认吞吐；改名比改语义诚实。
 - **没有**重写 `userArchive` 管线：它和 `archive` 的用途不同（范围归档 vs 全量镜像），合并会把两种 checkpoint 语义揉在一起。
+
+---
+
+# 第二轮复审（同日）：从「描述」回到「证明」
+
+第二轮把判据从「文档有没有写」推到「行为能不能被门禁证明」。10 项结论与处理如下。
+
+| # | 结论 | 处理 | 状态 |
+|---|---|---|---|
+| 1 | 非法 `burst` / `delay` 会让 `acquire()` 空转，请求永久挂起；`burst: 0` 被 `\|\| 3` 静默改写 | `RateLimitService` 与 `FetcherService` 构造期断言 `burst >= 1`、`delay >= 0` 有限；`?? 3` 取代 `\|\| 3`；`delay: 0` = 不限速。补负数 / NaN / Infinity / 小数回归测试 | ✅ 已修 |
+| 2 | 每个 Service 各持一个令牌桶，432 暂停只停命中服务；文档「全局令牌桶」不成立 | `WeiboSDK` 只创建一个 `RateLimitService` 并注入全部 Service；测试断言实例共享，暂停对整实例生效 | ✅ 已修 |
+| 3 | README / `website/api/sdk.md` 教用户读已改名的 `session.details`；门禁只能证明「提过」 | 改为 `session.profile`；`check:docs` 新增字段级校验（代码片段里的 `session.*` / `sdk.*` 必须是公开成员），补 8 个自测 | ✅ 已修并加门禁 |
+| 4 | 最高频误用路径的 7 处裸 `Error` 退化成 `code: 'UNKNOWN'` | 全部改为 `InvalidConfigError`（`CONFIG_INVALID`），带 `field` / `hint` / `next`；补 12 个 CLI / 媒体回归测试 | ✅ 已修 |
+| 5 | Stable 是「文档提过」认证，实现细节拿到稳定承诺 | 20 个实现细节降为 Experimental（186/81 → 166/101）；`check:api` 新增 Stable 保留模式（`*Options` / `*Progress*` / logger 选项等默认不能升回） | ✅ 已修并加规则 |
+| 6 | 对上游漂移的自动化覆盖为 0，只有 push/PR 触发 CI | 新增 `drift.yml`：每周一访客冒烟直连真实上游（无 Cookie）；配置 `WEIBO_COOKIE` 后跑完整 E2E；失败写 summary 并复用 `[drift]` issue | ✅ 已修 |
+| 7 | 覆盖率无机器约束 | 接入 `@vitest/coverage-v8`，`pnpm test:coverage` 进 CI；基线 83.5% lines，阈值 82/82/81/73 且标注为只升不降 | ✅ 已修 |
+| 8 | 双归档管线长期并存，checkpoint / 续跑 / 去重语义不同 | ADR-017 冻结边界（`streamArchive` 唯一枚举状态机；新能力只进 `userArchive`；两种 checkpoint 禁止互传），加静态守卫测试。**没有**合并两套状态机：那是 breaking redesign，需要单独方案 | 🟡 边界已冻结，合并不做 |
+| 9 | God Service 继续长大（TweetService 1472 行 / 30 个公开方法） | 抽出 `services/public/tweet/context.ts`（选项 / 依赖 / 作者归一化 / `loadTweetContext`），Service 只留薄委托；1472 → 1364 行。按域继续拆分记入 backlog C6 | 🟡 首步完成，剩余进 backlog |
+| 10 | 文档体量与政策自相矛盾：上一个 commit 收窄了 AGENTS.md，`docs/README.md` 仍要求「第一步更新文档」 | `docs/README.md` 两处改为与 AGENTS.md 一致的三类；删掉「check:api / check:docs 强制两边同步」的不成立说法 | ✅ 已修 |
+
+**一句话结论**：把能写成门禁的断言都写成了门禁（字段漂移、Stable 保留模式、覆盖率、定时漂移巡检、归档管线边界）；不能写成门禁的两项（双管线合并、God Service 彻底拆分）明确降级为有触发条件的 backlog，而不是继续用文档假装已解决。
+
+**门禁**：1012 passed / 28 skipped；typecheck、eslint、check:api（267 exports）、check:docs、test:coverage 全绿。

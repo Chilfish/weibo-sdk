@@ -9,6 +9,8 @@
 - 公开文档站：指南、API 参考、CLI、契约与格式。
 - 归档 JSON Schema 随包发布，可离线校验。
 - 新增 `tweets.context`、`tweets.replies` / `streamReplies`、`tweets.longText`。
+- 每周一次的 `Upstream Drift` 工作流：无 Cookie 的访客冒烟直连真实上游，配置 `WEIBO_COOKIE` secret 后额外跑完整 E2E。
+- `pnpm test:coverage` 成为 CI 门禁（v8 覆盖率，阈值只允许上调）。
 
 ### 变更
 
@@ -34,6 +36,13 @@
 - API 分层收紧：66 个只在文档里被顺带提及的导出（各方法的 `*Options` / `*Progress`、
   `Capability*` 枚举、`ArchivePhase` 等运行时标签与几个辅助常量）从 Stable 降为 Experimental。
   方法签名本身仍稳定；详见 `docs/engineering/api-stability.md`。
+- API 分层再收紧：20 个实现细节（`*Options` / `*Progress*` / logger 选项 / `Credential*` /
+  `PluginRequestInfo` / `TransportFailure*`）从 Stable 降为 Experimental；`check:api` 新增
+  「Stable 保留模式」规则，这类形状默认不能升回 Stable。
+- **行为变更**：所有 Service 共享同一个令牌桶。此前每个 Service 各持一个桶，432 后的暂停只影响
+  命中限流的那个服务，实际 QPS 是「服务数 × 1/delay」；现在暂停与平均速率对整实例生效。
+- **破坏性**：`burst` 必须是 `>= 1` 的整数，`delay` 必须是 `>= 0` 的有限数（`0` 明确表示不限速）。
+  非法值在构造期抛 `CONFIG_INVALID`；`burst: 0` 不再被静默改成 `3`。此前负数配置会让请求永久挂起。
 
 ### 修复
 
@@ -41,6 +50,10 @@
 - `followings.streamFollowings` / `streamFans` / `streamMyFollowings`：使用上游 `hasMore` 提前结束，
   少发一次必然为空的请求。`FollowingPageResult.cursor` 是上游偏移量，不是页码。
 - m 站关注 / 粉丝用户卡片改为经 `FollowingUserSchema` 校验，形状漂移时抛结构化错误而不是靠类型断言。
+- CLI 归档的 7 处裸 `Error`（输出文件已存在 / 旧版 journal / meta 损坏或不兼容 / raw 路径冲突）
+  改为结构化 `CONFIG_INVALID`，`formatCliError` 不再退化成 `code: 'UNKNOWN'`。
+- 公开文档的 `session.details` 更正为 `session.profile`；`check:docs` 新增字段级漂移检查
+  （`session.*` / `sdk.*` 必须是对应类型的公开成员）。
 
 ## 0.5.0 (2026-10-22)
 

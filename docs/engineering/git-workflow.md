@@ -86,6 +86,9 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 - `simple-git-hooks` + `lint-staged` 在 `prepare` 自动安装，pre-commit 钩子已配置
 - **禁止 `--no-verify` 跳过钩子**；钩子失败必须修复根因
 - **E2E 门控**：`tests/e2e/**` 仅在 `WEIBO_E2E=1` **且** `.env` 中存在 `WEIBO_COOKIE` 时运行；`WEIBO_E2E` 由 `vitest.e2e.config.ts` 显式设置，**不放入 `.env`**；Cookie 不读取环境变量
+- **覆盖率门禁**：CI 额外运行 `pnpm test:coverage`（v8）。阈值在 `vitest.config.ts` 的 `coverage.thresholds`，是**棘轮**：新增测试拉高覆盖率后应上调，永远不要为了过 CI 而下调
+- **定时漂移巡检**：`.github/workflows/drift.yml` 每周一 01:00 UTC 直连真实上游跑 `tests/e2e/guest.e2e.test.ts`（无需 Cookie）；仓库配置 `WEIBO_COOKIE` secret 时额外跑完整 E2E。失败会写 step summary，并尝试创建 / 复用标题为 `[drift] upstream API drift detected` 的 issue，避免上游悄悄变更却无人发现
+- **文档字段门禁**：`pnpm check:docs` 除内部引用外，还校验 `website/**` 与 `README.md` 代码片段里的 `session.*` / `sdk.*` 是否是对应类型的公开成员；`pnpm check:api` 校验 Stable 分层与「实现细节不得默认 Stable」的保留模式
 
 ## 代码审查
 
