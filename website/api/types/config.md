@@ -82,9 +82,4 @@ outline: deep
 
 ## 微博 id
 
-| 类型 / 函数 | 说明 |
-|---|---|
-| `ParsedTweetId` / `TweetIdKind` | 解析结果（`mblogid` / `mid`） |
-| `parseTweetIdInput(input)` | 解析 mblogId / 数字 mid / 状态 URL |
-| `normalizeTweetIdInput(input)` | 归一化为可请求的 id |
-| `midToMblogId(mid)` | 数字 mid → mblogId |
+SDK 与 CLI 的 id 参数接受 mblogId、数字 mid 或微博状态 URL，并自动归一化。解析逻辑属于内部实现，不从包根导出。

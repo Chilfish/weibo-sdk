@@ -28,7 +28,7 @@
 | `docs/README.md` | 文档中央索引（按分类导航 + 约定） |
 | `docs/requirements/requirements-spec.md` | 需求规格（产品愿景 = 个人数据归档） |
 | `docs/engineering/technical-spec.md` | 分层架构与契约定义（与实现对齐） |
-| `docs/engineering/api-stability.md` | 公开 API 稳定性政策（Stable / Experimental / Internal） |
+| `docs/engineering/api-stability.md` | 公开 API 稳定性政策（Stable / Evolving / Experimental / Internal） |
 | `docs/requirements/glossary.md` | 意见性术语表（领域/协议/架构/可观测性） |
 | `docs/planning/architecture.md` | 架构决策记录（ADR） |
 | `docs/planning/roadmap.md` | 开发路线图、测试策略、fixture 清单、真实数据获取操作手册 |

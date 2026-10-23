@@ -21,7 +21,7 @@
 | 契约与格式（`ITweet` v2、归档 v2、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
 | 导出索引（全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
 
-**约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的一致性由门禁**部分**保证，不是「强制同步」：`pnpm check:api` 只校验导出面分层与「Stable 导出在 `website/**` 代码片段中有说明」，`pnpm check:docs` 只校验 `website/**` + 根 `README.md` 无内部引用、且代码片段里的 `session.*` / `sdk.*` 是真实公开成员。语义是否一致仍需人工评审（政策见 [engineering/api-stability.md](engineering/api-stability.md) §6）。
+**约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的一致性由门禁**部分**保证，不是「强制同步」：`pnpm check:api` 只校验导出面分层（Stable / Evolving）、方法层级与「Stable 导出在 `website/**` 代码片段中有说明」，`pnpm check:docs` 只校验 `website/**` + 根 `README.md` 无内部引用、且代码片段里的 `session.*` / `sdk.*` 是真实公开成员。语义是否一致仍需人工评审（政策见 [engineering/api-stability.md](engineering/api-stability.md) §6）。
 
 ---
 
@@ -78,7 +78,7 @@
 | 文档 | 说明 | 何时阅读 |
 |---|---|---|
 | [technical-spec.md](engineering/technical-spec.md) | 架构与契约规格（分层、实体契约、接口定义、错误体系、可测试性） | 任何实现/契约变更 |
-| [api-stability.md](engineering/api-stability.md) | 公开 API 稳定性政策：Stable / Experimental / Internal 分层、变更流程、门禁 | 新增/修改公开导出、评审 breaking change |
+| [api-stability.md](engineering/api-stability.md) | 公开 API 稳定性政策：Stable / Evolving / Experimental / Internal 分层、shape 维度、变更流程、门禁 | 新增/修改公开导出、评审 breaking change |
 | [cli-architecture.md](engineering/cli-architecture.md) | CLI 内部架构：命令树、bin 入口、新增子命令流程 | 添加/修改 CLI 子命令 |
 | [git-workflow.md](engineering/git-workflow.md) | 分支模型、Commit 规范、验证门禁、PR/合并、发布 | 每次 commit / PR |
 | [code-style.md](engineering/code-style.md) | TS 命名、文件组织、分层约束、禁止事项、测试规范 | 写代码前 |
