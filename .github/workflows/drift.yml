@@ -83,10 +83,12 @@ jobs:
     name: Full E2E suite (requires WEIBO_COOKIE)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # 注意：GitHub 的 `jobs.<job_id>.if` 不支持 `secrets` 上下文
-    # （见 contexts 可用性表），因此这里只能逐个 step 用
-    # `if: ${{ secrets.WEIBO_COOKIE != '' }}` 门控；
-    # 未配置 Cookie 时整个 job 实际上什么也不做（全绿跳过）。
+    # GitHub 的 `jobs.<job_id>.if` 与 `steps[*].if` 都不支持 `secrets` 上下文
+    # （见 contexts 可用性表）；在 `if` 里引用会让整个 workflow 编译失败。
+    # 因此先把 secret 映到 job 级 env，再用 `env.WEIBO_COOKIE` 门控。
+    # 未配置 Cookie 时这些 step 全部跳过（全绿）。
+    env:
+      WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
     steps:
       - uses: actions/checkout@v7
 
@@ -99,22 +101,20 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - if: ${{ secrets.WEIBO_COOKIE != '' }}
+      - if: env.WEIBO_COOKIE != ''
         run: pnpm install --frozen-lockfile
 
       # 用 printf 写 .env（不做 echo，避免 secret 进日志 / 引号被展开出错）；
       # tests/e2e/setup-env.ts 只从 .env 读取 Cookie，不继承同名环境变量。
       # 注意：WEIBO_COOKIE secret 必须是单行（.env 是逐行的 KEY=VALUE）。
       - name: Write .env with cookie
-        if: ${{ secrets.WEIBO_COOKIE != '' }}
-        env:
-          WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
+        if: env.WEIBO_COOKIE != ''
         run: |
           umask 077
           printf 'WEIBO_COOKIE=%s\n' "$WEIBO_COOKIE" > .env
 
       - name: Run full E2E suite
-        if: ${{ secrets.WEIBO_COOKIE != '' }}
+        if: env.WEIBO_COOKIE != ''
         run: pnpm test:e2e --run
 
       - name: Summarize drift failure
