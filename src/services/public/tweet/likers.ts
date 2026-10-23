@@ -26,7 +26,7 @@ export async function loadLikersPage(
   const startAt = Date.now()
   const id = await source.resolveMid(mblogId)
   const raw = await source.fetchPage(id, page)
-  const rawLikers = raw.data.data ?? []
+  const rawLikers = raw.data?.data ?? []
 
   const seen = new Set<string>()
   const likers: TweetLiker[] = []
@@ -42,7 +42,7 @@ export async function loadLikersPage(
 
   await source.emitNormalizeDone({ count: likers.length, durationMs: Date.now() - startAt })
 
-  const total = raw.data.total_number
+  const total = raw.data?.total_number
   const result: TweetLikersPageResult = {
     page: page + 1,
     // 上游没有「是否有下一页」字段：空页即到底；有 total 时以页码 × 本页条数估算。

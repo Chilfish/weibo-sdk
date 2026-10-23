@@ -152,6 +152,7 @@
 | `likers_p1.json` | 19K | `m.weibo.cn/api/attitudes/show?id=&page=1` | 50 条点赞者；`data.total_number = 107` |
 | `likers_p2.json` | 17K | 同上 `page=2` | 45 条 |
 | `likers_end.json` | 0K | 同上 `page=3` | `data.data: null`（越界停止态） |
+| `likers_empty.json` | 0K | 同上（无点赞的微博） | `{ ok: 0, msg: "还没有人赞过" }`，不带 `data`（真实空结果） |
 | `mentions_p1.json` | 64K | `/ajax/statuses/mentions` | 第 1 页，16 条；`next_cursor = 5337232611217339` |
 | `mentions_p2.json` | 44K | 同上 `max_id=<第1页 next_cursor>` | 第 2 页，11 条 |
 | `mentions_end.json` | 0K | 同上越界 `page=999` | `statuses: []`、`next_cursor: 0` |

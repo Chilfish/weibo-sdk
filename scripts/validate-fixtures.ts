@@ -118,6 +118,7 @@ export const FIXTURE_RULES: Record<string, FixtureRule> = {
   'likers_p1.json': validate(likersSpec),
   'likers_p2.json': validate(likersSpec),
   'likers_end.json': validate(likersSpec),
+  'likers_empty.json': validate(likersSpec),
   'mentions_p1.json': validate(mentionsSpec),
   'mentions_p2.json': validate(mentionsSpec),
   'mentions_end.json': validate(mentionsSpec),

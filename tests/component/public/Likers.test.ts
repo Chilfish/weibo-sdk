@@ -86,6 +86,31 @@ describe('tweetService.likers', () => {
     expect(result.total).toBe(107)
   })
 
+  it('treats the real empty-state response (ok: 0, no data) as an empty page', async () => {
+    const empty = await loadFixture('likers_empty.json')
+    expect(likersSpec.schema.safeParse(empty).success).toBe(true)
+
+    const { service, telemetry } = createService({ 1: empty })
+    const result = await service.likers(MID)
+
+    expect(result).toEqual({ page: 2, hasMore: false, likers: [] })
+    expect(telemetry.byName('normalize_done')).toEqual([
+      expect.objectContaining({ model: 'TweetLiker', count: 0 }),
+    ])
+  })
+
+  it('stops the stream immediately on the empty state', async () => {
+    const empty = await loadFixture('likers_empty.json')
+    const { service, requested } = createService({ 1: empty })
+
+    const ids: string[] = []
+    for await (const liker of service.streamLikers(MID))
+      ids.push(liker.id)
+
+    expect(ids).toEqual([])
+    expect(requested).toEqual([1])
+  })
+
   it('streams p1 + p2 and stops at the null page without duplicates', async () => {
     const [p1, p2, end] = await Promise.all([
       loadFixture('likers_p1.json'),

@@ -58,6 +58,8 @@
 
 ### 修复
 
+- `tweets.likers` / `streamLikers`：微博还没有人点赞时（上游返回 `{ ok: 0, msg: "还没有人赞过" }`，
+  不带 `data`）改为返回空页并正常结束流，不再抛 `API_NOT_OK`。
 - `tweets.streamByUserId`：整页都是广告时不再提前终止（`hasMore` 改为依据上游原始页）。
 - `followings.streamFollowings` / `streamFans` / `streamMyFollowings`：使用上游 `hasMore` 提前结束，
   少发一次必然为空的请求。`FollowingPageResult.cursor` 是上游偏移量，不是页码。

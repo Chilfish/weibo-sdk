@@ -131,6 +131,7 @@ page.total
 - 上游只接受数字 mid；传 mblogId / URL 时方法先用 `statuses/show` 解析一次。
 - 网页端 `likeShow` 恒返回空数组，该能力在能力清单里标记为 `degraded`。
 - `hasMore` 按空页与 `total` 估算。
+- 还没有人点赞时上游返回 `{ ok: 0, msg: "还没有人赞过" }`，方法返回空页（`likers: []`、`hasMore: false`），不抛错误。
 
 ## `streamLikers(mblogId, options?)`
 
