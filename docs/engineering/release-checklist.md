@@ -1,6 +1,6 @@
 # Release Checklist
 
-**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-22
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-23
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（`pnpm release` 打 tag → CI 发布 npm → 手写 GitHub Release）时的完整清单。
@@ -21,12 +21,12 @@
 - [x] `pnpm run lint` 通过（2026-10-20；2026-10-21 / 0.3.2、2026-10-22 / 0.4.0、0.5.0 CI 复跑通过；本地 `eslint .` 已排除 `data/**`，见 [postmortem 012](../postmortem/012-eslint-local-capture-data.md)）
 - [x] `pnpm run build` 通过（tsdown，确认 `dist/index.mjs` + `.d.mts` + `dist/browser.mjs` 生成；2026-10-20；2026-10-21 / 0.3.2、2026-10-22 / 0.4.0、0.5.0 CI 复跑通过）
 - [x] `node scripts/browser-smoke.mjs --no-browser` 通过（导出条件解析 + Node 构建导入；2026-10-21，0.3.1 因该检查未同步条件 `exports` 在 CI 失败后修复并纳入本地门禁；2026-10-22 / 0.4.0、0.5.0 本地与 CI 均通过）
-- [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped；2026-10-22 / 0.4.0：956 passed / 23 skipped；2026-10-22 / 0.5.0：958 passed / 23 skipped）
-- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail；2026-10-22 / 0.4.0、0.5.0：113 fixtures，102 ok / 11 unmodeled / 0 fail）
-- [ ] `pnpm check:api` 通过（导出面快照 + Stable/Experimental 分层 + 文档覆盖率）
-- [ ] `pnpm check:docs` 通过（公开站点无内部路径 / 内部文档链接）
-- [ ] `pnpm schema:check` 通过（归档 schema 无漂移）
-- [ ] `pnpm docs:build` 通过（VitePress 构建 + 死链检查）
+- [x] `pnpm test` 全绿（默认离线；2026-10-21 / 0.3.2：772 passed / 23 skipped；2026-10-22 / 0.4.0：956 passed / 23 skipped；2026-10-22 / 0.5.0：958 passed / 23 skipped；2026-10-23 / 输出归一化：971 passed / 28 skipped）
+- [x] `pnpm run validate:fixtures` 通过（离线契约回归，E5 已落地：fixtures × schema safeParse；2026-10-21 / 0.3.2：106 fixtures，98 ok / 8 unmodeled / 0 fail；2026-10-22 / 0.4.0、0.5.0：113 fixtures，102 ok / 11 unmodeled / 0 fail；2026-10-23 复跑一致）
+- [x] `pnpm check:api` 通过（导出面快照 + Stable/Experimental 分层 + 文档覆盖率；2026-10-23：267 exports / 25 docs pages）
+- [x] `pnpm check:docs` 通过（公开站点无内部路径 / 内部文档链接；2026-10-23：47 页）
+- [x] `pnpm schema:check` 通过（归档 schema 无漂移；2026-10-23）
+- [x] `pnpm docs:build` 通过（VitePress 构建 + 死链检查；2026-10-23）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 / 0.5.0 提交均正常触发 lint-staged）
 
 ## 包身份核验
@@ -42,14 +42,14 @@
 
 - [x] 公开导出面与 `api-surface.json` / `api-surface.snapshot.json` 一致（无内部实现泄漏；`pnpm check:api` 强制；2026-10-22 起）
 - [x] `exports` 字段回归测试通过（`vitest-package-exports`，见 `tests/unit/entry/exports.test.ts`；2026-10-20；2026-10-22 / 0.5.0 复跑通过；新增 `./schemas/*` 断言）
-- [x] 新增响应类型已用 `z.infer` 推导并导出（2026-10-20；2026-10-22 / 0.5.0 `MyMblogResponse` / `StatusShowResponse` 不再退化为 `any`）
+- [x] 端点响应由 `z.infer` 推导；公开读取方法返回 camelCase 领域模型，raw 响应类型不再从包根导出（2026-10-23）
 - [x] 下游产物完整性门禁（见 [package-integrity.md](./package-integrity.md) §5）：`publint` / `attw` / tarball 安装 / Vite / tree-shaking / Worker smoke（2026-10-21；2026-10-22 / 0.5.0 在 bump 后重建再跑 `lint:package` / `verify:package` / `test:bundle` 均通过）
 
 ## 功能冒烟（真实环境，`WEIBO_E2E=1`）
 
 > 真实 Cookie **只从项目根目录 `.env` 读取**（`tests/e2e/setup-env.ts` 会覆盖环境变量），勾选并记录日期。E2E 用例默认跳过，发布前由维护者显式开启。
 
-- [x] `pnpm test:e2e` 全绿（2026-10-20 / 0.3.0：18 passed / 5 skipped（guest E2E 未开启）；0.2.0 时首跑发现 `favorites/all_fav` 快照缺少顶层 `count` / `total_page`，已更新快照；2026-10-22 / 0.5.0：23 passed（含 guest），先刷新 `statuses/show` 的 `user.status_total_counter` 上游漂移快照）
+- [x] `pnpm test:e2e` 全绿（2026-10-20 / 0.3.0：18 passed / 5 skipped（guest E2E 未开启）；0.2.0 时首跑发现 `favorites/all_fav` 快照缺少顶层 `count` / `total_page`，已更新快照；2026-10-22 / 0.5.0：23 passed（含 guest）；2026-10-23：28 passed（含 guest），刷新 `statuses/show` 的 `user.status_total_counter` 上游漂移快照）
 - [x] CLI 关键命令冒烟：`whoami` / `archive` / `tweet detail` / `trends` / `capabilities` / `tweet home-stream`（2026-10-20；含从打包 tarball 安装后执行 `whoami`）
 - [x] `sdk.selfCheck()` 在真实 Cookie 下返回 ok（2026-10-20，E2E lifecycle 用例）
 - [x] 一次真实归档链路跑通：断点续传 + 进度事件（2026-10-20：`archive --max-pages 1` 产出 20 条，checkpoint 落盘正常）

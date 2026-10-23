@@ -287,7 +287,7 @@ interface IWeiboConfig {
 
 > **公开方法签名、参数、返回与错误以文档站为单一事实源**：<https://weibo-sdk.chilfish.top/api/>。本节只保留内部实现要点与跨服务约束；新增/修改方法时先改 `website/api/**`，再改代码。
 
-> **raw 数据源（2026-10-21）**：公开面默认走归一化方法。需要原始响应的场景用 `tweets.enrich`、`hooks.onRaw` 或归档层专用的 `fetchRaw*` 方法；不再保留带 `@deprecated` 的生熟双 API。无归一化对应的 raw 方法（`comments` / `longText` / `getReposts` / `searchByDate` / `getFavorites` / `getFollowings` 等）继续作为公开 API，稳定性标记为 Experimental。
+> **raw 数据源（2026-10-23）**：公开读取方法统一返回归一化 camelCase 模型。需要原始响应时用 `tweets.enrich`、`hooks.onRaw` 或显式的 `fetchRaw*` 方法；上游响应类型不从包根导出。`fetchRaw*` 的稳定性标记为 Experimental。
 
 **UserService**（`sdk.users`）
 
@@ -295,7 +295,8 @@ interface IWeiboConfig {
 |---|---|---|
 | `fetchRawInfo` | `(id: string) => Promise<UserInfoResponse>` | 用户信息（低层 raw 数据源；公开使用请走 `getById`） |
 | `fetchRawDetails` | `(id: string) => Promise<UserDetailsResponse>` | 用户详情（低层 raw 数据源；公开使用请走 `getById`） |
-| `myDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情（无 uid，`skipPreflight`；会话自检原语） |
+| `fetchRawMyDetails` | `() => Promise<UserDetailsResponse>` | 当前登录用户详情 raw（无 uid，`skipPreflight`） |
+| `myDetails` | `() => Promise<ISelfProfile>` | 当前登录用户归一化资料（会话自检原语；uid 从 `verified_url` 解析） |
 | `getById` | `(id: string) => Promise<User>` | info + details 归一化为 `User` |
 | `listMentions` | `({ maxId?, page? }?) => Promise<UserMentionsPageResult>` | `@我的微博` 单页（`max_id` / `page` 等价；`since_id` 被忽略） |
 | `streamMentions` | `({ maxId?, page?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 游标翻页 + 跨页 `mblogid` 去重；`next_cursor === 0` / 空页 / 游标不前进 / 范围边界停止；时间倒序，支持日期早停 |
@@ -314,10 +315,15 @@ interface IWeiboConfig {
 | `streamByUserId` | `(uid, { page?, count?, maxPages?, maxItems?, since?, until? }?) => AsyncIterableIterator<Tweet>` | 自动翻页流式；时间倒序，支持条数 / 日期边界 |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
 | `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v2 |
-| `comments` | `(mblogId, options?) => Promise<BuildCommentsResponse>` | 评论列表 |
-| `longText` | `(mblogId) => Promise<LongtextResponse>` | 长微博全文 |
-| `getReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发列表 |
-| `searchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`，字符串在请求前换算为秒，日期取本地时区） |
+| `comments` | `(mblogId, options?) => Promise<TweetCommentsPageResult>` | 归一化评论页（`comments` / `cursor` / `hasMore` / `total?` / `notice?`） |
+| `replies` | `(mblogId, rootCommentId, options?) => Promise<TweetCommentsPageResult>` | 一级评论下的二级评论 |
+| `fetchRawComments` / `fetchRawReplies` | `(...) => Promise<BuildCommentsResponse>` | 评论原始页 |
+| `longText` | `(mblogId) => Promise<TweetLongText>` | 长微博全文（`text` 优先 `longTextContent_raw`） |
+| `fetchRawLongText` | `(mblogId) => Promise<LongtextResponse>` | 长文原始响应 |
+| `getReposts` | `(mblogId, { page?, count? }?) => Promise<TweetRepostsPageResult>` | 归一化转发页 |
+| `fetchRawReposts` | `(mblogId, { page?, count? }?) => Promise<RepostTimelineResponse>` | 转发原始页 |
+| `searchByDate` | `(uid, options?) => Promise<TweetSearchByDatePageResult>` | 日期范围搜索（`starttime` / `endtime` 接受 **unix 秒**或 `YYYY-MM-DD` / `YYYYMMDD`） |
+| `fetchRawSearchByDate` | `(uid, options?) => Promise<SearchProfileResponse>` | 日期搜索原始响应 |
 | `listFriendTimeline` | `({ max_id?, since_id?, list_id?, fid?, count?, refresh? }?) => Promise<TweetPageResult>` | 首页「最新微博」（归一化）；`max_id` 翻旧页，`since_id` 只做增量过滤 |
 | `streamFriendTimeline` | `({ maxId?, sinceId?, listId?, fid?, refresh?, count?, maxPages?, maxItems?, since?, until?, onProgress? }?) => AsyncIterableIterator<Tweet>` | `max_id` 自动翻页 + 跨页 `mblogId` 去重；`sinceId` 只请求一页增量；支持条数 / 日期边界 |
 | `likers` | `(mid, { page? }?) => Promise<TweetLikersPageResult>` | 微博点赞者单页（m 站 `api/attitudes/show`；数字 mid / mblogId / URL 均可，非数字会自动解析） |
@@ -328,15 +334,16 @@ interface IWeiboConfig {
 > 分页游标按端点分：`mymblog`（`listByUserId`/`streamByUserId`）用 `page`（下一页页码；2026-08 曾弃用 `since_id`，2026-10-20 复测 `since_id` 与 `page` 均可用且等价，归一化仍以 `page` 为主）；
 > `friendstimeline`（`listFriendTimeline`/`streamFriendTimeline`）用 `maxId` 翻旧页（响应 `max_id`；`0` = 到底），`since_id` 只做增量过滤；`total_number` 实测恒为 2000 上限值，不能当作剩余条数。`mymblog.data.since_id` 的 raw 类型为 `string | number`。
 
-**FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FriendshipsResponse`
+**FollowingsService**（`sdk.followings`）：`getFollowings(uid, page?)`（关注）/ `getFans(uid, page?)`（粉丝，`relate=fans`）/ `getMyFollowings(page?)`——均返回 `FollowingPageResult`（`users: UserBrief[]`、`specialAttention?`、`cursor?`、`hasMore`、`total?`）；流产出 `UserBrief`。raw 入口：`fetchRawFollowings` / `fetchRawFans` / `fetchRawMyFollowings`。
 **FavoriteService**（`sdk.favorites`）：
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `getFavorites` | `(uid, page?) => Promise<FavoritesResponse>` | raw 收藏响应（`data.status` / `data.total_number`；`page < 1` 按未指定处理） |
+| `fetchRawFavorites` | `(uid, page?) => Promise<FavoritesResponse>` | raw 收藏响应（`page < 1` 按未指定处理） |
 | `listFavorites` | `(uid, { page?, tag? }?) => Promise<FavoritePageResult>` | 单页归一化 + 页内去重 + 客户端标签过滤 |
 | `streamFavorites` | `(uid, { page?, tag?, maxPages?, maxItems?, onProgress? }?) => AsyncIterableIterator<Tweet>` | 自动翻页 + 跨页去重 + 标签过滤 |
-| `getTags` | `() => Promise<FavoritesTagsResponse>` | 收藏夹标签清单 |
+| `getTags` | `() => Promise<FavoriteTagList>` | 归一化标签清单（`tags: FavoriteTag[]`、`total?`） |
+| `fetchRawTags` | `() => Promise<FavoritesTagsResponse>` | 标签原始响应 |
 
 > `FavoritePageResult = { page: number, hasMore: boolean, total?: number, totalPages?: number, tweets: Tweet[] }`。
 > `hasMore` 优先用顶层 `total_page`，缺失时退回 `total_number` 估算；流式路径另有「整页重复即停止」保护。
@@ -393,8 +400,8 @@ interface IWeiboConfig {
 
 **TopicService**（`sdk.topics`）：`cates()`（超话分类）/ `list({ sortId?, keyword?, page? })`（`count` 为总页数）/ `stream({ sortId?, keyword?, page?, maxPages?, onProgress? })`。
 
-**TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）
-**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` — ⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
+**TrendsService**（`sdk.trends`）：`hotBand(type?='hot')`（`'hot' | 'topic' | 'entertainment'`）→ `TrendItem[]`；raw 入口 `fetchRawBand`。
+**SearchService**（`sdk.search`）：`searchUsers(query, page?)` / `searchTweets(query, page?)` → `SearchUserPageResult` / `SearchTweetPageResult`；raw 入口 `fetchRawSearchUsers` / `fetchRawSearchTweets`。⚠️ **known-issue + 产品暂缓（2026-08 / 2026-10-19）**：m.weibo.cn 公开关键词搜索接口已失效（返回登录页 HTML，weibo.com cookie 不适用），且官方搜索体验差、逆向收益低；调用会抛 `UnexpectedAPIResponseError`（`API_BAD_RESPONSE`）。**不要与个人主页内按日期搜索混淆**：`searchProfile`（`searchByDate`）仍可用，属于归档能力。
 
 **ArchiveService**（`sdk.archive`）：单账号归档编排层（不直接发请求，注入子 Service）
 
@@ -527,7 +534,7 @@ interface EndpointSpec<TResource, TArgsSchema> {
 **构建产物**：Node 入口 `@chilfish/weibo-sdk` → `dist/index.mjs`；CLI 二进制 `weibo-cli` → `dist/cli-bin.mjs`；浏览器/userscript 入口 `@chilfish/weibo-sdk/browser` → `dist/browser.mjs`（platform browser，axios/zod 内联，类型复用 `dist/index.d.mts`）。浏览器运行时 `proxy` 不注入 axios `proxy`（由浏览器/宿主决定代理）。
 
 **规则**：
-- 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`），消费者应使用导出的命名类型，而非手写接口。
+- 所有响应类型由 endpoint 的 Zod schema 推导（`z.infer`）。公开读取方法返回 `types/domain/**` 的领域模型；raw 响应类型只用作 `fetchRaw*` 的返回值，不从包根导出。
 - 手写 raw 响应接口（原 `types/raw/**`）已删除；端点类型以 `services/endpoints/*.ts` 的 `z.infer` 为唯一事实源。递归响应（转发 / 楼中楼）用「基础 schema + `z.lazy`」表达，见 [endpoint-authoring.md](./endpoint-authoring.md)。
 - 禁止从包入口导出内部实现（`services/*`、`models/data` 内部 helper 等）。
 

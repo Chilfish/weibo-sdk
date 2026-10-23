@@ -22,21 +22,25 @@
 
 ### 方法
 
-- `users`：`getById`、`myDetails`（返回 raw，但语义稳定）、`groups`、`mblogGroups`、`listMentions`、`streamMentions`。
-- `tweets`：`getByMblogId`、`enrich`、`context`、`listByUserId`、`streamByUserId`、`listFriendTimeline`、`streamFriendTimeline`、`streamComments`、`streamReplies`、`streamReposts`。
-- `followings`：`streamFollowings`、`streamFans`、`streamMyFollowings`。
-- `favorites`：`listFavorites`、`streamFavorites`。
+所有公开读取方法返回归一化 camelCase 模型。
+
+- `users`：`getById`、`myDetails`、`groups`、`mblogGroups`、`listMentions`、`streamMentions`。
+- `tweets`：`getByMblogId`、`enrich`、`context`、`listByUserId`、`streamByUserId`、`listFriendTimeline`、`streamFriendTimeline`、`comments`、`replies`、`streamComments`、`streamReplies`、`getReposts`、`streamReposts`、`longText`、`searchByDate`、`likers`、`streamLikers`。
+- `followings`：`getFollowings`、`getFans`、`getMyFollowings`、`streamFollowings`、`streamFans`、`streamMyFollowings`。
+- `favorites`：`listFavorites`、`streamFavorites`、`getTags`。
 - `likes`：`listByUserId`、`streamByUserId`。
 - `commentHistory`：`listMine`、`streamMine`。
 - `media`：`listImages`、`streamImages`、`listVideos`、`streamVideos`、`listAlbums`、`listAlbumPhotos`、`streamAlbumPhotos`、`downloadTweetMedia`、`downloadByMblogId`。
 - `notifications`：全部 4 个方法。
 - `topics`：`cates`、`list`、`stream`。
+- `trends`：`hotBand`。
+- `search`：`searchUsers`、`searchTweets`（`unavailable`，但返回形状稳定）。
 - `archive`：`streamArchive`、`streamUsersArchive`。
 - `userArchive`：`stream`、`run`。
 
 ### 类型
 
-领域模型（`ITweet` 家族、`IUser`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchive*`）、能力清单类型、错误类与错误码、各方法的 `*Options` / `*PageResult` / `*Progress`。
+领域模型（`ITweet` 家族、`IUser` / `UserBrief` / `ISelfProfile`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`TrendItem`、`FavoriteTag` / `FavoriteTagList`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchive*`）、能力清单类型、错误类与错误码、各方法的 `*Options` / `*PageResult` / `*Progress`（含 `FollowingPageResult`、`TweetCommentsPageResult`、`TweetRepostsPageResult`、`TweetLongText`、`TweetSearchByDatePageResult`、`SearchUserPageResult`、`SearchTweetPageResult`）。
 
 ### 冻结机制
 
@@ -46,9 +50,10 @@
 
 ## 3. Experimental 子集
 
-- 返回原始上游形状的方法：`users.fetchRaw*`、`tweets.fetchRawUserTimelinePage`、`tweets.comments`、`tweets.replies`、`tweets.getReposts`、`tweets.longText`、`tweets.searchByDate`、`followings.get*`、`favorites.getFavorites`、`favorites.getTags`、`media.fetchRaw*`、`trends.hotBand`、`search.*`（同时 `unavailable`）。
-- 42 个 `z.infer` 端点响应类型（snake_case，随上游漂移）。
-- 辅助函数：`buildTweetContext`、`normalizeTweet`、`normalizeComment`、`normalizeLiker`、`migrateTweetV1toV2`、`diffSchemaDigest`、`formatSchemaDrift`。
+- 返回原始上游形状的 `fetchRaw*` 方法：`users.fetchRawInfo` / `fetchRawDetails` / `fetchRawMyDetails`、`tweets.fetchRawUserTimelinePage` / `fetchRawComments` / `fetchRawReplies` / `fetchRawReposts` / `fetchRawLongText` / `fetchRawSearchByDate`、`followings.fetchRawFollowings` / `fetchRawFans` / `fetchRawMyFollowings`、`favorites.fetchRawFavorites` / `fetchRawTags`、`likes.fetchRawPage`、`commentHistory.fetchRawPage`、`media.fetchRawImagePage` / `fetchRawVideoPage`、`trends.fetchRawBand`、`search.fetchRawSearchUsers` / `fetchRawSearchTweets`。
+- 辅助函数：`buildTweetContext`、`normalizeTweet`、`normalizeComment`、`normalizeLiker`、`migrateTweetV1toV2`、`diffSchemaDigest`、`formatSchemaDrift`、`parseTweetIdInput` / `normalizeTweetIdInput` / `midToMblogId`。
+
+这些方法返回上游 snake_case 形状，字段随上游漂移；响应类型本身不从包根导出。
 
 Experimental 不承诺字段稳定，但必须保持可调用并给出迁移说明。
 
@@ -56,6 +61,7 @@ Experimental 不承诺字段稳定，但必须保持可调用并给出迁移说�
 
 以下符号不从包根导出，也不出现在公开文档：
 
+- 上游响应类型（`UserInfoResponse` / `BuildCommentsResponse` / `FriendshipsResponse` 等所有 `*Response`，以及 `*Item` / `MobileCard*` 等原始条目）。
 - endpoint 参数类型（`*Args`）、服务依赖注入类型（`*Deps`）。
 - `IResource` / `IResourceType`、`RawTweet`、`Tweet` / `User` 类。
 - `PaginateOptions`、`PaginationPage`（`PaginationProgress` 因公共 `onProgress` 签名保留）。

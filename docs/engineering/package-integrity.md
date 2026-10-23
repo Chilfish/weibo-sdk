@@ -96,7 +96,7 @@
 
 ### R6. 公开类型泄漏 axios / zod（低，需持续守卫）
 
-`src/types/index.ts` 导出的是 `z.infer` 的结果类型和业务接口，不导出 schema 本身；`IWeiboConfig` 也没有 axios 类型。但这是当前事实，不是机制保证。
+`src/types/index.ts` 导出的是领域模型、业务接口与公开选项类型，不导出 schema 本身，也不导出上游 `*Response` 类型；`IWeiboConfig` 也没有 axios 类型。但这是当前事实，不是机制保证。
 
 实测（2026-10-21）：dts bundler 会保留 `z.infer` 别名所需的 zod 引用，以及内部模块的裸 `import "axios"` side-effect 行。zod 与 axios 都是运行时 dependency，下游可解析，因此门禁只禁止 **axios 类型泄漏**（`from "axios"` / `import("axios")`），允许 zod 类型引用与裸 side-effect import。未来若公开 `EndpointSpec` 或 schema 值，必须单独 ADR 并评估 zod 版本兼容成本。
 
