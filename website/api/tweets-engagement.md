@@ -7,12 +7,15 @@ outline: deep
 
 | 方法 | 返回 | 分页 | 访客 |
 |---|---|---|---|
-| `comments(mblogId, options?)` | `BuildCommentsResponse` | `maxId` | 可用 |
-| `replies(mblogId, rootCommentId, options?)` | `BuildCommentsResponse` | `maxId` | 可用 |
+| `comments(mblogId, options?)` | `TweetCommentsPageResult` | `maxId` | 可用 |
+| `replies(mblogId, rootCommentId, options?)` | `TweetCommentsPageResult` | `maxId` | 可用 |
 | `streamComments(mblogId, options?)` | `ITweetComment` 流 | `maxId` | 可用 |
 | `streamReplies(mblogId, rootCommentId, options?)` | `ITweetComment` 流 | `maxId` | 可用 |
-| `getReposts(mblogId, options?)` | `RepostTimelineResponse` | `page` | 可用 |
+| `getReposts(mblogId, options?)` | `TweetRepostsPageResult` | `page` | 可用 |
 | `streamReposts(mblogId, options?)` | `ITweet` 流 | `page` | 可用 |
+| `fetchRawComments(mblogId, options?)` | `BuildCommentsResponse` | `maxId` | 可用 |
+| `fetchRawReplies(mblogId, rootCommentId, options?)` | `BuildCommentsResponse` | `maxId` | 可用 |
+| `fetchRawReposts(mblogId, options?)` | `RepostTimelineResponse` | `page` | 可用 |
 | `likers(mblogId, options?)` | `TweetLikersPageResult` | `page` | 可用 |
 | `streamLikers(mblogId, options?)` | `TweetLiker` 流 | `page` | 可用 |
 
@@ -20,7 +23,7 @@ outline: deep
 
 ## `comments(mblogId, options?)`
 
-返回上游 `buildComments` 原始响应；需要归一化字段时用 `streamComments`。请求固定补齐 `is_reload=1` / `is_show_bulletin=2` / `is_mix=0` / `fetch_level=0`。
+返回归一化评论页。请求固定补齐 `is_reload=1` / `is_show_bulletin=2` / `is_mix=0` / `fetch_level=0`。
 
 - 传 `type=feed` 时上游只返回 3 条，调用时省略该参数。
 - 上游忽略 `count`，每页固定 20 条。
@@ -36,6 +39,18 @@ outline: deep
 | `isReply` | `number` | 1 = 二级评论（第一个参数传一级评论 id） |
 | `rootId` | `string \| number` | 可选透传 |
 | `fetchLevel` | `number` | 0=一级，1=二级 |
+
+```ts
+interface TweetCommentsPageResult {
+  comments: ITweetComment[]
+  cursor: number     // 上游顶层 max_id；0 = 到底
+  hasMore: boolean
+  total?: number     // 含楼中楼，仅作参考
+  notice?: string    // 上游提示（防火墙 / tip）
+}
+```
+
+`comments` 保持上游顺序，楼中楼在 `comment.replies`。需要上游原始响应时用 `fetchRawComments`。
 
 ## `replies(mblogId, rootCommentId, options?)`
 
@@ -71,12 +86,24 @@ for await (const reply of sdk.tweets.streamReplies('QqsYymYOS', rootCommentId)) 
 
 ## `getReposts(mblogId, options?)`
 
-返回上游转发列表原始响应；需要归一化字段时用 `streamReposts`。分页用 `page`，`next_cursor` 参数不生效。
+返回归一化转发页。分页用 `page`，`next_cursor` 参数不生效。
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
 | `page` | `number` | 页码 |
 | `count` | `number` | 每页条数 |
+
+```ts
+interface TweetRepostsPageResult {
+  reposts: ITweet[]
+  page: number
+  hasMore: boolean
+  total?: number
+  maxPage?: number
+}
+```
+
+需要上游原始响应时用 `fetchRawReposts`。
 
 ## `streamReposts(mblogId, options?)`
 

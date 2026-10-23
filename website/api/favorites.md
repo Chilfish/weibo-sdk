@@ -9,16 +9,13 @@ outline: deep
 
 | 方法 | 返回 | 分页 | 访客 |
 |---|---|---|---|
-| `getFavorites(uid, page?)` | `FavoritesResponse` | `page` | 不可用 |
 | `listFavorites(uid, options?)` | `FavoritePageResult` | `page` | 不可用 |
 | `streamFavorites(uid, options?)` | `ITweet` 流 | `page` | 不可用 |
-| `getTags()` | `FavoritesTagsResponse` | - | 不可用 |
+| `getTags()` | `FavoriteTagList` | - | 不可用 |
+| `fetchRawFavorites(uid, page?)` | `FavoritesResponse` | `page` | 不可用 |
+| `fetchRawTags()` | `FavoritesTagsResponse` | - | 不可用 |
 
 访客调用抛 `AUTH_SESSION_EXPIRED`（`context.requiredAuth = 'cookie'`）。详见 [访客限制](/guide/limitations)。
-
-## `getFavorites(uid, page?)`
-
-返回上游原始响应；需要归一化字段时用 `listFavorites`。`page < 1` 归一到 1，避免上游 400。
 
 ## `listFavorites(uid, options?)`
 
@@ -59,7 +56,20 @@ for await (const tweet of sdk.favorites.streamFavorites(uid, {
 
 ## `getTags()`
 
-返回上游收藏标签清单的原始响应；元素结构跟随上游。
+返回归一化标签清单：
+
+```ts
+interface FavoriteTagList {
+  tags: FavoriteTag[]   // { id?, name? }
+  total?: number
+}
+```
+
+上游标签元素结构尚无公开样本：字符串 / 数字元素同时作为 id 与名称，对象元素读取常见键；无法识别 id 和 name 的条目会被跳过。需要原始响应时用 `fetchRawTags()`。
+
+## raw 入口
+
+`fetchRawFavorites(uid, page?)` / `fetchRawTags()` 返回上游 snake_case 响应；`page < 1` 归一到 1，避免上游 400。
 
 ## 错误与边界
 

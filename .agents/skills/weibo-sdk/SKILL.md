@@ -198,7 +198,7 @@ const sdk = new WeiboSDK({
 ## 访客能力边界
 
 - 完整可用：用户资料、单条微博、长文、评论（可翻页）、转发、点赞者、图片墙、视频、相册、超话、热搜、媒体下载。
-- 只有第一页：用户时间线、点赞、关注、粉丝（`partial: true` / `next_cursor: 0`，请求第 2 页报 `CONFIG_INVALID`）。
+- 只有第一页：用户时间线、点赞、关注、粉丝（`partial: true` / `cursor: 0`，请求第 2 页报 `CONFIG_INVALID`）。
 - 不可用：首页关注时间线、日期搜索、收藏、通知、@我、历史评论、微博分组、公开搜索 → `AUTH_SESSION_EXPIRED`。
 - 归档不可用 → `CONFIG_INVALID`。
 

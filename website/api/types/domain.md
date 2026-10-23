@@ -55,6 +55,30 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的�
 
 相关：`Gender`、`VerificationType`、`IUserVerification`、`IUserLabel`。
 
+## `UserBrief`
+
+关注 / 粉丝列表与用户搜索结果里的用户简版。完整资料用 `users.getById()` 返回的 `IUser`。
+
+| 字段 | 说明 |
+|---|---|
+| `id` / `name` / `avatar` / `url` | 身份与主页 |
+| `description` / `location` / `gender` | 资料 |
+| `stats` | `{ followers, friends, statuses }`，缺失按 0 |
+| `verified` / `verifiedType` / `verifiedReason` | 认证 |
+| `following` / `followedBy` | 与当前登录用户的关注关系 |
+
+## `ISelfProfile`
+
+当前登录账号的资料（`users.myDetails()`）。只包含 `ajax/profile/detail` 下发的详情侧字段：
+
+| 字段 | 说明 |
+|---|---|
+| `uid` | 从上游 `verified_url` 解析 |
+| `createdAt` / `description` / `ipLocation` / `gender` / `birthday` | 基本资料 |
+| `school` / `company` / `hometown` / `creditLevel` / `realName` | 扩展资料 |
+| `followers` | 粉丝数 |
+| `labelDesc` / `links` | 标签与外部链接 |
+
 ## 媒体
 
 - `IUserMediaAsset`：图片墙 / 视频 / 相册条目（`id`、`type`、`url`、尺寸、`mblogId` 等）。
@@ -68,5 +92,7 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的�
 | `TweetLiker` | 点赞者（用户字段 + `likedAt` / `source`） |
 | `CommentNotification` / `LikeNotification` | 通知项 |
 | `SuperTopic` / `SuperTopicCategory` | 超话 |
+| `TrendItem` | 热搜 / 话题 / 文娱榜条目 |
+| `FavoriteTag` | 收藏夹标签 |
 | `UserGroup` / `MblogGroup` | 关注分组 / 微博分组 |
 | `ITweetContext` | Agent 视角上下文，见 [微博上下文](/api/types/tweet-context) |

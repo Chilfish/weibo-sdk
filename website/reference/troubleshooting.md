@@ -261,7 +261,7 @@ void new WeiboSDK({
 
 访客只能读 m 站容器第一页（用户时间线、点赞、关注、粉丝），匿名请求第 2 页会被重定向到登录页。表现是：
 
-- 返回结果带 `partial: true`、`hasMore: false`，没有 `page`；关注 / 粉丝的 `next_cursor` 为 `0`。
+- 返回结果带 `partial: true`、`hasMore: false`，没有 `page`；关注 / 粉丝的 `cursor` 为 `0`。
 - 显式请求 `page: 2` 抛 `CONFIG_INVALID`，`context.field = 'page'`、`guestPagination: 'first_page'`。
 - `archive` 在访客模式下直接抛 `CONFIG_INVALID`，`field: 'archive'`，因为归档需要完整时间线。
 
