@@ -62,6 +62,7 @@
 | [research-tweet-special-formats-2026-10-22.md](planning/research-tweet-special-formats-2026-10-22.md) | 微博特殊格式适配：视频 / 文章 / 投票 / 直播 / 抽奖的 PC/m 双结构、m 站视频归一化 bug、`ITweet.attachments` 契约与伪代码 | 实现 / 评审附件能力 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [todo-downstream-handoff.md](planning/todo-downstream-handoff.md) | 下游交接计划：API 稳定子集收口、独立公开文档站（`website/`）、文档迁移与门禁、`0.6.0` 提交顺序 | 实施 / 验收下游交接 |
+| [todo-output-normalization.md](planning/todo-output-normalization.md) | 公开输出归一化：公开方法一律返回 camelCase 领域模型，raw 只留在 `fetchRaw*`；含新契约、影响面与提交拆分 | 实施 / 验收 0.7.0 输出契约 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
 
