@@ -5,8 +5,9 @@ import type { UserBrief } from '~/types/domain/IUser'
 import type { StreamLimitOptions } from '~/utils/streamRange'
 import { normalizeUserBrief } from '~/models/data/User'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { normalizeMaxPages, paginate } from '../../utils/pagination'
-import { followContentSpec, friendshipsSpec } from '../endpoints/follow'
+import { followContentSpec, FollowingUserSchema, friendshipsSpec } from '../endpoints/follow'
 import { extractMobileUsers, mobileContainerSpec } from '../endpoints/mobile'
 import { FetcherService } from '../internal/FetcherService'
 
@@ -45,9 +46,14 @@ export interface FollowingPageResult {
   users: UserBrief[]
   /** 特别关注分组（仅 `getMyFollowings`；无该分组时缺省） */
   specialAttention?: UserBrief[]
-  /** 下一页游标（上游 `next_cursor`；`0` / 缺省 = 到底） */
+  /**
+   * 上游 `next_cursor` 原样透出。
+   *
+   * 该值在不同端点上是**偏移量**（如 20 / 50 / 150），不是页码，不能直接回传给
+   * `page` 参数；SDK 的翻页参数是 `page`。保留该字段供诊断与自行对接上游。
+   */
   cursor?: number
-  /** 是否可能还有下一页 */
+  /** 是否可能还有下一页（`false` 仅表示上游明确给出了终止游标） */
   hasMore: boolean
   /** 上游 `total_number`（可用时） */
   total?: number
@@ -111,14 +117,23 @@ function normalizeMobileUser(user: Record<string, unknown>): FriendshipsResponse
   const statuses = parseMobileCount(user.statuses_count)
   const { user_token: _userToken, ...rest } = user
 
-  return {
+  // 边界不做 `as`：m 站字段形状与 friendships 不同，经 schema 收窄后才进入领域层。
+  const parsed = FollowingUserSchema.safeParse({
     ...rest,
     ...ids,
     ...(typeof name === 'string' ? { name } : {}),
     ...(followers === undefined ? {} : { followers_count: followers }),
     ...(friends === undefined ? {} : { friends_count: friends }),
     ...(statuses === undefined ? {} : { statuses_count: statuses }),
-  } as FriendshipsResponse['users'][number]
+  })
+  if (!parsed.success) {
+    throw new UnexpectedAPIResponseError('m.weibo.cn user card failed schema validation.', {
+      endpoint: 'm.weibo.cn/container',
+      userId: ids.idstr ?? ids.id,
+      zodIssues: parsed.error.issues,
+    })
+  }
+  return parsed.data
 }
 
 /** 把 m 站 container 第一页的 `card.user` 适配成 `friendships` 响应形状。 */
@@ -139,7 +154,8 @@ function pageFromFriendships(raw: FriendshipsResponse): FollowingPageResult {
   return {
     users,
     ...(cursor === undefined ? {} : { cursor }),
-    hasMore: cursor !== undefined && cursor !== 0 && users.length > 0,
+    // 上游缺省游标时无法判断是否到底，继续翻页；只有明确的终止游标（0）才算结束。
+    hasMore: users.length > 0 && cursor !== 0,
     ...(raw.total_number === undefined ? {} : { total: raw.total_number }),
   }
 }
@@ -155,7 +171,7 @@ function pageFromFollowContent(raw: FollowContentResponse): FollowingPageResult 
     users,
     ...(specialAttention.length > 0 ? { specialAttention } : {}),
     ...(cursor === undefined ? {} : { cursor }),
-    hasMore: cursor !== undefined && cursor !== 0 && users.length > 0,
+    hasMore: users.length > 0 && cursor !== 0,
   }
   if (total !== undefined)
     page.total = total
@@ -374,6 +390,8 @@ export class FollowingsService extends FetcherService {
         return {
           items: result.users,
           next: page + 1,
+          // 上游 next_cursor 是偏移量而不是页码，翻页仍用 page；hasMore 用来提前结束。
+          hasMore: result.hasMore,
           total: result.total,
         }
       },
