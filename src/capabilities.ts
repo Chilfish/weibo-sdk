@@ -277,7 +277,7 @@ export const WEIBO_CAPABILITIES: readonly WeiboCapability[] = [
   {
     id: 'favorites.list',
     service: 'favorites',
-    methods: ['getFavorites', 'listFavorites', 'streamFavorites'],
+    methods: ['listFavorites', 'streamFavorites'],
     description: '收藏夹（可客户端按标签过滤）',
     auth: 'cookie',
     guestNote: '账号级数据；guest 不可用',

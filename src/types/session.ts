@@ -1,4 +1,4 @@
-import type { UserDetailsResponse } from '../services/endpoints/user'
+import type { ISelfProfile } from './domain/IUser'
 
 /**
  * 当前会话上下文：按 SDK 实例缓存，首次解析后复用。
@@ -15,8 +15,8 @@ export interface WeiboSessionContext {
    * 从 `data.verified_url` 中的 `uid=` 解析；guest 模式或上游未返回该字段时为 `undefined`。
    */
   uid?: string
-  /** `ajax/profile/detail` 的原始（schema 校验后）响应；guest 模式缺省。 */
-  details?: UserDetailsResponse
+  /** 当前登录账号的资料（`ajax/profile/detail` 归一化）；guest 模式缺省。 */
+  profile?: ISelfProfile
   /** 解析时间（unix 毫秒） */
   checkedAt: number
   /** guest 模式下的 token 发放时间（unix 毫秒；不含 token 明文）。 */

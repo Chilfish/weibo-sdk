@@ -78,6 +78,85 @@ export interface IUserLabel {
 }
 
 /**
+ * 用户简版领域模型。
+ *
+ * 用于关注 / 粉丝列表与用户搜索结果：只保留列表展示和跳转需要的字段，
+ * 完整资料用 `users.getById()` 返回的 `IUser`。
+ */
+export interface UserBrief {
+  /** 数字串用户 id（优先 `idstr`） */
+  id: string
+  /** 昵称 */
+  name: string
+  /** 头像 URL */
+  avatar: string
+  /** 主页地址 */
+  url: string
+  /** 个人简介 */
+  description?: string
+  /** 所在地 */
+  location?: string
+  /** 性别 */
+  gender: Gender
+  /** 互动计数快照（缺失按 0 处理） */
+  stats: {
+    /** 粉丝数 */
+    followers: number
+    /** 关注数 */
+    friends: number
+    /** 微博数 */
+    statuses: number
+  }
+  /** 是否已认证 */
+  verified: boolean
+  /** 认证类型 */
+  verifiedType: VerificationType
+  /** 认证说明 */
+  verifiedReason?: string
+  /** 当前登录用户是否关注了 TA（上游 `following`；未下发时缺省） */
+  following?: boolean
+  /** TA 是否关注了当前登录用户（上游 `follow_me`；未下发时缺省） */
+  followedBy?: boolean
+}
+
+/**
+ * 当前登录账号的资料（`/ajax/profile/detail` 不带 uid 的响应）。
+ *
+ * 与 `IUser` 的区别：这个端点只返回详情侧字段（IP 属地 / 教育 / 公司 / 标签），
+ * 不包含昵称、头像与计数；昵称等资料请用 `users.getById()`。
+ */
+export interface ISelfProfile {
+  /** 登录账号 uid（从上游 `verified_url` 的 `uid=` 解析；解析不到时缺省） */
+  uid?: string
+  /** 注册时间（上游 `created_at` 原样字符串） */
+  createdAt?: string
+  /** 个人简介 */
+  description?: string
+  /** IP 属地（去掉 `IP属地：` 前缀） */
+  ipLocation?: string
+  /** 性别 */
+  gender: Gender
+  /** 生日（未公开时缺省） */
+  birthday?: string
+  /** 学校 */
+  school?: string
+  /** 阳光信用等级 */
+  creditLevel?: string
+  /** 粉丝数 */
+  followers?: number
+  /** 用户标签 */
+  labelDesc?: IUserLabel[]
+  /** 外部链接 */
+  links: Array<{ title: string, url: string }>
+  /** 实名 */
+  realName?: string
+  /** 公司 */
+  company?: string
+  /** 家乡（去掉 `家乡：` 前缀） */
+  hometown?: string
+}
+
+/**
  * 核心用户领域模型
  *
  * 由 raw 响应归一化得到的纯数据结构（实现见 `User`）；可选字段缺失表示上游未公开该项，

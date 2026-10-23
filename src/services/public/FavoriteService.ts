@@ -1,14 +1,23 @@
 import type { FavoritesResponse, FavoritesTagsResponse } from '../endpoints/favorite'
 import type { IWeiboConfig } from '~/types/config'
+import type { FavoriteTag } from '~/types/domain/IFavorite'
 import type { ITweet } from '~/types/domain/ITweet'
 import type { StreamLimitOptions } from '~/utils/streamRange'
-import { matchesFavoriteTag } from '~/models/data/Favorite'
+import { matchesFavoriteTag, normalizeFavoriteTag } from '~/models/data/Favorite'
 import { Tweet } from '~/models/data/Tweet'
 import { createStreamRange } from '~/utils/streamRange'
 import { favoritesSpec, favoritesTagsSpec } from '../endpoints/favorite'
 import { FetcherService } from '../internal/FetcherService'
 
 type FavoriteRawItem = FavoritesResponse['data']['status'][number]
+
+/** 收藏标签列表（`getTags` 返回值）。 */
+export interface FavoriteTagList {
+  /** 归一化标签（无法识别 id / name 的元素已跳过） */
+  tags: FavoriteTag[]
+  /** 上游 `total_number`（可用时） */
+  total?: number
+}
 
 /** 一页收藏的归一化结果（`listFavorites` 返回值）。 */
 export interface FavoritePageResult {
@@ -130,7 +139,7 @@ export class FavoriteService extends FetcherService {
    * @param page 页码（从 1 开始；缺省 = 第一页；`< 1` / 非有限数按第一页处理）
    * @returns 校验后的收藏响应，`data.status` 为收藏微博数组、`data.total_number` 为总数
    */
-  public async getFavorites(uid: string, page?: number): Promise<FavoritesResponse> {
+  public async fetchRawFavorites(uid: string, page?: number): Promise<FavoritesResponse> {
     // with_total=true 让 data 返回 { status: [...] } 对象结构（否则是裸数组，schema 校验失败）
     const args: { uid: string, page?: number, with_total: boolean } = { uid, with_total: true }
     const normalizedPage = normalizePage(page)
@@ -248,12 +257,29 @@ export class FavoriteService extends FetcherService {
   }
 
   /**
-   * 获取收藏夹标签 GET /ajax/favorites/tags
-   *
-   * @returns 校验后的标签响应（标签列表用于 CLI / 下游按分类浏览收藏）
+   * 获取收藏夹标签原始响应（低层数据源，公开使用请走 `getTags`）
    */
-  public async getTags(): Promise<FavoritesTagsResponse> {
+  public async fetchRawTags(): Promise<FavoritesTagsResponse> {
     return await this.request(favoritesTagsSpec, {})
+  }
+
+  /**
+   * 获取收藏夹标签（归一化）。
+   *
+   * 上游标签元素结构尚无真实样本；按常见键做 best-effort 映射。
+   */
+  public async getTags(): Promise<FavoriteTagList> {
+    const raw = await this.fetchRawTags()
+    const tags: FavoriteTag[] = []
+    for (const item of raw.tags) {
+      const tag = normalizeFavoriteTag(item)
+      if (tag)
+        tags.push(tag)
+    }
+    const result: FavoriteTagList = { tags }
+    if (raw.total_number !== undefined)
+      result.total = raw.total_number
+    return result
   }
 
   /**
@@ -263,7 +289,7 @@ export class FavoriteService extends FetcherService {
    * 部分 fixture 缺该字段时退回 `total_number` 估算。
    */
   private async fetchFavoritePage(uid: string, page: number): Promise<FavoriteRawPage> {
-    const raw = await this.getFavorites(uid, page)
+    const raw = await this.fetchRawFavorites(uid, page)
     const items = uniqueByMblogId(raw.data.status || [])
     const total = parseTotal(raw.data.total_number)
     const totalPages = parseTotal(raw.total_page)

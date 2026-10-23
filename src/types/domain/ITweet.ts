@@ -380,6 +380,18 @@ export interface TweetLotteryAttachment extends TweetAttachmentBase {
 }
 
 /**
+ * 长微博全文（`ajax/statuses/longtext`）。
+ *
+ * `text` 优先取上游 `longTextContent_raw`，缺失时退回 `longTextContent`。
+ */
+export interface TweetLongText {
+  /** 全文正文 */
+  text: string
+  /** 上游标记该长文是否为 Markdown */
+  isMarkdown?: boolean
+}
+
+/**
  * 隐私可见性
  */
 export enum TweetVisible {

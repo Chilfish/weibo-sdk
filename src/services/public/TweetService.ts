@@ -2,10 +2,10 @@ import type { BuildCommentsArgs, BuildCommentsResponse, FriendstimelineArgs, Fri
 import type { RawTweet } from '~/models/data/Tweet'
 import type { IWeiboConfig } from '~/types/config'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetLongText, TweetUser } from '~/types/domain/ITweet'
 import type { ITweetContext, TweetContextAuthor } from '~/types/domain/ITweetContext'
 import type { StreamLimitOptions, StreamRangeOptions } from '~/utils/streamRange'
-import { isRawTweet, normalizeComment, normalizeLiker, Tweet } from '~/models/data/Tweet'
+import { isRawTweet, normalizeComment, normalizeLiker, normalizeLongText, Tweet } from '~/models/data/Tweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { buildTweetContext } from '~/models/view/TweetContext'
@@ -206,6 +206,46 @@ export interface TweetRepostsListOptions {
   count?: number
 }
 
+/** 一页评论（`comments` / `replies` 的返回值）。 */
+export interface TweetCommentsPageResult {
+  /** 本页归一化评论（保持上游顺序，楼中楼在 `comment.replies`） */
+  comments: ITweetComment[]
+  /** 下一页游标（上游顶层 `max_id`；`0` = 到底） */
+  cursor: number
+  /** 是否可能还有下一页 */
+  hasMore: boolean
+  /** 上游 `total_number`（含楼中楼 / 可能含不可见评论，仅作参考） */
+  total?: number
+  /** 上游提示文案（如「博主已开启防火墙」） */
+  notice?: string
+}
+
+/** 一页转发（`getReposts` 的返回值）。 */
+export interface TweetRepostsPageResult {
+  /** 本页归一化转发微博 */
+  reposts: ITweet[]
+  /** 本次请求的页码 */
+  page: number
+  /** 是否可能还有下一页 */
+  hasMore: boolean
+  /** 上游 `total_number`（可用时） */
+  total?: number
+  /** 上游 `max_page`（可用时） */
+  maxPage?: number
+}
+
+/** 一页按日期检索结果（`searchByDate` 的返回值）。 */
+export interface TweetSearchByDatePageResult {
+  /** 本页归一化微博 */
+  tweets: ITweet[]
+  /** 本次请求的页码 */
+  page: number
+  /** 上游报告的总数（`data.total`，number / 字符串均已解析） */
+  total?: number
+  /** 是否可能还有下一页 */
+  hasMore: boolean
+}
+
 /** `listFriendTimeline` 的选项。 */
 export interface TweetFriendTimelineListOptions {
   /** 翻旧页游标（上一页 `maxId`；首屏省略） */
@@ -384,6 +424,33 @@ function normalizeContextAuthor(raw: unknown, fallback: TweetUser): TweetContext
     author.followedBy = record.follow_me
 
   return author
+}
+
+/** 评论 raw 页 → 归一化分页。 */
+function commentsPageFromRaw(raw: BuildCommentsResponse): TweetCommentsPageResult {
+  const comments = (raw.data ?? []).map(item => normalizeComment(item))
+  const cursor = typeof raw.max_id === 'number' ? raw.max_id : 0
+  const notice = raw.trendsText ?? raw.tip_msg
+  const page: TweetCommentsPageResult = {
+    comments,
+    cursor,
+    hasMore: cursor !== 0 && comments.length > 0,
+  }
+  if (raw.total_number !== undefined)
+    page.total = raw.total_number
+  if (notice)
+    page.notice = notice
+  return page
+}
+
+/** 解析 `searchProfile` 的 `data.total`（number 或数字字符串）。 */
+function parseSearchTotal(value: unknown): number | undefined {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : Number.NaN
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
 }
 
 /**
@@ -623,9 +690,7 @@ export class TweetService extends FetcherService {
     const startAt = Date.now()
     const tweet = new Tweet(raw)
 
-    const longText = longTextResponse
-      ? longTextResponse.data.longTextContent_raw ?? longTextResponse.data.longTextContent
-      : undefined
+    const longText = longTextResponse?.text
 
     await this.emitTelemetry({
       event_name: 'normalize_done',
@@ -674,7 +739,7 @@ export class TweetService extends FetcherService {
     // show 之后的长文 / 作者 / 评论互不依赖，并行拉取；评论自身分页仍是串行游标。
     const wantsLongText = options.longText !== false && rawRecord.isLongText === true
     const longTextPromise = wantsLongText
-      ? this.longText(id).then(response => response.data.longTextContent_raw ?? response.data.longTextContent)
+      ? this.longText(id).then(response => response.text)
       : undefined
 
     const authorProfile = this.contextDeps.authorProfile
@@ -790,7 +855,7 @@ export class TweetService extends FetcherService {
    * @param options.fetchLevel 拉取层级（0 = 一级评论，1 = 二级评论）
    * @returns 校验后的评论响应；`max_id === 0` 或空页即到底
    */
-  public async comments(mblogId: string, options?: TweetCommentsOptions): Promise<BuildCommentsResponse> {
+  public async fetchRawComments(mblogId: string, options?: TweetCommentsOptions): Promise<BuildCommentsResponse> {
     const id = await this.resolveCommentsId(mblogId, options)
     const args: BuildCommentsArgs = {
       id,
@@ -830,12 +895,30 @@ export class TweetService extends FetcherService {
    * @param options.flow 排序方式（0 / 1）
    * @param options.uid 以哪个用户视角读取
    */
-  public async replies(_mblogId: string, rootCommentId: string, options?: TweetRepliesOptions): Promise<BuildCommentsResponse> {
-    return await this.comments(rootCommentId, {
+  public async fetchRawReplies(_mblogId: string, rootCommentId: string, options?: TweetRepliesOptions): Promise<BuildCommentsResponse> {
+    return await this.fetchRawComments(rootCommentId, {
       ...options,
       isReply: 1,
       fetchLevel: 1,
     })
+  }
+
+  /**
+   * 获取微博评论列表（归一化）。
+   *
+   * @returns 归一化评论 + 下一页游标
+   */
+  public async comments(mblogId: string, options?: TweetCommentsOptions): Promise<TweetCommentsPageResult> {
+    return commentsPageFromRaw(await this.fetchRawComments(mblogId, options))
+  }
+
+  /**
+   * 获取一条一级评论下的二级评论（归一化）。
+   *
+   * @returns 归一化评论 + 下一页游标
+   */
+  public async replies(_mblogId: string, rootCommentId: string, options?: TweetRepliesOptions): Promise<TweetCommentsPageResult> {
+    return commentsPageFromRaw(await this.fetchRawReplies(_mblogId, rootCommentId, options))
   }
 
   /**
@@ -844,8 +927,18 @@ export class TweetService extends FetcherService {
    * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
    * @returns 含 `data.longTextContent` / `data.longTextContent_raw` 的响应（前者已是 HTML 片段）
    */
-  public async longText(mblogId: string): Promise<LongtextResponse> {
+  public async fetchRawLongText(mblogId: string): Promise<LongtextResponse> {
     return await this.request(longtextSpec, { id: normalizeTweetIdInput(mblogId) })
+  }
+
+  /**
+   * 获取长微博全文（归一化）。
+   *
+   * @param mblogId 微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
+   * @returns `text` 优先取 `longTextContent_raw`，缺失时退回 `longTextContent`
+   */
+  public async longText(mblogId: string): Promise<TweetLongText> {
+    return normalizeLongText(await this.fetchRawLongText(mblogId))
   }
 
   /**
@@ -859,13 +952,36 @@ export class TweetService extends FetcherService {
    * @param options.count 每页条数
    * @returns 校验后的转发响应；`data` 为转发微博数组，`total_number` 为总数
    */
-  public async getReposts(mblogId: string, options?: TweetRepostsListOptions): Promise<RepostTimelineResponse> {
+  public async fetchRawReposts(mblogId: string, options?: TweetRepostsListOptions): Promise<RepostTimelineResponse> {
     const args: { id: string, page?: number, count?: number } = { id: normalizeTweetIdInput(mblogId) }
     if (options?.page !== undefined)
       args.page = options.page
     if (options?.count !== undefined)
       args.count = options.count
     return await this.request(repostTimelineSpec, args)
+  }
+
+  /**
+   * 获取微博转发列表（归一化）。
+   *
+   * @param mblogId 原微博 id：mblogId / 数字 mid / 微博状态 URL（自动归一化）
+   * @param options 分页选项
+   * @returns 归一化转发微博 + 下一页判断
+   */
+  public async getReposts(mblogId: string, options?: TweetRepostsListOptions): Promise<TweetRepostsPageResult> {
+    const raw = await this.fetchRawReposts(mblogId, options)
+    const page = options?.page !== undefined && Number.isFinite(options.page) ? Math.max(1, Math.floor(options.page)) : 1
+    const reposts = (raw.data ?? []).map(item => new Tweet(item))
+    const result: TweetRepostsPageResult = {
+      reposts,
+      page,
+      hasMore: reposts.length > 0 && (raw.max_page === undefined || page < raw.max_page),
+    }
+    if (raw.total_number !== undefined)
+      result.total = raw.total_number
+    if (raw.max_page !== undefined)
+      result.maxPage = raw.max_page
+    return result
   }
 
   /**
@@ -895,7 +1011,7 @@ export class TweetService extends FetcherService {
    * @param options.hasmusic 是否包含音乐（0 / 1）
    * @returns 校验后的 searchProfile 响应（`data.total` 为 number | string，需自行解析）
    */
-  public async searchByDate(uid: string, options?: TweetSearchByDateOptions): Promise<SearchProfileResponse> {
+  public async fetchRawSearchByDate(uid: string, options?: TweetSearchByDateOptions): Promise<SearchProfileResponse> {
     const args: SearchProfileArgs = { uid }
     if (options) {
       if (options.page !== undefined)
@@ -920,6 +1036,28 @@ export class TweetService extends FetcherService {
         args.hasmusic = options.hasmusic
     }
     return await this.request(searchProfileSpec, args)
+  }
+
+  /**
+   * 按日期范围搜索用户微博（归一化）。
+   *
+   * @param uid 用户 UID
+   * @param options 检索选项（全部可选）
+   * @returns 归一化微博 + 上游报告总数 + 下一页判断
+   */
+  public async searchByDate(uid: string, options?: TweetSearchByDateOptions): Promise<TweetSearchByDatePageResult> {
+    const raw = await this.fetchRawSearchByDate(uid, options)
+    const page = options?.page !== undefined && Number.isFinite(options.page) ? Math.max(1, Math.floor(options.page)) : 1
+    const tweets = raw.data.list.map(item => new Tweet(item))
+    const total = parseSearchTotal(raw.data.total)
+    const result: TweetSearchByDatePageResult = {
+      tweets,
+      page,
+      hasMore: tweets.length > 0 && (total === undefined || page * tweets.length < total),
+    }
+    if (total !== undefined)
+      result.total = total
+    return result
   }
 
   /**
@@ -1241,7 +1379,7 @@ export class TweetService extends FetcherService {
     yield* this.streamCommentPages(
       normalized,
       options,
-      cursor => this.comments(id, {
+      cursor => this.fetchRawComments(id, {
         maxId: cursor,
         count: options.count,
         flow: options.flow,
@@ -1270,7 +1408,7 @@ export class TweetService extends FetcherService {
     yield* this.streamCommentPages(
       normalized,
       options,
-      cursor => this.replies(normalized, rootCommentId, {
+      cursor => this.fetchRawReplies(normalized, rootCommentId, {
         maxId: cursor,
         count: options.count,
         flow: options.flow,
@@ -1369,7 +1507,7 @@ export class TweetService extends FetcherService {
     let processed = 0
 
     while (pages < maxPages) {
-      const raw = await this.getReposts(normalized, { page, count: options.count })
+      const raw = await this.fetchRawReposts(normalized, { page, count: options.count })
       pages += 1
 
       const items = raw.data ?? []

@@ -1,8 +1,155 @@
 import type { UserDetailsResponse, UserInfoResponse } from '~/services/endpoints/user'
-import type { Gender, IUser, IUserLabel, IUserVerification } from '~/types/domain/IUser'
+import type { Gender, ISelfProfile, IUser, IUserLabel, IUserVerification, UserBrief, VerificationType } from '~/types/domain/IUser'
+import { parseSessionUid } from '~/utils/sessionUid'
 
 type RawUserInfo = UserInfoResponse['data']['user']
 type RawUserDetails = UserDetailsResponse['data']
+
+type UnknownRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function firstText(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim() !== '')
+      return value
+    if (typeof value === 'number' && Number.isFinite(value))
+      return String(value)
+  }
+  return undefined
+}
+
+/**
+ * 解析计数：接受 number、数字字符串与 m 站缩写（`27089` / `2.7万` / `1.2亿`）。
+ *
+ * 无法解析时返回 `undefined`，由调用方决定是否补 0。
+ */
+export function parseCompactCount(value: unknown): number | undefined {
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : undefined
+  if (typeof value !== 'string')
+    return undefined
+
+  const match = /^(\d+(?:\.\d+)?)\s*(万|亿)?$/.exec(value.trim())
+  if (!match)
+    return undefined
+  const base = Number(match[1])
+  if (!Number.isFinite(base))
+    return undefined
+  if (match[2] === '万')
+    return Math.round(base * 10_000)
+  if (match[2] === '亿')
+    return Math.round(base * 100_000_000)
+  return base
+}
+
+function toGender(value: unknown): Gender {
+  if (value === 'm')
+    return 'm' as Gender
+  if (value === 'f')
+    return 'f' as Gender
+  return 'n' as Gender
+}
+
+function normalizeProfileUrl(profileUrl: string | undefined, id: string): string {
+  if (profileUrl) {
+    if (/^https?:\/\//.test(profileUrl))
+      return profileUrl
+    return `https://weibo.com${profileUrl.startsWith('/') ? '' : '/'}${profileUrl}`
+  }
+  return id ? `https://weibo.com/u/${id}` : ''
+}
+
+/**
+ * 归一化用户简版（`friendships.users[]` / `followContent` / m 站容器 / 搜索卡片）。
+ *
+ * 纯函数；id 缺失时返回空串，由服务层过滤。计数缺失按 0 处理，与 `IUser.stats` 一致。
+ */
+export function normalizeUserBrief(raw: unknown): UserBrief {
+  const record = isRecord(raw) ? raw : {}
+  const id = firstText(record.idstr, record.id) ?? ''
+  const user: UserBrief = {
+    id,
+    name: firstText(record.screen_name, record.name) ?? '',
+    avatar: firstText(record.avatar_hd, record.avatar_large, record.profile_image_url) ?? '',
+    url: normalizeProfileUrl(firstText(record.profile_url), id),
+    gender: toGender(record.gender),
+    stats: {
+      followers: parseCompactCount(record.followers_count) ?? 0,
+      friends: parseCompactCount(record.friends_count ?? record.follow_count) ?? 0,
+      statuses: parseCompactCount(record.statuses_count) ?? 0,
+    },
+    verified: record.verified === true,
+    verifiedType: (typeof record.verified_type === 'number' ? record.verified_type : -1) as VerificationType,
+  }
+
+  const description = firstText(record.description)
+  if (description)
+    user.description = description
+  const location = firstText(record.location)
+  if (location)
+    user.location = location
+  const verifiedReason = firstText(record.verified_reason)
+  if (verifiedReason)
+    user.verifiedReason = verifiedReason
+  if (typeof record.following === 'boolean')
+    user.following = record.following
+  if (typeof record.follow_me === 'boolean')
+    user.followedBy = record.follow_me
+
+  return user
+}
+
+/**
+ * 归一化当前登录账号资料（`ajax/profile/detail` 不带 uid 的响应）。
+ *
+ * 纯函数；只映射该端点实际下发的字段，缺失即缺省。
+ */
+export function normalizeSelfProfile(details: RawUserDetails): ISelfProfile {
+  const profile: ISelfProfile = {
+    gender: toGender(details.gender),
+    links: (details.links ?? []).map(link => ({
+      title: link.title ?? '',
+      url: link.url ?? '',
+    })),
+  }
+
+  const uid = parseSessionUid(details)
+  if (uid)
+    profile.uid = uid
+  if (details.created_at)
+    profile.createdAt = details.created_at
+  const description = details.desc_text || details.description
+  if (description)
+    profile.description = description
+  const ipLocation = details.ip_location?.replace('IP属地：', '')
+  if (ipLocation)
+    profile.ipLocation = ipLocation
+  if (details.birthday)
+    profile.birthday = details.birthday
+  if (details.education?.school)
+    profile.school = details.education.school
+  if (details.sunshine_credit?.level)
+    profile.creditLevel = details.sunshine_credit.level
+  if (typeof details.followers?.total_number === 'number')
+    profile.followers = details.followers.total_number
+  const labelDesc = normalizeLabelDesc(details.label_desc)
+  if (labelDesc)
+    profile.labelDesc = labelDesc
+  const realName = details.real_name?.name?.replace('姓名：', '')
+  if (realName)
+    profile.realName = realName
+  const company = details.company || details.career?.company
+  if (company)
+    profile.company = company
+  const hometown = details.hometown?.trim().replace(/^家乡：/, '')
+  if (hometown)
+    profile.hometown = hometown
+
+  return profile
+}
 
 function normalizeLabelDesc(labels: RawUserDetails['label_desc']): IUserLabel[] | undefined {
   if (!Array.isArray(labels) || labels.length === 0)

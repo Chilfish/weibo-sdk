@@ -3,11 +3,11 @@ import type { UserDetailsResponse, UserInfoResponse } from '../endpoints/user'
 import type { IWeiboConfig } from '~/types/config'
 import type { MblogGroup, UserGroup } from '~/types/domain/IGroup'
 import type { ITweet } from '~/types/domain/ITweet'
-import type { IUser } from '~/types/domain/IUser'
+import type { ISelfProfile, IUser } from '~/types/domain/IUser'
 import type { StreamRangeOptions } from '~/utils/streamRange'
 import { normalizeMblogGroups, normalizeUserGroups } from '~/models/data/Group'
 import { Tweet as TweetModel } from '~/models/data/Tweet'
-import { User } from '~/models/data/User'
+import { normalizeSelfProfile, User } from '~/models/data/User'
 import { createStreamRange } from '~/utils/streamRange'
 import { feedGroupsSpec, mblogGroupsSpec } from '../endpoints/groups'
 import { mentionsSpec } from '../endpoints/mentions'
@@ -158,8 +158,18 @@ export class UserService extends FetcherService {
    *
    * @throws `WeiboSessionExpiredError`（登录态缺失）或 `WeiboAPINotOkError` 等业务错误
    */
-  public async myDetails(): Promise<UserDetailsResponse> {
+  public async fetchRawMyDetails(): Promise<UserDetailsResponse> {
     return await this.request(myDetailsSpec, {}, { skipPreflight: true })
+  }
+
+  /**
+   * 获取当前登录用户的资料（归一化）。
+   *
+   * 该端点只返回详情侧字段（IP 属地 / 教育 / 公司 / 标签等），不含昵称、头像与计数；
+   * 完整资料请用 `getById(uid)`，`uid` 可从返回值的 `uid` 字段取得。
+   */
+  public async myDetails(): Promise<ISelfProfile> {
+    return normalizeSelfProfile((await this.fetchRawMyDetails()).data)
   }
 
   /**
