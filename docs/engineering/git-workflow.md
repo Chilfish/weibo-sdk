@@ -42,6 +42,7 @@
 - **Description 用英文祈使句**（命令式）：`add`、`fix`、`remove`
 - 首字母小写，不加句号，不超过 72 字符
 - **Breaking change**：footer 标记 `BREAKING CHANGE: description`
+- **关联 issue**：修复类 commit 在 footer 写 `Closes #<n>`，仅引用不关闭时写 `Refs #<n>`；PR 正文用 `Closes #<n>` 关联，让 issue / commit / PR 双向可追溯
 
 ### Commit 纪律
 
@@ -134,7 +135,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
    - 复核 tag 与 `package.json` 版本一致、CHANGELOG 有对应版本节
    - 复跑 CI 门禁，然后 `pnpm publish --provenance`
    - 只负责发布 npm，不自动创建 GitHub Release
-4. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，用 `gh release create v<version> --notes-file <file>` 提交
+4. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，正文首段引用对应 issue 并写 `Closes #<n>`，用 `gh release create v<version> --notes-file <file>` 提交
 5. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、GitHub Release、npm 页面的 provenance
 
 ### 发布凭据

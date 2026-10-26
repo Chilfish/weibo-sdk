@@ -79,7 +79,7 @@
    - 复跑 `typecheck` / `eslint` / `test --run` / `validate:fixtures` / `check:api` / `check:docs` / `schema:check` / `build` / `docs:build` / `browser-smoke --no-browser`
    - `pnpm publish --no-git-checks --access public --provenance`
    - 流水线不创建 GitHub Release
-7. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，`gh release create v<version> --notes-file <file>`
+7. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，正文首段引用对应 issue 并写 `Closes #<n>`，`gh release create v<version> --notes-file <file>`
 8. **禁止 `npm publish`**：pnpm `catalog:` 不会被 npm 重写，产物会写成 `"catalog:"`（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
 9. Vercel 文档站由 Git 集成自动部署；发布后确认 `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json` 可访问且与包内 schema 一致。
 10. tag 已推送但发布失败：从 GitHub Actions 重跑失败的工作流，不要删除 tag 重打。若 `Publish to npm` 已成功、仅 `Verify registry` 超时，先手动核验 registry；GitHub 可能对 `startup_failure` 的 run 拒绝重跑（0.5.0 遇到），此时保留 tag、记录到开发日志并完成手工核验。

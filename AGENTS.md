@@ -120,6 +120,7 @@ WeiboSDK（门面）
 - **PR 粒度**：优先拆成多个 PR，每个 PR 可独立 review / 可独立回滚 / 不依赖未合并分支。
 - **PR 正文格式**：禁止在命令行里用字面量 `\n` 拼 body。优先使用 `gh pr create/edit --body-file <file>`。
 - **提交规范**：建议 Conventional Commits（`feat:`, `fix:`, `docs:`, `test:`, `refactor:`）。
+- **关联 issue**：修复类 commit 在 footer 写 `Closes #<n>`，仅引用时写 `Refs #<n>`；PR 正文用 `Closes #<n>`；GitHub Release 正文首段引用对应 issue。issue / commit / PR / release 要能双向追溯。
 - **先定提交意图**：开始编码前先写清楚 PR 主题与提交信息。范围变化时先更新提交计划再继续。
 - **合并门禁**（必须全部满足）：
   - [ ] `pnpm test` 通过（默认离线）
