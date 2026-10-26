@@ -6,6 +6,7 @@
 
 | 日期 | 主题 |
 |---|---|
+| [2026-10-27](2026-10-27.md) | 0.6.1 发布：范围归档 merge 续跑（issue #20）随 patch 发出，registry / GitHub Release / issue 关闭核验 |
 | [2026-10-26](2026-10-26.md) | 范围归档支持 `resume: 'merge'`（保留记录、按新范围重枚举，修复相对范围隔天重跑即失败）+ `RESUME_MISMATCH` 错误码 + CLI `--resume`；文件 store 全量扫描 journal |
 | [2026-10-23](2026-10-23.md) | 公开输出归一化（camelCase 契约）+ 0.6.0 门禁复跑；可维护性审查落地（ArchiveService 拆分 / Stable 收紧 / 分页与门禁）；第二轮可靠性复审（限流配置校验、全局令牌桶、文档字段门禁、结构化错误、漂移巡检、覆盖率、ADR-017、TweetService 拆分） |
 | [2026-10-22](2026-10-22.md) | `scripts/archive-user` 模块化重构，并迁移为 SDK `sdk.userArchive` + CLI `weibo-cli archive user`（journal 兼容、离线单测、playground 场景）；旧脚本删除 |
