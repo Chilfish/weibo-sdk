@@ -490,6 +490,10 @@
       "kind": "interface"
     },
     {
+      "name": "ResumeMismatchError",
+      "kind": "class"
+    },
+    {
       "name": "RetryContext",
       "kind": "interface"
     },
@@ -844,6 +848,10 @@
     {
       "name": "UserArchiveResult",
       "kind": "interface"
+    },
+    {
+      "name": "UserArchiveResumeMode",
+      "kind": "type"
     },
     {
       "name": "UserArchiveRunConfig",

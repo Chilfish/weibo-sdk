@@ -1,13 +1,15 @@
 import type { UserArchiveMeta, UserArchiveRunConfig } from '~/types/archive/IUserArchive'
 import { makeArchiveUser } from 'tests/testkit/userArchive'
 import { describe, expect, it } from 'vitest'
-import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { InvalidConfigError, ResumeMismatchError } from '~/models/errors/ConfigError'
 import {
   applyUserArchiveResumeDefaults,
   buildUserArchiveConfig,
   DEFAULT_USER_ARCHIVE_CONCURRENCY,
   MAX_USER_ARCHIVE_CONCURRENCY,
+  mergeUserArchiveMeta,
   resolveUserArchiveConcurrency,
+  resolveUserArchiveResume,
   validateUserArchiveResume,
 } from '~/services/public/userArchive/config'
 import { planUserArchiveSlices } from '~/services/public/userArchive/slices'
@@ -101,6 +103,35 @@ describe('buildUserArchiveConfig', () => {
   })
 })
 
+describe('resolveUserArchiveResume', () => {
+  it('defaultsToStrict', () => {
+    expect(resolveUserArchiveResume(undefined)).toBe('strict')
+    expect(resolveUserArchiveResume('')).toBe('strict')
+    expect(resolveUserArchiveResume('strict')).toBe('strict')
+    expect(resolveUserArchiveResume('merge')).toBe('merge')
+  })
+
+  it('rejectsUnknownValues', () => {
+    expect(() => resolveUserArchiveResume('loose')).toThrow(InvalidConfigError)
+  })
+})
+
+describe('applyUserArchiveResumeDefaults', () => {
+  it('strictInheritsRangeAndContentOptions', () => {
+    const config = buildUserArchiveConfig(UID, { ...BASE, includeReposts: true })
+    const options = applyUserArchiveResumeDefaults({}, config, 'strict')
+    expect(options).toMatchObject({ since: '2025-01-01', until: '2025-01-31', includeReposts: true })
+  })
+
+  it('mergeInheritsContentOptionsButNotRange', () => {
+    const config = buildUserArchiveConfig(UID, { ...BASE, includeReposts: true })
+    const options = applyUserArchiveResumeDefaults({ since: '2025-02-01' }, config, 'merge')
+    expect(options.since).toBe('2025-02-01')
+    expect(options.until).toBeUndefined()
+    expect(options.includeReposts).toBe(true)
+  })
+})
+
 describe('concurrency', () => {
   it('defaultsAndClamps', () => {
     expect(resolveUserArchiveConcurrency(undefined)).toBe(DEFAULT_USER_ARCHIVE_CONCURRENCY)
@@ -125,10 +156,17 @@ describe('validateUserArchiveResume', () => {
     expect(() => validateUserArchiveResume(metaFrom(config), other)).toThrow(/uid/)
   })
 
-  it('differentRange_throws', () => {
+  it('differentRange_throwsResumeMismatch', () => {
     const config = buildUserArchiveConfig(UID, { ...BASE })
     const other = buildUserArchiveConfig(UID, { since: '2025-01-01', until: '2025-02-28', sliceDays: 0 })
+    expect(() => validateUserArchiveResume(metaFrom(config), other)).toThrow(ResumeMismatchError)
     expect(() => validateUserArchiveResume(metaFrom(config), other)).toThrow(/until/)
+    try {
+      validateUserArchiveResume(metaFrom(config), other)
+    }
+    catch (error) {
+      expect(error).toMatchObject({ code: 'RESUME_MISMATCH', context: { field: 'resume', mismatch: 'until' } })
+    }
   })
 
   it('differentContentOptions_throws', () => {
@@ -142,5 +180,46 @@ describe('validateUserArchiveResume', () => {
     const meta = metaFrom(config)
     meta.slices = [{ index: 0, key: 'other', since: 1, until: 2 }]
     expect(() => validateUserArchiveResume(meta, config)).toThrow(/slice plan/)
+  })
+
+  it('mergeOnlyChecksUid', () => {
+    const config = buildUserArchiveConfig(UID, { ...BASE })
+    const other = buildUserArchiveConfig(UID, { since: '2025-02-01', until: '2025-02-28', sliceDays: 0, includeReposts: true })
+    expect(() => validateUserArchiveResume(metaFrom(config), other, 'merge')).not.toThrow()
+
+    const foreign = buildUserArchiveConfig('999', { ...BASE })
+    expect(() => validateUserArchiveResume(metaFrom(config), foreign, 'merge')).toThrow(/uid/)
+  })
+})
+
+describe('mergeUserArchiveMeta', () => {
+  it('replansSlicesAndDropsStaleTotals', () => {
+    const config = buildUserArchiveConfig(UID, { ...BASE })
+    const meta = metaFrom(config)
+    const oldKey = meta.slices[0].key
+    meta.totals = { [oldKey]: 10, stale: 5 }
+
+    const next = buildUserArchiveConfig(UID, { since: '2025-03-01', until: '2025-03-31', sliceDays: 0 })
+    const merged = mergeUserArchiveMeta(meta, next)
+
+    expect(merged.createdAt).toBe(meta.createdAt)
+    expect(merged.user).toEqual(meta.user)
+    expect(merged.config).toEqual(next)
+    expect(merged.slices).toEqual(planUserArchiveSlices(next.range.since.unix, next.range.until.unix, 0))
+    expect(merged.totals).toBeUndefined()
+  })
+
+  it('keepsTotalsForSlicesStillInThePlan', () => {
+    const config = buildUserArchiveConfig(UID, { ...BASE })
+    const meta = metaFrom(config)
+    const key = meta.slices[0].key
+    meta.totals = { [key]: 10 }
+
+    const next = buildUserArchiveConfig(UID, { since: '2025-01-01', until: '2025-02-28', sliceDays: 0 })
+    // sliceDays=0 会把整个范围放进单个 key，与原 key 不同，因此 totals 仍会丢。
+    expect(mergeUserArchiveMeta(meta, next).totals).toBeUndefined()
+
+    const sameRange = buildUserArchiveConfig(UID, { ...BASE })
+    expect(mergeUserArchiveMeta(meta, sameRange).totals).toEqual({ [key]: 10 })
   })
 })

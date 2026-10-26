@@ -1,7 +1,7 @@
 import type { ArchiveIssue, ArchiveIssueStage } from '~/types/archive/IArchiveFile'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 
-const FATAL_CODES = new Set(['AUTH_SESSION_EXPIRED', 'CONFIG_INVALID', 'RATE_LIMITED'])
+const FATAL_CODES = new Set(['AUTH_SESSION_EXPIRED', 'CONFIG_INVALID', 'RESUME_MISMATCH', 'RATE_LIMITED'])
 
 export function toUserArchiveIssue(
   stage: ArchiveIssueStage,

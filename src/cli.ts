@@ -345,6 +345,7 @@ const archive = defineCommand({
     'force': { type: 'boolean', default: false, description: 'archive user / merge：覆盖已存在的输出 / raw 文件' },
     'merge': { type: 'boolean', default: false, description: 'archive user：把已存在的输出文件作为基线合并（增量更新）' },
     'fresh': { type: 'boolean', default: false, description: 'archive user：丢弃已有切片进度' },
+    'resume': { type: 'string', default: 'strict', description: 'archive user：续跑模式 strict / merge（merge 保留已有记录，按新范围重新枚举）' },
     'raw': { type: 'boolean', default: false, description: 'archive user：把原始响应写到 <out>.raw.ndjson' },
     'raw-out': { type: 'string', description: 'archive user：自定义 raw JSONL 路径' },
     'no-comments': { type: 'boolean', default: false, description: 'archive user：不拉评论区' },

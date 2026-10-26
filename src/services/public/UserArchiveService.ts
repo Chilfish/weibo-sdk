@@ -19,7 +19,14 @@ import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { USER_ARCHIVE_JOURNAL_SCHEMA } from '~/types/archive/IUserArchive'
 import { assembleUserArchive, dedupeUserArchiveRecords } from './userArchive/assemble'
 import { completeUserArchiveTweet } from './userArchive/complete'
-import { applyUserArchiveResumeDefaults, buildUserArchiveConfig, resolveUserArchiveConcurrency, validateUserArchiveResume } from './userArchive/config'
+import {
+  applyUserArchiveResumeDefaults,
+  buildUserArchiveConfig,
+  mergeUserArchiveMeta,
+  resolveUserArchiveConcurrency,
+  resolveUserArchiveResume,
+  validateUserArchiveResume,
+} from './userArchive/config'
 import { dedupeUserArchiveIssues, isFatalUserArchiveError, toUserArchiveIssue } from './userArchive/issues'
 import { createMemoryUserArchiveStore } from './userArchive/memoryStore'
 import { planUserArchiveSlices } from './userArchive/slices'
@@ -127,14 +134,18 @@ export class UserArchiveService {
       )
     }
 
+    const resume = resolveUserArchiveResume(options.resume)
     const store = options.store ?? createMemoryUserArchiveStore()
     let meta = await store.loadMeta()
-    const config = buildUserArchiveConfig(uid, applyUserArchiveResumeDefaults(options, meta?.config))
+    const config = buildUserArchiveConfig(uid, applyUserArchiveResumeDefaults(options, meta?.config, resume))
     const concurrency = resolveUserArchiveConcurrency(options.concurrency)
 
     if (meta) {
-      validateUserArchiveResume(meta, config)
-      meta = await this.refreshMetaUser(meta, store)
+      validateUserArchiveResume(meta, config, resume)
+      if (resume === 'merge')
+        meta = await this.refreshMetaUser(mergeUserArchiveMeta(meta, config), store, true)
+      else
+        meta = await this.refreshMetaUser(meta, store)
     }
     else {
       const user = await this.deps.getUser(uid)
@@ -501,8 +512,16 @@ export class UserArchiveService {
     return { file, complete, summary, user: meta.user }
   }
 
-  /** 续跑时刷新用户信息；失败则沿用 journal 里的快照。 */
-  private async refreshMetaUser(meta: UserArchiveMeta, store: UserArchiveStore): Promise<UserArchiveMeta> {
+  /**
+   * 续跑时刷新用户信息；失败则沿用 journal 里的快照。
+   *
+   * `persist` 用于 `merge` 重建后的 meta：即使用户信息刷新失败，新的切片计划也必须落盘。
+   */
+  private async refreshMetaUser(
+    meta: UserArchiveMeta,
+    store: UserArchiveStore,
+    persist = false,
+  ): Promise<UserArchiveMeta> {
     try {
       const user = await this.deps.getUser(meta.config.uid)
       const next: UserArchiveMeta = { ...meta, user }
@@ -510,6 +529,8 @@ export class UserArchiveService {
       return next
     }
     catch {
+      if (persist)
+        await store.saveMeta(meta)
       return meta
     }
   }
@@ -523,6 +544,7 @@ export type {
   UserArchiveProgress,
   UserArchiveRecord,
   UserArchiveResult,
+  UserArchiveResumeMode,
   UserArchiveRunConfig,
   UserArchiveSlice,
   UserArchiveSliceState,

@@ -2,9 +2,11 @@ import type {
   UserArchiveContentOptions,
   UserArchiveMeta,
   UserArchiveOptions,
+  UserArchiveResumeMode,
   UserArchiveRunConfig,
 } from '~/types/archive/IUserArchive'
-import { InvalidConfigError } from '~/models/errors/ConfigError'
+import { InvalidConfigError, ResumeMismatchError } from '~/models/errors/ConfigError'
+import { USER_ARCHIVE_JOURNAL_SCHEMA } from '~/types/archive/IUserArchive'
 import { resolveTimeInput } from '~/utils/timeInput'
 import { planUserArchiveSlices } from './slices'
 
@@ -51,6 +53,14 @@ export function resolveUserArchiveConcurrency(value: number | undefined): number
   if (value < 1)
     throw configError('concurrency', value, `Expected an integer >= 1 (max ${MAX_USER_ARCHIVE_CONCURRENCY}).`)
   return Math.min(MAX_USER_ARCHIVE_CONCURRENCY, Math.floor(value))
+}
+
+export function resolveUserArchiveResume(value: unknown): UserArchiveResumeMode {
+  if (value === undefined || value === null || value === '')
+    return 'strict'
+  if (value === 'strict' || value === 'merge')
+    return value
+  throw configError('resume', value, 'Expected "strict" or "merge".')
 }
 
 export function resolveUserArchiveSliceDays(value: number | undefined): number {
@@ -104,18 +114,25 @@ export function buildUserArchiveConfig(uid: string, options: UserArchiveOptions)
   }
 }
 
-/** 续跑时用 journal 里的配置补齐未显式传入的选项。 */
+/**
+ * 续跑时用 journal 里的配置补齐未显式传入的选项。
+ *
+ * `strict` 连范围一起沿用，保证与 journal 可比较；`merge` 只沿用内容选项和切片天数，
+ * 范围按本次传入值 / 默认值重新解析，这样「最近 N 天」这类相对范围每次都能推进。
+ */
 export function applyUserArchiveResumeDefaults(
   options: UserArchiveOptions,
   existing?: UserArchiveRunConfig,
+  resume: UserArchiveResumeMode = 'strict',
 ): UserArchiveOptions {
   if (!existing)
     return options
 
+  const inheritRange = resume === 'strict'
   return {
     ...options,
-    since: options.since ?? existing.range.since.input,
-    until: options.until ?? existing.range.until.input,
+    ...(inheritRange ? { since: options.since ?? existing.range.since.input } : {}),
+    ...(inheritRange ? { until: options.until ?? existing.range.until.input } : {}),
     sliceDays: options.sliceDays ?? existing.sliceDays,
     includeComments: options.includeComments ?? existing.options.includeComments,
     includeReplies: options.includeReplies ?? existing.options.includeReplies,
@@ -131,24 +148,43 @@ export function applyUserArchiveResumeDefaults(
   }
 }
 
+function resumeError(mismatch: string, message: string, actual: unknown, expected: unknown): ResumeMismatchError {
+  return new ResumeMismatchError(message, { field: 'resume', mismatch, actual, expected })
+}
+
 function assertSame(field: string, actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new InvalidConfigError(
+    throw resumeError(
+      field,
       `Resume config mismatch for ${field}: got ${JSON.stringify(actual)}, journal has ${JSON.stringify(expected)}. `
-      + 'Use the original options or clear the store before starting over.',
-      { field, actual, expected },
+      + 'Use the original options, pass resume: "merge" (CLI: --resume merge) to keep records, or clear the store before starting over.',
+      actual,
+      expected,
     )
   }
 }
 
-/** 续跑时校验 uid / 范围 / 切片计划 / 内容选项；不一致直接拒绝。 */
-export function validateUserArchiveResume(meta: UserArchiveMeta, config: UserArchiveRunConfig): void {
+/**
+ * 续跑时校验 journal 与本次配置。
+ *
+ * `strict` 要求 uid / 范围 / 切片天数 / 内容选项 / 切片计划全部一致；
+ * `merge` 只校验 uid —— 账号不能混归档，范围与选项可以变。
+ */
+export function validateUserArchiveResume(
+  meta: UserArchiveMeta,
+  config: UserArchiveRunConfig,
+  resume: UserArchiveResumeMode = 'strict',
+): void {
   if (meta.config.uid !== config.uid) {
-    throw new InvalidConfigError(
+    throw resumeError(
+      'uid',
       `Journal belongs to uid ${meta.config.uid}, got ${config.uid}. Clear the store before archiving another account.`,
-      { field: 'uid', actual: config.uid, expected: meta.config.uid },
+      config.uid,
+      meta.config.uid,
     )
   }
+  if (resume === 'merge')
+    return
 
   assertSame('since', config.range.since.unix, meta.config.range.since.unix)
   assertSame('until', config.range.until.unix, meta.config.range.until.unix)
@@ -159,10 +195,34 @@ export function validateUserArchiveResume(meta: UserArchiveMeta, config: UserArc
   const samePlan = planned.length === meta.slices.length
     && planned.every((slice, index) => slice.key === meta.slices[index].key)
   if (!samePlan) {
-    throw new InvalidConfigError('Resume slice plan does not match the journal; clear the store to start over.', {
-      field: 'slices',
-      expected: meta.slices.map(slice => slice.key),
-      actual: planned.map(slice => slice.key),
-    })
+    throw resumeError(
+      'slices',
+      'Resume slice plan does not match the journal. '
+      + 'Pass resume: "merge" (CLI: --resume merge) to keep records and re-plan the slices, or clear the store to start over.',
+      planned.map(slice => slice.key),
+      meta.slices.map(slice => slice.key),
+    )
+  }
+}
+
+/**
+ * `merge` 续跑：用新配置重建 meta，保留用户快照与 createdAt，切片计划按新范围重算。
+ * 进度（totals）只保留 key 仍存在的部分，其余切片重新枚举。
+ */
+export function mergeUserArchiveMeta(meta: UserArchiveMeta, config: UserArchiveRunConfig): UserArchiveMeta {
+  const slices = planUserArchiveSlices(config.range.since.unix, config.range.until.unix, config.sliceDays)
+  const keys = new Set(slices.map(slice => slice.key))
+  const totals = Object.fromEntries(
+    Object.entries(meta.totals ?? {}).filter(([key]) => keys.has(key)),
+  )
+
+  return {
+    type: 'meta',
+    schema: USER_ARCHIVE_JOURNAL_SCHEMA,
+    createdAt: meta.createdAt,
+    config,
+    slices,
+    user: meta.user,
+    ...(Object.keys(totals).length === 0 ? {} : { totals }),
   }
 }

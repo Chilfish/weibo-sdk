@@ -7,7 +7,7 @@ import type {
   UserArchiveSliceState,
   UserArchiveStore,
 } from '~/types/archive/IUserArchive'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { stripUserArchiveRaw } from '~/services/public/userArchive/assemble'
@@ -48,6 +48,26 @@ export function writeFileAtomic(path: string, content: string): void {
 function appendLine(path: string, entry: unknown): void {
   mkdirSync(dirname(path), { recursive: true })
   appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8')
+}
+
+const JOURNAL_SUFFIX = '.journal.jsonl'
+
+/**
+ * 列出进度目录下所有切片 journal 的 key。
+ *
+ * 不依赖 meta.slices：`resume: 'merge'` 会按新范围重写 meta，旧 key 的 journal
+ * 仍要能被 `loadRecords()` / `loadIssues()` 读到，否则已有记录会被丢掉。
+ */
+function listJournalKeys(partsDir: string): string[] {
+  try {
+    return readdirSync(partsDir)
+      .filter(name => name.endsWith(JOURNAL_SUFFIX))
+      .map(name => name.slice(0, -JOURNAL_SUFFIX.length))
+      .sort()
+  }
+  catch {
+    return []
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -254,10 +274,8 @@ export class FileUserArchiveStore implements UserArchiveStore {
     if (slice !== undefined)
       return readJournal(this.paths.slicePath(slice)).records
 
-    const meta = await this.loadMeta()
-    if (!meta)
-      return []
-    return meta.slices.flatMap(item => readJournal(this.paths.slicePath(item.key)).records)
+    return listJournalKeys(this.paths.partsDir)
+      .flatMap(key => readJournal(this.paths.slicePath(key)).records)
   }
 
   async appendRecord(entry: UserArchiveRecord): Promise<void> {
@@ -277,10 +295,8 @@ export class FileUserArchiveStore implements UserArchiveStore {
   }
 
   async loadIssues(): Promise<ArchiveIssue[]> {
-    const meta = await this.loadMeta()
-    const keys = meta ? meta.slices.map(slice => slice.key) : []
-    const issues = keys.flatMap(key => readJournal(this.paths.slicePath(key)).issues)
-    return [...issues, ...readJournal(this.paths.slicePath('_issues')).issues]
+    return listJournalKeys(this.paths.partsDir)
+      .flatMap(key => readJournal(this.paths.slicePath(key)).issues)
   }
 
   async clear(): Promise<void> {

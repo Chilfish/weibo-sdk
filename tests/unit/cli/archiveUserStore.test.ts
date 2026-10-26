@@ -123,4 +123,18 @@ describe('fileUserArchiveStore', () => {
     expect(await store.loadRecords('s000-1-2')).toEqual([makeRecord('A')])
     expect(await store.loadRecords('missing')).toEqual([])
   })
+
+  it('loadsRecordsAndIssuesFromJournalsOutsideTheCurrentSlicePlan', async () => {
+    const { store, meta, slice } = createStore()
+    const issue = { stage: 'timeline' as const, code: 'UNKNOWN', message: 'boom' }
+    await store.saveMeta(meta)
+    await store.appendRecord(makeRecord('A'))
+    await store.appendIssue(issue, slice)
+
+    // 模拟 resume: 'merge' 重写 meta：旧 key 已不在切片计划里。
+    await store.saveMeta({ ...meta, slices: [{ index: 0, key: 's000-9-10', since: 9, until: 10 }] })
+
+    expect(await store.loadRecords()).toEqual([makeRecord('A')])
+    expect(await store.loadIssues()).toEqual([issue])
+  })
 })

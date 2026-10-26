@@ -1,6 +1,7 @@
 // tests/unit/errors/WeiboSDKError.test.ts
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError, WeiboSessionExpiredError } from '~/models/errors/BusinessError'
+import { InvalidConfigError, ResumeMismatchError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '~/models/errors/TransportError'
 
@@ -43,5 +44,16 @@ describe('weiboSDKError', () => {
     expect(expired.code).toBe('AUTH_SESSION_EXPIRED')
     expect(expired.level).toBe('business')
     expect(expired.retryable).toBe(false)
+  })
+
+  it('resume mismatch errors keep the config error contract', () => {
+    const error = new ResumeMismatchError('mismatch', { field: 'resume', mismatch: 'since' })
+
+    expect(error).toBeInstanceOf(InvalidConfigError)
+    expect(error.name).toBe('ResumeMismatchError')
+    expect(error.code).toBe('RESUME_MISMATCH')
+    expect(error.level).toBe('business')
+    expect(error.retryable).toBe(false)
+    expect(error.context).toEqual({ field: 'resume', mismatch: 'since' })
   })
 })

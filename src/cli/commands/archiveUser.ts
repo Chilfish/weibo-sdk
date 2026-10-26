@@ -3,7 +3,7 @@ import type { WeiboSDKTelemetry } from '~/types/telemetry'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
-import { MAX_USER_ARCHIVE_CONCURRENCY } from '~/services/public/userArchive/config'
+import { MAX_USER_ARCHIVE_CONCURRENCY, resolveUserArchiveResume } from '~/services/public/userArchive/config'
 import { mergeArchiveFiles } from '~/services/public/userArchive/merge'
 import { createRawRecorder, prepareRawPath } from '../archiveUser/raw'
 import { FileUserArchiveStore, writeFileAtomic } from '../archiveUser/store'
@@ -99,6 +99,7 @@ export function userArchiveOptionsFromArgs(args: Record<string, unknown>): UserA
     maxReposts: parsePositiveInt(args['max-reposts']),
     maxRepostPages: parsePositiveInt(args['max-repost-pages']),
     concurrency: parsePositiveInt(args.concurrency),
+    resume: resolveUserArchiveResume(args.resume),
   }
 }
 
@@ -218,12 +219,15 @@ export async function runArchiveUser(
     color: supportsColor(logContext),
     noProgress,
   })
+  const resumeMode = resolveUserArchiveResume(args.resume)
+  // merge 不继承 journal 的范围，缺省按 buildUserArchiveConfig 的默认值显示。
+  const inheritedMeta = resumeMode === 'strict' ? storedMeta : undefined
   const sinceLabel = typeof args.since === 'string' && args.since.trim() !== ''
     ? args.since
-    : storedMeta?.config.range.since.input ?? '2009-08-14'
+    : inheritedMeta?.config.range.since.input ?? '2009-08-14'
   const untilLabel = typeof args.until === 'string' && args.until.trim() !== ''
     ? args.until
-    : storedMeta?.config.range.until.input ?? '现在'
+    : inheritedMeta?.config.range.until.input ?? '现在'
   const range = `${sinceLabel} → ${untilLabel}`
   const startedAt = Date.now()
 

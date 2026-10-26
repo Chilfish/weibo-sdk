@@ -250,7 +250,43 @@ describe('userArchiveService', () => {
       until: '2025-02-28',
       sliceDays: 0,
       store,
-    })).rejects.toThrow(/until/)
+    })).rejects.toMatchObject({ code: 'RESUME_MISMATCH', context: { field: 'resume', mismatch: 'until' } })
+  })
+
+  it('run_mergeResumeKeepsRecordsAndReplansRange', async () => {
+    const store = createMemoryUserArchiveStore()
+    const first = createFakeDeps({ tweets: [makeArchiveTweet('A', '2025-01-15T00:00:00.000Z')] })
+    const firstResult = await new UserArchiveService(first.deps).run(UID, { ...OPTIONS, store })
+    expect(firstResult.complete).toBe(true)
+
+    const second = createFakeDeps({ tweets: [makeArchiveTweet('B', '2025-02-15T00:00:00.000Z')] })
+    const result = await new UserArchiveService(second.deps).run(UID, {
+      since: '2025-02-01',
+      until: '2025-02-28',
+      sliceDays: 0,
+      resume: 'merge',
+      store,
+    })
+
+    expect(result.complete).toBe(true)
+    expect(result.file.tweets.map(tweet => tweet.mblogId).sort()).toEqual(['A', 'B'])
+    expect(result.summary).toMatchObject({ tweets: 2, errors: 0 })
+
+    const meta = await store.loadMeta()
+    expect(meta?.config.range.since.input).toBe('2025-02-01')
+    expect(meta?.slices[0]).toMatchObject({ since: second.calls.stream[0].since, until: second.calls.stream[0].until })
+    // 旧记录保留，但不再补全；只补新范围内缺失的 B。
+    expect(second.calls.enrich).toEqual(['B'])
+  })
+
+  it('run_mergeResumeStillRejectsAnotherUid', async () => {
+    const store = createMemoryUserArchiveStore()
+    const { deps } = createFakeDeps()
+    await new UserArchiveService(deps).run(UID, { ...OPTIONS, store })
+
+    await expect(new UserArchiveService(deps).run('999', { resume: 'merge', store }))
+      .rejects
+      .toMatchObject({ code: 'RESUME_MISMATCH', context: { mismatch: 'uid' } })
   })
 
   it('run_guestModeThrowsConfigInvalid', async () => {

@@ -14,6 +14,14 @@ export interface UserArchiveSlice {
   until: number
 }
 
+/**
+ * 续跑模式。
+ *
+ * - `strict`：本次配置必须与 journal 完全一致，否则抛 `RESUME_MISMATCH`；
+ * - `merge`：保留已有记录，按本次配置重建切片计划并重新枚举，只补缺失的补全。
+ */
+export type UserArchiveResumeMode = 'strict' | 'merge'
+
 /** 一次运行的内容选项快照（与 journal 中持久化的结构一致）。 */
 export interface UserArchiveContentOptions {
   includeComments: boolean
@@ -119,6 +127,13 @@ export interface UserArchiveOptions {
   maxRepostPages?: number
   /** 全局补全并发（SDK 默认 6，上限 32；CLI 默认 20）。实际 QPS 仍由令牌桶控制。 */
   concurrency?: number
+  /**
+   * 续跑模式，默认 `strict`。
+   *
+   * `merge` 保留 store 里已有的记录（按 `mblogId`），按本次范围重建切片计划并重新枚举，
+   * 只对缺失或带 issue 的记录发起补全。省略的内容选项仍沿用 journal。
+   */
+  resume?: UserArchiveResumeMode
   /** 持久化端口；缺省使用内存实现。 */
   store?: UserArchiveStore
   onProgress?: (progress: UserArchiveProgress) => void | Promise<void>

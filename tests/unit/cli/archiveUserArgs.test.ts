@@ -137,4 +137,10 @@ describe('userArchiveOptionsFromArgs', () => {
   it('invalidSliceDays_throws', () => {
     expect(() => userArchiveOptionsFromArgs({ 'slice-days': '-1' })).toThrow(InvalidConfigError)
   })
+
+  it('mapsResumeMode', () => {
+    expect(userArchiveOptionsFromArgs({}).resume).toBe('strict')
+    expect(userArchiveOptionsFromArgs({ resume: 'merge' }).resume).toBe('merge')
+    expect(() => userArchiveOptionsFromArgs({ resume: 'loose' })).toThrow(InvalidConfigError)
+  })
 })
