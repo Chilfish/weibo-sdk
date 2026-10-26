@@ -14,6 +14,7 @@ outline: deep
 | `WeiboAPINotOkError` | `API_NOT_OK` | business | false |
 | `UnexpectedAPIResponseError` | `API_BAD_RESPONSE` | protocol | false |
 | `InvalidConfigError` | `CONFIG_INVALID` | business | false |
+| `ResumeMismatchError` | `RESUME_MISMATCH` | business | false |
 | `RateLimitError` | `RATE_LIMITED` | transport | true |
 | `ConnectionTimeoutError` | `NET_TIMEOUT` | transport | true |
 | `NetworkRequestError` | `NET_REQUEST_FAILED` | transport | true |
@@ -40,6 +41,7 @@ interface WeiboSDKError {
 - `API_BAD_RESPONSE`：`endpoint`、`args`、`raw`（非 JSON 时截断）、`zodIssues`
 - `RATE_LIMITED`：`status`（432 / 429）、`retryAfterMs`、`attempt`、`message`
 - `CONFIG_INVALID`：`field`（出问题的配置项）
+- `RESUME_MISMATCH`：`field: 'resume'`、`mismatch`（`uid` / `since` / `until` / `sliceDays` / `options` / `slices`）、`actual`、`expected`；`ResumeMismatchError` 继承 `InvalidConfigError`，`instanceof InvalidConfigError` 仍成立
 - 媒体：`reason`、`status`、`mblogId`、`mediaId`
 
 ## 判断方式

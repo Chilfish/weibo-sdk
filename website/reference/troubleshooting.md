@@ -12,6 +12,7 @@ SDK 抛出的错误都带 `code`，排查时判断 `error.code`，再看 `error.
 | code | 类 | level | 可重试 | 含义 |
 |------|----|-------|--------|------|
 | `CONFIG_INVALID` | `InvalidConfigError` | business | 否 | Cookie 为空或 Cookie 文件不可用 |
+| `RESUME_MISMATCH` | `ResumeMismatchError` | business | 否 | 范围归档的续跑配置与 journal 不一致 |
 | `AUTH_SESSION_EXPIRED` | `WeiboSessionExpiredError` | business | 否 | Cookie 过期或无效 |
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | 否 | 微博接口返回 `ok !== 1` |
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | 否 | Zod 校验失败，或响应不是 JSON（登录页、风控页、接口下线） |
@@ -43,6 +44,33 @@ SDK 抛出的错误都带 `code`，排查时判断 `error.code`，再看 `error.
 - 检查 `.env` 文件中的 `WEIBO_COOKIE` 是否已设置；使用访客身份时改用 `auth: 'auto'` / `auth: 'guest'` / CLI `--guest`。
 - 确认 Cookie 字符串非空，并包含 `SUB=` 字段。
 - 值为文件路径时，确认路径存在且可读（相对路径按 pwd 解析）。Netscape 文件需要是 7 列 TSV，并包含 `weibo.com` / `weibo.cn` / `sina.com.cn` 域名的 Cookie，其他站点的条目会被忽略。`error.context.path` 给出实际读取的文件路径。
+
+## RESUME_MISMATCH
+
+含义：范围归档（`userArchive.stream/run`）在 strict 续跑时，本次配置与 store 里的 journal 不一致。错误在第一次迭代前抛出，`context.mismatch` 指向具体冲突的字段。
+
+触发场景：
+
+- `since` / `until` / `sliceDays` / 内容选项和上一次运行不同（例如「最近 30 天」按当天日期重算，隔天再跑）
+- store 里的 journal 属于另一个 uid
+- 切片计划与 journal 对不上
+
+处理：
+
+- 想沿用已有记录、只补新范围和缺失的补全：传 `resume: 'merge'`（CLI `--resume merge`）。已有记录按 `mblogId` 保留，切片计划按新范围重算，已完整的记录不再重抓。
+- 想完全从头来：`store.clear()`（CLI `--fresh`）。注意这会丢弃 store 里的全部进度。
+- 想原样续跑：沿用第一次运行的参数。strict 下省略的范围与内容选项会自动沿用 journal。
+
+```typescript
+try {
+  await sdk.userArchive.run(uid, { since: '2026-09-02', store })
+}
+catch (error) {
+  if (error.code === 'RESUME_MISMATCH') {
+    await sdk.userArchive.run(uid, { since: '2026-09-02', resume: 'merge', store })
+  }
+}
+```
 
 ## AUTH_SESSION_EXPIRED
 
@@ -303,6 +331,9 @@ if (errors.length > 0) {
 │  ├─ Cookie 是文件路径 → 检查路径存在、可读、含微博域名 Cookie
 │  ├─ context.field === 'page' / 'archive' 且带 guest 标记 → 访客只读第一页，归档需要 Cookie
 │  └─ 其他情况 → 检查 Cookie 是否非空（显式 auth: 'cookie' 时必填）
+├─ error.code === 'RESUME_MISMATCH'
+│  ├─ 想保留已有记录 → resume: 'merge'（CLI --resume merge）
+│  └─ 想从头开始 → store.clear()（CLI --fresh）
 ├─ error.code === 'AUTH_SESSION_EXPIRED'
 │  ├─ context.requiredAuth === 'cookie' → 该能力只读登录账号，访客不可用，换 Cookie
 │  ├─ context.reason === 'guest_token_issue' → 访客 token 发放失败，稍后重试或预置 guest.token

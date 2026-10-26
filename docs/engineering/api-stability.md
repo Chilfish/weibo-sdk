@@ -74,7 +74,7 @@
 
 ### 导出（按 shape 分组）
 
-`api-surface.json` 的 `tiers.evolving` 共 85 个导出，`check:api` 按名字把它们归入五种 shape，生成页会按这个顺序展示：
+`api-surface.json` 的 `tiers.evolving` 共 86 个导出，`check:api` 按名字把它们归入五种 shape，生成页会按这个顺序展示：
 
 | shape | 内容 |
 |---|---|

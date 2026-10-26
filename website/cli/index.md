@@ -415,7 +415,7 @@ checkpoint 记录最后一条已完整处理项，续跑时边界 1 条可能重
 
 `archive` 需要 Cookie：`--guest` 或没有 Cookie 时，在产出任何 item 之前报 `CONFIG_INVALID`；访客只有首屏数据。
 
-`archive user` 是范围归档加深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，重跑同一命令按切片续跑；`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。`--merge` 把已存在的输出文件当基线，抓取前校验 uid / 格式，结束后合并写回。stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。详细参数、SDK 接口与 store 端口见 [范围归档](/reference/user-archive)。
+`archive user` 是范围归档加深度补全：固定切片枚举，逐条重新拉取 `statuses/show`（含长文）、一级评论、楼中楼和可选转发，最后合并成单个 `ArchiveFile`。进度写在 `<out>.slices/`，重跑同一命令按切片续跑；范围或选项变了就加 `--resume merge`（保留已有记录，按新范围重新枚举），`--fresh` 丢弃进度，`--force` 覆盖输出 / raw 文件。`--merge` 把已存在的输出文件当基线，抓取前校验 uid / 格式，结束后合并写回。stdout 只有一行 `{ event: 'done', ... }` 摘要，进度 / issue / raw 诊断走 stderr 的 NDJSON。完整结束时退出码 0；枚举中止、存在未补全项或 raw 写入失败时退出码 1。详细参数、SDK 接口与 store 端口见 [范围归档](/reference/user-archive)。
 
 `archive merge` 全程离线，读入多份同账号归档，按 `mblogId` 合并后写出。输出文件已存在时需要 `--force`；输入路径可以是输出文件本身（先全部读入再原子写入）。输入也可以是目录：只扫描顶层 `*.json`，逐份校验后跳过不可合并的文件并在 stderr 说明原因；目录中的输出文件会被排除，跨账号报错。合并结果仍有未解决的 issue 时退出码为 1。规则见 [范围归档 · 合并](/reference/user-archive)。
 

@@ -85,6 +85,7 @@ for await (const event of sdk.userArchive.stream(uid, { store })) {
 | `maxReplyPages` | 2 | 每条一级评论最多楼中楼页数；0 = 全部 |
 | `maxReposts` / `maxRepostPages` | 不限 | 转发上限 |
 | `concurrency` | 6（上限 32） | 全局补全并发；实际 QPS 仍受令牌桶控制 |
+| `resume` | `'strict'` | `'strict'` 要求配置与 journal 一致；`'merge'` 保留已有记录，按新范围重新枚举 |
 | `store` | 内存 | `UserArchiveStore` 持久化端口 |
 | `onProgress` | 无 | `UserArchiveProgress` 回调 |
 | `onIssue` | 无 | issue 回调 |
@@ -117,6 +118,8 @@ interface UserArchiveStore {
 - journal 记录每个切片的完成状态与 checkpoint；重跑同一命令即可接着跑。
 - 已加载的旧记录计入 `processed`，重跑时跳过。
 - 带 issue 的目标保持未完成，下一轮重试。
+- 默认 `resume: 'strict'`：本次配置必须与 journal 一致，否则抛 `RESUME_MISMATCH`（`context.mismatch` 指向冲突字段）。
+- `resume: 'merge'`：保留已有记录（按 `mblogId`），按本次范围重建切片计划并重新枚举；已完整的记录不再补全。省略的内容选项仍沿用 journal，`since` / `until` 不继承。
 - `--fresh` 清空进度重新开始。
 
 ## 与全量镜像的区别

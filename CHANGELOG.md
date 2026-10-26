@@ -4,6 +4,20 @@
 
 ## Unreleased
 
+### 新增
+
+- `userArchive` 新增 `resume: 'strict' | 'merge'`（默认 `strict`）。`merge` 保留已有记录（按 `mblogId`），
+  按本次范围重建切片计划并重新枚举，只补缺失的补全；省略的内容选项仍沿用 journal，但 `since` / `until`
+  不继承。适合「最近 N 天」这类按当天日期重算的相对范围。CLI 对应 `--resume merge`。
+- 新增 `ResumeMismatchError` / `RESUME_MISMATCH`：续跑配置与 journal 不一致时单独报错，
+  `context.field = 'resume'`、`context.mismatch` 指向冲突字段（`uid` / `since` / `until` / `sliceDays` /
+  `options` / `slices`）。`ResumeMismatchError` 继承 `InvalidConfigError`，原有 `instanceof` 判断仍然成立。
+
+### 修复
+
+- 范围归档续跑时 `loadRecords()` / `loadIssues()` 改为扫描进度目录下的全部切片 journal，
+  不再只读当前 `meta.slices`。`resume: 'merge'` 重写切片计划后，旧切片的记录与 issue 不会丢失。
+
 ## 0.6.0 (2026-10-23)
 
 ### 新增

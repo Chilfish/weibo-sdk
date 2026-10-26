@@ -30,6 +30,7 @@ class WeiboSDKError extends Error {
 | `API_NOT_OK` | business | 否 | 微博返回 `ok !== 1` |
 | `API_BAD_RESPONSE` | protocol | 否 | 非 JSON（登录页 / 风控页）或 schema 不匹配 |
 | `CONFIG_INVALID` | business | 否 | Cookie、代理或参数不合法 |
+| `RESUME_MISMATCH` | business | 否 | 续跑配置与 journal 不一致；修正参数或改用 `resume: 'merge'` |
 | `MEDIA_*` | transport / protocol / storage | 视情况 | 媒体下载失败 |
 
 完整列表与排查步骤见 [故障排查](/reference/troubleshooting)。

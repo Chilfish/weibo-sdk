@@ -108,7 +108,7 @@ weibo archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archiv
 - 续跑是 **at-least-once**：checkpoint 记录最后一条完整处理的项，中断重跑可能重复边界 1 条；图片墙和视频瀑布按整页回写游标，会重放整页。按 `mblogId`（媒体按 `asset.id`）幂等去重。
 - `includeFavorites` / `includeCommentHistory` 是**账号级**数据，只能读 Cookie 对应的登录账号；归档别人时传这些会 `CONFIG_INVALID`。
 - 访客模式直接 `CONFIG_INVALID`：匿名只有首屏，无法保证完整。
-- `archive user` 是范围归档：逐条重新拉详情/长文，默认补一级评论和楼中楼，`--reposts` 再拉转发；最终写一个 `ArchiveFile`。进度在 `<out>.slices/`，重跑同一命令续跑，`--fresh` 重来。SDK 对应 `sdk.userArchive.run()` / `.stream()`。
+- `archive user` 是范围归档：逐条重新拉详情/长文，默认补一级评论和楼中楼，`--reposts` 再拉转发；最终写一个 `ArchiveFile`。进度在 `<out>.slices/`，重跑同一命令续跑；范围或选项变了加 `--resume merge`（保留已有记录、按新范围重新枚举），`--fresh` 重来。SDK 对应 `sdk.userArchive.run()` / `.stream()`，`resume: 'merge'` 同理。
 
 ### 5. 写 SDK 脚本（同样 bun 直跑）
 
@@ -226,7 +226,7 @@ weibo archive 1111681197 --images --state .weibo-state.json
 weibo archive user 1111681197 --since 2026-01-01 --until 2026-03-31 -o ./weibo-archive.json
 ```
 
-默认补一级评论和楼中楼，但各只翻 2 页；`--all-comments` / `--all-replies`（或 `--max-*-pages 0`）才拉完。`--no-comments` / `--no-replies` 关闭，`--reposts` 额外拉转发。进度在 `./weibo-archive.json.slices/`，中断后重跑同一命令续跑；`--fresh` 丢弃进度。大账号用 `--fast` 提高吞吐，按日期分段跑最后 `archive merge`。
+默认补一级评论和楼中楼，但各只翻 2 页；`--all-comments` / `--all-replies`（或 `--max-*-pages 0`）才拉完。`--no-comments` / `--no-replies` 关闭，`--reposts` 额外拉转发。进度在 `./weibo-archive.json.slices/`，中断后重跑同一命令续跑；范围变了用 `--resume merge` 保留已有记录，`--fresh` 丢弃进度。大账号用 `--fast` 提高吞吐，按日期分段跑最后 `archive merge`。
 
 **拉首页最新微博并增量保存**
 

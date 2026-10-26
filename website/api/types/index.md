@@ -5,11 +5,11 @@ outline: deep
 
 # 导出索引
 
-包根共导出 251 个名称：Stable 166 / Evolving 85。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+包根共导出 253 个名称：Stable 167 / Evolving 86。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
 
 Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能随 minor 版本演进，不属于破坏性承诺。
 
-## Stable（166）
+## Stable（167）
 
 | 名称 | 种类 |
 |---|---|
@@ -83,6 +83,7 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `RateLimitError` | class |
 | `RequestContext` | type |
 | `ResponseContext` | interface |
+| `ResumeMismatchError` | class |
 | `RetryContext` | interface |
 | `SearchTweetPageResult` | interface |
 | `SearchUserPageResult` | interface |
@@ -180,7 +181,7 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `WeiboSessionExpiredError` | class |
 | `WeiboTransport` | interface |
 
-## Evolving（85）
+## Evolving（86）
 
 按 shape 分组；shape 由名字推导，只用于说明「这是什么形状」，不构成额外承诺。
 
@@ -288,4 +289,10 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `PluginRequestInfo` | interface |
 | `TransportFailure` | class |
 | `TransportFailureKind` | type |
+
+### 模型与契约（1）
+
+| 名称 | 种类 |
+|---|---|
+| `UserArchiveResumeMode` | type |
 

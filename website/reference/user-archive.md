@@ -78,6 +78,7 @@ for await (const event of sdk.userArchive.stream(uid, options)) {
 | `maxReplies` / `maxReplyPages` | 不限 / `2` | 每条一级评论的楼中楼条数 / 页数上限；页数 `0` 表示全部 |
 | `maxReposts` / `maxRepostPages` | 不限 | 转发条数 / 页数上限 |
 | `concurrency` | `6` | 全局补全并发，上限 32；CLI 默认 20 |
+| `resume` | `'strict'` | `strict` 要求配置与 journal 一致；`merge` 保留已有记录，按新范围重新枚举 |
 | `store` | 内存 | 持久化端口，见下 |
 | `signal` | 无 | `AbortSignal`；中止后按未完成处理 |
 
@@ -111,7 +112,25 @@ const store = createMemoryUserArchiveStore()
 await sdk.userArchive.run(uid, { ...options, store })
 ```
 
-续跑时省略的参数沿用 journal，包括第一次运行时解析出的 `until`、切片天数、内容开关和上限。显式传入的值必须与第一次一致，否则抛 `InvalidConfigError`。要重来就调用 `store.clear()`，CLI 对应 `--fresh`。
+续跑有两种模式：
+
+| `resume` | 语义 |
+|---|---|
+| `'strict'`（默认） | 本次配置必须与 journal 一致。省略的参数沿用 journal（含第一次解析出的 `until`、切片天数、内容开关和上限）；显式值不同则抛 `RESUME_MISMATCH`（`ResumeMismatchError`，`context.mismatch` 指向冲突字段） |
+| `'merge'` | 保留 store 里已有的记录（按 `mblogId`），按本次范围重建切片计划并重新枚举。已经完整的记录不再发起补全；省略的内容选项 / 切片天数仍沿用 journal，但 `since` / `until` 不继承，缺省按正常默认值解析 |
+
+`merge` 适合「相对范围每次重算」的调用方（例如「最近 30 天」按当天日期计算）：
+
+```ts
+// 第一次
+await sdk.userArchive.run(uid, { since: '2026-09-01', store })
+// 隔天，只补新范围；旧记录保留
+await sdk.userArchive.run(uid, { since: '2026-09-02', resume: 'merge', store })
+```
+
+`merge` 依赖 `store.loadRecords()` 返回全部已有记录；自定义 store 不要按当前 `meta.slices` 过滤记录，否则重建切片计划后旧记录会读不到。范围外的旧数据会保留在最终归档里，`query.range` 仍是本次范围。
+
+要完全重来就调用 `store.clear()`，CLI 对应 `--fresh`。如果 store 同时承载产品库（时间线、互动、媒体路径等），建议让 `clear()` 只清 journal（`meta` / 切片状态 / checkpoint），产品数据另存；或者直接用 `resume: 'merge'` 避免清理。
 
 ## CLI
 
@@ -119,6 +138,9 @@ await sdk.userArchive.run(uid, { ...options, store })
 weibo-cli archive user 1234567890 --since 2025-01-01 --until 2025-12-31
 weibo-cli archive user https://weibo.com/u/1234567890 --since 2025-01-01
 weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
+
+# 上次进度还在，但范围变了：保留已有记录，按新范围重新枚举
+weibo-cli archive user 1234567890 --since 2025-01-02 --resume merge
 ```
 
 `pnpm archive:user ...` 是同一个命令的仓库内快捷方式。
@@ -132,6 +154,7 @@ weibo-cli archive user 1234567890 --since 2025-01-01 --no-comments --reposts
 | `-o, --out` | 输出文件，默认 `./weibo-archive-<uid>.json` |
 | `--force` | 覆盖已有的输出 / raw 文件 |
 | `--fresh` | 丢弃已有切片进度，从头开始 |
+| `--resume` | `strict`（默认）或 `merge`；`merge` 保留已有记录，按新范围重新枚举 |
 | `--raw` / `--raw-out` | 把上游原始响应单独写进 JSONL，归档 JSON 只保留归一化字段 |
 | `--no-comments` / `--no-replies` | 关闭评论 / 只拉一级评论 |
 | `--comment-order` | `time`（默认）或 `hot` |
