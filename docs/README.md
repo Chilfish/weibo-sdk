@@ -62,6 +62,7 @@
 | [research-tweet-special-formats-2026-10-22.md](planning/research-tweet-special-formats-2026-10-22.md) | 微博特殊格式适配：视频 / 文章 / 投票 / 直播 / 抽奖的 PC/m 双结构、m 站视频归一化 bug、`ITweet.attachments` 契约与伪代码 | 实现 / 评审附件能力 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [todo-downstream-handoff.md](planning/todo-downstream-handoff.md) | 下游交接计划：API 稳定子集收口、独立公开文档站（`website/`）、文档迁移与门禁、`0.6.0` 提交顺序 | 实施 / 验收下游交接 |
+| [weibo-archive-app/](planning/weibo-archive-app/README.md) | 消费端桌面应用（MyGo + SDK）独立目录：定位与边界 / 调研事实 / POC 计划 / 构建方案 | 规划桌面应用、评估 MyGo 可行性 |
 | [backlog.md](planning/backlog.md) | 跨阶段候选任务清单（收拢暂缓项，含状态图例） | 规划下一阶段 |
 | [todo-guest-mode.md](planning/todo-guest-mode.md) | 访客模式行动计划：已拍板决策、G1–G7 范围、测试计划、提交顺序与风险 | 实施 / 验收 guest mode |
 
@@ -108,6 +109,7 @@
 | [2026-10-20.md](development-log/2026-10-20.md) | 当日记录（0.1.0 发布 / 0.1.1 重发 / 用户数据能力 / 0.2.0 发布准备） |
 | [2026-10-21.md](development-log/2026-10-21.md) | 当日记录（归档页内并发 / 插件化与包完整性调研） |
 | [2026-10-22.md](development-log/2026-10-22.md) | 当日记录（archive-user 模块化 → SDK `userArchive` / CLI `archive user` 迁移） |
+| [2026-10-26.md](development-log/2026-10-26.md) | 当日记录（状态巡检 / 消费端桌面应用调研与 POC 计划） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 
