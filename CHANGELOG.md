@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.6.1 (2026-10-27)
+
 ### 新增
 
 - `userArchive` 新增 `resume: 'strict' | 'merge'`（默认 `strict`）。`merge` 保留已有记录（按 `mblogId`），
