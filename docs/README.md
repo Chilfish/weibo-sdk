@@ -7,7 +7,7 @@
 
 **个人数据归档**（2026-08-09 产品决策）：`weibo-sdk` = 可靠地把一个微博账号的公开数据镜像下来——可断点续传、可观测、默认离线可测。npm 包名为 `@chilfish/weibo-sdk`，CLI 为 `weibo-cli`。详见 [requirements/requirements-spec.md](requirements/requirements-spec.md) 与 [reviews/review-apple-design-2026-08-09.md](reviews/review-apple-design-2026-08-09.md)。
 
-> **发布形态**（2026-10-19）：发布为 npm 包 `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`），被 `I:\dev\Weibo-archiver` 的 web-v3（SPA）/ monkey / CLI 消费，`ITweet` 定为下游存档终局契约。见 [reviews/review-apple-design-2026-08-10.md](reviews/review-apple-design-2026-08-10.md) 与 [archive/todo-contract-freeze.md](archive/todo-contract-freeze.md)（契约冻结阶段，已归档）。
+> **发布形态**（2026-10-19）：发布为 npm 包 `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`）。`ITweet` 是 SDK 自己的存档契约，按契约版本演进；老 Weibo-archiver 的数据格式不再是对齐目标，只在导入历史数据时做一次性转换（2026-10-27 决策，见 [research-itweet-v3-2026-10-27.md](planning/research-itweet-v3-2026-10-27.md)）。
 
 ## 公开文档（website/）
 
@@ -60,6 +60,7 @@
 | [research-user-archive-integration-2026-10-22.md](planning/research-user-archive-integration-2026-10-22.md) | 用户范围归档的产品化提案：`sdk.userArchive.stream/run`、store 端口、`weibo-cli archive user`、脚本模块映射与实施顺序 | 实施/评审归档脚本迁移 |
 | [research-weibo-memories-2026-10-22.md](planning/research-weibo-memories-2026-10-22.md) | 「那年今日 / 微博回忆」抓包调研 + 暂缓实施计划：`containerid=232544`、固定三年单页、Cookie 要求、containerid 不可发现、类型契约与伪代码 | 未来按需实现回忆能力时 |
 | [research-tweet-special-formats-2026-10-22.md](planning/research-tweet-special-formats-2026-10-22.md) | 微博特殊格式适配：视频 / 文章 / 投票 / 直播 / 抽奖的 PC/m 双结构、m 站视频归一化 bug、`ITweet.attachments` 契约与伪代码 | 实现 / 评审附件能力 |
+| [research-itweet-v3-2026-10-27.md](planning/research-itweet-v3-2026-10-27.md) | `ITweet` v3 方向：单一富契约、作废的旧下游前提、字段审计范围、老数据导入与 v2→v3 迁移 | 排 v3 字段、改存档契约前 |
 | [todo-plugin-architecture.md](planning/todo-plugin-architecture.md) | 插件化实施计划：已拍板决策、PF1–PF6 范围、Transport / CredentialResolver / Plugin 契约、测试与提交顺序 | 实施 / 验收插件化与包门禁 |
 | [todo-downstream-handoff.md](planning/todo-downstream-handoff.md) | 下游交接计划：API 稳定子集收口、独立公开文档站（`website/`）、文档迁移与门禁、`0.6.0` 提交顺序 | 实施 / 验收下游交接 |
 | [weibo-archive-app/](planning/weibo-archive-app/README.md) | 消费端桌面应用（MyGo + SDK）独立目录：定位与边界 / 调研事实 / POC 计划 / 构建方案 | 规划桌面应用、评估 MyGo 可行性 |

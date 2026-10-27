@@ -14,7 +14,7 @@
 >
 > **2026-10-21 方向更新**：新增「插件化 / 传输适配 / 包完整性」候选方向。结论：**不做多账号 token 池**；采用 Ports → Core → Plugins 三层扩展，先抽 `WeiboTransport`，再补 `CredentialResolver` 与插件管线。调研见 [research-plugin-architecture-2026-10-21.md](./research-plugin-architecture-2026-10-21.md)，下游产物门禁见 [package-integrity.md](../engineering/package-integrity.md)。**已承接为阶段计划 [todo-plugin-architecture.md](./todo-plugin-architecture.md)**（PF1–PF6 实施中）。
 
-> 背景：`@chilfish/weibo-sdk` 发布为 npm 包（CLI `weibo-cli`），`ITweet` 定为 Weibo-archiver 存档终局契约。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)。
+> 背景：`@chilfish/weibo-sdk` 发布为 npm 包（CLI `weibo-cli`），`ITweet` 是 SDK 自己的存档契约。2026-10-27 起老 Weibo-archiver 的数据格式只做一次性导入，不再约束字段丰富度，后续按 [research-itweet-v3-2026-10-27.md](./research-itweet-v3-2026-10-27.md) 升 v3。见 [review-apple-design-2026-08-10.md](../reviews/review-apple-design-2026-08-10.md)（历史背景）。
 
 ---
 

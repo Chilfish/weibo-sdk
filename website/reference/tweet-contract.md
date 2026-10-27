@@ -5,7 +5,7 @@ outline: deep
 
 # ITweet 存档契约
 
-`ITweet` 是下游 Weibo-archiver（web-v3 / monkey / CLI）的展示与磁盘存档结构，下游把记录写入 IndexedDB。字段改名或删除会让已归档数据失效，因此改动按契约版本管理。实现位于 `src/types/domain/ITweet.ts`，键集锁定在 `tests/unit/contract/itweet-v2.test.ts`。
+`ITweet` 是 SDK 对单条微博的存档结构，归档流、`ArchiveFile` 和 `weibo-cli archive` 的输出都以它为准。字段改名或删除会让已经写出的 JSON 失效，因此改动按契约版本管理。实现位于 `src/types/domain/ITweet.ts`，键集锁定在 `tests/unit/contract/itweet-v2.test.ts`。
 
 ## 1. 版本机制
 
