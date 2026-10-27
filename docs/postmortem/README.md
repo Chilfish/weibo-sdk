@@ -53,6 +53,7 @@
 - **发布只用项目包管理器**（2026-10-20）：项目使用 pnpm catalog，`npm publish` 会把 `"catalog:"` 原样打进产物，消费者安装报 `EUNSUPPORTEDPROTOCOL`。发布必须 `pnpm publish`；发布后解包 tarball 检查 `dependencies` 与 `bin`，不要只看 `npm view`。
 - **门禁与 CI 同源**（2026-10-21）：`scripts/release.mjs` 必须跑 CI 执行的同一组检查。改动 `exports` 形状后，所有读取 `package.json` 的脚本（`browser-smoke` / `verify-package` / 单测）都要一起更新；条件 `exports` 用 `default` 目标比较，不要和字符串比。
 - **本地数据目录要同时登记 `.gitignore` 与 ESLint `ignores`**（2026-10-22）：ESLint 不读嵌套 `.gitignore`，本地抓取目录（如 `data/`）会让 `eslint .` 在发布门禁上大面积报错，而 CI 永远看不到这些文件。门禁失败先确认报错文件是否被 Git 跟踪。
+- **生成产物在源码改动后必须重跑**（2026-10-27）：`schemas/*.json` 从类型生成，改 `ITweet.ts` 的注释也会改变 `description`。生成后再编辑源码，要重新跑 `schema:check` 并提交产物；否则本地 `git diff` 干净，CI 的 `git diff --exit-code` 照样失败。
 
 ### 4. 流程（非代码）
 

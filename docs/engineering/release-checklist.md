@@ -37,7 +37,7 @@
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`schemas/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
-- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.6.1`，2026-10-27）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.7.0`，2026-10-27）
 
 ## 公共导出面核验
 
@@ -91,6 +91,15 @@
 11. 解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
 12. npm 页面显示 provenance，GitHub Release 内容与 CHANGELOG 一致
 13. 回填冒烟勾选日期与开发日志
+
+## 0.7.0 发布记录（2026-10-27）
+
+- 发布提交 `983a8dc chore(release): v0.7.0`，tag `v0.7.0`；`publish.yml` 全步骤通过
+  （typecheck / eslint / test / validate:fixtures / check:api / check:docs / schema:check / build /
+  verify:package / test:bundle / docs:build / browser-smoke / publish / verify registry）。
+- 离线：1040 passed / 28 skipped；fixtures 114（103 ok / 11 unmodeled / 0 fail）。
+- registry：`latest = 0.7.0`，`dependencies` 为 `axios` / `zod`；`npm view` 确认版本与 dist-tag。
+- GitHub Release v0.7.0 已创建（手写 notes）。
 
 ## 0.6.1 发布记录（2026-10-27）
 
