@@ -8,10 +8,10 @@
 
 ### 变更
 
-- **破坏性**：`ITweet` 契约升到 v3，归档格式升到 `weibo-user-archive/v3`。
-  - 阅读 / 播放 / 编辑次数合并进 `stats.reads` / `stats.plays` / `stats.edits`。
-  - 置顶 / 原创标记合并进 `flags.pinned` / `flags.original`。
-  - `mergeArchiveFiles` 与 `weibo-cli archive merge` 仍能读取 v2 归档，记录自动迁移，输出统一为 v3。
+- **破坏性**：`ITweet` 契约升到 v3，归档格式升到 `weibo-user-archive/v3`。移除 `readCount` / `playCount` / `editCount` / `isTop` / `isOriginal`，升级后需要改读取代码：
+  - `readCount` / `playCount` / `editCount` → `stats.reads` / `stats.plays` / `stats.edits`。
+  - `isTop` / `isOriginal` → `flags.pinned` / `flags.original`。
+  - 归档文件的 `schema` 从 `weibo-user-archive/v2` 变为 `weibo-user-archive/v3`；`mergeArchiveFiles` 与 `weibo-cli archive merge` 仍能读取 v2 归档，记录自动迁移，输出统一为 v3。
 
 ### 新增
 
