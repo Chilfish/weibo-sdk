@@ -5,14 +5,14 @@ outline: deep
 
 # ITweet 存档契约
 
-`ITweet` 是 SDK 对单条微博的存档结构，归档流、`ArchiveFile` 和 `weibo-cli archive` 的输出都以它为准。字段改名或删除会让已经写出的 JSON 失效，因此改动按契约版本管理。实现位于 `src/types/domain/ITweet.ts`，键集锁定在 `tests/unit/contract/itweet-v2.test.ts`。
+`ITweet` 是 SDK 对单条微博的存档结构，归档流、`ArchiveFile` 和 `weibo-cli archive` 的输出都以它为准。字段改名或删除会让已经写出的 JSON 失效，因此改动按契约版本管理。实现位于 `src/types/domain/ITweet.ts`，键集锁定在 `tests/unit/contract/itweet-v3.test.ts`。
 
 ## 1. 版本机制
 
-- 契约版本常量 `TWEET_CONTRACT_VERSION = 2`，定义在 `src/types/domain/ITweet.ts`，类型为 `TweetContractVersion`。
+- 契约版本常量 `TWEET_CONTRACT_VERSION = 3`，定义在 `src/types/domain/ITweet.ts`，类型为 `TweetContractVersion`。
 - 归档信封 `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`。磁盘条目自描述，CLI `weibo-cli archive` 的 NDJSON 进度事件同样携带 `schemaVersion`。
   - `source: 'image'` 时 `tweet` / `mblogId` 可选，媒体资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`；其余微博类 source 的 `tweet` / `mblogId` 恒有。
-- 下游最小存档记录为 `{ schemaVersion: TweetContractVersion, tweet: ITweet }`。`source` / `checkpoint` 等是 SDK 归档流的附加元数据，消费方按需取舍。
+- 最小存档记录为 `{ schemaVersion: TweetContractVersion, tweet: ITweet }`。`source` / `checkpoint` 等是 SDK 归档流的附加元数据，消费方按需取舍。
 - 契约版本与包版本解耦：上游协议漂移走内部 schema 修复，发 patch / minor；契约破坏性变更才升包 major。
 
 ## 2. 变更规则
@@ -40,27 +40,71 @@ outline: deep
 | `regionName?` | `string` | IP 属地（如「发布于 广东」）；上游未下发时缺省 |
 | `source` | `string` | 发布客户端（缺省 `''`） |
 | `user` | `TweetUser` | 简版用户结构，见下 |
-| `stats` | `{ likes, comments, reposts }`（均 `number`） | 计数快照（缺省 0） |
+| `stats` | `{ likes, comments, reposts, favorites?, reads?, plays?, edits? }` | 计数快照，见下 |
 | `visible` | `TweetVisible`（enum 0-4） | 可见性；未知值回退 `PUBLIC(0)` |
+| `flags?` | `TweetFlags` | 原创 / 置顶 / 推广 / 付费 / 编辑标记，见下 |
 | `retweetedStatus?` | `ITweet` | 转发内容，递归同构；非转发时缺省 |
 | `repostChain?` | `TweetRepostEntry[]` | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博）；每层聚合该层 reppic 配图，见下；非转发时缺省 |
-| `pageInfo?` | `TweetPageCard` | 链接/视频卡片 `{ pageId, pageTitle, pageUrl, pagePic, type, objectType, objectId?, subtitle? }`；见下 |
+| `pageInfo?` | `TweetPageCard` | 链接/视频卡片，见下 |
 | `attachments?` | `TweetAttachment[]` | 结构化附件（`article` / `vote` / `live` / `lottery`）；无则缺省；见下。`pageInfo` / `linkCards` 保持原样，允许与附件重复 |
 | `media` | `TweetMedia[]` | 见下；恒为数组（无媒体为空数组） |
 | `geo?` | `TweetGeo` | 定位 `{ latitude, longitude, address }`；无则缺省 |
 | `topics?` | `string[]` | 话题（`topic_struct[].topic_title`，缺省退回 `title`；去重保序） |
 | `linkCards?` | `TweetLinkCard[]` | 链接 / 超话卡片（`url_struct[]`；见下） |
-| `readCount?` | `number` | 阅读数（`reads_count`；仅部分端点或自己可见时下发） |
-| `editCount?` | `number` | 编辑次数（`edit_count`；未编辑或上游未下发时缺省） |
 | `title?` | `string` | 顶栏标题（`title.text`，如「公开」「仅自己可见」） |
 | `permanentVideoUrl?` | `string` | 视频永久播放页（`media_info.h5_url`） |
-| `isOriginal?` | `boolean` | 是否原创（无 `retweeted_status`） |
 | `sourceUrl?` | `string` | 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
 | `comments?` | `ITweetComment[]` | 评论；只有 `streamArchive({ includeComments: true })` 会拉取并挂载。字段见下「ITweetComment」，`replies` 递归同构 |
 | `atUsers?` | `TweetAtUser[]` | @ 用户（从上游 `text` HTML 的 `/n/`、`/u/` 锚点解析，上游无结构化字段） |
-| `playCount?` | `number` | 视频播放量（`online_users` 明确含「次观看」时解析；直播在线人数场景缺省） |
-| `isTop?` | `boolean` | 是否置顶（`isTop === 1/true`；非置顶缺省） |
 | `audio?` | `TweetAudio[]` | 音频 / 播客（`page_info` / `mix_media_info.items[].data`） |
+| `editedAt?` | `string` | 最后编辑时间（`edit_at`，上游原样字符串） |
+| `tags?` | `TweetTag[]` | 标签（`tag_struct[]`），见下 |
+| `superTopic?` | `TweetSuperTopic` | 来源超话（`title_source`），见下 |
+| `contentNotices?` | `string[]` | 内容声明（`ai_tag_info[].text`，去重保序），如「该内容使用AI技术辅助创作」「内容为转载」 |
+
+### ITweet.stats
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `likes` | `number` | 点赞数（`attitudes_count`，缺省 0） |
+| `comments` | `number` | 评论数（`comments_count`，缺省 0） |
+| `reposts` | `number` | 转发数（`reposts_count`，缺省 0） |
+| `favorites?` | `number` | 收藏数（`favorites_count`；上游未下发时缺省） |
+| `reads?` | `number` | 阅读数（`reads_count`；仅部分端点或自己可见时下发） |
+| `plays?` | `number` | 视频播放数（`media_info.online_users_number`；仅 `online_users` 明确含「次观看」时） |
+| `edits?` | `number` | 编辑次数（`edit_count`） |
+
+### TweetFlags
+
+`original` 恒有；其余字段在上游未下发时缺省，不伪造 `false`。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `original?` | `boolean` | 是否原创（无 `retweeted_status`） |
+| `pinned?` | `boolean` | 是否置顶（`isTop` / `top`） |
+| `ad?` | `boolean` | 是否推广（`isAd` / `ad_marked` / 广告 `mark`） |
+| `paid?` | `boolean` | 是否付费内容（`is_paid`） |
+| `edited?` | `boolean` | 是否编辑过（`edit_config.edited`） |
+| `editable?` | `boolean` | 当前账号是否可编辑（`can_edit`） |
+
+### TweetTag（标签）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `name` | `string` | 标签文案（`tag_name`） |
+| `type?` | `number` | 标签类型码（`tag_type`） |
+| `oid?` | `string` | 标签对象 id（`oid`） |
+| `url?` | `string` | 跳转地址（`tag_scheme`，可能是微博 scheme） |
+| `iconUrl?` | `string` | 图标（`url_type_pic`） |
+| `hidden` | `boolean` | 是否隐藏（`tag_hidden`） |
+
+### TweetSuperTopic（来源超话）
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `name` | `string` | 超话名（`name`） |
+| `url?` | `string` | 超话地址（`url`） |
+| `imageUrl?` | `string` | 超话头像（`image`） |
 
 ### TweetUser（简版用户）
 
@@ -82,6 +126,7 @@ outline: deep
 | `videoUrl?` | `string` | mp4 / mov 地址（临时，见 §4；livephoto 恒有） |
 | `duration?` | `number` | 视频时长（秒） |
 | `width` / `height` | `number` | 像素尺寸（缺省 0） |
+| `focusPoint?` | `TweetFocusPoint` | 客户端裁剪焦点 `{ left, top, width, height }`（`pic_focus_point[].focus_point`，归一化到 0..1）；无则缺省 |
 
 ### TweetLinkCard（链接 / 超话卡片）
 
@@ -113,6 +158,7 @@ outline: deep
 | `objectType` | `string` | 对象类型（`object_type`；如 `webpage` / `video` / `podcast_audio` / `audio`） |
 | `objectId?` | `string` | 卡片对象 id（`object_id`）；上游未下发时缺省 |
 | `subtitle?` | `string` | 卡片副标题 / 统计文案（`content2`，如「812播放  74点赞  0弹幕」）；空则缺省 |
+| `summary?` | `string` | 卡片摘要（`content1` → `page_desc`）；与标题重复或为空时缺省 |
 
 ### TweetAttachment（结构化附件）
 
@@ -252,11 +298,11 @@ SDK 另提供显式调用的单条微博媒体下载能力，调用方式见 [�
 
 | | `schemaDigest` | `schemaVersion` |
 |---|---|---|
-| 管什么 | 上游漂移：raw 响应结构快照（`stripVolatileKeys`），同一端点字段变化时 digest 变 | 下游磁盘格式：ITweet 契约版本，记录形状演进时升版 |
-| 谁消费 | SDK 侧回归与排障（对比同期同端点 digest） | 下游存档读取方（按 `schemaVersion` 分派读取逻辑） |
+| 管什么 | 上游漂移：raw 响应结构快照（`stripVolatileKeys`），同一端点字段变化时 digest 变 | 磁盘格式：ITweet 契约版本，记录形状演进时升版 |
+| 谁消费 | SDK 侧回归与排障（对比同期同端点 digest） | 存档读取方（按 `schemaVersion` 分派读取逻辑） |
 | 变更时机 | 随上游任意变化 | 仅契约破坏性变更（见 §2） |
 
 ## 8. 契约测试
 
-- 类型层：`tests/unit/contract/itweet-v2.test.ts` 断言 `keyof ITweet` 精确键集，rename / remove / 新增都会在编译期失败。
-- 运行时层：真实 fixture（`mymblog_page1.json`，含 `pic_infos` 样本）归一化键集快照，防止实现悄悄改形状。
+- 类型层：`tests/unit/contract/itweet-v3.test.ts` 断言 `keyof ITweet` 精确键集，rename / remove / 新增都会在编译期失败。
+- 运行时层：真实 fixture（`mymblog_page1.json`，含 `pic_focus_point` 样本）归一化键集快照，防止实现悄悄改形状。

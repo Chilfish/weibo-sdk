@@ -5,14 +5,14 @@ outline: deep
 
 # 归档与续跑类型
 
-## `ArchiveFile`（`weibo-user-archive/v2`）
+## `ArchiveFile`（`weibo-user-archive/v3`）
 
 范围归档 `userArchive.run()` 的输出，也是归档 JSON 的顶层信封。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `$schema` | `string` | JSON Schema 地址 |
-| `schema` | `string` | 格式标识 `weibo-user-archive/v2` |
+| `schema` | `string` | 格式标识 `weibo-user-archive/v3` |
 | `generatedAt` | `string` | 生成时间 |
 | `complete` | `boolean` | 枚举未中止且无遗留 issue |
 | `query` | `object` | `uid`、`range`（since / until 的 input / unix / iso）、内容开关、评论排序 |

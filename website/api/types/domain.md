@@ -9,7 +9,7 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的�
 
 ## `ITweet`
 
-单条微博的存档模型（`TWEET_CONTRACT_VERSION = 2`）。
+单条微博的存档模型（`TWEET_CONTRACT_VERSION = 3`）。
 
 核心字段：
 
@@ -20,13 +20,15 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的�
 | `createdAt` | `string` | 上游原始时间串 |
 | `text` | `string` | 正文（长文已展开，纯文本） |
 | `user` | `TweetUser` | 简版作者 |
-| `stats` | `{ likes, comments, reposts }` | 互动数 |
+| `stats` | `{ likes, comments, reposts, favorites?, reads?, plays?, edits? }` | 互动计数 |
 | `visible` | `TweetVisible` | 可见性枚举 |
+| `flags` | `TweetFlags?` | 原创 / 置顶 / 推广 / 付费 / 编辑标记 |
 | `media` | `TweetMedia[]` | 媒体，恒为数组 |
 | `retweetedStatus` | `ITweet?` | 转发的原微博（递归） |
 | `repostChain` | `TweetRepostEntry[]?` | 转发链分层 |
 | `attachments` | `TweetAttachment[]?` | 文章 / 投票 / 直播 / 抽奖 |
 | `pageInfo` / `linkCards` / `topics` / `atUsers` / `audio` / `geo` | — | 卡片、链接、话题、@、音频、位置 |
+| `editedAt` / `tags` / `superTopic` / `contentNotices` | — | 编辑时间、标签、来源超话、内容声明 |
 | `comments` | `ITweetComment[]?` | 归档时挂载的评论 |
 
 `ITweetComment`：
@@ -39,7 +41,7 @@ SDK 的公开读取方法返回这些模型。`ITweet` 与 `ITweetComment` 的�
 | `replyTo` | 被回复的评论 |
 | `rootId` / `floorNumber` / `totalReplies` / `liked` / `parentMblogId` | 楼中楼与上下文 |
 
-子类型：`TweetUser`、`TweetMedia`、`TweetCommentPic`、`TweetRepostEntry`、`TweetAtUser`、`TweetAudio`、`TweetLinkCard`、`TweetPageCard`、`TweetGeo`、`TweetAttachment`（`TweetArticleAttachment` / `TweetVoteAttachment` / `TweetLiveAttachment` / `TweetLotteryAttachment`）、`TweetVisible`、`MediaType`。
+子类型：`TweetUser`、`TweetFlags`、`TweetMedia`、`TweetFocusPoint`、`TweetCommentPic`、`TweetRepostEntry`、`TweetAtUser`、`TweetTag`、`TweetSuperTopic`、`TweetAudio`、`TweetLinkCard`、`TweetPageCard`、`TweetGeo`、`TweetAttachment`（`TweetArticleAttachment` / `TweetVoteAttachment` / `TweetLiveAttachment` / `TweetLotteryAttachment`）、`TweetVisible`、`MediaType`。
 
 ## `IUser`
 

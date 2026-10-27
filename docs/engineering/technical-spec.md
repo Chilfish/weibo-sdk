@@ -122,8 +122,9 @@ request(spec, args)
 | `regionName` | `string` | OPTIONAL | 属地 |
 | `source` | `string` | REQUIRED | 发布来源 |
 | `user` | `TweetUser` | REQUIRED | 发布者简版信息 |
-| `stats` | `{ likes, comments, reposts }` | REQUIRED | 互动数 |
+| `stats` | `{ likes, comments, reposts, favorites?, reads?, plays?, edits? }` | REQUIRED | 互动计数快照；`reads` / `plays` / `edits` / `favorites` 由上游决定是否下发 |
 | `visible` | `TweetVisible` | REQUIRED | 可见性（0-4） |
+| `flags` | `TweetFlags` | OPTIONAL | 布尔标记位（`original` / `pinned` / `ad` / `paid` / `edited` / `editable`）；未下发即缺省，不伪造 `false` |
 | `retweetedStatus` | `ITweet` | OPTIONAL | 被转发原微博（递归） |
 | `repostChain` | `TweetRepostEntry[]` | OPTIONAL | 转发链分层（`text` 的 `//@` 由近到远；`index` 0 = 当前微博），每层聚合该层 reppic 配图 |
 | `pageInfo` | `TweetPageCard` | OPTIONAL | 链接/视频卡片（含封面、副标题、对象 id） |
@@ -131,28 +132,27 @@ request(spec, args)
 | `geo` | `TweetGeo` | OPTIONAL | 发博定位 |
 | `topics` | `string[]` | OPTIONAL | 话题（`topic_struct[].topic_title`，去重保序） |
 | `linkCards` | `TweetLinkCard[]` | OPTIONAL | 链接 / 超话卡片（`url_struct[]`） |
-| `readCount` | `number` | OPTIONAL | 阅读数（`reads_count`；仅部分端点 / 自己可见） |
-| `editCount` | `number` | OPTIONAL | 编辑次数（`edit_count`） |
 | `title` | `string` | OPTIONAL | 顶栏标题（`title.text`，如「公开」「仅自己可见」） |
 | `permanentVideoUrl` | `string` | OPTIONAL | 视频永久播放页（`media_info.h5_url`） |
-| `isOriginal` | `boolean` | OPTIONAL | 是否原创（无 `retweeted_status`） |
 | `sourceUrl` | `string` | OPTIONAL | 网页永久链接（`https://weibo.com/<uid>/<mblogid>`） |
 | `atUsers` | `TweetAtUser[]` | OPTIONAL | @ 用户（从 `text` HTML 锚点解析，`/n/` 或 `/u/`） |
-| `playCount` | `number` | OPTIONAL | 视频播放量（仅 `online_users` 含「次观看」；直播在线人数不映射） |
-| `isTop` | `boolean` | OPTIONAL | 是否置顶（`isTop === 1/true`） |
 | `audio` | `TweetAudio[]` | OPTIONAL | 音频 / 播客（`page_info` / `mix_media_info`） |
+| `editedAt` | `string` | OPTIONAL | 最后编辑时间（`edit_at` 原样字符串） |
+| `tags` | `TweetTag[]` | OPTIONAL | 标签（`tag_struct[]`：`name` / `type?` / `oid?` / `url?` / `iconUrl?` / `hidden`） |
+| `superTopic` | `TweetSuperTopic` | OPTIONAL | 来源超话（`title_source`：`name` / `url?` / `imageUrl?`） |
+| `contentNotices` | `string[]` | OPTIONAL | 内容声明（`ai_tag_info[].text`，如「该内容使用AI技术辅助创作」） |
 | `comments` | `ITweetComment[]` | OPTIONAL | 评论（P1-6）；普通 `normalizeTweet` 不填充，仅 `streamArchive({ includeComments: true })` / `userArchive` 挂载 |
 | `attachments` | `TweetAttachment[]` | OPTIONAL | 头条文章 / 投票 / 直播回放 / 抽奖链接；判别字段 `kind`，投影到 `ITweetContext.post.attachments` |
 
 **不变性**：`id`/`mblogId` 非空；`media` 为数组（可为空）；`stats.*` ≥ 0。
 
-> 当前契约版本为 v2（`TWEET_CONTRACT_VERSION = 2`）。v2 删除了 `ITweet.textHtml` / `ITweetComment.textHtml`；v1 落盘记录可用 `migrateTweetV1toV2` 迁移。完整规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)。
+> 当前契约版本为 v3（`TWEET_CONTRACT_VERSION = 3`）。v3 把计数收敛进 `stats`（`reads` / `plays` / `edits`）、标记位收敛进 `flags`（`pinned` / `original`），并新增 `flags` / `editedAt` / `tags` / `superTopic` / `contentNotices` / `stats.favorites`、媒体 `focusPoint`、页面卡片 `summary`；v1 落盘记录用 `migrateTweetV1toV2` 迁移，v2 落盘记录用 `migrateTweetV2toV3` 迁移。完整规则见 [ITweet 契约 v3](../../website/reference/tweet-contract.md)。
 
-**媒体**（`TweetMedia`）：`id` / `type`（`pic|video|livephoto|gif|unknown`）/ `imageUrl` / `videoUrl?` / `duration?` / `width` / `height`。视频 URL 带签名与过期时间，一次性有效。`page_info.media_info` 形态的视频（视频瀑布 / 部分详情页）也会归一化进 `media`。
+**媒体**（`TweetMedia`）：`id` / `type`（`pic|video|livephoto|gif|unknown`）/ `imageUrl` / `videoUrl?` / `duration?` / `width` / `height` / `focusPoint?`（`{ left, top, width, height }`，上游裁剪焦点归一化到 0..1）。视频 URL 带签名与过期时间，一次性有效。`page_info.media_info` 形态的视频（视频瀑布 / 部分详情页）也会归一化进 `media`。
 
 **链接卡片**（`TweetLinkCard`）：`title` / `url` / `shortUrl?` / `pageId?` / `objectType?` / `typePic?` / `longUrl?` / `oriUrl?` / `urlType?`。`url` 是点击目标（`h5_target_url → long_url → ori_url`），`longUrl` 是规范网页地址，`oriUrl` 可能是 `sinaweibo://` scheme。
 
-**页面卡片**（`TweetPageCard`）：`pageId` / `pageTitle` / `pageUrl` / `pagePic` / `type` / `objectType` / `objectId?` / `subtitle?`。`pagePic` 的 `http://` 会统一升级为 `https://`；`subtitle` 对应上游 `content2`（如播放/点赞/弹幕统计）。
+**页面卡片**（`TweetPageCard`）：`pageId` / `pageTitle` / `pageUrl` / `pagePic` / `type` / `objectType` / `objectId?` / `subtitle?` / `summary?`。`pagePic` 的 `http://` 会统一升级为 `https://`；`subtitle` 对应上游 `content2`（如播放/点赞/弹幕统计），`summary` 对应上游 `content1 → page_desc`（与标题重复或为空时缺省）。
 
 **@ 用户**（`TweetAtUser`）：`name` / `username?` / `url?`。
 
@@ -314,7 +314,7 @@ interface IWeiboConfig {
 | `listByUserId` | `(uid, { page?, count? }?) => Promise<TweetPageResult>` | 归一化列表 + 广告过滤 + `hasMore` |
 | `streamByUserId` | `(uid, { page?, count?, maxPages?, maxItems?, since?, until? }?) => AsyncIterableIterator<Tweet>` | 自动翻页流式；时间倒序，支持条数 / 日期边界 |
 | `getByMblogId` | `(mblogId, isGetLongText?) => Promise<Tweet>` | 归一化详情 |
-| `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v2 |
+| `enrich` | `(mblogId, { isGetLongText?, includeLongText? }?) => Promise<TweetEnrichResult>` | raw 响应 + 归一化模型（+ 可选长微博全文），不改变 `ITweet` v3 |
 | `comments` | `(mblogId, options?) => Promise<TweetCommentsPageResult>` | 归一化评论页（`comments` / `cursor` / `hasMore` / `total?` / `notice?`） |
 | `replies` | `(mblogId, rootCommentId, options?) => Promise<TweetCommentsPageResult>` | 一级评论下的二级评论 |
 | `fetchRawComments` / `fetchRawReplies` | `(...) => Promise<BuildCommentsResponse>` | 评论原始页 |
@@ -410,7 +410,7 @@ interface IWeiboConfig {
 | `streamArchive` | `(uid, options?) => AsyncIterableIterator<ArchiveItem>` | timeline（mymblog + 可选 searchProfile 日期切片，内联 reposts）→ likes → comments → favorites → images → videos 一条可恢复流 |
 | `streamUsersArchive` | `(uids, options?) => AsyncIterableIterator<{ uid, item }>` | 多账号串行归档；按 uid 读取 checkpoint / incremental，单用户失败可 `skip` |
 
-- `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博；`source: 'image'` 时 `tweet` 缺省、资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `2`，规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)）；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`）；`checkpoint` 为进度快照（A6）。
+- `ArchiveItem = { schemaVersion, source, mblogId?, tweet?, asset?, schemaDigest, checkpoint, comment? }`：`source` 为 `'timeline' | 'repost' | 'favorite' | 'like' | 'comment' | 'image' | 'video'`；`source: 'comment'` 时评论本体在 `comment`，`tweet` 为被评论微博；`source: 'image'` 时 `tweet` 缺省、资产在 `asset`；`source: 'video'` 同时有 `tweet` 与 `asset`。`schemaVersion` 为 `ITweet` 存档契约版本（当前 `3`，规则见 [ITweet 契约 v3](../../website/reference/tweet-contract.md)）；`schemaDigest` 为 raw 结构快照（A7，`stripVolatileKeys`）；`checkpoint` 为进度快照（A6）。
 - `ArchiveStreamOptions`（0.2）：`includeImages` / `includeVideos`（默认 `false`，需注入媒体原始页依赖）；`incremental: { since?, stopAtMblogId?, skipPinned? }`（仅 timeline）；`originalOnly`（跳过转发并关闭内联转发）；`searchQuery`（日期切片 `q`）。
 - `ArchiveStreamOptions.onRaw(raw, meta)`（P1-9）：每个原始项在归一化前触发，`meta = { uid, source, mblogId, page?, parentMblogId? }`；下游自行落盘 raw，`ArchiveItem` 不携带 raw（见 [ITweet 契约 §5](../../website/reference/tweet-contract.md)）。
 - `ArchiveStreamOptions`（P1-5）：`timelineSource?: 'mymblog' | 'search'`（默认 `mymblog`）；`includeDateSlices?: boolean`（默认 `true`）；`since?: number`（unix 秒，默认 2009-08-14）；`until?: number`（unix 秒，默认当前时间）；`sliceWindow?: number`（初始自适应窗口秒数，默认 30 天）；`maxSliceItems?: number`（单片超过该条数就对半缩小窗口，默认 800）。

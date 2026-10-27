@@ -10,7 +10,7 @@
 
 老项目 `Weibo-archiver` 已经验证过需求：490 stars / 37 forks，核心场景是「号被夹之前把微博备份下来」。它的问题不是需求，而是结构与数据：
 
-- 数据格式是面向旧版 UI 的扁平结构，和现在 SDK 的 `ITweet` v2 / `weibo-user-archive/v2` 不兼容。
+- 数据格式是面向旧版 UI 的扁平结构，和现在 SDK 的 `ITweet` v3 / `weibo-user-archive/v3` 不兼容。
 - 前端是 Vue 3 + shadcn-vue 的一套历史实现，需要按现在的设计规范重做。
 - 抓取依赖油猴脚本，普通用户要先装脚本管理器，再导出 JSON，再上传网页——三步都劝退。
 
@@ -130,20 +130,20 @@ export interface FetchResponseLike {
 
 ### 3.5 归档契约
 
-`ITweet` v2（`src/types/domain/ITweet.ts`）：
+`ITweet` v3（`src/types/domain/ITweet.ts`）：
 
 - 身份：`id` / `mblogId` / `createdAt` / `text` / `source` / `regionName?`。
-- 作者与计数：`user`（简版）/ `stats { likes, comments, reposts }` / `visible`。
-- 结构：`retweetedStatus?` / `repostChain?` / `pageInfo?` / `attachments?`（article / vote / live / lottery）/ `media[]` / `geo?`。
-- 扩展：`topics?` / `linkCards?` / `readCount?` / `editCount?` / `title?` / `permanentVideoUrl?` / `isOriginal?` / `sourceUrl?` / `atUsers?` / `playCount?` / `isTop?` / `audio?`。
-- 版本规则：v2 内只增 optional 字段；rename / remove / 类型变更必须升 v3 并提供迁移。
+- 作者与计数：`user`（简版）/ `stats { likes, comments, reposts, favorites?, reads?, plays?, edits? }` / `visible` / `flags?`（`original` / `pinned` / `ad` / `paid` / `edited` / `editable`）。
+- 结构：`retweetedStatus?` / `repostChain?` / `pageInfo?`（含 `summary?`）/ `attachments?`（article / vote / live / lottery）/ `media[]`（含 `focusPoint?`）/ `geo?`。
+- 扩展：`topics?` / `linkCards?` / `title?` / `permanentVideoUrl?` / `sourceUrl?` / `atUsers?` / `audio?` / `editedAt?` / `tags?` / `superTopic?` / `contentNotices?`。
+- 版本规则：v3 内只增 optional 字段；rename / remove / 类型变更必须升下一个契约版本并提供迁移。
 
-`ArchiveFile`（`weibo-user-archive/v2`，`src/types/archive/IArchiveFile.ts`）：
+`ArchiveFile`（`weibo-user-archive/v3`，`src/types/archive/IArchiveFile.ts`）：
 
 ```ts
 interface ArchiveFile {
   $schema: string
-  schema: 'weibo-user-archive/v2'
+  schema: 'weibo-user-archive/v3'
   generatedAt: string
   complete: boolean
   query: { uid, range, includeComments, includeReplies, includeReposts, commentOrder }
@@ -155,7 +155,7 @@ interface ArchiveFile {
 ```
 
 - 归档 JSON Schema 随包发布，可离线校验。
-- 旧的 SDK v1 → v2 迁移只删除 `textHtml`（`migrateTweetV1toV2`）；**与老 Weibo-archiver 的 `Post` 格式无关**。
+- 旧的 SDK v1 → v2 迁移只删除 `textHtml`（`migrateTweetV1toV2`），v2 → v3 迁移把计数 / 标记位收进 `stats` / `flags`（`migrateTweetV2toV3`）；**与老 Weibo-archiver 的 `Post` 格式无关**。
 
 ### 3.6 范围归档与持久化端口
 

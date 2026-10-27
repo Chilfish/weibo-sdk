@@ -8,8 +8,8 @@
 ## 版本纪律
 
 - **包版本单一来源**：`package.json` `version` 字段（SemVer 2.0.0）；`src/index.ts` 的 `VERSION` 与 CLI `--version` 从此读取
-- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)
-- **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复，但 `ITweet` 自 v1 起冻结、只增不改（新增 optional 字段 = minor；rename/remove/类型变更 = v3 + major；v1 → v2 已于 2026-10-21 完成）
+- **契约版本 ≠ 包版本**（K2 / P0-3）：`TWEET_CONTRACT_VERSION` 管 `ITweet` 存档形状；上游协议漂移走内部 schema 修复 + patch/minor，**只有契约破坏性变更才升包 major**。规则见 [ITweet 契约 v3](../../website/reference/tweet-contract.md)
+- **0.x 声明**（P0-6）：0.x 期间实现可随上游漂移修复；`ITweet` 按契约版本演进（新增 optional 字段 = minor；rename / remove / 类型变更 = 升契约版本 + 包 major）。v3 随 0.7.0 发布。
 - 仅在验证门禁全绿后打 tag：统一走 `pnpm release <type>`（脚本会先跑门禁，再 bump + tag + push）
 - 每次发布 version 单调递增，禁止回退
 - `CHANGELOG.md` 的 Unreleased 节在发布前迁移到版本节
@@ -28,6 +28,7 @@
 - [x] `pnpm schema:check` 通过（归档 schema 无漂移；2026-10-23）
 - [x] `pnpm docs:build` 通过（VitePress 构建 + 死链检查；2026-10-23）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 / 0.5.0 提交均正常触发 lint-staged）
+- [x] 2026-10-27 / 0.7.0 复跑：typecheck / lint / build / test（1040 passed / 28 skipped）/ validate:fixtures（114，103 ok / 11 unmodeled）/ check:api（257 exports）/ check:docs（47 页）/ schema:check / docs:build / verify:package 全绿
 
 ## 包身份核验
 
@@ -81,7 +82,7 @@
    - 流水线不创建 GitHub Release
 7. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，正文首段引用对应 issue 并写 `Closes #<n>`，`gh release create v<version> --notes-file <file>`
 8. **禁止 `npm publish`**：pnpm `catalog:` 不会被 npm 重写，产物会写成 `"catalog:"`（[postmortem 010](../postmortem/010-npm-publish-catalog-protocol.md)）。`prepublishOnly` 已加守卫，npm 调用会直接失败。
-9. Vercel 文档站由 Git 集成自动部署；发布后确认 `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json` 可访问且与包内 schema 一致。
+9. Vercel 文档站由 Git 集成自动部署；发布后确认 `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v3.json` 可访问且与包内 schema 一致。
 10. tag 已推送但发布失败：从 GitHub Actions 重跑失败的工作流，不要删除 tag 重打。若 `Publish to npm` 已成功、仅 `Verify registry` 超时，先手动核验 registry；GitHub 可能对 `startup_failure` 的 run 拒绝重跑（0.5.0 遇到），此时保留 tag、记录到开发日志并完成手工核验。
 
 ### 发布后（核验）

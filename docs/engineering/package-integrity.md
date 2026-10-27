@@ -128,8 +128,8 @@
 
 **修复**：
 
-- `files` 增加 `schemas`，`exports` 增加 `"./schemas/*": "./schemas/*"`；`verify:package` 断言 tarball 包含 `schemas/weibo-user-archive/v2.json` 且子路径存在。
-- `ARCHIVE_SCHEMA_URL` 改为文档站稳定 URL `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json`，站点构建时从仓库 `schemas/` 同步；离线场景使用包内副本。
+- `files` 增加 `schemas`，`exports` 增加 `"./schemas/*": "./schemas/*"`；`verify:package` 断言 tarball 包含 `schemas/weibo-user-archive/v3.json` 且子路径存在。
+- `ARCHIVE_SCHEMA_URL` 改为文档站稳定 URL `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v3.json`，站点构建时从仓库 `schemas/` 同步；离线场景使用包内副本。
 - `schema:check` 进入 CI，防止提交的 schema 与类型定义漂移。
 
 ### R11. `citty` 对所有用户都是 dependency（低，已修复）
@@ -174,7 +174,7 @@
       "types": "./dist/cli.d.mts",
       "default": "./dist/cli.mjs"
     },
-    "./schemas/weibo-user-archive/v2.json": "./schemas/weibo-user-archive/v2.json",
+    "./schemas/weibo-user-archive/v3.json": "./schemas/weibo-user-archive/v3.json",
     "./package.json": "./package.json"
   }
 }
@@ -268,7 +268,7 @@ npm i ../.tmp-pack/chilfish-weibo-sdk-<version>.tgz
 - `node --input-type=module -e "import('@chilfish/weibo-sdk').then(m => console.log(typeof m.WeiboSDK))"` 输出 `function`。
 - `node node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version` 输出正确版本。
 - `require('@chilfish/weibo-sdk')` 以 `ERR_REQUIRE_ESM` 失败（预期行为，写入文档）。
-- 如果发布 schema：`require.resolve('@chilfish/weibo-sdk/schemas/weibo-user-archive/v2.json')` 可解析，Ajv 能加载。
+- 如果发布 schema：`require.resolve('@chilfish/weibo-sdk/schemas/weibo-user-archive/v3.json')` 可解析，Ajv 能加载。
 - `npm ls axios zod` 无重复版本 / 无缺失；`npm ls citty` 应为空（CLI-only 依赖已内联）。
 
 ### 5.4 TypeScript 消费者

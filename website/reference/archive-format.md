@@ -3,9 +3,9 @@ title: 归档 JSON Schema
 outline: deep
 ---
 
-# 归档 JSON Schema（`weibo-user-archive/v2`）
+# 归档 JSON Schema（`weibo-user-archive/v3`）
 
-[`weibo-cli archive user`](/cli/) / [`sdk.userArchive`](/api/user-archive) 产出的单文件归档使用 [`schemas/weibo-user-archive/v2.json`](/schemas/weibo-user-archive/v2.json) 描述结构。
+[`weibo-cli archive user`](/cli/) / [`sdk.userArchive`](/api/user-archive) 产出的单文件归档使用 [`schemas/weibo-user-archive/v3.json`](/schemas/weibo-user-archive/v3.json) 描述结构。
 
 ## 1. 格式描述
 
@@ -15,19 +15,19 @@ outline: deep
 
 | 键 | 示例 | 作用 |
 |---|---|---|
-| `$schema` | `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json` | 标准约定，编辑器 / 校验器据此自动发现 schema |
-| `schema` | `weibo-user-archive/v2` | 归档格式标识，程序据此分派读取逻辑 |
+| `$schema` | `https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v3.json` | 标准约定，编辑器 / 校验器据此自动发现 schema |
+| `schema` | `weibo-user-archive/v3` | 归档格式标识，程序据此分派读取逻辑 |
 
 `$schema` 是 JSON Schema 生态的通用约定（VS Code、IntelliJ、Ajv 等都能识别）；读取方判断格式时以 `schema` 为准。
 
-离线或内网环境可直接使用 npm 包内的 `@chilfish/weibo-sdk/schemas/weibo-user-archive/v2.json`，校验在本地完成。
+离线或内网环境可直接使用 npm 包内的 `@chilfish/weibo-sdk/schemas/weibo-user-archive/v3.json`，校验在本地完成。
 
 ## 2. 生成
 
 契约类型定义在 `src/types/archive/IArchiveFile.ts`，JSON Schema 由 `ts-json-schema-generator` 从这些类型生成：
 
 ```bash
-pnpm schema:archive   # 重新生成 schemas/weibo-user-archive/v2.json
+pnpm schema:archive   # 重新生成 schemas/weibo-user-archive/v3.json
 pnpm schema:check     # 检查是否有未提交的漂移（CI 用）
 ```
 
@@ -35,10 +35,11 @@ pnpm schema:check     # 检查是否有未提交的漂移（CI 用）
 
 ## 3. 字段与版本
 
-- 当前格式标识为 `weibo-user-archive/v2`，同版本内 schema 文件名与 `$id` 保持不变。
+- 当前格式标识为 `weibo-user-archive/v3`，同版本内 schema 文件名与 `$id` 保持不变。
 - 同版本内只新增 optional 字段，读取方忽略未知键。
-- 字段 rename / remove / 类型或语义变更时新增版本文件（如 `v3.json`），同步更新 `ARCHIVE_SCHEMA_URL`。
+- 字段 rename / remove / 类型或语义变更时新增版本文件（如 `v4.json`），同步更新 `ARCHIVE_SCHEMA_URL`。
 - `required` 只包含写入方一定会输出的字段，optional 字段保持非必填。
+- `mergeArchiveFiles` / `weibo-cli archive merge` 仍接受 `weibo-user-archive/v2` 文件：并入前把记录迁移到 v3，输出恒为 `weibo-user-archive/v3`。
 
 ## 4. 校验
 
@@ -53,7 +54,7 @@ pnpm schema:check     # 检查是否有未提交的漂移（CI 用）
 手工校验任意归档：
 
 ```bash
-node -e "const Ajv=require('ajv');const fs=require('fs');const s=JSON.parse(fs.readFileSync('schemas/weibo-user-archive/v2.json','utf8'));const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const a=new Ajv({strict:false});console.log(a.validate(s,d),a.errors)" ./weibo-archive-<uid>.json
+node -e "const Ajv=require('ajv');const fs=require('fs');const s=JSON.parse(fs.readFileSync('schemas/weibo-user-archive/v3.json','utf8'));const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const a=new Ajv({strict:false});console.log(a.validate(s,d),a.errors)" ./weibo-archive-<uid>.json
 ```
 
 ## 5. raw 响应单独存放

@@ -18,7 +18,7 @@
 | 指南（安装 / 鉴权 / 分页 / 错误 / 归档 / 媒体 / 插件） | [`website/guide/`](../website/guide/) |
 | API 参考（每个服务一页，含签名 / 参数 / 返回 / 错误 / 访客限制） | [`website/api/`](../website/api/) |
 | CLI 命令参考 | [`website/cli/index.md`](../website/cli/index.md) |
-| 契约与格式（`ITweet` v2、归档 v2、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
+| 契约与格式（`ITweet` v3、归档 v3、媒体下载、插件、日志、排障） | [`website/reference/`](../website/reference/) |
 | 导出索引（全部根导出） | [`website/api/types/index.md`](../website/api/types/index.md) |
 
 **约定**：`docs/` 是内部开发文档（规划、postmortem、开发日志、工程规范），不对外发布；下游文档只写 `website/`，不要在 `docs/` 复制。两边的一致性由门禁**部分**保证，不是「强制同步」：`pnpm check:api` 只校验导出面分层（Stable / Evolving）、方法层级与「Stable 导出在 `website/**` 代码片段中有说明」，`pnpm check:docs` 只校验 `website/**` + 根 `README.md` 无内部引用、且代码片段里的 `session.*` / `sdk.*` 是真实公开成员。语义是否一致仍需人工评审（政策见 [engineering/api-stability.md](engineering/api-stability.md) §6）。

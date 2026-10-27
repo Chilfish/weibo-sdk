@@ -219,7 +219,7 @@ weibo-cli archive merge ./archives -o ./weibo-archive.json          # 合并目�
 weibo-cli archive merge ./archives ./extra.json -o ./merged.json     # 目录与显式文件混用
 ```
 
-输入可以是目录：只扫描目录顶层的 `*.json`，逐份校验后把可合并的 `weibo-user-archive/v2` 文件纳入合并，其余文件跳过并在 stderr 打印原因。`--out` 指向目录内的文件时会被排除；目录与显式路径重复时按绝对路径去重。显式文件按严格语义处理，不存在或格式不合法时命令直接失败。单份合法但 uid 不同仍然抛 `CONFIG_INVALID`。目录展开后不足两份有效归档时报错。
+输入可以是目录：只扫描目录顶层的 `*.json`，逐份校验后把可合并的 `weibo-user-archive/v3` 文件（旧 `weibo-user-archive/v2` 文件并入前迁移到 v3）纳入合并，其余文件跳过并在 stderr 打印原因。`--out` 指向目录内的文件时会被排除；目录与显式路径重复时按绝对路径去重。显式文件按严格语义处理，不存在或格式不合法时命令直接失败。单份合法但 uid 不同仍然抛 `CONFIG_INVALID`。目录展开后不足两份有效归档时报错。
 
 合并规则：
 
@@ -234,7 +234,7 @@ weibo-cli archive merge ./archives ./extra.json -o ./merged.json     # 目录与
 | `errors` | 去重后保留；某个 `mblogId` 已在另一份归档里完整拿到时，视为已解决 |
 | `stats` / `complete` | 按合并结果重新计算 |
 
-合并只接受同一 uid 的 `weibo-user-archive/v2` 文件，其他情况抛 `CONFIG_INVALID`。`query.range` 是覆盖包络，区间可能不连续：两次归档之间跳过的一段在合并结果中缺失。合并幂等，同一份归档重复合并结果不变（`generatedAt` 除外）。
+合并只接受同一 uid 的 `weibo-user-archive/v3` 文件（旧 `weibo-user-archive/v2` 输入先把记录迁移到 v3，输出恒为 v3），其他情况抛 `CONFIG_INVALID`。`query.range` 是覆盖包络，区间可能不连续：两次归档之间跳过的一段在合并结果中缺失。合并幂等，同一份归档重复合并结果不变（`generatedAt` 除外）。
 
 ## 总数、进度与并发
 
@@ -265,7 +265,7 @@ CLI 默认 `concurrency=20`、`delay=300`、`burst=8`，稳态约 3 req/s；`--f
 - 同一个 Cookie 并发归档会互相覆盖 `searchProfile` 的窗口，按时间段串行拆分更稳。
 - 命中 432 时 SDK 全局暂停并重试；`--fast` 更容易触发，日志频繁出现 `rate limited` 时退回默认档或调大 `--delay`。
 
-详情请求始终执行。真实对比 `searchProfile` 列表项与 `statuses/show`，即使 `isLongText=false`，也可能差 `readCount`、`title`、`user`、`retweetedStatus` 等字段。评论和转发可以在 `stats` 为 0 时跳过。
+详情请求始终执行。真实对比 `searchProfile` 列表项与 `statuses/show`，即使 `isLongText=false`，也可能差 `stats.reads`、`title`、`user`、`retweetedStatus` 等字段。评论和转发可以在 `stats` 为 0 时跳过。
 
 ## 相关文档
 

@@ -26,7 +26,7 @@ const result = await sdk.userArchive.run('1111681197', {
   maxReplyPages: 2,
 })
 
-result.file        // ArchiveFile（weibo-user-archive/v2）
+result.file        // ArchiveFile（weibo-user-archive/v3）
 result.complete
 result.summary     // { tweets, comments, replies, errors, complete, estimatedTotal?, coverage? }
 result.user

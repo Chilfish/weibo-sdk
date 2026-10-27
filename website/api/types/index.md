@@ -5,11 +5,11 @@ outline: deep
 
 # 导出索引
 
-包根共导出 253 个名称：Stable 167 / Evolving 86。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+包根共导出 257 个名称：Stable 171 / Evolving 86。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
 
 Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能随 minor 版本演进，不属于破坏性承诺。
 
-## Stable（167）
+## Stable（171）
 
 | 名称 | 种类 |
 |---|---|
@@ -123,6 +123,8 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `TweetContextVisibility` | type |
 | `TweetContractVersion` | type |
 | `TweetEnrichResult` | interface |
+| `TweetFlags` | interface |
+| `TweetFocusPoint` | interface |
 | `TweetGeo` | interface |
 | `TweetLiker` | interface |
 | `TweetLikersPageResult` | interface |
@@ -137,6 +139,8 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `TweetRepostEntry` | interface |
 | `TweetRepostsPageResult` | interface |
 | `TweetSearchByDatePageResult` | interface |
+| `TweetSuperTopic` | interface |
+| `TweetTag` | interface |
 | `TweetUser` | interface |
 | `TweetVisible` | enum |
 | `TweetVoteAttachment` | interface |

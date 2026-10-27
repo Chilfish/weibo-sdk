@@ -61,7 +61,7 @@ export const mySpec = defineEndpoint({
 
 领域模型定义在 `src/types/domain`，例如 `ITweet`、`IUser`、`ITweetComment` 和 `ArchiveItem`。原始响应到领域模型的转换都在 `src/models/data` 中，使用纯函数，便于单独测试。
 
-`ITweet` 当前为 v2：同一契约版本内只增加可选字段，不重命名、不删除，也不改变已有字段的类型。具体规则见 [ITweet 契约 v2](../../website/reference/tweet-contract.md)。
+`ITweet` 当前为 v3：同一契约版本内只增加可选字段，不重命名、不删除，也不改变已有字段的类型。具体规则见 [ITweet 契约 v3](../../website/reference/tweet-contract.md)。
 
 错误统一继承 `WeiboSDKError`，带有 `code`、`level`、`retryable` 和 `context`。HTTP 错误、业务错误和协议错误分别由不同子类表示，处理方式见 [故障排查](../../website/reference/troubleshooting.md)。
 

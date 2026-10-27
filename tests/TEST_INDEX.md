@@ -28,14 +28,14 @@
 | `unit/models/Tweet.test.ts` | `Tweet` 构造器（mymblog 来源） | 核心字段映射、media 提取（pic_infos）、regionName、visible、stats、geo 坐标兼容（lon/lat 顺序）、retweeted_status 递归构造 |
 | `unit/models/Tweet.show.test.ts` | `Tweet` 构造器（statuses/show 来源） | 从真实 fixture `tests/fixtures/raw/tweet_QqsYymYOS.json` 读取数据，验证长微博、地理位置、媒体信息归一化正确性 |
 | `unit/models/Media.test.ts` | `normalizeImageWallItem` / `normalizeWaterfallVideo` | 图片墙 pic/livephoto/gif/unknown（URL 由 pid 构造）、视频瀑布 `page_info.media_info` 提取、`normalizeTweet` 的 page_info 视频映射 |
-| `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `readCount` / `editCount` / `title` / `permanentVideoUrl` / `isOriginal` / `sourceUrl`）、卡片元数据（`pageInfo.objectId` / `subtitle` / https 封面，`linkCards.longUrl` / `oriUrl` / `urlType`）、`isGetLongText=true` 重复 `url_struct` 的 `linkCards` 去重 |
+| `unit/models/Tweet.variants.test.ts` | `normalizeTweet` 真实 fixture 变种 | 纯文本 / 转发 / 图文 / 长文 / 视频 / 广告、`page_info.media_info` 视频、新增 optional 字段（`topics` / `linkCards` / `stats.reads` / `stats.edits` / `title` / `permanentVideoUrl` / `flags.original` / `sourceUrl` / `atUsers` / `stats.plays` / `flags.pinned` / `audio`）、卡片元数据（`pageInfo.objectId` / `subtitle` / https 封面，`linkCards.longUrl` / `oriUrl` / `urlType`）、`isGetLongText=true` 重复 `url_struct` 的 `linkCards` 去重 |
 | `unit/models/Tweet.commentPics.test.ts` | `normalizeComment` 图片评论 | 真实 `comments.json` / `comments_pic_multi.json` / `my_comments_p1.json`、`url_struct[].pic_infos` 提取、多图重复 `url_struct` 去重、尺寸优先 `woriginal`、`reply_comment` / 楼中楼递归、无图时省略 `pics` |
 | `unit/models/TweetContext.test.ts` | `buildTweetContext` / `renderTweetContextMarkdown` | 时间格式归一化、原创图文、长图/纯图提示、广告/付费/长文截断标记、`maxChars`/`maxMedia`、转发链只取当前作者正文、mentions 不含链上作者、原微博媒体归属、`--no-quoted`/`--no-chain` 语义、媒体下载回填、评论抽样声明、Markdown 章节、重复链接卡片只渲染一次 |
 | `unit/models/TweetAttachments.test.ts` | `extractAttachments` / `normalizeTweet` 附件归一化 | PC/m 文章、PC/m 投票（`vote_dynamic` 覆盖 stale 票数）、PC/m 直播、抽奖链接卡、未知 `object_type` 忽略、`kind:id` 去重、m 站 `object_type: 11` + `type: "video"` 视频回归、PC 视频回归 |
 | `unit/models/TweetAttachments.snapshot.test.ts` | 附件 fixture 快照 | 脱敏真实样本的 `tweet.attachments` 完整形状（文章 / 投票 / 直播 / m 站视频 media），字段增删通过 snapshot diff 暴露 |
 | `unit/models/TweetContextAttachments.test.ts` | `buildTweetContext` 附件投影 | 四类附件字段映射、quoted 微博附件归属、文章/抽奖 unknowns、投票快照与直播临时流 hints、无附件时空数组、Markdown 未知项 |
-| `unit/contract/itweet-v2.test.ts` | ITweet v2 契约冻结 | `TWEET_CONTRACT_VERSION = 2`、顶层键集类型/运行时锁定、`ITweetComment` 键集与 `pics` 形状、`migrateTweetV1toV2` 递归删除 `textHtml` |
-| `unit/contract/archive-schema.test.ts` | 归档 JSON Schema v2 | `$id` 与 `$schema` 指向同一 raw URL、最小归档通过 Ajv 校验、缺 `$schema` 被拒、未知字段前向兼容、真实 `verified_type` 取值通过 |
+| `unit/contract/itweet-v3.test.ts` | ITweet v3 契约冻结 | `TWEET_CONTRACT_VERSION = 3`、顶层键集类型/运行时锁定、`stats` / `flags` / 媒体 `focusPoint` 键集、真实 fixture 的 `tags` / `superTopic` / `contentNotices` / `editedAt` 与计数 / 标记位映射、`ITweetComment` 键集与 `pics` 形状、`migrateTweetV1toV2` 递归删除 `textHtml`、`migrateTweetV2toV3` 把计数 / 标记位递归收进 `stats` / `flags` |
+| `unit/contract/archive-schema.test.ts` | 归档 JSON Schema v3 | `$id` 与 `$schema` 指向同一 raw URL、最小归档通过 Ajv 校验、缺 `$schema` 被拒、未知字段前向兼容、真实 `verified_type` 取值通过 |
 
 ### Unit — 服务基础设施
 
@@ -101,7 +101,7 @@
 | `unit/services/UserArchiveConfig.test.ts` | `buildUserArchiveConfig` / `validateUserArchiveResume` / `mergeUserArchiveMeta` / `planUserArchiveSlices` | 默认值、日期范围解析、非负上限、并发 clamp、续跑 uid / 范围 / 选项 / 切片计划不一致、`merge` 只校验 uid、merge 重建 meta 与 totals 过滤、strict / merge 的参数继承差异 |
 | `unit/services/UserArchiveAssemble.test.ts` | `assembleUserArchive` / `dedupeUserArchiveRecords` | 按 `mblogId` 去重（issue 少 / 更晚写入优先）、时间倒序、评论 / 楼中楼统计、issue 去重、fatal / aborted 标记不完整、剥除 legacy raw |
 | `unit/services/UserArchiveComplete.test.ts` | `completeUserArchiveTweet` 内部并发与请求裁剪 | 详情 / 评论 / 转发同时启动、楼中楼按小并发展开、stats 为 0 时跳过评论 / 转发请求 |
-| `unit/services/UserArchiveMerge.test.ts` | `mergeArchiveFiles` | 跨归档按 `mblogId` 合并、评论 / 楼中楼 / 转发并集、取更完整正文、range 包络与开关交集、issue 解决判定、幂等 / 输入顺序无关、跨账号与非 v2 输入拒绝 |
+| `unit/services/UserArchiveMerge.test.ts` | `mergeArchiveFiles` | 跨归档按 `mblogId` 合并、评论 / 楼中楼 / 转发并集、取更完整正文、range 包络与开关交集、issue 解决判定、幂等 / 输入顺序无关、v2 归档记录迁移到 v3、跨账号与非归档输入拒绝 |
 | `unit/cli/archiveMerge.test.ts` | `runArchiveMerge` / `readArchiveFile` | 多文件合并写盘、BOM 兼容、`--force` 覆盖保护、至少两份输入、缺失 / 非法 JSON 报 `CONFIG_INVALID`、目录展开只取顶层合法归档并报告跳过、排除输出文件、路径去重 |
 | `unit/cli/archiveUserArgs.test.ts` | `normalizeArchiveUid` / `userArchiveOptionsFromArgs` / `resolveCliTuning` | 数字 uid 与主页链接、`--no-comments` / `--no-replies`、各上限映射、非法 comment-order / slice-days / resume、`--resume` 映射、默认与 `--fast` 预设、显式参数覆盖 |
 | `unit/cli/archiveUserStore.test.ts` | `FileUserArchiveStore` | meta / records / checkpoint / slice-done / issue 往返、截断行修复、meta schema 校验、`clear`、按切片过滤、切片计划重写后仍能读到旧 key 的记录 / issue |

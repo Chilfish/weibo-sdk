@@ -40,11 +40,13 @@ new WeiboSDK({ proxy: 'http://127.0.0.1:7890' })   // 或 { getProxy: ctx => ...
 
 ## 模型字段
 
-### `ITweet`（存档契约 v2，只增不改）
+### `ITweet`（存档契约 v3，只增不改）
 必填：`id`（数字串）、`mblogId`、`createdAt`（上游原样字符串，含时区）、`text`、`source`、`user`（`TweetUser` 简版）、`stats{likes,comments,reposts}`、`visible`、`media[]`。`text` 默认已是长微博全文。
-可选：`regionName`、`retweetedStatus`（同构递归）、`repostChain[]`、`pageInfo`、`geo`、`topics[]`、`linkCards[]`、`readCount`、`editCount`、`title`、`permanentVideoUrl`、`isOriginal`、`sourceUrl`、`atUsers[]`、`playCount`、`isTop`、`audio[]`、`comments[]`（仅归档 `includeComments` 时填充）。
+可选：`regionName`、`flags{original,pinned,ad,paid,edited,editable}`、`retweetedStatus`（同构递归）、`repostChain[]`、`pageInfo`、`attachments[]`、`geo`、`topics[]`、`linkCards[]`、`title`、`permanentVideoUrl`、`sourceUrl`、`atUsers[]`、`audio[]`、`editedAt`、`tags[]`、`superTopic`、`contentNotices[]`、`comments[]`（仅归档 `includeComments` 时填充）。
+`stats` 里的计数都是抓取时快照：`likes` / `comments` / `reposts` 固定有，`reads?` / `plays?` / `edits?` / `favorites?` 由上游决定是否下发。标记位统一在 `flags`，未下发即缺省，不伪造 `false`。
 
-`media[]` 元素：`{ id, type: 'pic'|'video'|'gif'|'livephoto'|..., imageUrl, videoUrl?, duration?, width?, height? }`。
+`media[]` 元素：`{ id, type: 'pic'|'video'|'gif'|'livephoto'|..., imageUrl, videoUrl?, duration?, width, height, focusPoint? }`，`focusPoint` 为 `{ left, top, width, height }`（上游裁剪焦点，归一化到 0..1）。
+`pageInfo` 还带 `summary?`（卡片摘要）；`tags[]` 元素 `{ name, type?, oid?, url?, iconUrl?, hidden }`；`superTopic` 为 `{ name, url?, imageUrl? }`；`contentNotices[]` 是内容声明文案（如「该内容使用AI技术辅助创作」「内容为转载」）。
 **媒体 URL 是短期签名地址**，带 `Expires` / `ssig`，归档要立即下载。
 
 ### `ITweetComment`
@@ -65,7 +67,7 @@ new WeiboSDK({ proxy: 'http://127.0.0.1:7890' })   // 或 { getProxy: ctx => ...
 - `source` ∈ `timeline` / `repost` / `favorite` / `like` / `comment` / `image` / `video`
 - `asset` 为 `IUserMediaAsset`（`id` / `type` / `url` / `coverUrl` / `sourceTweetId` / `createdAt` / `objectId`），图片项可能没有 `tweet`
 - `checkpoint` 记录最后一条完整处理的项；续跑 at-least-once，按 `mblogId`（媒体按 `asset.id`）幂等去重
-- 归档文件的 JSON Schema 在仓库 `schemas/weibo-user-archive/v2.json`，由 `pnpm schema:archive` 生成；`pnpm schema:check` 检查漂移
+- 归档文件的 JSON Schema 在仓库 `schemas/weibo-user-archive/v3.json`，由 `pnpm schema:archive` 生成；`pnpm schema:check` 检查漂移
 
 ## 示例
 

@@ -72,7 +72,7 @@ const result = await sdk.userArchive.run('1111681197', {
   concurrency: 20,
 })
 
-result.file       // ArchiveFile（weibo-user-archive/v2）
+result.file       // ArchiveFile（weibo-user-archive/v3）
 result.complete
 result.summary    // tweets / comments / replies / errors / coverage
 ```

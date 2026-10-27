@@ -127,7 +127,7 @@
 | F3.2 | 结构化错误（code/level/retryable/context） | ✅ |
 | F3.3 | 公开 API 类型以真实响应为准（分页游标按端点：mymblog `page` / friendstimeline `maxId`） | ✅ |
 | F3.4 | 版本单一来源 + semver 策略 + 契约版本解耦 | ✅（P0-1/P0-3/P0-6） |
-| F3.5 | 领域模型补充阅读数 / 播放数 / 话题 / @用户 / 音频 / 编辑历史等 optional 字段 | ✅ topics / linkCards / readCount / editCount / title / permanentVideoUrl / isOriginal / sourceUrl / atUsers / playCount / isTop / audio；IUser `svip` / `mbrank` / `hometown` / `labelDesc` |
+| F3.5 | 领域模型补充阅读数 / 播放数 / 话题 / @用户 / 音频 / 编辑历史等 optional 字段 | ✅ topics / linkCards / `stats.reads` / `stats.edits` / `stats.plays` / `stats.favorites` / `flags.original` / `flags.pinned` / title / permanentVideoUrl / sourceUrl / atUsers / audio / editedAt / tags / superTopic / contentNotices；IUser `svip` / `mbrank` / `hometown` / `labelDesc` |
 
 ### F4 可观测性与诊断
 

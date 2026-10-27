@@ -42,7 +42,7 @@ MyGo（Go 主进程）
 
 - 抓取逻辑只有一份：SDK。Go 不实现任何微博端点。
 - 前端不直接 `import` `mygo.ts`；统一走 `Platform` 接口，为网页查看器保留实现。
-- 数据以 `weibo-user-archive/v2` 为交换格式；应用内部可以用 SQLite 索引，但导出必须回到 v2。
+- 数据以 `weibo-user-archive/v3` 为交换格式；应用内部可以用 SQLite 索引，但导出必须回到 v3。
 
 ---
 
@@ -151,7 +151,7 @@ create virtual table tweets_fts using fts5(
 
 ### 3.3 导出
 
-- 导出 `weibo-user-archive/v2`：从 SQLite 组装 `ArchivedTweet`，保留 `complete` / `stats` / `issues`。
+- 导出 `weibo-user-archive/v3`：从 SQLite 组装 `ArchivedTweet`，保留 `complete` / `stats` / `issues`。
 - 导出「old-style 查看器 JSON」：只在需要兼容老网页查看器时提供，标注有损。
 - 媒体导出：目录 + `media.json` 映射，或直接打包 zip。
 
@@ -243,13 +243,13 @@ export interface Platform {
 
 ### 6.2 新归档导入
 
-- 支持直接导入 `weibo-user-archive/v2` JSON（校验 `schema` + `$schema`）。
+- 支持直接导入 `weibo-user-archive/v3` JSON（校验 `schema` + `$schema`；旧 v2 归档经 `mergeArchiveFiles` 迁移后再导入）。
 - 支持导入目录（多份归档），内部复用 `mergeArchiveFiles` 语义（在 Go 侧用 SDK 导出的合并函数跑在 WebView，或由前端调用）。
 
 ### 6.3 版本升级
 
 - 应用 schema 版本号存在 `meta` 表；启动时顺序迁移。
-- SDK 升级：`ITweet` v2 内只增字段，应用按 JSON 存原样，升级风险低；跨 v3 时按 SDK 提供的迁移函数处理。
+- SDK 升级：`ITweet` v3 内只增字段，应用按 JSON 存原样，升级风险低；跨下一个契约版本时按 SDK 提供的迁移函数处理。
 
 ---
 
@@ -280,7 +280,7 @@ export interface Platform {
 
 ### P3 — 导出与兼容
 
-- 目标：导出 v2 / 旧格式；批量导入；多份归档合并。
+- 目标：导出 v3 / 旧格式；批量导入；多份归档合并。
 - 交付：导出对话框、目录扫描、合并结果统计。
 - 验收：导出的 JSON 通过官方 schema 校验；合并幂等。
 
