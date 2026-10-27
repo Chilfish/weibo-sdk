@@ -150,8 +150,8 @@
         },
         "flags": {
           "$ref": "#/definitions/TweetFlags",
-          "description": "布尔标记位（原创 / 置顶 / 推广 / 付费 / 编辑）；无任何标记时缺省",
-          "markdownDescription": "布尔标记位（原创 / 置顶 / 推广 / 付费 / 编辑）；无任何标记时缺省"
+          "description": "布尔标记位（`original` 恒有；其余按上游是否下发出现）",
+          "markdownDescription": "布尔标记位（`original` 恒有；其余按上游是否下发出现）"
         },
         "geo": {
           "$ref": "#/definitions/TweetGeo",
