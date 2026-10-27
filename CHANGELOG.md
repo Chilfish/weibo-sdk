@@ -4,6 +4,20 @@
 
 ## Unreleased
 
+## 0.7.0 (2026-10-27)
+
+### 变更
+
+- **破坏性**：`ITweet` 契约升到 v3，归档格式升到 `weibo-user-archive/v3`。
+  - 阅读 / 播放 / 编辑次数合并进 `stats.reads` / `stats.plays` / `stats.edits`。
+  - 置顶 / 原创标记合并进 `flags.pinned` / `flags.original`。
+  - `mergeArchiveFiles` 与 `weibo-cli archive merge` 仍能读取 v2 归档，记录自动迁移，输出统一为 v3。
+
+### 新增
+
+- `ITweet` 新增 `flags`（推广 / 付费 / 编辑状态）、`editedAt`、`tags`、`superTopic`、`contentNotices`、`stats.favorites`。
+- 媒体新增 `focusPoint`（客户端裁剪焦点），页面卡片新增 `summary`。
+
 ## 0.6.1 (2026-10-27)
 
 ### 新增

@@ -2,18 +2,18 @@ import type { ITweet, ITweetComment } from '../domain/ITweet'
 import type { IUser } from '../domain/IUser'
 
 /**
- * 归档文件格式标识（与包版本解耦，见 `schemas/weibo-user-archive/v2.json`）。
+ * 归档文件格式标识（与包版本解耦，见 `schemas/weibo-user-archive/v3.json`）。
  */
-export const ARCHIVE_SCHEMA_ID = 'weibo-user-archive/v2'
+export const ARCHIVE_SCHEMA_ID = 'weibo-user-archive/v3'
 
 /**
  * 归档 JSON Schema 的 canonical URL（文档站托管，随包同时发布离线副本）。
  *
  * 该地址同时用于归档文件的 `$schema` 字段与 schema 文档的 `$id`，
- * v2 内保持稳定；破坏性变更时新增 `v3.json`。
+ * 当前版本内保持稳定；破坏性变更时新增 `v4.json`。
  */
 export const ARCHIVE_SCHEMA_URL
-  = 'https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json'
+  = 'https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v3.json'
 
 export type ArchiveIssueStage
   = | 'timeline'
@@ -49,10 +49,10 @@ export interface ArchivedTweet {
 }
 
 /**
- * `weibo-user-archive/v2` 归档文件信封。
+ * `weibo-user-archive/v3` 归档文件信封。
  *
- * 字段契约与 JSON Schema（`schemas/weibo-user-archive/v2.json`）保持一致：
- * v2 内只允许新增 optional 字段，读取方需忽略未知键。
+ * 字段契约与 JSON Schema（`schemas/weibo-user-archive/v3.json`）保持一致：
+ * 当前版本内只允许新增 optional 字段，读取方需忽略未知键。
  */
 export interface ArchiveFile {
   /** 归档 JSON Schema 地址；供编辑器 / 校验器自动发现 */

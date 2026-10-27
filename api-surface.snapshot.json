@@ -694,6 +694,14 @@
       "kind": "interface"
     },
     {
+      "name": "TweetFlags",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetFocusPoint",
+      "kind": "interface"
+    },
+    {
       "name": "TweetFriendTimelineListOptions",
       "kind": "interface"
     },
@@ -787,6 +795,14 @@
     },
     {
       "name": "TweetSearchByDatePageResult",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetSuperTopic",
+      "kind": "interface"
+    },
+    {
+      "name": "TweetTag",
       "kind": "interface"
     },
     {

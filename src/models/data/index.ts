@@ -1,7 +1,7 @@
 export { normalizeFavoriteTag } from './Favorite'
 export { normalizeMblogGroups, normalizeUserGroups } from './Group'
 export { normalizeAlbum, normalizeImageWallItem, normalizeWaterfallVideo } from './Media'
-export { migrateTweetV1toV2 } from './migrateTweet'
+export { migrateTweetV1toV2, migrateTweetV2toV3 } from './migrateTweet'
 export { normalizeCommentNotification, normalizeLikeNotification } from './Notification'
 export { normalizeSuperTopic, normalizeSuperTopicCategory } from './SuperTopic'
 export { normalizeTrendItem } from './Trend'

@@ -469,14 +469,14 @@ describe('variant 4: ad tweets (isAd)', () => {
   })
 })
 
-describe('optional metadata fields (v1 additions)', () => {
-  it('extracts readCount / title / isOriginal / sourceUrl from a real mymblog item', async () => {
+describe('enriched fields', () => {
+  it('extracts reads / title / original flag / sourceUrl from a real mymblog item', async () => {
     const raw = await loadRawJson('mymblog_page1.json')
     const tweet = normalizeTweet(raw.data.list[0])
 
-    expect(tweet.readCount).toBe(117)
+    expect(tweet.stats.reads).toBe(117)
     expect(tweet.title).toBe('公开')
-    expect(tweet.isOriginal).toBe(true)
+    expect(tweet.flags?.original).toBe(true)
     expect(tweet.sourceUrl).toBe(`https://weibo.com/${tweet.user.id}/${tweet.mblogId}`)
   })
 
@@ -496,18 +496,18 @@ describe('optional metadata fields (v1 additions)', () => {
     expect(tweet.linkCards?.[1].title).toBe('画渣花小烙超话')
   })
 
-  it('extracts editCount and topics from a real favorite item', async () => {
+  it('extracts edits and topics from a real favorite item', async () => {
     const raw = await loadRawJson('favorites_p1.json')
     const item = raw.data.status.find((t: any) => typeof t.edit_count === 'number')
     expect(item).toBeTruthy()
 
     const tweet = normalizeTweet(item)
 
-    expect(tweet.editCount).toBe(2)
+    expect(tweet.stats.edits).toBe(2)
     expect(tweet.topics).toContain('DeepSeek不打卡也不加班')
   })
 
-  it('extracts the title text and ignores retweets for isOriginal', async () => {
+  it('extracts the title text and ignores retweets for the original flag', async () => {
     const likes = await loadRawJson('likes_p1.json')
     const titled = likes.data.list.find((t: any) => t.title?.text)
     expect(normalizeTweet(titled).title).toBe('仅自己可见')
@@ -515,8 +515,8 @@ describe('optional metadata fields (v1 additions)', () => {
     const search = await loadRawJson('searchProfile_p1.json')
     const retweet = search.data.list.find((t: any) => t.retweeted_status)
     const tweet = normalizeTweet(retweet)
-    expect(tweet.isOriginal).toBe(false)
-    expect(tweet.readCount).toBe(172)
+    expect(tweet.flags?.original).toBe(false)
+    expect(tweet.stats.reads).toBe(172)
     expect(tweet.topics).toContain('渡濑结月')
   })
 
@@ -527,7 +527,7 @@ describe('optional metadata fields (v1 additions)', () => {
     const tweet = normalizeTweet(item)
 
     expect(tweet.permanentVideoUrl).toBe(item.page_info.media_info.h5_url)
-    expect(tweet.isOriginal).toBe(true)
+    expect(tweet.flags?.original).toBe(true)
   })
 
   it('extracts atUsers from the text HTML anchor (real fixture)', async () => {
@@ -563,7 +563,7 @@ describe('optional metadata fields (v1 additions)', () => {
     const tweet = normalizeTweet(item)
 
     expect(item.page_info.media_info.online_users).toContain('次观看')
-    expect(tweet.playCount).toBe(item.page_info.media_info.online_users_number)
+    expect(tweet.stats.plays).toBe(item.page_info.media_info.online_users_number)
   })
 
   it('does not map live online viewers to playCount', () => {
@@ -573,17 +573,17 @@ describe('optional metadata fields (v1 additions)', () => {
         media_info: { media_type: 'video', online_users: '1.2万人正在观看', online_users_number: 12000 },
       },
     }))
-    expect(tweet.playCount).toBeUndefined()
+    expect(tweet.stats.plays).toBeUndefined()
   })
 
-  it('extracts isTop from a real pinned timeline item', async () => {
+  it('extracts the pinned flag from a real timeline item', async () => {
     const raw = await loadRawJson('mymblog_pinned.json')
     const pinned = raw.data.list.find((item: any) => item.isTop === 1)
     expect(pinned).toBeTruthy()
 
-    expect(normalizeTweet(pinned).isTop).toBe(true)
-    // 非置顶项省略该字段
-    expect(normalizeTweet(raw.data.list.find((item: any) => item.isTop === undefined)).isTop).toBeUndefined()
+    expect(normalizeTweet(pinned).flags?.pinned).toBe(true)
+    // 非置顶项省略该键
+    expect(normalizeTweet(raw.data.list.find((item: any) => item.isTop === undefined)).flags?.pinned).toBeUndefined()
   })
 })
 

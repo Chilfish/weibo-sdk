@@ -409,9 +409,9 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
     flags.isPaid = isPaid
   if (typeof raw.content_auth === 'number' && raw.content_auth !== 0)
     flags.contentAuth = raw.content_auth
-  if (tweet.editCount !== undefined && tweet.editCount > 0)
+  if (tweet.stats.edits !== undefined && tweet.stats.edits > 0)
     flags.edited = true
-  if (tweet.isTop)
+  if (tweet.flags?.pinned)
     flags.pinned = true
   if (isLongText && !longTextApplied) {
     flags.textTruncated = true
@@ -448,8 +448,8 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
     post.publishedAtLocal = publishedAtLocal
   if (tweet.regionName)
     post.location = tweet.regionName.replace(/^发布于\s*/, '')
-  if (tweet.readCount !== undefined)
-    post.stats.reads = tweet.readCount
+  if (tweet.stats.reads !== undefined)
+    post.stats.reads = tweet.stats.reads
 
   if (post.text.length === 0 && media.length > 0)
     hints.push('no_text:content_is_in_media_only')

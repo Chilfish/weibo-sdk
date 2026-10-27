@@ -94,7 +94,7 @@ describe('archiveService', () => {
     expect(items.map(i => i.source)).toEqual(['timeline', 'repost', 'timeline', 'repost', 'favorite'])
     expect(items.map(i => i.mblogId)).toEqual(['A', 'R1', 'B', 'R1', 'F1'])
     // 每条归档 item 自带契约版本（K1 / P0-1 信封层，磁盘条目自描述）
-    expect(items.map(i => i.schemaVersion)).toEqual([2, 2, 2, 2, 2])
+    expect(items.map(i => i.schemaVersion)).toEqual([3, 3, 3, 3, 3])
 
     // P1-1：checkpoint 恒定大小，不再携带 visitedMblogIds
     expect(Object.keys(items[0].checkpoint).sort()).toEqual([

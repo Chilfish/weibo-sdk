@@ -18,7 +18,7 @@ function authorLabel(user: { id: string, name: string, verified: boolean }): str
 
 function tweetTitle(tweet: ITweet): string {
   const badges: string[] = []
-  if (tweet.isTop)
+  if (tweet.flags?.pinned)
     badges.push('置顶')
   if (tweet.retweetedStatus || (tweet.repostChain?.length ?? 0) > 0)
     badges.push('转发')
@@ -33,8 +33,8 @@ function tweetCounters(tweet: ITweet): string {
   ]
   if (tweet.media.length > 0)
     parts.push(`媒体 ${tweet.media.length}`)
-  if (tweet.readCount !== undefined)
-    parts.push(`阅读 ${formatCount(tweet.readCount)}`)
+  if (tweet.stats.reads !== undefined)
+    parts.push(`阅读 ${formatCount(tweet.stats.reads)}`)
   return parts.join(' · ')
 }
 

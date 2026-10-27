@@ -234,8 +234,8 @@ function verifyPublicTypes() {
 
 function verifySchemas(packed) {
   check(
-    existsSync(path.join(PACK_DIR, 'schemas/weibo-user-archive/v2.json')),
-    'tarball 包含 schemas/weibo-user-archive/v2.json（离线校验）',
+    existsSync(path.join(PACK_DIR, 'schemas/weibo-user-archive/v3.json')),
+    'tarball 包含 schemas/weibo-user-archive/v3.json（离线校验）',
   )
   check(
     packed.exports?.['./schemas/*'] === './schemas/*',

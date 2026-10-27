@@ -1,27 +1,83 @@
 import type { VerificationType } from './IUser'
 
 /**
- * ITweet 存档契约版本（v2，2026-10-21）。
+ * ITweet 存档契约版本（v3，2026-10-27）。
  *
- * `ITweet` 是下游（Weibo-archiver web-v3 / monkey / CLI）的 UI 展示与磁盘存档终局契约
- * （ADR-007/008）。版本规则（与包版本解耦，见 website/reference/tweet-contract.md）：
- * - **v2 内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
- * - **v3**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
+ * `ITweet` 是 SDK 对单条微博的存档与展示结构，归档流与 `ArchiveFile` 都以它为准。
+ * 版本规则（与包版本解耦，见 website/reference/tweet-contract.md）：
+ * - **当前版本内**：字段只增不改——仅允许新增 optional 字段（读取方忽略未知键，非破坏）；
+ * - **下一版本**：rename / remove / 类型或语义变更必须升契约版本，随包 major 发布，并提供迁移函数。
  *
- * v2 相对 v1 的破坏性变更：删除 `ITweet.textHtml` / `ITweetComment.textHtml`。
+ * v3 相对 v2 的破坏性变更：
+ * - 计数收敛进 `stats`：`readCount` → `stats.reads`、`playCount` → `stats.plays`、`editCount` → `stats.edits`；
+ * - 标记位收敛进 `flags`：`isTop` → `flags.pinned`、`isOriginal` → `flags.original`；
+ * - 新增 `flags` / `editedAt` / `tags` / `superTopic` / `contentNotices` / `stats.favorites`，
+ *   媒体新增 `focusPoint`，页面卡片新增 `summary`。
  */
-export const TWEET_CONTRACT_VERSION = 2 as const
+export const TWEET_CONTRACT_VERSION = 3 as const
 
 /**
- * `TWEET_CONTRACT_VERSION` 的字面量类型（当前仅 `2`）。
+ * `TWEET_CONTRACT_VERSION` 的字面量类型（当前仅 `3`）。
  */
 export type TweetContractVersion = typeof TWEET_CONTRACT_VERSION
 
 /**
- * 归一化微博（下游 UI 展示与磁盘存档的终局契约，见 {@link TWEET_CONTRACT_VERSION}）。
+ * 微博的布尔标记位。未下发即缺省，不伪造 `false`。
+ */
+export interface TweetFlags {
+  /** 是否原创（无 `retweeted_status`；转发为 `false`） */
+  original?: boolean
+  /** 是否置顶（上游 `isTop` / `top`） */
+  pinned?: boolean
+  /** 是否推广（上游 `isAd` / `ad_marked` / 广告 mark） */
+  ad?: boolean
+  /** 是否付费内容（上游 `is_paid`） */
+  paid?: boolean
+  /** 是否编辑过（上游 `edit_config.edited`） */
+  edited?: boolean
+  /** 当前账号是否可编辑（上游 `can_edit`） */
+  editable?: boolean
+}
+
+/** 微博标签（上游 `tag_struct[]`，如「热文指数30000+」「小店」）。 */
+export interface TweetTag {
+  /** 标签文案（`tag_name`） */
+  name: string
+  /** 标签类型码（`tag_type`） */
+  type?: number
+  /** 标签对象 id（`oid`） */
+  oid?: string
+  /** 标签跳转地址（`tag_scheme`，可能是微博 scheme） */
+  url?: string
+  /** 标签图标（`url_type_pic`） */
+  iconUrl?: string
+  /** 是否隐藏（`tag_hidden`） */
+  hidden: boolean
+}
+
+/** 微博来源超话（上游 `title_source`）。 */
+export interface TweetSuperTopic {
+  /** 超话名（`name`） */
+  name: string
+  /** 超话地址（`url`） */
+  url?: string
+  /** 超话头像（`image`） */
+  imageUrl?: string
+}
+
+/** 图片裁剪焦点（上游 `pic_focus_point[].focus_point`，归一化到 0..1）。 */
+export interface TweetFocusPoint {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+/**
+ * 归一化微博（SDK 的存档与展示契约，见 {@link TWEET_CONTRACT_VERSION}）。
  *
  * 由 `new Tweet(raw)` 归一化而来：上游 raw 字段不直接暴露，缺失值有明确默认；
- * v1 内只允许新增 optional 字段，读取方需忽略未知键。
+ * 当前版本内只允许新增 optional 字段，读取方需忽略未知键。
  */
 export interface ITweet {
   /** 数字串微博 id（`idstr`） */
@@ -55,10 +111,21 @@ export interface ITweet {
     comments: number
     /** 转发数 */
     reposts: number
+    /** 收藏数（上游 `favorites_count`；上游未下发时缺省） */
+    favorites?: number
+    /** 阅读数（上游 `reads_count`；仅部分端点 / 自己可见时下发） */
+    reads?: number
+    /** 视频播放数（只认 `online_users` 明确为「N次观看」的历史播放量） */
+    plays?: number
+    /** 编辑次数（上游 `edit_count`；未编辑或未下发时缺省） */
+    edits?: number
   }
 
   /** 可见范围（对应上游 `visible.type`） */
   visible: TweetVisible
+
+  /** 布尔标记位（`original` 恒有；其余按上游是否下发出现） */
+  flags?: TweetFlags
 
   // 转发内容
   /** 被转发的原微博（同构递归；非转发微博缺省） */
@@ -87,42 +154,35 @@ export interface ITweet {
   /** 定位信息（发布时选点；未选点缺省） */
   geo?: TweetGeo
 
-  // ---- 2026-10-20 v1 新增 optional 字段（只增不改） ----
+  // ---- 富化字段 ----
 
   /** 话题列表（上游 `topic_struct[].topic_title`；无话题缺省） */
   topics?: string[]
   /** 链接 / 超话卡片（上游 `url_struct[]`；无卡片缺省） */
   linkCards?: TweetLinkCard[]
-  /** 阅读数（上游 `reads_count`；仅部分端点 / 自己可见时下发） */
-  readCount?: number
-  /** 编辑次数（上游 `edit_count`；未编辑或未下发时缺省） */
-  editCount?: number
   /** 顶栏标题（上游 `title.text`，如「公开」「仅自己可见」；无则缺省） */
   title?: string
   /** 视频永久播放页（上游 `media_info.h5_url`；无视频缺省） */
   permanentVideoUrl?: string
-  /** 是否原创（无 `retweeted_status`；转发为 `false`） */
-  isOriginal?: boolean
   /** 微博网页永久链接（`https://weibo.com/<uid>/<mblogid>`） */
   sourceUrl?: string
   /** @ 用户（从 `text` HTML 的 `<a href="/n/...">` 锚点解析；无 @ 时缺省） */
   atUsers?: TweetAtUser[]
-  /**
-   * 视频播放数（上游 `page_info.media_info.online_users_number`）。
-   *
-   * 仅在 `online_users` 明确为「N次观看」时填写；直播的在线人数不是播放数，不映射。
-   */
-  playCount?: number
-  /** 是否置顶（上游 `isTop === 1`；非置顶时缺省） */
-  isTop?: boolean
   /** 音频 / 播客（上游 `page_info.object_type === 'podcast_audio'`；无音频时缺省） */
   audio?: TweetAudio[]
+  /** 最后编辑时间（上游 `edit_at` 原样字符串；未编辑或缺省时不下发） */
+  editedAt?: string
+  /** 标签（上游 `tag_struct[]`；无标签缺省） */
+  tags?: TweetTag[]
+  /** 来源超话（上游 `title_source`；非超话来源缺省） */
+  superTopic?: TweetSuperTopic
+  /** 内容声明（上游 `ai_tag_info[].text`，如「该内容使用AI技术辅助创作」「内容为转载」；无声明缺省） */
+  contentNotices?: string[]
 
   /**
-   * 评论（P1-6，可选）。
+   * 评论（可选）。
    *
    * 普通 `normalizeTweet` 不填充；仅归档流 `includeComments: true` 时由 SDK 拉取并挂载。
-   * v1 新增 optional 字段，老读取方忽略即可。
    */
   comments?: ITweetComment[]
 }
@@ -450,6 +510,8 @@ export interface TweetMedia {
   width: number
   /** 原始高度（像素） */
   height: number
+  /** 客户端裁剪焦点（上游 `pic_focus_point[].focus_point`；无则缺省） */
+  focusPoint?: TweetFocusPoint
 }
 
 /**
@@ -494,8 +556,10 @@ export interface TweetPageCard {
   objectType: string
   /** 卡片对象 id（上游 `object_id`；未下发时缺省） */
   objectId?: string
-  /** 卡片副标题 / 统计文案（上游 `content2`，如「812播放 74点赞 0弹幕」；空则缺省） */
+  /** 卡片副标题 / 统计文案（上游 `content2`，如「812播放  74点赞  0弹幕」；空则缺省） */
   subtitle?: string
+  /** 卡片摘要（上游 `content1` → `page_desc`；与标题重复或为空时缺省） */
+  summary?: string
 }
 
 /**

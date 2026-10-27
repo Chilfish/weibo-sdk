@@ -1,10 +1,14 @@
 import type { ArchivedTweet, ArchiveFile, ArchiveIssue } from '~/types/archive/IArchiveFile'
 import type { MergeArchiveOptions, MergeArchiveResult } from '~/types/archive/IArchiveMerge'
 import type { ITweet, ITweetComment } from '~/types/domain/ITweet'
+import { migrateTweetV2toV3 } from '~/models/data/migrateTweet'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { ARCHIVE_SCHEMA_ID, ARCHIVE_SCHEMA_URL } from '~/types/archive/IArchiveFile'
 import { dedupeUserArchiveIssues } from './issues'
 import { parseArchiveCreatedAt } from './time'
+
+/** 上一版归档格式；读取时把记录迁移到当前契约。 */
+const ARCHIVE_SCHEMA_ID_V2 = 'weibo-user-archive/v2'
 
 interface Candidate {
   record: ArchivedTweet
@@ -204,7 +208,7 @@ function assertArchiveFile(value: unknown, index: number): asserts value is Arch
   if (!isRecord(value) || !Array.isArray(value.tweets)) {
     throw invalid(`${label} is not a weibo-sdk user archive: missing tweets array.`, 'tweets', index)
   }
-  if (value.schema !== ARCHIVE_SCHEMA_ID) {
+  if (value.schema !== ARCHIVE_SCHEMA_ID && value.schema !== ARCHIVE_SCHEMA_ID_V2) {
     throw invalid(
       `${label} is not a ${ARCHIVE_SCHEMA_ID} archive (schema: ${JSON.stringify(value.schema)}).`,
       'schema',
@@ -222,12 +226,34 @@ function assertArchiveFile(value: unknown, index: number): asserts value is Arch
   }
 }
 
+function migrateTweet(record: ITweet): ITweet {
+  return migrateTweetV2toV3(record as unknown as Record<string, unknown>)
+}
+
+/** 把 v2 归档记录迁移到当前契约；v3 文件原样返回。 */
+function upgradeArchiveFile(file: ArchiveFile): ArchiveFile {
+  if (file.schema !== ARCHIVE_SCHEMA_ID_V2)
+    return file
+
+  return {
+    ...file,
+    $schema: ARCHIVE_SCHEMA_URL,
+    schema: ARCHIVE_SCHEMA_ID,
+    tweets: file.tweets.map(record => ({
+      ...record,
+      tweet: migrateTweet(record.tweet),
+      ...(record.reposts === undefined ? {} : { reposts: record.reposts.map(migrateTweet) }),
+    })),
+  }
+}
+
 /**
- * 合并多份 `weibo-user-archive/v2` 归档（纯函数，不读写文件）。
+ * 合并多份 `weibo-user-archive/v3` 归档（纯函数，不读写文件）。
  *
  * - 按 `mblogId` 合并：微博本体取信息更全的一份，评论 / 楼中楼 / 转发按 id 并集；
  * - 只允许同一 uid；`query.range` 取覆盖包络，内容开关取交集；
- * - 结果与输入顺序无关（`generatedAt` 相同时取先出现的），并且幂等。
+ * - 结果与输入顺序无关（`generatedAt` 相同时取先出现的），并且幂等；
+ * - `weibo-user-archive/v2` 输入按 `migrateTweetV2toV3` 迁移后参与合并，输出恒为 v3。
  */
 export function mergeArchiveFiles(
   files: ArchiveFile[],
@@ -238,7 +264,10 @@ export function mergeArchiveFiles(
 
   files.forEach(assertArchiveFile)
 
-  const uids = new Set(files.map(uidOf).filter(uid => uid !== ''))
+  // v2 归档仍是用户已有的磁盘数据，读取时迁移到当前契约
+  const archives = files.map(upgradeArchiveFile)
+
+  const uids = new Set(archives.map(uidOf).filter(uid => uid !== ''))
   if (uids.size > 1) {
     throw invalid(`Cannot merge archives from different accounts: ${[...uids].join(', ')}.`, 'uid', [...uids])
   }
@@ -246,16 +275,16 @@ export function mergeArchiveFiles(
   if (!uid)
     throw invalid('Cannot merge archives without a uid.', 'uid')
 
-  const latest = files.reduce((current, file) =>
+  const latest = archives.reduce((current, file) =>
     generatedAtOf(file) >= generatedAtOf(current) ? file : current)
-  const user = latest.user ?? files.find(file => file.user)?.user
+  const user = latest.user ?? archives.find(file => file.user)?.user
   if (!user)
     throw invalid('Cannot merge archives without user information.', 'user')
 
   const groups = new Map<string, Candidate[]>()
   let inputTweets = 0
 
-  files.forEach((file, order) => {
+  archives.forEach((file, order) => {
     const issueCounts = new Map<string, number>()
     for (const issue of file.errors ?? []) {
       if (issue.mblogId)
@@ -290,8 +319,8 @@ export function mergeArchiveFiles(
     })
     .map(item => item.record)
 
-  const errors = dedupeUserArchiveIssues(files.flatMap(file => file.errors ?? []))
-    .filter(issue => !isResolvedIssue(issue, files))
+  const errors = dedupeUserArchiveIssues(archives.flatMap(file => file.errors ?? []))
+    .filter(issue => !isResolvedIssue(issue, archives))
   const complete = errors.length === 0
 
   const file: ArchiveFile = {
@@ -301,10 +330,10 @@ export function mergeArchiveFiles(
     complete,
     query: {
       uid,
-      range: mergeRange(files),
-      includeComments: files.every(item => item.query?.includeComments !== false),
-      includeReplies: files.every(item => item.query?.includeReplies !== false),
-      includeReposts: files.every(item => item.query?.includeReposts !== false),
+      range: mergeRange(archives),
+      includeComments: archives.every(item => item.query?.includeComments !== false),
+      includeReplies: archives.every(item => item.query?.includeReplies !== false),
+      includeReposts: archives.every(item => item.query?.includeReposts !== false),
       commentOrder: latest.query?.commentOrder === 'hot' ? 'hot' : 'time',
     },
     user,

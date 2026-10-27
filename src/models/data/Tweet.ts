@@ -1,6 +1,6 @@
 import type { LongtextResponse, MyMBlogItem, StatusShowResponse } from '~/services/endpoints/tweet'
 import type { TweetLiker } from '~/types/domain/ILiker'
-import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetGeo, TweetLinkCard, TweetLongText, TweetMedia, TweetPageCard, TweetRepostEntry, TweetUser } from '~/types/domain/ITweet'
+import type { ITweet, ITweetComment, TweetAttachment, TweetAtUser, TweetAudio, TweetCommentPic, TweetFlags, TweetFocusPoint, TweetGeo, TweetLinkCard, TweetLongText, TweetMedia, TweetPageCard, TweetRepostEntry, TweetSuperTopic, TweetTag, TweetUser } from '~/types/domain/ITweet'
 import type { VerificationType } from '~/types/domain/IUser'
 import { MediaType, TweetVisible } from '~/types/domain/ITweet'
 import { extractAttachments, pageObjectType } from './TweetAttachments'
@@ -101,6 +101,9 @@ function extractPageInfo(rawRecord: UnknownRecord): TweetPageCard | undefined {
   const subtitle = getString(page.content2)
   if (subtitle)
     card.subtitle = subtitle
+  const summary = getString(page.content1) ?? getString(page.page_desc)
+  if (summary && summary !== card.pageTitle)
+    card.summary = summary
 
   return card
 }
@@ -347,14 +350,48 @@ function extractMediaFromPageInfo(rawRecord: UnknownRecord): TweetMedia[] {
 function extractMedia(raw: RawTweet, rawRecord: UnknownRecord): TweetMedia[] {
   const fromMix = extractMediaFromMixMediaInfo(rawRecord)
   if (fromMix.length > 0)
-    return fromMix
+    return attachFocusPoints(fromMix, rawRecord)
 
   // 视频瀑布 / 部分详情页把视频放在 page_info.media_info（而不是 mix_media_info）
   const fromPage = extractMediaFromPageInfo(rawRecord)
   if (fromPage.length > 0)
-    return fromPage
+    return attachFocusPoints(fromPage, rawRecord)
 
-  return extractMediaFromPicInfos(raw)
+  return attachFocusPoints(extractMediaFromPicInfos(raw), rawRecord)
+}
+
+/** 图片裁剪焦点：`pic_focus_point[]` 按 `pic_id` 建索引。 */
+function extractFocusPoints(rawRecord: UnknownRecord): Map<string, TweetFocusPoint> | undefined {
+  const list = rawRecord.pic_focus_point
+  if (!Array.isArray(list))
+    return undefined
+
+  const out = new Map<string, TweetFocusPoint>()
+  for (const entry of list) {
+    if (!isRecord(entry) || !isRecord(entry.focus_point))
+      continue
+    const id = getString(entry.pic_id)
+    const point = entry.focus_point
+    const left = getNumber(point.left)
+    const top = getNumber(point.top)
+    const width = getNumber(point.width)
+    const height = getNumber(point.height)
+    if (!id || left === undefined || top === undefined || width === undefined || height === undefined)
+      continue
+    out.set(id, { left, top, width, height })
+  }
+  return out.size > 0 ? out : undefined
+}
+
+function attachFocusPoints(media: TweetMedia[], rawRecord: UnknownRecord): TweetMedia[] {
+  const points = extractFocusPoints(rawRecord)
+  if (!points)
+    return media
+
+  return media.map((item) => {
+    const focusPoint = points.get(item.id)
+    return focusPoint ? { ...item, focusPoint } : item
+  })
 }
 
 /** 话题：`topic_struct[].topic_title`（缺省退回 `title`），去重保序。 */
@@ -690,6 +727,108 @@ function extractIsTop(rawRecord: UnknownRecord): boolean | undefined {
   return value === 1 || value === true ? true : undefined
 }
 
+function isTruthyFlag(value: unknown): boolean {
+  return value === true || value === 1
+}
+
+/** 布尔标记位：原创恒可判定，其余按上游是否下发决定是否出现。 */
+function extractFlags(rawRecord: UnknownRecord, original: boolean): TweetFlags {
+  const flags: TweetFlags = { original }
+
+  if (extractIsTop(rawRecord) === true)
+    flags.pinned = true
+  const mark = getString(rawRecord.mark)
+  const markedAsAd = mark !== undefined && /reallog_mark_ad|WeiboAD/i.test(mark)
+  if (isTruthyFlag(rawRecord.isAd) || isTruthyFlag(rawRecord.ad_marked) || markedAsAd)
+    flags.ad = true
+  if (isTruthyFlag(rawRecord.is_paid))
+    flags.paid = true
+  const editConfig = isRecord(rawRecord.edit_config) ? rawRecord.edit_config : undefined
+  if (editConfig && isTruthyFlag(editConfig.edited))
+    flags.edited = true
+  if (isTruthyFlag(rawRecord.can_edit))
+    flags.editable = true
+
+  return flags
+}
+
+/** 标签：`tag_struct[]`，按 `oid`（缺省用文案）去重保序。 */
+function extractTags(rawRecord: UnknownRecord): TweetTag[] | undefined {
+  const list = rawRecord.tag_struct
+  if (!Array.isArray(list))
+    return undefined
+
+  const out: TweetTag[] = []
+  const seen = new Set<string>()
+  for (const entry of list) {
+    if (!isRecord(entry))
+      continue
+    const name = getString(entry.tag_name)
+    if (!name)
+      continue
+    const oid = getString(entry.oid)
+    const key = oid ?? name
+    if (seen.has(key))
+      continue
+    seen.add(key)
+
+    const tag: TweetTag = { name, hidden: isTruthyFlag(entry.tag_hidden) }
+    const type = getNumber(entry.tag_type)
+    if (type !== undefined)
+      tag.type = type
+    if (oid)
+      tag.oid = oid
+    const url = getString(entry.tag_scheme)
+    if (url)
+      tag.url = url
+    const iconUrl = getPicUrl(entry.url_type_pic)
+    if (iconUrl)
+      tag.iconUrl = iconUrl
+    out.push(tag)
+  }
+
+  return out.length > 0 ? out : undefined
+}
+
+/** 来源超话：`title_source`（PC / m 站同构）。 */
+function extractSuperTopic(rawRecord: UnknownRecord): TweetSuperTopic | undefined {
+  const source = rawRecord.title_source
+  if (!isRecord(source))
+    return undefined
+  const name = getString(source.name)
+  if (!name)
+    return undefined
+
+  const topic: TweetSuperTopic = { name }
+  const url = getString(source.url)
+  if (url)
+    topic.url = url
+  const imageUrl = getPicUrl(source.image)
+  if (imageUrl)
+    topic.imageUrl = imageUrl
+  return topic
+}
+
+/** 内容声明：`ai_tag_info` 以图片 id 为键，同一文案只保留一条。 */
+function extractContentNotices(rawRecord: UnknownRecord): string[] | undefined {
+  const info = rawRecord.ai_tag_info
+  if (!isRecord(info))
+    return undefined
+
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const entry of Object.values(info)) {
+    if (!isRecord(entry))
+      continue
+    const text = getString(entry.text)
+    if (!text || seen.has(text))
+      continue
+    seen.add(text)
+    out.push(text)
+  }
+  return out.length > 0 ? out : undefined
+}
+
 /** 单条音频归一化（`page_info` / `mix_media_info.items[].data` 同构）。 */
 function normalizeAudio(page: UnknownRecord, media: UnknownRecord): TweetAudio | undefined {
   const objectType = getString(page.object_type)
@@ -783,6 +922,24 @@ export function normalizeTweet(raw: RawTweet): ITweet {
   const retweetedStatus = retweeted ? normalizeTweet(retweeted as unknown as RawTweet) : undefined
   const attachments = extractAttachments(rawRecord)
 
+  const stats: ITweet['stats'] = {
+    likes: Number(raw.attitudes_count ?? 0),
+    comments: Number(raw.comments_count ?? 0),
+    reposts: Number(raw.reposts_count ?? 0),
+  }
+  const favorites = getNumber(rawRecord.favorites_count)
+  if (favorites !== undefined)
+    stats.favorites = favorites
+  const reads = getNumber(rawRecord.reads_count)
+  if (reads !== undefined)
+    stats.reads = reads
+  const plays = extractPlayCount(rawRecord)
+  if (plays !== undefined)
+    stats.plays = plays
+  const edits = getNumber(rawRecord.edit_count)
+  if (edits !== undefined)
+    stats.edits = edits
+
   return {
     id: String(raw.idstr || raw.id),
     mblogId: raw.mblogid,
@@ -792,12 +949,9 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     regionName: raw.region_name || undefined,
     source: String(raw.source || ''),
     user,
-    stats: {
-      likes: Number(raw.attitudes_count ?? 0),
-      comments: Number(raw.comments_count ?? 0),
-      reposts: Number(raw.reposts_count ?? 0),
-    },
+    stats,
     visible: isTweetVisible(visibleType) ? visibleType : TweetVisible.PUBLIC,
+    flags: extractFlags(rawRecord, retweetedStatus === undefined),
     media: extractMedia(raw, rawRecord),
     pageInfo: extractPageInfo(rawRecord),
     ...(attachments.length > 0 ? { attachments } : {}),
@@ -806,16 +960,15 @@ export function normalizeTweet(raw: RawTweet): ITweet {
     repostChain: extractRepostChain(rawRecord),
     topics: extractTopics(rawRecord),
     linkCards: extractLinkCards(rawRecord),
-    readCount: getNumber(rawRecord.reads_count),
-    editCount: getNumber(rawRecord.edit_count),
     title: extractTitle(rawRecord),
     permanentVideoUrl: extractPermanentVideoUrl(rawRecord),
-    isOriginal: retweetedStatus === undefined,
     sourceUrl: buildSourceUrl(user, raw.mblogid),
     atUsers: extractAtUsers(rawRecord),
-    playCount: extractPlayCount(rawRecord),
-    isTop: extractIsTop(rawRecord),
     audio: extractAudio(rawRecord),
+    editedAt: getString(rawRecord.edit_at),
+    tags: extractTags(rawRecord),
+    superTopic: extractSuperTopic(rawRecord),
+    contentNotices: extractContentNotices(rawRecord),
   }
 }
 

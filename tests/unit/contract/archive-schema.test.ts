@@ -8,7 +8,7 @@ import { TweetVisible } from '~/types/domain/ITweet'
 import { Gender, VerificationType } from '~/types/domain/IUser'
 
 const schema = JSON.parse(
-  readFileSync(join(process.cwd(), 'schemas/weibo-user-archive/v2.json'), 'utf8'),
+  readFileSync(join(process.cwd(), 'schemas/weibo-user-archive/v3.json'), 'utf8'),
 ) as Record<string, unknown>
 const validate = new Ajv({ allErrors: true, strict: false }).compile(schema)
 
@@ -80,10 +80,10 @@ function createArchive(): ArchiveFile {
   }
 }
 
-describe('weibo-user-archive v2 JSON Schema', () => {
-  it('uses the raw GitHub URL as both $id and instance $schema', () => {
+describe('weibo-user-archive v3 JSON Schema', () => {
+  it('uses the docs URL as both $id and instance $schema', () => {
     expect(schema.$id).toBe(ARCHIVE_SCHEMA_URL)
-    expect(ARCHIVE_SCHEMA_ID).toBe('weibo-user-archive/v2')
+    expect(ARCHIVE_SCHEMA_ID).toBe('weibo-user-archive/v3')
   })
 
   it('validates a minimal archive file', () => {

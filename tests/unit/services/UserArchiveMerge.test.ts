@@ -286,7 +286,31 @@ describe('mergeArchiveFiles', () => {
   it('rejectsNonArchiveInput', () => {
     const notArchive = { tweets: [] } as unknown as ArchiveFile
 
-    expect(() => mergeArchiveFiles([notArchive])).toThrowError(/weibo-user-archive\/v2/)
+    expect(() => mergeArchiveFiles([notArchive])).toThrowError(/weibo-user-archive\/v3/)
     expect(() => mergeArchiveFiles([])).toThrowError(/At least one archive/)
+  })
+
+  it('migrates v2 archives into v3 records', () => {
+    const legacy = archive({
+      $schema: 'https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v2.json',
+      schema: 'weibo-user-archive/v2',
+      tweets: [{
+        ...record('A'),
+        tweet: {
+          ...makeArchiveTweet('A'),
+          readCount: 12,
+          playCount: 34,
+          isTop: true,
+          isOriginal: true,
+        } as unknown as ITweet,
+      }],
+    })
+
+    const { file } = mergeArchiveFiles([legacy])
+
+    expect(file.schema).toBe(ARCHIVE_SCHEMA_ID)
+    expect(file.tweets[0].tweet.stats).toEqual(expect.objectContaining({ reads: 12, plays: 34 }))
+    expect(file.tweets[0].tweet.flags).toEqual({ pinned: true, original: true })
+    expect(file.tweets[0].tweet).not.toHaveProperty('readCount')
   })
 })
