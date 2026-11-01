@@ -45,19 +45,13 @@ export function getEnvFilePath(args: Record<string, unknown>): string {
  * `--cookie` 作为显式覆盖优先级最高。
  *
  * 取值可以是 Cookie header 串，也可以是 Cookie 文件路径（Netscape 或 header 串内容），
- * 由 `resolveCookieInput` 统一解析；解析失败时打印结构化错误并以 1 退出。
+ * 由 `resolveCookieInput` 统一解析；解析失败抛 `CONFIG_INVALID`，
+ * 由统一错误信封输出到 stderr（与其它错误同一个 JSON 形态）。
  */
 export function getCookie(args: Record<string, unknown>): string {
   const explicit = args.cookie as string | undefined
   const raw = explicit || readEnvValue(getEnvFilePath(args), 'WEIBO_COOKIE') || ''
-
-  try {
-    return resolveCookieInput(raw)
-  }
-  catch (error) {
-    console.error(`❌ ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(1)
-  }
+  return resolveCookieInput(raw)
 }
 
 /**

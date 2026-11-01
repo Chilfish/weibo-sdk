@@ -10,8 +10,8 @@ outline: deep
 ## 安装
 
 ```bash
-# 作为依赖安装后使用
-npx weibo-cli --help
+# 作为依赖安装后使用；npm 上的 weibo-cli 是另一个第三方包，用 -p 指定本包
+npx -p @chilfish/weibo-sdk weibo-cli --help
 # 或全局安装
 npm i -g @chilfish/weibo-sdk && weibo-cli --help
 
@@ -78,7 +78,7 @@ weibo-cli user timeline 1111681197 --guest
 
 访客可用范围：
 
-- 可用：`user info`、`tweet detail` / `enrich` / `longtext` / `comments` / `reposts` / `likers`、`media`、`topic`、`trends`、`user groups`、`whoami --guest`。
+- 可用：`user info`、`tweet detail` / `enrich` / `longtext` / `comments` / `reposts` / `likers`、`media`、`topic`、`trends`、`user groups`、`whoami --guest`。访客读转发时，空页可能带 `empty_tip`：Markdown 视图会写明这条微博有转发、这次没读到。
 - 只有第一页：`user timeline`、`like list`、`follow list` / `follow fans`。时间线 / 点赞输出带 `partial: true`，关注 / 粉丝的 `cursor` 为 `0`，`--page 2` 报 `CONFIG_INVALID`。
 - 需要 Cookie：`tweet home`、`tweet search-profile`、`user mentions`、`user mblog-groups`、`follow my`、`favorite`、`comment`、`notification`、`archive`。前八项报 `AUTH_SESSION_EXPIRED`，`context.requiredAuth = 'cookie'`；`archive` 需要完整时间线，报 `CONFIG_INVALID`。
 
@@ -129,6 +129,8 @@ weibo-cli user info 1111681197 -f json          # 显式指定默认值
 > （`https://m.weibo.cn/status/<mid>`、`https://weibo.com/<uid>/<mblogid>`）。SDK 在请求前统一归一化；
 > `tweet likers` 会自动用 `statuses/show` 解析数字 mid。
 
+参数按命令登记，写错的参数直接报 `CONFIG_INVALID`：拼错时会给出建议，例如 `--max-item` 报错并提示 `--max-items`。`--help` 表格按显示宽度对齐（中文按两列计算），参数说明续行缩进到第二列起点。
+
 ### 用户操作（`user`）
 
 ```bash
@@ -156,8 +158,13 @@ weibo-cli user mblog-groups
 ### 微博操作（`tweet`）
 
 ```bash
-# 获取微博详情（归一化为 Tweet 模型）
-weibo-cli tweet detail <mblogId>
+# 获取微博详情：--format json（默认）只发一次 statuses/show，输出归一化 Tweet 模型
+weibo-cli tweet detail <mblogId> [--format json|markdown] [--full]
+
+# markdown 视图复用 context 投影：作者粉丝数、媒体归属、unknowns 都在卡片里
+weibo-cli tweet detail QqsYymYOS --format markdown
+# 加 --full 额外抽样 5 条评论（讨论段 + 未知项；会多请求评论）
+weibo-cli tweet detail QqsYymYOS --format markdown --full
 
 # Agent 视角的微博上下文：谁说的 / 时间 / 正文 / 媒体归属与下载 / 转发关系 / 评论抽样 / 未知项
 # 默认输出 Markdown；--format json 输出结构化数据（weibo.tweet-context/v1）
@@ -467,15 +474,15 @@ weibo-cli archive user 1111681197
 | `user mentions-stream` | `users.streamMentions()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, tweet }` / `{ event: 'done', count }` |
 | `user groups` | `users.groups()` | `UserGroup[]`（`id`/`title`/`category?`/`count?`/`type?`/`apiPath?`） |
 | `user mblog-groups` | `users.mblogGroups()` | `MblogGroup[]`（`id`/`name`/`systemName?`/`pageObjectId?`） |
-| `tweet detail` | `tweets.getByMblogId()` | `Tweet` 领域模型 |
+| `tweet detail` | `tweets.getByMblogId()` / `tweets.context()` | `--format json`（默认）输出 `Tweet` 领域模型；`--format markdown` 输出 context 投影卡片（`--full` 附带 5 条评论抽样） |
 | `tweet enrich` | `tweets.enrich()` | `{ tweet, raw, longText? }`（raw 为 `statuses/show` 原始响应） |
-| `tweet comments` | `tweets.comments()` | `TweetCommentsPageResult`（`comments`/`cursor`/`hasMore`/`total?`/`notice?`） |
+| `tweet comments` | `tweets.comments()` | `TweetCommentsPageResult`（`comments`/`cursor`/`hasMore`/`total?`/`notice?`/`emptyReason?`） |
 | `tweet home` | `tweets.listFriendTimeline()` | `TweetPageResult`（`maxId` 翻旧页；`since_id` 仅增量） |
 | `tweet home-stream` | `tweets.streamFriendTimeline()` | NDJSON `progress` / `item` / `done`（`max_id` 自动翻页 + 去重） |
 | `tweet longtext` | `tweets.longText()` | `TweetLongText`（`text`/`isMarkdown?`） |
-| `tweet reposts` | `tweets.getReposts()` | `TweetRepostsPageResult`（`reposts`/`page`/`hasMore`/`total?`/`maxPage?`） |
+| `tweet reposts` | `tweets.getReposts()` | `TweetRepostsPageResult`（`reposts`/`page`/`hasMore`/`total?`/`maxPage?`/`emptyReason?`/`emptyTip?`） |
 | `tweet search-profile` | `tweets.searchByDate()` | `TweetSearchByDatePageResult`（`tweets`/`page`/`total?`/`hasMore`；`starttime`/`endtime` 接受 unix 秒或 `YYYY-MM-DD` / `YYYYMMDD`） |
-| `tweet likers` | `tweets.likers()` | `TweetLikersPageResult`（`page`/`hasMore`/`total?`/`likers[]`） |
+| `tweet likers` | `tweets.likers()` | `TweetLikersPageResult`（`page` 为本次请求页码/`nextPage?`/`hasMore`/`total?`/`likers[]`） |
 | `tweet likers-stream` | `tweets.streamLikers()` | NDJSON `{ event: 'progress', ... }` / `{ event: 'item', count, liker }` / `{ event: 'done', mblogId, count }` |
 | `follow list` | `followings.getFollowings()` | `FollowingPageResult`（`users`/`cursor?`/`hasMore`/`total?`） |
 | `follow fans` | `followings.getFans()` | `FollowingPageResult` |
@@ -496,7 +503,7 @@ weibo-cli archive user 1111681197
 | `notification likes-stream` | `notifications.streamLikes()` | 同上（`notification.user` 为点赞者） |
 | `search users` | `search.searchUsers()` | `SearchUserPageResult`（`users`/`page`/`total?`/`hasMore`） |
 | `search tweets` | `search.searchTweets()` | `SearchTweetPageResult`（`tweets`/`page`/`total?`/`hasMore`） |
-| `trends` | `trends.hotBand(type?)` | `TrendItem[]`（`word`/`heat?`/`label?`/…） |
+| `trends` | `trends.hotBand(type?)` | `TrendItem[]`（`word`/`realpos?`/`heat?`/`label?`/…） |
 | `whoami` | `getSession()` + `users.getById()` | `User` 领域模型；`--guest` 时输出 `{ auth: 'guest', login: false, tokenIssuedAt, token: { issuedAt, scope, source } }` |
 | `archive` | `archive.streamArchive()` | NDJSON 进度事件 `{ event, schemaVersion, source, mblogId, tweetId, count, total, remaining, checkpoint }`；另有 `progress` / `item-error` 事件（数据本体走 SDK 流；`schemaVersion` 是 ITweet 存档格式版本；`checkpoint` 可能包含 `sliceEnd`、`slicePage`、`sliceWindow` 等日期切片游标） |
 | `archive user` | `userArchive.run()` | 写入 `--out` 指定的 `ArchiveFile`；stdout 一行 `{ event: 'done', out, tweets, comments, replies, errors, complete }`，stderr 为进度 / issue NDJSON |

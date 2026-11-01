@@ -73,6 +73,7 @@ import {
   formatCliError,
   resolveArchiveIncludeFlags,
 } from './cli/shared'
+import { InvalidConfigError } from './models/errors/ConfigError'
 import { renderTrendListMarkdown } from './models/view/Collections'
 import { renderGuestSessionMarkdown } from './models/view/Session'
 import { renderUserMarkdown } from './models/view/User'
@@ -374,8 +375,11 @@ const archive = defineCommand({
     if (positionals[0] === 'user') {
       const target = positionals[1]
       if (!target) {
-        console.error('❌ archive user 需要一个用户 UID')
-        process.exit(1)
+        throw new InvalidConfigError('archive user needs a user UID', {
+          field: 'uid',
+          cli: 'weibo-cli archive user <uid> --since <date> --until <date> -o <file>',
+          hint: 'uid 必填：weibo-cli archive user <uid> ...',
+        })
       }
       await runArchiveUser({
         ...args,
@@ -394,14 +398,19 @@ const archive = defineCommand({
     const uidFile
       = typeof args['uid-file'] === 'string' ? args['uid-file'] : undefined
     if (!uid && !uidFile) {
-      console.error('❌ 需要一个用户 UID 或 --uid-file <path>')
-      process.exit(1)
+      throw new InvalidConfigError('archive needs a user UID or --uid-file <path>', {
+        field: 'uid',
+        hint: '给一个 uid，或 --uid-file uids.txt 批量归档',
+      })
     }
 
     const uids = uidFile ? readUidFile(join(process.cwd(), uidFile)) : [uid!]
     if (uids.length === 0) {
-      console.error(`❌ ${uidFile} 中没有可用 UID`)
-      process.exit(1)
+      throw new InvalidConfigError(`No usable UID in ${uidFile}`, {
+        field: 'uid-file',
+        path: uidFile,
+        hint: '每行一个 uid，# 开头为注释；空文件无法归档',
+      })
     }
     const single = uids.length === 1
     const explicitCheckpoint
