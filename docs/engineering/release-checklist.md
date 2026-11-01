@@ -1,6 +1,6 @@
 # Release Checklist
 
-**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-10-27
+**项目**: `@chilfish/weibo-sdk`（CLI 二进制 `weibo-cli`） | **最后更新**: 2026-11-01
 
 > `@chilfish/weibo-sdk` 发布到 npm。目标：每个「里程碑发布」的产物在真实环境验证通过，不留已知回归。
 > 本文档覆盖**里程碑发布**（`pnpm release` 打 tag → CI 发布 npm → 手写 GitHub Release）时的完整清单。
@@ -29,6 +29,7 @@
 - [x] `pnpm docs:build` 通过（VitePress 构建 + 死链检查；2026-10-23）
 - [x] simple-git-hooks pre-commit 钩子无跳过（2026-10-21，0.3.2 提交均正常触发 lint-staged；2026-10-22，0.4.0 / 0.5.0 提交均正常触发 lint-staged）
 - [x] 2026-10-27 / 0.7.0 复跑：typecheck / lint / build / test（1040 passed / 28 skipped）/ validate:fixtures（114，103 ok / 11 unmodeled）/ check:api（257 exports）/ check:docs（47 页）/ schema:check / docs:build / verify:package 全绿
+- [x] 2026-11-01 / 0.8.0 复跑：typecheck / eslint / test（1076 passed / 28 skipped）/ validate:fixtures（114，103 ok / 11 unmodeled）/ check:api（261 exports）/ check:docs（47 页 + README）/ schema:check / build / verify:package / test:bundle / docs:build / browser-smoke --no-browser 全绿
 
 ## 包身份核验
 
@@ -37,7 +38,7 @@
 - [x] `package.json#publishConfig.access` = `public`（scoped 包首发必需）
 - [x] `pnpm pack` 产物只包含 `dist/`、`schemas/`、`README.md`、`LICENSE.md`、`package.json`（2026-10-20；不要用 `npm pack` 检查依赖，它不会重写 `catalog:`）
 - [x] 打包产物 `dependencies` 已由 pnpm 重写（`axios ^1.20.0` / `zod ^4.5.4`，无 `catalog:` / `workspace:`；2026-10-21，`citty` 已内联进 CLI 产物并从 dependencies 移除）
-- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.7.0`，2026-10-27）
+- [x] `@chilfish/weibo-sdk` 在 npm registry 上可发布（当前 `latest = 0.8.0`，2026-11-01）
 
 ## 公共导出面核验
 
@@ -91,6 +92,16 @@
 11. 解包 tarball 确认 `dependencies` 无 `catalog:`、`npm i --prefix <tmp> @chilfish/weibo-sdk && node <tmp>/node_modules/@chilfish/weibo-sdk/dist/cli.mjs --version`
 12. npm 页面显示 provenance，GitHub Release 内容与 CHANGELOG 一致
 13. 回填冒烟勾选日期与开发日志
+
+## 0.8.0 发布记录（2026-11-01）
+
+- 发布提交 `112e977 chore(release): v0.8.0`，tag `v0.8.0`；`publish.yml` 全步骤通过
+  （typecheck / eslint / test / validate:fixtures / check:api / check:docs / schema:check / build /
+  verify:package / test:bundle / docs:build / browser-smoke / publish / verify registry）。
+- 离线：1076 passed / 28 skipped；fixtures 114（103 ok / 11 unmodeled / 0 fail）。
+- registry：`latest = 0.8.0`，`dependencies` 为 `axios` / `zod`；临时目录安装后 `--version` = `0.8.0`，
+  未知参数校验在发布产物上同样生效（`whoami --gust` → `CONFIG_INVALID`）。
+- GitHub Release v0.8.0 已创建（手写 notes，首段引用 #21 / #22）；issue #21、#22 均已关闭。
 
 ## 0.7.0 发布记录（2026-10-27）
 
