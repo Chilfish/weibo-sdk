@@ -1,6 +1,6 @@
 import type { ArchiveStreamOptions } from '~/services/public/ArchiveService'
 import type { UserArchiveServiceDeps } from '~/services/public/UserArchiveService'
-import type { UserArchiveProgress } from '~/types/archive/IUserArchive'
+import type { UserArchiveProgress, UserArchiveStore, UserArchiveSummary } from '~/types/archive/IUserArchive'
 import type { ITweet, ITweetComment } from '~/types/domain/ITweet'
 import {
   makeArchiveCheckpoint,
@@ -214,6 +214,56 @@ describe('userArchiveService', () => {
     expect(secondResult.complete).toBe(true)
     expect(secondResult.file.tweets).toHaveLength(1)
     expect(second.calls.stream).toEqual([])
+  })
+
+  it('stream_resumeReadsExistingRecordsByPage', async () => {
+    const store = createMemoryUserArchiveStore()
+    const first = createFakeDeps({
+      comments: { A: [makeArchiveComment('c1', { replies: [makeArchiveComment('r1')] })] },
+    })
+    await new UserArchiveService(first.deps).run(UID, { ...OPTIONS, store })
+
+    // 只允许分页：续跑时整表读取会让 100k 库把全部正文拼成一个数组。
+    const pagingOnly: UserArchiveStore = {
+      ...store,
+      loadRecords: async () => {
+        throw new Error('resume must not call loadRecords()')
+      },
+    }
+
+    const second = createFakeDeps({ streamError: new Error('should not be called') })
+    const events: string[] = []
+    let summary: UserArchiveSummary | undefined
+
+    for await (const event of new UserArchiveService(second.deps).stream(UID, { ...OPTIONS, store: pagingOnly })) {
+      events.push(event.type)
+      if (event.type === 'slice-start')
+        expect(event.resumed).toBe(true)
+      if (event.type === 'done')
+        summary = event.summary
+    }
+
+    expect(events).toEqual(['meta', 'slice-start', 'slice-done', 'done'])
+    expect(summary).toMatchObject({ tweets: 1, comments: 1, replies: 1, errors: 0, complete: true })
+  })
+
+  it('stream_resumeRetriesStaleRecordsFromPages', async () => {
+    const store = createMemoryUserArchiveStore()
+    const first = createFakeDeps({ enrichError: new Error('boom') })
+    const firstResult = await new UserArchiveService(first.deps).run(UID, { ...OPTIONS, store })
+    expect(firstResult.complete).toBe(false)
+
+    const second = createFakeDeps()
+    let summary: UserArchiveSummary | undefined
+    for await (const event of new UserArchiveService(second.deps).stream(UID, { ...OPTIONS, store })) {
+      if (event.type === 'done')
+        summary = event.summary
+    }
+
+    // 切片已完成，只走重试分支；重试结果替换掉带 issue 的旧记录。
+    expect(second.calls.stream).toEqual([])
+    expect(second.calls.enrich).toEqual(['A'])
+    expect(summary).toMatchObject({ tweets: 1, errors: 0, complete: true })
   })
 
   it('run_resumeWithoutExplicitOptionsInheritsJournalConfig', async () => {
