@@ -41,7 +41,7 @@
 | `docs/engineering/git-workflow.md` | Git 流程（分支/commit/门禁/发布） |
 | `docs/engineering/code-style.md` | 代码规范（命名/分层/测试） |
 | `docs/engineering/cli-architecture.md` | CLI 内部架构（命令树 / bin 入口 / 新增子命令） |
-| `website/` | **公开文档站**（VitePress）：指南 / API 参考 / CLI / 契约与格式；`docs/` 只留内部文档 |
+| `website/` | **公开文档站**（VitePress）：指南 / API 参考 / CLI / 契约与格式；`pnpm docs:build` 同时产出 `/llms.txt`、`/llms-full.txt` 与每页 `.md`；`docs/` 只留内部文档 |
 | `playground/README.md` | 场景化可运行示例（SDK / CLI，`pnpm play`） |
 | `docs/engineering/endpoint-authoring.md` | 端点开发指南（新增/修改 endpoint 的标准流程、分页约定、高频雷区） |
 | [website/reference/troubleshooting.md](website/reference/troubleshooting.md) | 错误排障手册（结构化错误码表、排查流程；公开站点） |

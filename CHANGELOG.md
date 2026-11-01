@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### 新增
+
+- 文档站发布 `llms.txt`、`llms-full.txt` 与每页 markdown，Agent 读一份索引就能找到对应文档。
+- 文档页带「复制本页 / 以 Markdown 查看」按钮，另可一键交给 ChatGPT 或 Claude。
+
 ## 0.8.0 (2026-11-01)
 
 本版处理 [#21](https://github.com/Chilfish/weibo-sdk/issues/21)（装机审计）与 [#22](https://github.com/Chilfish/weibo-sdk/issues/22)（归档记录分页）。
