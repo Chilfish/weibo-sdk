@@ -25,8 +25,9 @@ class WeiboSDKError extends Error {
 |---|---|---|---|
 | `AUTH_SESSION_EXPIRED` | business | 否 | Cookie 缺失或过期；访客下表示该能力需要登录 |
 | `RATE_LIMITED` | transport | 是 | HTTP 432 / 429 |
+| `UPSTREAM_REJECTED` | transport | 否 | 上游用 4xx 明确拒绝：参数、权限或 id 有问题 |
 | `NET_TIMEOUT` | transport | 是 | 请求超时 |
-| `NET_REQUEST_FAILED` | transport | 是 | DNS、连接失败或非 2xx |
+| `NET_REQUEST_FAILED` | transport | 是 | DNS、连接失败，或 5xx 响应 |
 | `API_NOT_OK` | business | 否 | 微博返回 `ok !== 1` |
 | `API_BAD_RESPONSE` | protocol | 否 | 非 JSON（登录页 / 风控页）或 schema 不匹配 |
 | `CONFIG_INVALID` | business | 否 | Cookie、代理或参数不合法 |
@@ -51,7 +52,7 @@ new WeiboSDK({
 ```
 
 - `retries` 默认 2，上限 10；`retryOn: []` 表示不重试。
-- 4xx、`ok !== 1`、schema 校验失败直接返回错误。
+- `UPSTREAM_REJECTED`（HTTP 4xx）、`ok !== 1`、schema 校验失败直接返回错误。
 - 432 / 429 会解析 `Retry-After`，并暂停全局令牌桶（含并发请求）。
 - 媒体下载有独立重试参数，见 [下载媒体](/guide/media)。
 
@@ -70,6 +71,9 @@ catch (error) {
       break
     case 'RATE_LIMITED':
       // 交给 SDK 退避
+      break
+    case 'UPSTREAM_REJECTED':
+      // 按 context.status 排查：400 / 422 参数、401 / 403 登录态与权限、404 id
       break
     case 'NET_TIMEOUT':
     case 'NET_REQUEST_FAILED':

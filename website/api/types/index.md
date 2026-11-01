@@ -5,11 +5,11 @@ outline: deep
 
 # 导出索引
 
-包根共导出 260 个名称：Stable 174 / Evolving 86。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
+包根共导出 261 个名称：Stable 175 / Evolving 86。本页由 `pnpm check:api --write` 生成；类型字段与签名以包内 `.d.mts` 为准。
 
 Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能随 minor 版本演进，不属于破坏性承诺。
 
-## Stable（174）
+## Stable（175）
 
 | 名称 | 种类 |
 |---|---|
@@ -146,6 +146,7 @@ Stable 是下游可以依赖的契约；Evolving 可以调用，但形状可能�
 | `TweetVoteAttachment` | interface |
 | `TweetVoteOption` | interface |
 | `UnexpectedAPIResponseError` | class |
+| `UpstreamRejectedError` | class |
 | `USER_ARCHIVE_JOURNAL_SCHEMA` | const |
 | `UserArchiveMeta` | interface |
 | `UserArchiveRecord` | interface |

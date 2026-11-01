@@ -13,7 +13,7 @@ import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { UnexpectedAPIResponseError } from '~/models/errors/ProtocolError'
 import { WeiboSDKError } from '~/models/errors/WeiboSDKError'
 import { getMessage, getOk, isRecord } from '~/utils/response'
-import { ConnectionTimeoutError, NetworkRequestError, RateLimitError } from '../../models/errors/TransportError'
+import { ConnectionTimeoutError, NetworkRequestError, RateLimitError, UpstreamRejectedError } from '../../models/errors/TransportError'
 import { authTelemetryFields, createAuthContext, isAuthFailureReason } from './CredentialResolver'
 import { createPluginPipeline } from './plugins'
 import { defaultClock, RateLimitService } from './RateLimitService'
@@ -557,6 +557,20 @@ export class FetcherService {
         credential_id: credential.id,
         hint: '该端点可能已要求登录',
         next: 'SDK 会自动刷新一次访客 token；持续失败时改用登录 Cookie',
+      })
+    }
+
+    // 4xx 是上游对这次请求的明确拒绝（参数 / 权限 / 登录态）：重发不会变好，标成不可重试。
+    if (status >= 400 && status < 500) {
+      return new UpstreamRejectedError(`Weibo API rejected the request (HTTP ${status}).`, {
+        status,
+        ...(message === undefined ? {} : { message }),
+        data: response.data,
+        endpoint,
+        ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+        credential_id: credential.id,
+        hint: '上游拒绝了这次请求，重试同一个请求不会变好',
+        next: '按 context.status 排查：400 / 422 检查参数，401 / 403 检查登录态与权限，404 检查 id',
       })
     }
 

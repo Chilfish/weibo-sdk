@@ -834,6 +834,10 @@
       "kind": "class"
     },
     {
+      "name": "UpstreamRejectedError",
+      "kind": "class"
+    },
+    {
       "name": "USER_ARCHIVE_JOURNAL_SCHEMA",
       "kind": "const"
     },

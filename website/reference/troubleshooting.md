@@ -17,7 +17,8 @@ SDK 抛出的错误都带 `code`，排查时判断 `error.code`，再看 `error.
 | `API_NOT_OK` | `WeiboAPINotOkError` | business | 否 | 微博接口返回 `ok !== 1` |
 | `API_BAD_RESPONSE` | `UnexpectedAPIResponseError` | protocol | 否 | Zod 校验失败，或响应不是 JSON（登录页、风控页、接口下线） |
 | `NET_TIMEOUT` | `ConnectionTimeoutError` | transport | 是 | 请求超时 |
-| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | 是 | 网络错误（含 4xx / 5xx） |
+| `UPSTREAM_REJECTED` | `UpstreamRejectedError` | transport | 否 | 上游用 HTTP 4xx 明确拒绝（限流与访客登录门控除外） |
+| `NET_REQUEST_FAILED` | `NetworkRequestError` | transport | 是 | 5xx 响应，或没有 HTTP 响应的传输失败 |
 | `RATE_LIMITED` | `RateLimitError` | transport | 是 | 微博限流或风控（HTTP 432 / 429） |
 | `MEDIA_DOWNLOAD_FAILED` | `MediaDownloadError` | transport | 是 | 媒体 CDN 5xx、429、408、超时、连接失败、空闲超时、响应截断或 0 字节 |
 | `MEDIA_BAD_RESPONSE` | `MediaInvalidResponseError` | protocol | 否 | 返回 HTML / JSON、类型不匹配、超过大小上限或非法重定向 |
@@ -167,6 +168,24 @@ void new WeiboSDK({
 
 维护者处理时，把真实响应加入测试样本，更新对应 endpoint 的 Zod schema，并同步更新快照。
 
+## UPSTREAM_REJECTED
+
+含义：上游对这次请求返回 HTTP 4xx，明确拒绝。参数不合法、id 不存在、权限不足都属于这一类，重发同一个请求结果相同，所以 `retryable: false`。432 / 429 抛 `RATE_LIMITED`，访客身份下的 403 是登录门控，抛 `AUTH_SESSION_EXPIRED`。
+
+`context` 里带 `status`、`data`（响应体）、`endpoint`、`message`（上游文案）、`hint`、`next`。按 `status` 排查：
+
+```json
+{ "status": 422, "endpoint": "ajax/statuses/repostTimeline", "message": "..." }
+```
+
+| status | 排查方向 |
+|---|---|
+| 400 / 422 | 参数不合法：检查分页游标、`since` / `until` 范围、条数 |
+| 401 / 403 | 登录态与权限：Cookie 是否有效，该能力是否需要更高权限 |
+| 404 | id 不存在：检查 uid / mblogId / mid |
+
+处理：按 `status` 定位到具体参数、登录态或 id，修正后重新发起请求。
+
 ## NET_TIMEOUT
 
 含义：HTTP 请求超时（默认 30 秒）。
@@ -187,22 +206,21 @@ void new WeiboSDK({
 
 ## NET_REQUEST_FAILED
 
-含义：HTTP 请求失败，属于超时之外的网络错误。
+含义：超时之外的传输失败，覆盖 5xx 响应，以及没有拿到 HTTP 响应的连接类失败。
 
 触发场景：
 
-- 微博服务器返回 404（端点 URL 错误）
-- 微博服务器返回 5xx（服务器内部错误）
+- 微博服务器返回 5xx（服务器内部错误、网关错误）
 - DNS 解析失败
-- 代理不可达
+- 连接被拒绝、代理不可达
 
 诊断步骤：
 
-1. 检查 `error.context.status`（HTTP 状态码）
+1. 检查 `error.context.status`（HTTP 状态码；没有响应时不出现）
 2. 检查 `error.context.data`（响应体）
 3. Telemetry 事件中查看 `url` 和 `method`
 
-重试：`retryable: true`。SDK 对 5xx 和无响应的连接类失败做指数退避重试，配置见 `config.retry`；4xx（404、403 等）直接返回错误。
+重试：`retryable: true`，SDK 对这类失败做指数退避重试，配置见 `config.retry`。
 
 ## RATE_LIMITED
 
@@ -349,11 +367,14 @@ if (errors.length > 0) {
 │  └─ 反馈给维护者更新 schema 与快照
 ├─ error.code === 'NET_TIMEOUT'
 │  └─ 增加 timeout 或检查代理（默认已自动退避重试）
+├─ error.code === 'UPSTREAM_REJECTED'
+│  ├─ status 400 / 422 → 检查分页游标、日期范围、条数
+│  ├─ status 401 / 403 → 检查 Cookie 与权限
+│  └─ status 404 → 检查 uid / mblogId / mid
 ├─ error.code === 'RATE_LIMITED'（432 / 429）
 │  ├─ 看 request_retry 事件的 attempt / delay_ms 是否已耗尽 retries
 │  ├─ 降低 burst / 拉长 delay，或加大 retry 退避
 │  └─ 持续 432 → 停一段时间（风控生效），必要时换出口 IP / Cookie
 └─ error.code === 'NET_REQUEST_FAILED'
-   ├─ status 4xx → 检查 URL（直接返回错误）
-   └─ status 5xx → 延迟重试（默认已自动退避重试）
+   └─ status 5xx 或无响应 → 延迟重试（默认已自动退避重试）
 ```

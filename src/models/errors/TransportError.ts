@@ -24,6 +24,21 @@ export class NetworkRequestError extends WeiboSDKError {
 }
 
 /**
+ * 上游明确拒绝了请求（HTTP 4xx，除 429 / 432 与访客 403 登录门控）。
+ *
+ * 参数不合法、资源不存在、权限不足都属于这一类：重发同一个请求不会变好，
+ * 所以 `retryable` 是 `false`。判断下一步看 `context.status`：
+ * 400 / 422 多为参数问题，401 / 403 多为登录态或权限，404 多为 id 不存在。
+ *
+ * `context` 携带 `status` / `data` / `endpoint` / `message`（上游提示文案）。
+ */
+export class UpstreamRejectedError extends WeiboSDKError {
+  readonly code = 'UPSTREAM_REJECTED'
+  readonly level = 'transport'
+  readonly retryable = false
+}
+
+/**
  * 上游限流 / 风控：HTTP **432**（微博风控）或 **429**（Too Many Requests）。
  *
  * 归类为 `transport`：错误由 HTTP 状态码直接判定，与其余传输层错误同处「可重试」组；

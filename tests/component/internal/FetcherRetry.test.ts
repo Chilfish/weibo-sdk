@@ -4,7 +4,7 @@ import type { IWeiboConfig } from '~/types/config'
 import { createFakeAxios, FakeClock, TelemetryCollector } from 'tests/testkit'
 import { describe, expect, it } from 'vitest'
 import { WeiboAPINotOkError } from '~/models/errors/BusinessError'
-import { NetworkRequestError, RateLimitError } from '~/models/errors/TransportError'
+import { RateLimitError, UpstreamRejectedError } from '~/models/errors/TransportError'
 import { userInfoSpec } from '~/services/endpoints/user'
 import { FetcherService } from '~/services/internal/FetcherService'
 import { RateLimitService } from '~/services/internal/RateLimitService'
@@ -205,8 +205,14 @@ describe('fetcherService retry (432 / 429 / 5xx / timeout)', () => {
       notFoundCalls += 1
       throw fakeAxiosError({ status: 404 })
     })
-    await expect(notFound.fetcher.get(RESOURCE)).rejects.toBeInstanceOf(NetworkRequestError)
-    expect(notFoundCalls).toBe(1)
+    // 4xx 是上游的明确拒绝：既不该重试，也不该标成 retryable。
+    await expect(notFound.fetcher.get(RESOURCE)).rejects.toBeInstanceOf(UpstreamRejectedError)
+    await expect(notFound.fetcher.get(RESOURCE).catch(error => error)).resolves.toMatchObject({
+      code: 'UPSTREAM_REJECTED',
+      retryable: false,
+      context: expect.objectContaining({ status: 404 }),
+    })
+    expect(notFoundCalls).toBe(2)
     expect(notFound.clock.sleepCalls).toHaveLength(0)
     expect(notFound.telemetry.byName('request_retry')).toHaveLength(0)
 
