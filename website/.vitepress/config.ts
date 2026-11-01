@@ -56,11 +56,12 @@ pnpm add @chilfish/weibo-sdk
   },
   head: [
     ['meta', { name: 'theme-color', content: '#e6162d' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'Weibo SDK' }],
   ],
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/logo.png',
     llms: {
       copyText: '复制本页',
       copiedText: '已复制',

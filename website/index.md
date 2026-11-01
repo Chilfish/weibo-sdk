@@ -6,7 +6,7 @@ hero:
   text: 读取与归档微博公开数据
   tagline: TypeScript SDK 与 weibo-cli。访客身份可用，归档可以断点续跑，默认测试离线运行。
   image:
-    src: /logo.svg
+    src: /logo.png
     alt: Weibo SDK
   actions:
     - theme: brand
