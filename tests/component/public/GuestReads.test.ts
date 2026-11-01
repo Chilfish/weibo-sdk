@@ -128,6 +128,8 @@ describe('guest first-page reads (real fixtures)', () => {
     expect(result.users.length).toBeGreaterThan(0)
     expect(result.total).toBe(2385)
     expect(result.cursor).toBe(0)
+    // 访客只读第一页：hasMore: false 不能让调用方误以为已经拉完。
+    expect(result.partial).toBe(true)
   })
 
   it('normalizes mobile following users to the UserBrief shape', async () => {

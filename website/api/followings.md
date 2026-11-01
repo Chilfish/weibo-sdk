@@ -28,8 +28,11 @@ interface FollowingPageResult {
   cursor?: number                  // 下一页游标；0 / 缺省 = 到底
   hasMore: boolean
   total?: number
+  partial?: boolean                // 访客身份：只拿到 m 站第一页
 }
 ```
+
+`partial: true` 时结果只覆盖 m 站第一页，继续翻页要换成登录 Cookie。
 
 `UserBrief` 字段见 [领域模型](/api/types/domain#userbrief)。
 

@@ -57,6 +57,13 @@ export interface FollowingPageResult {
   hasMore: boolean
   /** 上游 `total_number`（可用时） */
   total?: number
+  /**
+   * 是否为不完整结果。
+   *
+   * 访客身份只能读 m 站第一页，此时为 `true`：`hasMore` 与 `total` 都只是这一页的信息，
+   * 不要当成「已经拉完了」。
+   */
+  partial?: boolean
 }
 
 function normalizeUsers(raw: readonly unknown[]): UserBrief[] {
@@ -255,7 +262,7 @@ export class FollowingsService extends FetcherService {
    * @returns 归一化用户 + 下一页游标
    */
   public async getFollowings(uid: string, page?: number): Promise<FollowingPageResult> {
-    return pageFromFriendships(await this.fetchRawFollowings(uid, page))
+    return this.markGuestPartial(pageFromFriendships(await this.fetchRawFollowings(uid, page)))
   }
 
   /**
@@ -266,7 +273,12 @@ export class FollowingsService extends FetcherService {
    * @returns 归一化用户 + 下一页游标
    */
   public async getFans(uid: string, page?: number): Promise<FollowingPageResult> {
-    return pageFromFriendships(await this.fetchRawFans(uid, page))
+    return this.markGuestPartial(pageFromFriendships(await this.fetchRawFans(uid, page)))
+  }
+
+  /** 访客身份只读 m 站第一页：结果打上 `partial`，避免 `hasMore: false` 被误读成「拉完了」。 */
+  private markGuestPartial(page: FollowingPageResult): FollowingPageResult {
+    return this.authMode === 'guest' ? { ...page, partial: true } : page
   }
 
   /**

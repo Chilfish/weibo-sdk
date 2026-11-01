@@ -31,6 +31,8 @@ for await (const tweet of sdk.tweets.streamByUserId('1111681197')) {
 
 `listFriendTimeline` 用 `maxId` 翻旧页；`sinceId` 返回比该微博更新的条目，只取一页。
 
+页码语义按方法区分：`likers(mid, { page })` 的返回值里，`page` 是本次请求的页码（1 基），`nextPage` 是下一页页码，仅在 `hasMore` 为 `true` 时出现；翻页时把 `nextPage` 传回。
+
 ## 流式通用选项
 
 所有 `stream*` 支持：
@@ -63,7 +65,7 @@ for await (const tweet of sdk.tweets.streamByUserId('1111681197')) {
 
 顶层评论的 `total_number` 包含楼中楼和不可见评论；首页 Feed 的 `total_number` 是约 2000 的上限值。这两种情况都按游标判断结束。
 
-访客身份下，用户时间线 / 点赞 / 关注 / 粉丝只有第一页，结果带 `partial: true`。
+访客身份下，用户时间线 / 点赞 / 关注 / 粉丝只有第一页，结果带 `partial: true`：关注 / 粉丝的 `partial` 表示只拿到 m 站第一页，`cursor` 为 `0`。
 
 ## 进度回调
 
