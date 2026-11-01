@@ -1,5 +1,6 @@
 ---
 title: 如何阅读 API 参考
+description: 方法命名约定、条目构成与按服务查找 API 的入口索引。
 outline: deep
 ---
 

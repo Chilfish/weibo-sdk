@@ -1,5 +1,6 @@
 ---
 title: notifications
+description: 读取登录账号收到的评论通知与点赞通知，支持翻页与流式消费。
 outline: deep
 ---
 

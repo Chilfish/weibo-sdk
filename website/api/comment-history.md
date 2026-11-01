@@ -1,5 +1,6 @@
 ---
 title: commentHistory
+description: 读取当前登录账号发出的历史评论，支持游标翻页与流式遍历。
 outline: deep
 ---
 

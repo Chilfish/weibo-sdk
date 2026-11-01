@@ -1,5 +1,6 @@
 ---
 title: archive
+description: 全量镜像单个或多个账号的时间线、互动与媒体，支持断点续跑。
 outline: deep
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: 运行环境
+description: 列出 Node、Worker、浏览器与测试环境的能力差异及构建产物结构。
 ---
 
 # 运行环境

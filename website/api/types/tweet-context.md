@@ -1,5 +1,6 @@
 ---
 title: 微博上下文
+description: ITweetContext 各字段的含义，以及缺失项与提示的表达方式。
 outline: deep
 ---
 

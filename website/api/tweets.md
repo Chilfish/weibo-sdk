@@ -1,5 +1,6 @@
 ---
 title: tweets（单条）
+description: 单条微博的详情、全文补拉、raw 响应与 Agent 视角上下文。
 outline: deep
 ---
 

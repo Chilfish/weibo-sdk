@@ -1,5 +1,6 @@
 ---
 title: 归档与续跑类型
+description: ArchiveFile、归档记录与续跑 journal 相关类型及字段职责。
 outline: deep
 ---
 

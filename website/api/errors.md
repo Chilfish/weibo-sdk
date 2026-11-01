@@ -1,5 +1,6 @@
 ---
 title: 错误
+description: 错误类的 code 与 level 对照、context 字段、判别方式与重试策略。
 outline: deep
 ---
 

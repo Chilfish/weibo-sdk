@@ -1,5 +1,6 @@
 ---
 title: 范围归档
+description: 按时间范围归档账号微博与评论，含选项、断点续跑与 CLI 用法。
 outline: deep
 ---
 

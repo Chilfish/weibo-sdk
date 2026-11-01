@@ -1,5 +1,6 @@
 ---
 title: 传输与插件
+description: 传输端口、凭证端口与插件钩子的接口契约及执行顺序。
 outline: deep
 ---
 

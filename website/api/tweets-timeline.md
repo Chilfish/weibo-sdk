@@ -1,5 +1,6 @@
 ---
 title: tweets（时间线）
+description: 用户时间线、首页关注时间线，以及主页内按日期与关键词检索。
 outline: deep
 ---
 

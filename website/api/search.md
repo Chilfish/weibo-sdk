@@ -1,5 +1,6 @@
 ---
 title: search
+description: 按关键词搜索用户与微博的接口，附返回结构与当前调用状态。
 outline: deep
 ---
 

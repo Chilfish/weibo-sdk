@@ -1,5 +1,6 @@
 ---
 title: 原始响应
+description: fetchRaw 系列方法对应的端点，以及原始响应的用途与取用方式。
 outline: deep
 ---
 

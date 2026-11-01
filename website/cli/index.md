@@ -1,5 +1,6 @@
 ---
 title: 命令参考
+description: weibo-cli 的子命令、参数、JSON 与 NDJSON 输出形态和退出码。
 outline: deep
 ---
 

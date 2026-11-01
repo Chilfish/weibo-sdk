@@ -1,5 +1,6 @@
 ---
 title: 能力清单
+description: 每项能力的鉴权要求、访客翻页范围、当前状态与 CLI 命令。
 outline: deep
 ---
 

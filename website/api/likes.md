@@ -1,5 +1,6 @@
 ---
 title: likes
+description: 按 uid 读取该用户赞过的微博，支持翻页与流式遍历。
 outline: deep
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: favorites
+description: 登录账号收藏夹的分页读取、标签过滤与标签清单。
 outline: deep
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: 媒体下载
+description: 单条微博媒体下载的落盘命名、去重、安全校验与失败清单。
 outline: deep
 ---
 

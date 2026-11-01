@@ -1,5 +1,6 @@
 ---
 title: 配置与扩展
+description: 构造配置、Hooks、传输、插件、凭证与日志相关的公开类型清单。
 outline: deep
 ---
 

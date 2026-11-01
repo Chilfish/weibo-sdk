@@ -1,5 +1,6 @@
 ---
 title: 导出索引
+description: 包根导出的全部名称，按稳定与演进两个承诺等级分类列出。
 outline: deep
 ---
 

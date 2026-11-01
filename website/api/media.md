@@ -1,5 +1,6 @@
 ---
 title: media
+description: 读取用户的图片墙、视频瀑布与相册，并按微博下载媒体文件。
 outline: deep
 ---
 

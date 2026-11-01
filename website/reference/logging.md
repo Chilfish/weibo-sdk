@@ -1,5 +1,6 @@
 ---
 title: 日志
+description: 日志分层设计、事件到级别的固定映射，以及内置 sink 的选项。
 outline: deep
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: followings
+description: 关注、粉丝与我的关注列表的分页读取、流式遍历与访客边界。
 outline: deep
 ---
 

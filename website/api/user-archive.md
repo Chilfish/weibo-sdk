@@ -1,5 +1,6 @@
 ---
 title: userArchive
+description: 按日期切片归档指定时间段的微博详情、评论与转发，支持续跑。
 outline: deep
 ---
 

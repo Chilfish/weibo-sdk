@@ -1,5 +1,6 @@
 ---
 title: 领域模型
+description: ITweet、用户与媒体等读取方法返回的领域模型及字段说明。
 outline: deep
 ---
 

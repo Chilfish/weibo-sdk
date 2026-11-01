@@ -1,5 +1,6 @@
 ---
 title: topics
+description: 读取超话分类，按分类或关键词列出超话并流式遍历。
 outline: deep
 ---
 

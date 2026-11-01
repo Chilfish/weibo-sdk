@@ -1,5 +1,6 @@
 ---
 layout: home
+description: SDK 安装示例、访客身份读取微博与流式归档的起步路径。
 hero:
   name: Weibo SDK
   text: 读取与归档微博公开数据

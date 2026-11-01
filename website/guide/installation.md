@@ -1,5 +1,6 @@
 ---
 title: 安装与环境
+description: 安装 SDK 与 CLI，确认 Node 版本要求与各个导出子路径的用途。
 ---
 
 # 安装与环境

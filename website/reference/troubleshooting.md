@@ -1,5 +1,6 @@
 ---
 title: 故障排查
+description: 各错误码的触发场景、诊断步骤与对应的处理方式。
 outline: deep
 ---
 

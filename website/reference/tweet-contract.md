@@ -1,5 +1,6 @@
 ---
 title: ITweet 存档契约
+description: ITweet 字段的来源、类型与缺省值，连同契约版本与变更规则。
 outline: deep
 ---
 

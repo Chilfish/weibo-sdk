@@ -1,5 +1,6 @@
 ---
 title: users
+description: 读取用户资料与详情、@我的微博，以及关注分组与微博分组。
 outline: deep
 ---
 

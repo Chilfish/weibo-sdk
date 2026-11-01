@@ -1,5 +1,6 @@
 ---
 title: WeiboSDK 门面
+description: 门面的服务属性、构造配置项、会话自检与能力查询入口。
 outline: deep
 ---
 

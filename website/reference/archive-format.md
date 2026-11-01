@@ -1,5 +1,6 @@
 ---
 title: 归档 JSON Schema
+description: 归档文件的顶层标识键、生成流程、版本演进与校验方式。
 outline: deep
 ---
 

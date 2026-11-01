@@ -1,5 +1,6 @@
 ---
 title: trends
+description: 读取热搜、话题与文娱三类榜单条目，含展示位次与热度字段。
 outline: deep
 ---
 
