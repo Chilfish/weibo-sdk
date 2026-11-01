@@ -6,6 +6,10 @@
 export interface TrendItem {
   /** 榜单词条 */
   word: string
+  /** 展示位次（上游 `realpos`，从 1 开始；置顶 / 并列时不再等于数组下标） */
+  realpos?: number
+  /** 上游排名下标（`rank`，从 0 开始；语义未完全确认，原样保留） */
+  rank?: number
   /** 热度值（上游 `num`） */
   heat?: number
   /** 分类（上游 `category`） */

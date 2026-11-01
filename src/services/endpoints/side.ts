@@ -14,6 +14,10 @@ const BandItemSchema = z.object({
   icon_desc: z.string().optional(),
   flag: z.number().optional(),
   word_scheme: z.string().optional(),
+  // 真实 fixture（hot_trends.json）里 `realpos` 是 1 基展示位次，`rank` 是 0 基下标；
+  // 热榜存在并列与置顶，不能拿数组下标当名次。
+  realpos: z.number().optional(),
+  rank: z.number().optional(),
 }).loose()
 
 const BandUnifiedResponseSchema = z.object({

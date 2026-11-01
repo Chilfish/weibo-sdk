@@ -129,7 +129,8 @@ export function renderTrendListMarkdown(
     const label = item.label || item.icon
     if (label)
       meta.push(label)
-    lines.push(`${index + 1}. ${item.word}${meta.length > 0 ? ` · ${meta.join(' · ')}` : ''}`)
+    // 热榜有置顶与并列：优先用上游 `realpos`，只有缺失时才退回数组下标。
+    lines.push(`${item.realpos ?? index + 1}. ${item.word}${meta.length > 0 ? ` · ${meta.join(' · ')}` : ''}`)
   })
   return lines.join('\n').trimEnd()
 }

@@ -30,6 +30,10 @@ export function normalizeTrendItem(raw: unknown): TrendItem | undefined {
     return undefined
 
   const item: TrendItem = { word }
+  if (typeof raw.realpos === 'number' && Number.isFinite(raw.realpos))
+    item.realpos = raw.realpos
+  if (typeof raw.rank === 'number' && Number.isFinite(raw.rank))
+    item.rank = raw.rank
   if (typeof raw.num === 'number' && Number.isFinite(raw.num))
     item.heat = raw.num
   const category = firstText(raw.category)

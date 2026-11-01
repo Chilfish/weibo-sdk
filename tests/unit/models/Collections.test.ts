@@ -90,4 +90,25 @@ describe('trend renderer', () => {
     expect(markdown).toContain('1. 张雪机车捷克站夺冠 · 热度 1,987,490 · 新')
     expect(markdown).toContain('2. 女孩盲道被撞摆拍细节露馅')
   })
+
+  it('keeps the upstream display position instead of the array index', () => {
+    const items = (loadFixture('hot_trends.json').data.realtime as unknown[])
+      .map(normalizeTrendItem)
+      .filter((item): item is NonNullable<ReturnType<typeof normalizeTrendItem>> => item !== undefined)
+
+    // 真实 fixture：realpos 是 1 基展示位次，rank 是 0 基下标
+    expect(items[0]).toMatchObject({ realpos: 1, rank: 0 })
+    expect(items[2]).toMatchObject({ realpos: 3, rank: 2 })
+
+    const pinned = [{ word: '置顶词条', realpos: 1 }, { word: '真正的第一名', realpos: 2 }]
+    const markdown = renderTrendListMarkdown(pinned)
+    expect(markdown).toContain('1. 置顶词条')
+    expect(markdown).toContain('2. 真正的第一名')
+  })
+
+  it('falls back to the array index when realpos is missing', () => {
+    const markdown = renderTrendListMarkdown([{ word: '没有位次' }, { word: '第二条' }])
+    expect(markdown).toContain('1. 没有位次')
+    expect(markdown).toContain('2. 第二条')
+  })
 })
