@@ -126,7 +126,7 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
 
 ### 一键发布（默认路径）
 
-1. 在 `main` 上把本版变化写进 `CHANGELOG.md` 的 `## Unreleased`（脚本会把它转成版本节）
+1. 在 `main` 上把本版变化写进 `CHANGELOG.md` 的 `## Unreleased`，按下面的「发版文案」小节写（脚本会把它转成版本节）
 2. 执行 `pnpm release <patch|minor|major|x.y.z>`
    - 校验当前分支为 `main`、工作区干净、`HEAD === origin/main`、tag 与 npm 版本尚未存在
    - 跑本地门禁：`typecheck` / `eslint .` / `test --run` / `validate:fixtures` / `build` / `browser-smoke --no-browser`
@@ -137,6 +137,25 @@ pnpm run validate:fixtures  # 离线契约回归：fixtures × schema safeParse�
    - 只负责发布 npm，不自动创建 GitHub Release
 4. 发布成功后手写 GitHub Release：以 CHANGELOG 版本节为底稿人工润色，正文首段引用对应 issue 并写 `Closes #<n>`，用 `gh release create v<version> --notes-file <file>` 提交
 5. 发布后核验：`npm view @chilfish/weibo-sdk dist-tags`、GitHub Release、npm 页面的 provenance
+
+### 发版文案（CHANGELOG 版本节 + GitHub Release）
+
+两份文案是同一份内容：Release 以 CHANGELOG 版本节为底稿，只补 `### 安装` 和末尾的 `Closes`。
+
+结构固定为三段：
+
+1. **首段一句话**：本版做了什么、影响到谁，带上对应 issue 的 `#<n>`；`Closes #<n>` 放在正文最后一行。
+2. **分节**：`### 新增` / `### 修复` / `### 变更` / `### 升级提示`（按需出现），每条变化一行，写调用方能观察到的结果——新增的字段 / 方法 / 错误码、行为变化、命令用法。
+3. **结尾**：`### 安装` + `pnpm add @chilfish/weibo-sdk@<version>`。
+
+写法约束：
+
+- 一条变化一行。条目里出现内部类型名、文件路径、阈值、内存数字、判定分支，说明写到了实现层，删掉。
+- 用陈述句说结果：「转发与评论的空页带上 `emptyReason`，原文在 `emptyTip`」。避免「不再 / 不会 / 无需」这类否定框架，以及「不是 X，而是 Y」的对比句。
+- 同一个事实只写一次，CHANGELOG 和 Release 不各自展开同一段说明。
+- 不写历史版本对比与迁移步骤。破坏性变更需要读者改代码时，附一张两列映射表。
+- 篇幅以「一屏扫完」为准，`0.6.1` / `0.7.0` / `0.8.0` 的版本节是长度基准。写成设计说明、或者把提交逐个罗列出来，都算不合格。
+- 不给单个领域起加粗小标题（如「## 空页不再伪装成没有数据」），分节只用 `### 新增 / 修复 / 变更`。
 
 ### 发布凭据
 
