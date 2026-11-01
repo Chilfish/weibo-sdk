@@ -81,6 +81,35 @@ export interface UserArchiveSliceState {
 }
 
 /**
+ * 分页游标：上一页最后一条的稳定键。
+ *
+ * 顺序固定为 `createdAt` 倒序、同一时间再按 `mblogId` 倒序；同一 `(createdAt, mblogId)`
+ * 只能对应一条记录，重复写入由 store 合并成一份。
+ */
+export interface UserArchiveRecordCursor {
+  createdAt: string
+  mblogId: string
+}
+
+/** `UserArchiveStore.loadRecordsPage()` 的入参。 */
+export interface UserArchiveRecordPageRequest {
+  /** 只读某个切片；不传表示全部。 */
+  slice?: string
+  /** 上一页最后一条的游标；首页省略。 */
+  cursor?: UserArchiveRecordCursor
+  /** 期望条数；SDK 会钳制到 100–500，默认 200。 */
+  limit?: number
+}
+
+/** `UserArchiveStore.loadRecordsPage()` 的结果。 */
+export interface UserArchiveRecordPageResult {
+  /** 下一页的起点之前的记录；顺序见 `UserArchiveRecordCursor`。 */
+  records: UserArchiveRecord[]
+  /** 是否还有更旧的记录。 */
+  hasMore: boolean
+}
+
+/**
  * 任务状态的持久化端口。
  *
  * SDK 核心不碰文件系统：调用方可以接内存、IndexedDB、SQLite、对象存储等。
@@ -92,6 +121,13 @@ export interface UserArchiveStore {
   loadSlices: () => Promise<UserArchiveSliceState[]>
   /** 读取某个切片已有的记录；不传 slice 时返回全部。 */
   loadRecords: (slice?: string) => Promise<UserArchiveRecord[]>
+  /**
+   * 读取一页记录，顺序见 `UserArchiveRecordCursor`。
+   *
+   * 续跑判断与最终汇总都按页遍历，内存不再随整库体积增长；不实现时 SDK 回退到
+   * `loadRecords()` 整表读取再按页切分（行为不变，只是仍然整表占内存）。
+   */
+  loadRecordsPage?: (request: UserArchiveRecordPageRequest) => Promise<UserArchiveRecordPageResult>
   appendRecord: (entry: UserArchiveRecord) => Promise<void>
   saveCheckpoint: (slice: UserArchiveSlice, checkpoint: ArchiveCheckpoint) => Promise<void>
   markSliceDone: (slice: UserArchiveSlice) => Promise<void>

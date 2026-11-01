@@ -17,7 +17,7 @@ import type { IUser } from '~/types/domain/IUser'
 import type { WeiboSDKTelemetry } from '~/types/telemetry'
 import { InvalidConfigError } from '~/models/errors/ConfigError'
 import { USER_ARCHIVE_JOURNAL_SCHEMA } from '~/types/archive/IUserArchive'
-import { assembleUserArchive, dedupeUserArchiveRecords } from './userArchive/assemble'
+import { assembleUserArchive } from './userArchive/assemble'
 import { completeUserArchiveTweet } from './userArchive/complete'
 import {
   applyUserArchiveResumeDefaults,
@@ -29,6 +29,7 @@ import {
 } from './userArchive/config'
 import { dedupeUserArchiveIssues, isFatalUserArchiveError, toUserArchiveIssue } from './userArchive/issues'
 import { createMemoryUserArchiveStore } from './userArchive/memoryStore'
+import { loadUserArchiveRecordIndex } from './userArchive/records'
 import { planUserArchiveSlices } from './userArchive/slices'
 import { withinUserArchiveRange } from './userArchive/time'
 
@@ -105,10 +106,6 @@ async function runPool<T>(
   await Promise.all(runners)
 }
 
-function countReplies(entry: UserArchiveRecord): number {
-  return entry.record.comments.reduce((sum, comment) => sum + (comment.replies?.length ?? 0), 0)
-}
-
 /**
  * 范围 + 深度归档一个用户：按日期切片枚举、逐条补全、可断点续跑。
  *
@@ -166,10 +163,10 @@ export class UserArchiveService {
     const slices = meta.slices
     const loadedSlices = await store.loadSlices()
     const sliceStates = new Map(loadedSlices.map(state => [state.slice.key, state]))
-    const allRecords = await store.loadRecords()
-    const bestBefore = dedupeUserArchiveRecords(allRecords)
-    const completed = new Set(bestBefore.filter(entry => entry.issues.length === 0).map(entry => entry.mblogId))
-    const retryTargets = new Map(bestBefore.filter(entry => entry.issues.length > 0).map(entry => [entry.mblogId, entry] as const))
+    // 按页读完整库并聚合：续跑判断、重试目标和最终汇总都只依赖计数，不保留正文。
+    const recordIndex = await loadUserArchiveRecordIndex(store)
+    const completed = recordIndex.completed
+    const retryTargets = recordIndex.retryTargets
     const attempted = new Set<string>()
     const limit = createLimiter(concurrency)
     const traceId = `${Date.now()}-user-archive-${uid}`
@@ -264,10 +261,7 @@ export class UserArchiveService {
         ...(pending.checkpoint === undefined ? {} : { checkpoint: pending.checkpoint }),
       }
       await store.appendRecord(entry)
-      if (issues.length === 0) {
-        completed.add(entry.mblogId)
-        retryTargets.delete(entry.mblogId)
-      }
+      recordIndex.add(entry)
       processed += 1
       try {
         await options.onRecord?.(entry)
@@ -440,6 +434,7 @@ export class UserArchiveService {
           issues,
         }
         await store.appendRecord(line)
+        recordIndex.add(line)
         processed += 1
         try {
           await options.onRecord?.(line)
@@ -447,36 +442,31 @@ export class UserArchiveService {
         catch {
           // 落盘回调异常由调用方负责；不改变归档结果。
         }
-        if (issues.length === 0) {
-          completed.add(entry.mblogId)
-          retryTargets.delete(entry.mblogId)
-        }
         retryEntries.push(line)
       }, () => fatalError !== undefined)
     }
     for (const entry of retryEntries)
       yield { type: 'record', entry }
 
-    const finalRecords = await store.loadRecords()
     const finalIssues = await store.loadIssues()
-    const best = dedupeUserArchiveRecords(finalRecords)
+    const stats = recordIndex.stats()
     const aborted = options.signal?.aborted === true
     const allIssues = dedupeUserArchiveIssues([
       ...finalIssues,
       ...(aborted ? [{ stage: 'timeline' as const, code: 'ABORTED', message: 'Archive aborted by signal.' }] : []),
       ...(fatalError === undefined ? [] : [toUserArchiveIssue('timeline', fatalError)]),
-      ...best.flatMap(entry => entry.issues),
+      ...recordIndex.issues(),
     ])
     const complete = !aborted && fatalError === undefined && allIssues.length === 0
     const estimatedTotal = overallTotal()
     const coverage = estimatedTotal === undefined
       ? undefined
-      : Math.min(1, best.length / estimatedTotal)
+      : Math.min(1, stats.tweets / estimatedTotal)
     const summary: UserArchiveSummary = {
       uid,
-      tweets: best.length,
-      comments: best.reduce((sum, entry) => sum + entry.record.comments.length, 0),
-      replies: best.reduce((sum, entry) => sum + countReplies(entry), 0),
+      tweets: stats.tweets,
+      comments: stats.comments,
+      replies: stats.replies,
       errors: allIssues.length,
       complete,
       ...(estimatedTotal === undefined ? {} : { estimatedTotal }),
