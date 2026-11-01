@@ -187,6 +187,24 @@ describe('capabilities', () => {
     }
   })
 
+  it('gives every capability a runnable sdk call path', () => {
+    const sdk = new WeiboSDK({ cookie: 'SUB=abc' })
+    const root = sdk as unknown as Record<string, unknown>
+
+    for (const capability of WEIBO_CAPABILITIES) {
+      const methodPath = /^sdk\.(\w+)\.(\w+)\(/.exec(capability.sdk)
+      if (methodPath) {
+        const service = root[methodPath[1]!] as Record<string, unknown> | undefined
+        expect(typeof service?.[methodPath[2]!], `${capability.id}: ${capability.sdk}`).toBe('function')
+        continue
+      }
+
+      const direct = /^sdk\.(\w+)\(/.exec(capability.sdk)
+      expect(direct, `${capability.id}: ${capability.sdk}`).toBeTruthy()
+      expect(typeof root[direct![1]!], `${capability.id}: ${capability.sdk}`).toBe('function')
+    }
+  })
+
   it('keeps archive cookie-only', () => {
     const archive = listCapabilities({ service: 'archive' })
     expect(archive.length).toBe(2)
