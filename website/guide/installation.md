@@ -15,7 +15,8 @@ npm install @chilfish/weibo-sdk
 CLI 随包安装：
 
 ```bash
-npx weibo-cli --version
+# npm 上的 weibo-cli 是另一个第三方包，用 -p 指定本包
+npx -p @chilfish/weibo-sdk weibo-cli --version
 # 或全局安装
 npm i -g @chilfish/weibo-sdk
 ```
@@ -28,6 +29,14 @@ npm i -g @chilfish/weibo-sdk
 | 模块格式 | ESM。CJS 调用方使用 `await import('@chilfish/weibo-sdk')` |
 | 运行时依赖 | `axios`、`zod`；CLI 的 `citty` 已内联进产物 |
 | 浏览器 | 使用 `@chilfish/weibo-sdk/browser` 子路径，axios 与 zod 一起打包 |
+
+`weibo-cli` 启动时自检 Node 版本，低于 20.16 时直接输出下面这行并以非零码退出：
+
+```text
+weibo-cli requires Node >= 20.16 (current: v18.x.x).
+```
+
+CLI 目前只在 Node 20.16+ 验证过；用 bun 全局安装暂不保证可用，bun 的缓存问题会导致 `ERR_UNKNOWN_FILE_EXTENSION`。
 
 ## 入口
 

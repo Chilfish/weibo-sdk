@@ -91,7 +91,7 @@ pnpm run validate:fixtures
 
 ```bash
 pnpm add @chilfish/weibo-sdk
-npx weibo-cli --help
+npx -p @chilfish/weibo-sdk weibo-cli --help
 ```
 
 在仓库内开发：

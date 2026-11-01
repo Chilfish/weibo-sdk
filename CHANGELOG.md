@@ -11,6 +11,19 @@
   `userArchive.stream({ store })` 的续跑判断、失败重试和最终汇总改为按页遍历，不再调用
   `loadRecords()` 拼整表；十万条级别的库续跑时峰值内存从「整库正文」降到「一页 + 聚合计数」。
   不实现该方法的 store 行为不变，SDK 回退到 `loadRecords()` 再按页切分。
+- 错误码 `UPSTREAM_REJECTED`：上游用 HTTP 4xx 拒绝请求（限流与访客登录门控除外），`retryable: false`，按 `context.status` 排查。`NET_REQUEST_FAILED` 收窄到 5xx 与没有 HTTP 响应的传输失败。
+- `tweets.getReposts` 新增 `emptyReason` / `emptyTip`：空页由上游提示文案占位时标 `gated` 并保留原文，访客不会再把它读成「没有转发」。
+- `tweets.comments` / `replies` 新增 `emptyReason`；`tweets.context` 在评论抽样为 0 条而上游计数有评论时写进 `unknowns`。
+- `capabilities` 每条能力新增 `sdk`，给出可直接运行的调用路径。
+- `trends.hotBand` 条目保留上游 `realpos` / `rank`，Markdown 榜单按 `realpos` 编号。
+- 访客身份下的 `followings.getFollowings` / `getFans` 返回 `partial: true`。
+
+### 变更
+
+- `tweets.likers` 的 `page` 改为本次请求的页码，下一页放到 `nextPage`。
+- `weibo-cli tweet detail --format markdown` 复用 `context` 投影，带作者粉丝数与 `unknowns`；`--full` 额外抽样 5 条评论。JSON 输出不变。
+- CLI 拒绝未声明的参数并以 `CONFIG_INVALID` 退出，附最接近的参数名；`--help` 表格按显示宽度对齐；错误统一输出 JSON。
+- CLI 启动时检查 Node 版本，低于 20.16 直接提示升级地址。
 
 ## 0.7.0 (2026-10-27)
 

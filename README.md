@@ -26,7 +26,7 @@ npm install @chilfish/weibo-sdk
 
 需要 Node.js 20.16+。包是 ESM-only；CommonJS 调用方请使用 `await import('@chilfish/weibo-sdk')`。
 
-安装后可以用 `npx weibo-cli` 调用命令行工具，也可以全局安装：`npm i -g @chilfish/weibo-sdk`。
+安装后可以用 `npx -p @chilfish/weibo-sdk weibo-cli` 调用命令行工具。npm 上的 `weibo-cli` 是另一个第三方包，需要 `-p` 指定本包；也可以全局安装：`npm i -g @chilfish/weibo-sdk`。
 
 浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口自带 axios 与 zod，可以直接 import。
 
@@ -331,6 +331,7 @@ weibo-cli schema diff before-digest.json after-digest.json
 
 - `AUTH_SESSION_EXPIRED`：Cookie 无效或过期；访客模式下表示该能力需要登录（`context.requiredAuth === 'cookie'`）
 - `RATE_LIMITED`：HTTP 432 / 429，SDK 会自动退避
+- `UPSTREAM_REJECTED`：上游 4xx 拒绝，按 `context.status` 排查参数、登录态或 id
 - `NET_TIMEOUT` / `NET_REQUEST_FAILED`：网络问题，可重试
 - `API_NOT_OK`：微博接口返回 `ok !== 1`
 - `API_BAD_RESPONSE`：返回 HTML 等非 JSON 内容，或字段结构与预期不符
