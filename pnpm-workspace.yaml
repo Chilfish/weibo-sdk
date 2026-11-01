@@ -25,6 +25,7 @@ catalog:
   axios: ^1.20.0
   citty: ^0.2.2
   vitepress: 2.0.0-alpha.20
+  vitepress-plugin-llms: ^1.14.0
   zod: ^4.5.4
 
 catalogs:

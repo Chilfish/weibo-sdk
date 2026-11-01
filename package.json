@@ -104,6 +104,7 @@
     "typescript": "catalog:cli",
     "vite": "catalog:cli",
     "vitepress": "catalog:",
+    "vitepress-plugin-llms": "catalog:",
     "vitest": "catalog:testing",
     "vitest-package-exports": "catalog:testing",
     "yaml": "catalog:testing"
