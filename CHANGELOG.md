@@ -7,6 +7,7 @@
 ### 新增
 
 - 文档站发布 `llms.txt`、`llms-full.txt` 与每页 markdown，Agent 读一份索引就能找到对应文档。
+- 文档站新增 `Agent 接入` 页，导航和侧边栏都能点到，列出索引、单页 markdown 与归档 schema 的入口。
 - 文档页带「复制本页 / 以 Markdown 查看」按钮，另可一键交给 ChatGPT 或 Claude。
 
 ## 0.8.0 (2026-11-01)
