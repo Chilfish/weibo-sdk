@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.8.0 (2026-11-01)
+
 本版修复 [#21](https://github.com/Chilfish/weibo-sdk/issues/21) 里装成 npm 包后暴露的可用性问题，并落地 [#22](https://github.com/Chilfish/weibo-sdk/issues/22) 的归档记录分页。
 
 ### 新增
