@@ -55,7 +55,8 @@ describe('tweetService.likers', () => {
 
     const result = await service.likers(MID)
 
-    expect(result.page).toBe(2)
+    expect(result.page).toBe(1)
+    expect(result.nextPage).toBe(2)
     expect(result.total).toBe(107)
     expect(result.hasMore).toBe(true)
     expect(result.likers).toHaveLength(50)
@@ -80,7 +81,8 @@ describe('tweetService.likers', () => {
 
     const result = await service.likers(MID, { page: 3 })
 
-    expect(result.page).toBe(4)
+    expect(result.page).toBe(3)
+    expect(result.nextPage).toBeUndefined()
     expect(result.hasMore).toBe(false)
     expect(result.likers).toEqual([])
     expect(result.total).toBe(107)
@@ -93,7 +95,7 @@ describe('tweetService.likers', () => {
     const { service, telemetry } = createService({ 1: empty })
     const result = await service.likers(MID)
 
-    expect(result).toEqual({ page: 2, hasMore: false, likers: [] })
+    expect(result).toEqual({ page: 1, hasMore: false, likers: [] })
     expect(telemetry.byName('normalize_done')).toEqual([
       expect.objectContaining({ model: 'TweetLiker', count: 0 }),
     ])

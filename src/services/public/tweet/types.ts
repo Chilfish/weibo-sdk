@@ -3,10 +3,26 @@ import type { TweetLiker } from '~/types/domain/ILiker'
 import type { ITweet, ITweetComment } from '~/types/domain/ITweet'
 import type { StreamLimitOptions, StreamRangeOptions } from '~/utils/streamRange'
 
+/**
+ * 空页原因。
+ *
+ * - `gated`：上游用一段提示文案代替了数据（风控 / 登录门控 / 权限拒绝），
+ *   原文在 `emptyTip` / `notice` 里；**不要**把它读成「真的没有数据」。
+ * - `none`：上游明确表示没有更多数据（空数组 + 没有提示文案）。
+ * - `unknown`：上游计数与条目自相矛盾（如 `total_number > 0` 但 `data` 为空）。
+ */
+export type TweetEmptyReason = 'gated' | 'none' | 'unknown'
+
 /** 一页点赞者（`likers` 返回值）。 */
 export interface TweetLikersPageResult {
-  /** 下一页页码（page 游标，从 1 开始） */
+  /** 本次请求的页码（1 基） */
   page: number
+  /**
+   * 下一页页码（1 基）。
+   *
+   * 只有 `hasMore` 为 `true` 时才会出现；请求下一页时把它传给 `likers(..., { page: nextPage })`。
+   */
+  nextPage?: number
   /** 是否可能还有下一页（空页 / 已达 total 时为 `false`） */
   hasMore: boolean
   /** 上游 `total_number`（可用时） */
@@ -199,8 +215,14 @@ export interface TweetCommentsPageResult {
   hasMore: boolean
   /** 上游 `total_number`（含楼中楼 / 可能含不可见评论，仅作参考） */
   total?: number
-  /** 上游提示文案（如「博主已开启防火墙」） */
+  /** 上游提示文案原文（如「博主已开启防火墙，部分内容暂不展示」） */
   notice?: string
+  /**
+   * 空页原因（仅 `comments.length === 0` 时出现）。
+   *
+   * 空页 + `total > 0` 说明这一页被上游挡住了，不要当成「没有评论」。
+   */
+  emptyReason?: TweetEmptyReason
 }
 
 /** 一页转发（`getReposts` 的返回值）。 */
@@ -215,6 +237,15 @@ export interface TweetRepostsPageResult {
   total?: number
   /** 上游 `max_page`（可用时） */
   maxPage?: number
+  /**
+   * 空页原因（仅 `reposts.length === 0` 时出现）。
+   *
+   * 访客身份下上游会用 `empty_tip`（如「前方拥堵，请登录后使用」）代替数据，
+   * 这时 `emptyReason` 是 `gated`，`emptyTip` 是原文：微博有转发，但这次没读到。
+   */
+  emptyReason?: TweetEmptyReason
+  /** 上游 `empty_tip` 原文（空页时出现） */
+  emptyTip?: string
 }
 
 /** 一页按日期检索结果（`searchByDate` 的返回值）。 */

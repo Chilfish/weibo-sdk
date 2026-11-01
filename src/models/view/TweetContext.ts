@@ -510,6 +510,15 @@ export function buildTweetContext(tweet: ITweet, options: BuildTweetContextOptio
     ? buildComments(options.comments, tweet, maxChars, unknowns)
     : undefined
 
+  // 交叉校验：抽样请求了评论却一条都没拿到，而上游计数说有评论 —— 这次读取被挡住了，
+  // 不能当成「没人评论」（热度排序空页 / 权限门控在响应结构上无法区分）。
+  if (options.comments !== undefined && options.comments.length === 0 && tweet.stats.comments > 0) {
+    pushUnique(
+      unknowns,
+      `上游计数显示有 ${tweet.stats.comments} 条评论，但本次抽样返回 0 条：可能是风控 / 权限挡住，不代表没有评论`,
+    )
+  }
+
   const context: ITweetContext = {
     schema: TWEET_CONTEXT_SCHEMA,
     post,

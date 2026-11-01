@@ -14,7 +14,7 @@ import {
   renderLikerListMarkdown,
   renderTweetListMarkdown,
 } from '~/models/view/TweetList'
-import { createPrinter, outputFormatArg } from '../output'
+import { createPrinter, outputFormatArg, parseOutputFormat } from '../output'
 import { parsePositiveInt } from '../parseArgs'
 import { cookieArg, createSDK, streamLimitArg, streamRangeArg, streamRangeFromArgs } from '../shared'
 
@@ -37,6 +37,7 @@ function commentPageNotes(page: {
   total?: number
   cursor?: number
   notice?: string
+  emptyReason?: 'gated' | 'none' | 'unknown'
 }): string[] {
   const notes: string[] = []
   if (page.total !== undefined)
@@ -45,6 +46,11 @@ function commentPageNotes(page: {
     notes.push(`下一页游标：${page.cursor}`)
   if (page.notice)
     notes.push(page.notice)
+  // 空页不代表「没有评论」：热度排序会先返回空页，风控 / 权限也会。
+  if (page.emptyReason === 'gated')
+    notes.push('本页没有返回评论，但上游计数显示有：这一页可能被风控 / 权限挡住')
+  else if (page.emptyReason === 'unknown')
+    notes.push('本页没有返回评论，且无法确认是否真的没有（热度排序空页或被挡住）')
   return notes
 }
 
@@ -61,16 +67,38 @@ function parseCommentFlow(value: unknown): 'hot' | 'time' {
 }
 
 export const tweetDetail = defineCommand({
-  meta: { name: 'detail', description: '获取微博详情（默认 JSON；--format markdown 输出上下文卡片）' },
+  meta: {
+    name: 'detail',
+    description:
+      '获取微博详情（默认 JSON 为归一化模型；--format markdown 复用时 `context` 投影，含作者粉丝数 / 未知项；--full 额外抽样评论）',
+  },
   args: {
     id: { type: 'positional', description: '微博 mblogId', required: true },
+    full: {
+      type: 'boolean',
+      description: 'markdown 视图额外抽样 5 条评论（讨论段 + 未知项；会多请求评论）',
+      default: false,
+    },
     ...outputFormatArg,
     ...cookieArg,
   },
   async run({ args }) {
-    const print = createPrinter(args)
-    const tweet = await createSDK(args).tweets.getByMblogId(args.id)
-    print(tweet, { markdown: value => renderTweetCardMarkdown(value) })
+    const sdk = createSDK(args)
+    const format = parseOutputFormat(args.format)
+
+    // JSON 视图保持「一次 statuses/show」的轻量契约；markdown 视图与 context 共用同一份投影，
+    // 避免两份 Markdown 生成器长期漂移。
+    if (format === 'json') {
+      console.log(JSON.stringify(await sdk.tweets.getByMblogId(args.id), null, 2))
+      return
+    }
+
+    const context = await sdk.tweets.context(args.id, {
+      author: true,
+      comments: args.full ? 5 : 0,
+      authMode: sdk.authMode,
+    })
+    console.log(renderTweetContextMarkdown(context))
   },
 })
 
@@ -444,6 +472,12 @@ export const tweetReposts = defineCommand({
         notes: [
           ...(value.total !== undefined ? [`总数：${formatCount(value.total)}`] : []),
           ...(value.maxPage !== undefined ? [`总页数：${value.maxPage}`] : []),
+          ...(value.emptyReason === 'gated'
+            ? [`上游没有返回转发数据：${value.emptyTip ?? '（空页）'}——这条微博可能有转发，只是这次没读到`]
+            : []),
+          ...(value.emptyReason === 'unknown'
+            ? ['上游计数显示有转发，但本页为空：这一页可能被挡住']
+            : []),
         ],
       }),
     })

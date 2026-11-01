@@ -46,15 +46,18 @@ interface TweetCommentsPageResult {
   cursor: number     // 上游顶层 max_id；0 = 到底
   hasMore: boolean
   total?: number     // 含楼中楼，仅作参考
-  notice?: string    // 上游提示（防火墙 / tip）
+  notice?: string    // 上游提示（防火墙 / tip）原文
+  emptyReason?: 'none' | 'unknown'   // 空页原因，仅 comments 为空时出现
 }
 ```
+
+`emptyReason` 只在空页时出现：`total_number === 0` 时是 `none`（上游明确说没有评论）；其余空页一律 `unknown`——热度排序先返回空页、以及这一页被风控 / 权限挡住，在响应结构上无法区分。`notice` 保留上游文案原文，用来区分「已加载全部评论」和防火墙提示。
 
 `comments` 保持上游顺序，楼中楼在 `comment.replies`。需要上游原始响应时用 `fetchRawComments`。
 
 ## `replies(mblogId, rootCommentId, options?)`
 
-读取一条一级评论下的二级评论。请求的 `id` 是一级评论 id；`mblogId` 只用于上下文。等价于 `comments(rootCommentId, { isReply: 1, fetchLevel: 1 })`。
+读取一条一级评论下的二级评论。请求的 `id` 是一级评论 id；`mblogId` 只用于上下文。等价于 `comments(rootCommentId, { isReply: 1, fetchLevel: 1 })`，返回同样的 `TweetCommentsPageResult`，`emptyReason` 语义一致。
 
 选项：`maxId`、`count`、`flow`、`uid`。
 
@@ -100,8 +103,20 @@ interface TweetRepostsPageResult {
   hasMore: boolean
   total?: number
   maxPage?: number
+  emptyReason?: 'gated' | 'none' | 'unknown'  // 空页原因，仅 reposts 为空时出现
+  emptyTip?: string                            // 上游 empty_tip 原文
 }
 ```
+
+空页时按下面三种情况读 `emptyReason`：
+
+| 取值 | 含义 |
+|---|---|
+| `gated` | 上游用 `empty_tip`（如「前方拥堵，请登录后使用」）代替了数据：这条微博有转发，这次没读到；原文在 `emptyTip` |
+| `none` | 上游确认没有转发 |
+| `unknown` | 上游计数与条目矛盾（`total > 0` 但这一页为空），来源无法确认 |
+
+访客身份最容易遇到 `gated`：访客读转发可用，但空页带 `emptyTip` 时说明这一页被挡在门外，需要登录后重读。
 
 需要上游原始响应时用 `fetchRawReposts`。
 
@@ -123,11 +138,14 @@ for await (const repost of sdk.tweets.streamReposts('QqsYymYOS', { maxPages: 2 }
 
 ```ts
 const page = await sdk.tweets.likers('5355873276528697', { page: 1 })
+page.page      // 本次请求的页码（1 基）
+page.nextPage  // 下一页页码；仅 hasMore 为 true 时出现
 page.likers
 page.hasMore
 page.total
 ```
 
+- 翻页时把 `nextPage` 传回：`sdk.tweets.likers(mid, { page: page.nextPage })`。
 - 上游只接受数字 mid；传 mblogId / URL 时方法先用 `statuses/show` 解析一次。
 - 网页端 `likeShow` 恒返回空数组，该能力在能力清单里标记为 `degraded`。
 - `hasMore` 按空页与 `total` 估算。

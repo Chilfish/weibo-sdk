@@ -1,5 +1,5 @@
 import type { BuildCommentsResponse } from '../../endpoints/tweet'
-import type { TweetCommentsPageResult } from './types'
+import type { TweetCommentsPageResult, TweetEmptyReason } from './types'
 import type { RawTweet } from '~/models/data/Tweet'
 import { isRawTweet, normalizeComment } from '~/models/data/Tweet'
 
@@ -26,7 +26,26 @@ export function commentsPageFromRaw(raw: BuildCommentsResponse): TweetCommentsPa
     page.total = raw.total_number
   if (notice)
     page.notice = notice
+  if (comments.length === 0)
+    page.emptyReason = emptyCommentsReason(raw)
   return page
+}
+
+/**
+ * 空评论页的语义。
+ *
+ * 空页有两种来源，响应结构上无法区分：热度排序先返回空页（上游 `max_id` 仍非 0），
+ * 或者这一页被风控 / 权限挡住。因此：
+ * - `total_number === 0`：上游明确说没有评论 → `none`；
+ * - 其余（`total > 0` 或没有计数）：只能标 `unknown`。
+ *
+ * `trendsText` / `tip_msg` 是上游文案（可能是防火墙提示，也可能只是「已加载全部评论」），
+ * 原样保留在 `notice`，不参与分类。
+ */
+function emptyCommentsReason(raw: BuildCommentsResponse): TweetEmptyReason {
+  if (raw.total_number === 0)
+    return 'none'
+  return 'unknown'
 }
 
 /** 解析 `searchProfile` 的 `data.total`（number 或数字字符串）。 */

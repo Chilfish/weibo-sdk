@@ -506,6 +506,71 @@ describe('tweetService', () => {
     expect(cfg?.headers?.referer).toBe('https://weibo.com/detail/QEV15en4k')
   })
 
+  it('getReposts reports a guest-gated empty page instead of "no reposts"', async () => {
+    // 访客身份下上游用 empty_tip 代替数据：结构上和「真的没有转发」完全一样。
+    const response = {
+      ok: 1,
+      data: [],
+      total_number: 0,
+      max_page: 0,
+      next_cursor: -1,
+      empty_tip: '前方拥堵，请登录后使用',
+    }
+
+    const { transport } = createFakeAxios(async () => response)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.getReposts('RoIyh8vlZ')
+    expect(page).toEqual({
+      reposts: [],
+      page: 1,
+      hasMore: false,
+      total: 0,
+      maxPage: 0,
+      emptyReason: 'gated',
+      emptyTip: '前方拥堵，请登录后使用',
+    })
+  })
+
+  it('getReposts marks a genuinely empty page as none', async () => {
+    const { transport } = createFakeAxios(async () => ({
+      ok: 1,
+      data: [],
+      total_number: 0,
+      max_page: 0,
+      next_cursor: 0,
+      empty_tip: '',
+    }))
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.getReposts('QEV15en4k')
+    expect(page.emptyReason).toBe('none')
+    expect(page.emptyTip).toBeUndefined()
+  })
+
+  it('getReposts marks a count/data contradiction as unknown', async () => {
+    const { transport } = createFakeAxios(async () => ({
+      ok: 1,
+      data: [],
+      total_number: 714,
+      max_page: 15,
+      next_cursor: 0,
+    }))
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const page = await service.getReposts('QEV15en4k')
+    expect(page.emptyReason).toBe('unknown')
+  })
+
   it('calls show endpoint with correct params', async () => {
     const response = {
       ok: 1,
@@ -850,6 +915,33 @@ describe('tweetService', () => {
     expect(res.cursor).toBe(0)
     expect(res.hasMore).toBe(false)
     expect(res.notice).toContain('防火墙')
+  })
+
+  it('comments marks the hot-sort empty page as unknown instead of "no comments"', async () => {
+    // 真实 fixture：热度排序先返回空页（data: []），max_id 仍非 0、total_number 是 115。
+    const fixture = JSON.parse(readFileSync('tests/fixtures/raw/comments_hot_empty.json', 'utf8'))
+    const { transport } = createFakeAxios(async () => fixture)
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const res = await service.comments('5356101843289999')
+    expect(res.comments).toEqual([])
+    expect(res.emptyReason).toBe('unknown')
+    // 上游文案原样保留，SDK 不根据文案猜语义
+    expect(res.notice).toBe('已加载全部评论')
+  })
+
+  it('comments marks an explicitly empty list (total_number: 0) as none', async () => {
+    const { transport } = createFakeAxios(async () => ({ ok: 1, data: [], total_number: 0 }))
+    const service = new TweetService(
+      { cookie: 'SUB=abc' },
+      { transport, rateLimitService: new NoopRateLimitService() as any },
+    )
+
+    const res = await service.comments('MB001')
+    expect(res.emptyReason).toBe('none')
   })
 
   it('comments resolves mblogId to numeric mid when flow=1', async () => {

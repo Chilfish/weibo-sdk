@@ -29,7 +29,27 @@ export async function loadRepostsPage(
     result.total = raw.total_number
   if (raw.max_page !== undefined)
     result.maxPage = raw.max_page
+  if (reposts.length === 0)
+    Object.assign(result, describeEmptyReposts(raw))
   return result
+}
+
+/**
+ * 空转发页的语义。
+ *
+ * 上游在访客 / 风控下会返回 `data: []` + `empty_tip`（「前方拥堵，请登录后使用」），
+ * 与「这条微博真的没有转发」在结构上完全一样。前者标 `gated` 并保留原文，
+ * 后者才是 `none`；计数与条目矛盾（`total_number > 0` 但空数组）标 `unknown`。
+ */
+function describeEmptyReposts(
+  raw: RepostTimelineResponse,
+): Pick<TweetRepostsPageResult, 'emptyReason' | 'emptyTip'> {
+  const emptyTip = raw.empty_tip?.trim()
+  if (emptyTip)
+    return { emptyReason: 'gated', emptyTip }
+  if (typeof raw.total_number === 'number' && raw.total_number > 0)
+    return { emptyReason: 'unknown' }
+  return { emptyReason: 'none' }
 }
 
 /** 流式遍历一条微博的转发（page 游标 + 按转发微博 mblogId 去重）。 */

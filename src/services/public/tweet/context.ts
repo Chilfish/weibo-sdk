@@ -143,7 +143,8 @@ export async function loadTweetContext(
 
   return buildTweetContext(tweet, {
     ...(author ? { author } : {}),
-    ...(comments && comments.length > 0 ? { comments } : {}),
+    // 抽样请求了评论就传数组（可能是空数组）：builder 据此区分「没请求」与「请求了但被挡住」。
+    ...(comments ? { comments } : {}),
     raw,
     quotedRaw: rawRecord.retweeted_status,
     ...(longText !== undefined ? { longText } : {}),

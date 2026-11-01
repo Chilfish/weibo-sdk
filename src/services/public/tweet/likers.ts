@@ -43,12 +43,14 @@ export async function loadLikersPage(
   await source.emitNormalizeDone({ count: likers.length, durationMs: Date.now() - startAt })
 
   const total = raw.data?.total_number
+  const hasMore = likers.length > 0 && (total === undefined || page * rawLikers.length < total)
   const result: TweetLikersPageResult = {
-    page: page + 1,
-    // 上游没有「是否有下一页」字段：空页即到底；有 total 时以页码 × 本页条数估算。
-    hasMore: likers.length > 0 && (total === undefined || page * rawLikers.length < total),
+    page,
+    hasMore,
     likers,
   }
+  if (hasMore)
+    result.nextPage = page + 1
   if (total !== undefined)
     result.total = total
   return result
@@ -124,8 +126,8 @@ export async function* streamLikersFrom(
       break
     if (total !== undefined && processed >= total)
       break
-    if (!result.hasMore)
+    if (!result.hasMore || result.nextPage === undefined)
       break
-    page = result.page
+    page = result.nextPage
   }
 }

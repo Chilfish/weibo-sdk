@@ -315,6 +315,21 @@ describe('buildTweetContext — 评论与渲染', () => {
     expect(context.unknowns.join('\n')).toContain('评论只抽样了 2 条')
   })
 
+  it('flags an empty comment sample that contradicts the upstream count', () => {
+    // 抽样请求发了出去、一条都没拿到，但上游计数说有评论：这次读取被挡住了。
+    const context = buildTweetContext(makeTweet(), { comments: [] })
+
+    expect(context.discussion).toBeUndefined()
+    expect(context.unknowns.join('\n')).toContain('本次抽样返回 0 条')
+  })
+
+  it('keeps the empty sample silent when the upstream count is zero', () => {
+    const tweet = makeTweet({ comments_count: 0 })
+    const context = buildTweetContext(tweet, { comments: [] })
+
+    expect(context.unknowns.join('\n')).not.toContain('本次抽样返回 0 条')
+  })
+
   it('renders a deterministic card with explicit sections', () => {
     const context = buildTweetContext(makeRepost())
     const markdown = renderTweetContextMarkdown(context)
