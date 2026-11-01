@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://weibo-sdk.chilfish.top/sitemap.xml

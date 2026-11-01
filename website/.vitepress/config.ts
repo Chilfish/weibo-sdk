@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import llmstxt, { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -10,6 +11,49 @@ export default defineConfig({
   sitemap: {
     hostname: 'https://weibo-sdk.chilfish.top',
   },
+  vite: {
+    plugins: [
+      llmstxt({
+        domain: 'https://weibo-sdk.chilfish.top',
+        ignoreFilesPerOutput: {
+          llmsTxt: ['contributing.md'],
+        },
+        customLLMsTxtTemplate: `# {title}
+
+{description}
+
+{details}
+
+{usage}
+
+## 文档索引
+
+{toc}
+
+## 归档格式
+
+- [归档 JSON Schema](https://weibo-sdk.chilfish.top/schemas/weibo-user-archive/v3.json): ArchiveFile 的 JSON Schema，用来校验归档文件或生成下游类型`,
+        customTemplateVariables: {
+          usage: `安装：
+
+\`\`\`bash
+pnpm add @chilfish/weibo-sdk
+\`\`\`
+
+阅读约定：
+
+- 只读，没有发帖、点赞、评论这类写操作
+- 访客身份可读公开数据，用户时间线、点赞、关注只有第一页，首页与通知需要 Cookie
+- 错误优先判断 code 字段，不要匹配文案`,
+        },
+      }),
+    ],
+  },
+  markdown: {
+    config(md) {
+      md.use(copyOrDownloadAsMarkdownButtons)
+    },
+  },
   head: [
     ['meta', { name: 'theme-color', content: '#e6162d' }],
     ['meta', { property: 'og:type', content: 'website' }],
@@ -17,6 +61,12 @@ export default defineConfig({
   ],
   themeConfig: {
     logo: '/logo.svg',
+    llms: {
+      copyText: '复制本页',
+      copiedText: '已复制',
+      viewMarkdownText: '以 Markdown 查看',
+      openInAIText: '在 {provider} 打开',
+    },
     nav: [
       { text: '指南', link: '/guide/' },
       { text: 'API 参考', link: '/api/' },
