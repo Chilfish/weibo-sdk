@@ -73,6 +73,7 @@ pnpm add @chilfish/weibo-sdk
       { text: 'API 参考', link: '/api/' },
       { text: 'CLI', link: '/cli/' },
       { text: '契约与格式', link: '/reference/tweet-contract' },
+      { text: 'Agent', link: '/agents' },
       {
         text: '链接',
         items: [
@@ -91,6 +92,7 @@ pnpm add @chilfish/weibo-sdk
             { text: '安装与环境', link: '/guide/installation' },
             { text: '快速开始', link: '/guide/quick-start' },
             { text: '鉴权与访客模式', link: '/guide/authentication' },
+            { text: 'Agent 接入', link: '/agents' },
           ],
         },
         {
