@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 新增
+
+- `UserArchiveStore` 新增可选的 `loadRecordsPage()`（游标分页，`createdAt` 倒序 + `mblogId` 倒序）与
+  `UserArchiveRecordCursor` / `UserArchiveRecordPageRequest` / `UserArchiveRecordPageResult`。
+  `userArchive.stream({ store })` 的续跑判断、失败重试和最终汇总改为按页遍历，不再调用
+  `loadRecords()` 拼整表；十万条级别的库续跑时峰值内存从「整库正文」降到「一页 + 聚合计数」。
+  不实现该方法的 store 行为不变，SDK 回退到 `loadRecords()` 再按页切分。
+
 ## 0.7.0 (2026-10-27)
 
 ### 变更

@@ -94,6 +94,7 @@ export interface UserArchiveStore {
   saveMeta(meta: UserArchiveMeta): Promise<void>
   loadSlices(): Promise<UserArchiveSliceState[]>
   loadRecords(slice?: string): Promise<UserArchiveRecord[]>
+  loadRecordsPage?(request: UserArchiveRecordPageRequest): Promise<UserArchiveRecordPageResult>
   appendRecord(entry: UserArchiveRecord): Promise<void>
   saveCheckpoint(slice: UserArchiveSlice, checkpoint: ArchiveCheckpoint): Promise<void>
   markSliceDone(slice: UserArchiveSlice): Promise<void>
@@ -102,6 +103,34 @@ export interface UserArchiveStore {
   clear(): Promise<void>
 }
 ```
+
+`loadRecordsPage` 可选，但大库必须实现。续跑时要判断「哪些记录已经完成」、要补哪些失败记录、最终汇总要多少条评论 / 楼中楼，这些只需要逐页读；实现之后 SDK 不会再把整库记录拼成一个数组，峰值内存只跟一页有关。不实现时 SDK 回退到 `loadRecords()` 整表读取再按页切分，行为一致，只是仍然整表占内存——十万条级别的库在这一步会到 GB 量级。
+
+分页契约：
+
+| 约定 | 说明 |
+|---|---|
+| 顺序 | `createdAt` 倒序，同一时间再按 `mblogId` 倒序 |
+| `cursor` | 上一页最后一条的 `UserArchiveRecordCursor`（`{ createdAt, mblogId }`）；只返回严格更旧的记录，首页省略 |
+| `limit` | SDK 已钳制到 100–500（默认 200），实现方不需要再钳制 |
+| `hasMore` | `false` 表示遍历结束；返回空页时 SDK 也会停止 |
+| 唯一键 | `(createdAt, mblogId)` 必须唯一；同一个 `mblogId` 重试后只保留一份 |
+
+```ts
+const store = {
+  // ...其余方法
+  async loadRecordsPage({ cursor, limit = 200 }: UserArchiveRecordPageRequest): Promise<UserArchiveRecordPageResult> {
+    const rows = await db.select()
+      .from('tweets')
+      .where(cursor ? sql`(created_at, mblog_id) < (${cursor.createdAt}, ${cursor.mblogId})` : sql`true`)
+      .orderBy(sql`created_at desc, mblog_id desc`)
+      .limit(limit)
+    return { records: rows.map(toUserArchiveRecord), hasMore: rows.length === limit }
+  },
+}
+```
+
+`sdk.userArchive.run()` 需要把结果组装成一个完整 `ArchiveFile` 返回，这一步天然是整表内存；量大又只关心逐条产出时用 `stream({ store })`。
 
 默认实现是 `createMemoryUserArchiveStore()`，只在一次运行内有效。下游可以按自己的存储实现 IndexedDB、SQLite、对象存储，实现上述接口即可。journal 格式属于 CLI 文件实现的内部细节。
 

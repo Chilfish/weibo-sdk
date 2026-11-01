@@ -48,7 +48,7 @@
 
 ### 类型
 
-领域模型（`ITweet` 家族、`IUser` / `UserBrief` / `ISelfProfile`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`TrendItem`、`FavoriteTag` / `FavoriteTagList`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchiveResult` / `UserArchiveRecord` / `UserArchiveSlice` / `UserArchiveSliceState` / `UserArchiveStore` / `UserArchiveMeta` / `UserArchiveSummary` / `UserArchiveRunConfig`）、错误类与错误码、各方法的 `*PageResult`。
+领域模型（`ITweet` 家族、`IUser` / `UserBrief` / `ISelfProfile`、`IUserMediaAsset` / `IUserAlbum`、`ITweetContext` 家族、`TweetLiker`、通知、`SuperTopic*`、`TrendItem`、`FavoriteTag` / `FavoriteTagList`、`UserGroup` / `MblogGroup`）、归档契约（`ArchiveFile`、`ArchivedTweet`、`ArchiveIssue`、`ArchiveItem`、`ArchiveCheckpoint`、`UserArchiveResult` / `UserArchiveRecord` / `UserArchiveRecordCursor` / `UserArchiveRecordPageRequest` / `UserArchiveRecordPageResult` / `UserArchiveSlice` / `UserArchiveSliceState` / `UserArchiveStore` / `UserArchiveMeta` / `UserArchiveSummary` / `UserArchiveRunConfig`）、错误类与错误码、各方法的 `*PageResult`。
 
 > **Options / Progress / StreamLimit / 辅助常量不属于 Stable。**
 > `*Options`、`*StreamOptions`、`*Progress`、`StreamLimitOptions`、`StreamRangeOptions`、`PaginationProgress`、`Capability*` 枚举、`ArchivePhase` / `ArchiveErrorAction` 等运行时标签，

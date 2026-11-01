@@ -66,7 +66,10 @@ outline: deep
 | `UserArchiveRecord` | 一条补全记录：`slice` / `mblogId` / `record` / `issues` / `checkpoint?` |
 | `UserArchiveRunConfig` | 续跑时校验参数一致性 |
 | `UserArchiveContentOptions` | 内容开关快照 |
-| `UserArchiveStore` | 持久化端口（load/save/append/markDone/clear） |
+| `UserArchiveStore` | 持久化端口（load/save/append/markDone/clear）；可选 `loadRecordsPage` 支持按页续跑 |
+| `UserArchiveRecordCursor` | 分页游标 `{ createdAt, mblogId }`，顺序为 `createdAt` 倒序、同时间 `mblogId` 倒序 |
+| `UserArchiveRecordPageRequest` | 分页入参：`slice?` / `cursor?` / `limit?`（SDK 钳制到 100–500） |
+| `UserArchiveRecordPageResult` | 分页结果：`records` + `hasMore` |
 | `UserArchiveEvent` | `meta` / `slice-start` / `record` / `issue` / `slice-done` / `done` |
 | `UserArchiveProgress` | 切片级进度 |
 | `UserArchiveSummary` | 最终统计与覆盖率 |

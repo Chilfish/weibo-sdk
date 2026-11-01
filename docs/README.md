@@ -111,6 +111,7 @@
 | [2026-10-21.md](development-log/2026-10-21.md) | 当日记录（归档页内并发 / 插件化与包完整性调研） |
 | [2026-10-22.md](development-log/2026-10-22.md) | 当日记录（archive-user 模块化 → SDK `userArchive` / CLI `archive user` 迁移） |
 | [2026-10-26.md](development-log/2026-10-26.md) | 当日记录（状态巡检 / 消费端桌面应用调研与 POC 计划） |
+| [2026-11-01.md](development-log/2026-11-01.md) | 当日记录（`UserArchiveStore` 分页：续跑不再构造整表数组） |
 
 ## archive/ — 存档（历史记录，不主动读取）
 
