@@ -10,6 +10,10 @@
 - 文档站新增 `Agent 接入` 页，导航和侧边栏都能点到，列出索引、单页 markdown 与归档 schema 的入口。
 - 文档页带「复制本页 / 以 Markdown 查看」按钮，另可一键交给 ChatGPT 或 Claude。
 
+### 修复
+
+- 安装文档补充 bun / `bunx` 的调用写法，以及 Termux、proot 下的 bun 缓存修复步骤。`scripts/weibo.sh` 找不到仓库时回退到全局 `weibo-cli`。
+
 ## 0.8.0 (2026-11-01)
 
 本版处理 [#21](https://github.com/Chilfish/weibo-sdk/issues/21)（装机审计）与 [#22](https://github.com/Chilfish/weibo-sdk/issues/22)（归档记录分页）。
