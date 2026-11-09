@@ -37,4 +37,4 @@ https://weibo-sdk.chilfish.top/guide/quick-start.md   Markdown
 
 ## 仓库里的技能
 
-仓库带一份 Agent Skill：`.agents/skills/weibo-sdk/SKILL.md`，写的是用本地源码跑 CLI、验证端点、新增逆向端点的流程。改这个项目的时候读它。
+仓库带一份 Agent Skill：`.agents/skills/weibo-sdk/SKILL.md`。读数据使用已安装的 `weibo-cli`。改源码或新增端点时用本地源码运行 CLI。改这个项目时读它。

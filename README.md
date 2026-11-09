@@ -22,11 +22,31 @@
 pnpm add @chilfish/weibo-sdk
 # 或
 npm install @chilfish/weibo-sdk
+# 或
+bun add @chilfish/weibo-sdk
 ```
 
 需要 Node.js 20.16+。包是 ESM-only；CommonJS 调用方请使用 `await import('@chilfish/weibo-sdk')`。
 
-安装后可以用 `npx -p @chilfish/weibo-sdk weibo-cli` 调用命令行工具。npm 上的 `weibo-cli` 是另一个第三方包，需要 `-p` 指定本包；也可以全局安装：`npm i -g @chilfish/weibo-sdk`。
+CLI 跟包一起安装。包名是 `@chilfish/weibo-sdk`，可执行文件名是 `weibo-cli`。
+
+```bash
+npx -p @chilfish/weibo-sdk weibo-cli --version
+bunx -p @chilfish/weibo-sdk weibo-cli --version
+npm i -g @chilfish/weibo-sdk && weibo-cli --version
+bun add -g @chilfish/weibo-sdk && weibo-cli --version
+```
+
+`bunx weibo-cli` 从当前项目的 `node_modules/.bin` 查找可执行文件。该写法要求项目已安装本包。npm 上的 `weibo-cli` 是另一个第三方包。跨包调用时用 `-p` 指向本包。
+
+Termux / proot 使用 `link2symlink`。bun 1.4 在该环境把安装缓存写成 `.l2s.*` 备份文件。安装退出码是 0。加载包时报 `ENOENT` 或 `ERR_UNKNOWN_FILE_EXTENSION`。修复步骤：
+
+```bash
+rm -rf ~/.bun/install/cache
+bun add -g --backend=copyfile @chilfish/weibo-sdk
+```
+
+缓存已污染时，`--backend=copyfile` 会原样复制缓存里的软链。先清缓存，再安装。
 
 浏览器和用户脚本可以使用 `@chilfish/weibo-sdk/browser`。这个入口自带 axios 与 zod，可以直接 import。
 

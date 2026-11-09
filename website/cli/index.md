@@ -13,8 +13,11 @@ outline: deep
 ```bash
 # 作为依赖安装后使用；npm 上的 weibo-cli 是另一个第三方包，用 -p 指定本包
 npx -p @chilfish/weibo-sdk weibo-cli --help
+# 或 bun
+bunx -p @chilfish/weibo-sdk weibo-cli --help
 # 或全局安装
 npm i -g @chilfish/weibo-sdk && weibo-cli --help
+bun add -g @chilfish/weibo-sdk && weibo-cli --help
 
 # 本仓库开发
 pnpm build        # 构建 dist/

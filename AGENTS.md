@@ -165,10 +165,12 @@ WeiboSDK（门面）
 ### 安装
 
 ```bash
-pnpm add @chilfish/weibo-sdk      # 或 npm install
+pnpm add @chilfish/weibo-sdk      # 或 npm install / bun add
 ```
 
 Node 20.16+ 环境使用 `import { WeiboSDK } from '@chilfish/weibo-sdk'`（ESM-only；CJS 用动态 `import()`）。浏览器或用户脚本使用 `@chilfish/weibo-sdk/browser`。
+
+CLI 的包名与 bin 名不同。跨包调用写 `npx -p @chilfish/weibo-sdk weibo-cli` 或 `bunx -p @chilfish/weibo-sdk weibo-cli`。Termux / proot 下 bun 会写出 `.l2s.*` 坏缓存。先运行 `rm -rf ~/.bun/install/cache`，再执行 `bun add -g --backend=copyfile`。安装步骤见 [安装与环境](website/guide/installation.md)。
 
 ### 登录
 

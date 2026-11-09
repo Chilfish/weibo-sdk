@@ -11,15 +11,20 @@ description: 安装 SDK 与 CLI，确认 Node 版本要求与各个导出子路�
 pnpm add @chilfish/weibo-sdk
 # 或
 npm install @chilfish/weibo-sdk
+# 或
+bun add @chilfish/weibo-sdk
 ```
 
-CLI 随包安装：
+CLI 随包安装。包名是 `@chilfish/weibo-sdk`，可执行文件名是 `weibo-cli`：
 
 ```bash
 # npm 上的 weibo-cli 是另一个第三方包，用 -p 指定本包
 npx -p @chilfish/weibo-sdk weibo-cli --version
-# 或全局安装
+bunx -p @chilfish/weibo-sdk weibo-cli --version
+
+# 全局安装
 npm i -g @chilfish/weibo-sdk
+bun add -g @chilfish/weibo-sdk
 ```
 
 ## 环境要求
@@ -37,7 +42,20 @@ npm i -g @chilfish/weibo-sdk
 weibo-cli requires Node >= 20.16 (current: v18.x.x).
 ```
 
-CLI 目前只在 Node 20.16+ 验证过；用 bun 全局安装暂不保证可用，bun 的缓存问题会导致 `ERR_UNKNOWN_FILE_EXTENSION`。
+## bun 与容器环境
+
+bun 全局安装后直接运行 `weibo-cli --version`。一次性调用用 `bunx -p @chilfish/weibo-sdk weibo-cli --version`。
+
+`bunx weibo-cli` 从当前项目的 `node_modules/.bin` 查找可执行文件。该写法要求项目已安装本包。
+
+Termux / proot 使用 `link2symlink`。bun 1.4 在该环境把安装缓存写成 `.l2s.<name>NNNN` 备份文件。安装退出码是 0。加载包时报 `ENOENT` 或 `ERR_UNKNOWN_FILE_EXTENSION`。修复步骤：
+
+```bash
+rm -rf ~/.bun/install/cache
+bun add -g --backend=copyfile @chilfish/weibo-sdk
+```
+
+缓存已污染时，`--backend=copyfile` 会原样复制缓存里的软链。先清缓存，再安装。
 
 ## 入口
 
