@@ -1,46 +1,79 @@
 ---
 name: weibo-sdk
-description: 用 bun 直接跑本地 weibo-sdk 源码读取微博公开数据（用户资料、时间线、单条微博上下文、评论、转发、点赞者、收藏、媒体下载、热搜超话），或把一个账号归档到本地、给 SDK 新增逆向端点。当任务提到微博数据、weibo-cli、weibo-sdk、拉微博、微博归档、首页最新微博、这条微博在说什么、tweet context 时使用。
+description: 读取、归档微博公开数据（用户资料、时间线、单条微博上下文、评论、转发、点赞者、收藏、媒体下载、热搜超话），或给 weibo-sdk 新增逆向端点。读数据默认用已安装的 weibo-cli（npm / bun 全局 bin）；改源码或新增端点时用 bun 直跑本地仓库。当任务提到微博数据、weibo-cli、weibo-sdk、拉微博、微博归档、首页最新微博、这条微博在说什么、tweet context 时使用。
 license: MIT
 metadata:
   author: Chilfish
-  version: 2.0.0
-  requires: bun 1.1+，pnpm 装好的 node_modules
+  version: 2.1.0
+  requires: 已安装的 weibo-cli；源码模式需要 bun 1.1+ 与 pnpm 装好的 node_modules
 ---
 
-# weibo-sdk：读取与归档微博数据（源码直跑版）
+# weibo-sdk：读取与归档微博数据
 
-本地 checkout 的 `weibo-sdk` 仓库，用 **bun 直接执行 TypeScript 源码**。不装 npm 包、不 `pnpm build`、不用 `dist/`。
-CLI 与 SDK 共用同一套服务，能力保持一致。
+读一条微博、下载媒体、归档账号，使用已安装的 `weibo-cli`。改 SDK、修端点、跑测试，用仓库里的 bun 直跑。CLI 与 SDK 共用同一套服务。
 
-## 重要（先读这三条）
+## 重要（先读）
 
-1. **依赖只能用 pnpm 装。** `bun install` 能装完但会产出坏缓存：axios 的 lazy 模块被改名成 `.0002` 之类，node 侧 import 直接报 `ERR_UNKNOWN_FILE_EXTENSION`；bun 侧则报 `Export named 'sanitizeHeaderValue' not found`。正确姿势是 `pnpm install --frozen-lockfile`。
-2. **不要 `cd` 进仓库再跑。** CLI 的 Cookie 默认取 `<pwd>/.env`，包装脚本刻意保留调用方的 cwd；bun 从 `src/cli.ts` 的文件位置向上解析 `node_modules`，两者互不影响。
-3. **只做只读。** 不要新增发帖、点赞、转发、评论、关注等写接口；私信、仅粉丝可见、付费内容不在范围内。媒体 URL 是短期签名地址，要归档就得及时下载。
+1. **读数据先用 `weibo-cli`。** 运行 `weibo-cli --version`，有输出即可使用。仓库和依赖都可以跳过。找不到时按「入口」安装全局 bin，或临时用 `npx` / `bunx`。
+2. **源码模式使用 pnpm。** 改代码时才 clone 仓库，依赖用 `pnpm install --frozen-lockfile`。proot 等 `link2symlink` 环境下 `bun install` 会写出坏缓存，见「运行环境」。
+3. **保持调用目录。** CLI 默认读取 `<pwd>/.env`，`weibo.sh` 不切换 cwd。
+4. **只做只读。** 不新增发帖、点赞、转发、评论、关注等写接口。私信、仅粉丝可见、付费内容不在范围内。媒体 URL 是短期签名地址，归档时及时下载。
 
 ## 入口
 
-统一入口是仓库自带的 `scripts/weibo.sh`（bash 3.2+，Linux / macOS / Windows Git Bash 通用）：
+入口按以下顺序查找，命中即用：
 
 ```bash
-.agents/skills/weibo-sdk/scripts/weibo.sh --doctor     # 环境自检：repo / bun / node_modules / .env
-.agents/skills/weibo-sdk/scripts/weibo.sh --where      # 打印实际使用的 repo 和 bun
+weibo-cli --version                                   # 全局 bin（npm / bun / pnpm）
+npx -p @chilfish/weibo-sdk weibo-cli --version        # 临时调用
+bunx -p @chilfish/weibo-sdk weibo-cli --version
+```
+
+安装全局 bin：
+
+```bash
+npm i -g @chilfish/weibo-sdk
+bun add -g @chilfish/weibo-sdk
+```
+
+包名是 `@chilfish/weibo-sdk`，可执行文件名是 `weibo-cli`。npm 上的 `weibo-cli` 是另一个包，跨包调用用 `-p` 指定本包。`bunx weibo-cli` 使用当前项目的 `node_modules/.bin`。该写法要求项目已安装本包。
+
+仓库自带 `scripts/weibo.sh`，仓库内外都能用。改代码时用它：
+
+```bash
+.agents/skills/weibo-sdk/scripts/weibo.sh --doctor     # 模式 / 依赖 / 全局 bin / bun 缓存
+.agents/skills/weibo-sdk/scripts/weibo.sh --where      # 实际使用的入口
 .agents/skills/weibo-sdk/scripts/weibo.sh whoami --guest
 .agents/skills/weibo-sdk/scripts/weibo.sh trends --guest
 ```
 
-脚本自己推断仓库位置（`$WEIBO_SDK_HOME` → 脚本的上级目录 → `$PWD` → `~/projects/weibo-sdk`），所以在哪个目录调用都行。想短一点就加个别名或软链：
+脚本自己推断仓库位置（`$WEIBO_SDK_HOME` → 脚本的上级目录 → `$PWD` → `~/projects/weibo-sdk`），在任何目录都能调用。想短一点就加个别名或软链：
 
 ```bash
 ln -s "$PWD/.agents/skills/weibo-sdk/scripts/weibo.sh" ~/.local/bin/weibo   # 之后直接 weibo <命令>
 ```
 
 脚本行为：
-- bun 查找顺序：`$WEIBO_BUN` → `PATH` → `~/.bun/bin/bun` → `/usr/local/bin`、`/opt/homebrew/bin`、WinGet Links。Git Bash 下按 `bun.exe` 找，并把控制台切到 UTF-8（`chcp 65001`），避免中文输出乱码。
-- `$WEIBO_ENV_FILE` 会在没显式传 `--env-file` 时补上。
-- 退出码透传 CLI：成功 0，业务/配置失败非 0，脚本自身环境错误 64（找不到 repo/bun）或 78（缺 node_modules）。
-- 文件必须是 LF 换行；Windows 上 `core.autocrlf=true` 会把 bash 脚本改成 CRLF 直接跑不起来。
+- 入口顺序：本地 repo + `node_modules` → bun 全局安装的 `dist/cli-bin.mjs` → `PATH` 中的 `weibo-cli` → `bun x -p @chilfish/weibo-sdk weibo-cli`。
+- bun 查找顺序：`$WEIBO_BUN` → `PATH` → `~/.bun/bin/bun` → `/usr/local/bin`、`/opt/homebrew/bin`、WinGet Links。
+- Git Bash 下按 `bun.exe` 查找，并把控制台切到 UTF-8（`chcp 65001`），避免中文输出乱码。
+- `$WEIBO_ENV_FILE` 在没显式传 `--env-file` 时补上。
+- 退出码透传 CLI：成功 0，业务/配置失败非 0，脚本找不到可用入口时 64。
+- 文件使用 LF 换行。Windows 上 `core.autocrlf=true` 会把 bash 脚本改成 CRLF，脚本无法运行。
+
+## 运行环境（Linux / 容器 / proot）
+
+- Node.js：`weibo-cli` 要求 >= 20.16。低版本启动时直接提示升级。系统 node 版本过低而 bun 可用时，`weibo.sh` 优先用 bun 运行 bun 全局安装的 `dist/cli-bin.mjs`。
+- Termux / proot 使用 `link2symlink`。bun 1.4 在该环境把安装缓存写成 `.l2s.<name>NNNN` 备份文件。安装退出码是 0，加载包时报 `ENOENT` 或 `ERR_UNKNOWN_FILE_EXTENSION`。修复步骤：
+
+```bash
+rm -rf ~/.bun/install/cache
+bun add -g --backend=copyfile @chilfish/weibo-sdk
+```
+
+  缓存已污染时，`--backend=copyfile` 会原样复制缓存里的软链。先清缓存，再安装。
+
+- 全局 bin 找不到时，用 `npx -p @chilfish/weibo-sdk weibo-cli ...` 走 node，或 `bunx -p @chilfish/weibo-sdk weibo-cli ...` 走 bun。
 
 ## 工作流程
 
@@ -110,7 +143,7 @@ weibo archive user <uid> --since 2026-01-01 --until 2026-03-31 -o ./weibo-archiv
 - 访客模式直接 `CONFIG_INVALID`：匿名只有首屏，无法保证完整。
 - `archive user` 是范围归档：逐条重新拉详情/长文，默认补一级评论和楼中楼，`--reposts` 再拉转发；最终写一个 `ArchiveFile`。进度在 `<out>.slices/`，重跑同一命令续跑；范围或选项变了加 `--resume merge`（保留已有记录、按新范围重新枚举），`--fresh` 重来。SDK 对应 `sdk.userArchive.run()` / `.stream()`，`resume: 'merge'` 同理。
 
-### 5. 写 SDK 脚本（同样 bun 直跑）
+### 5. 写 SDK 脚本（源码模式，改代码时才用）
 
 脚本放在仓库内或任意位置都可以。仓库内用包名（`tsconfig.json` 的 paths 指向 `src/index.ts`）：
 
@@ -160,7 +193,7 @@ const sdk = new WeiboSDK({
 - 默认仍是 axios；`new WeiboSDK({})` 零配置行为不变。
 - 完整契约：`website/reference/plugins.md`（公开站点）；离线示例：`pnpm play plugins`。
 
-### 6. 新增或修正端点
+### 6. 新增或修正端点（源码模式）
 
 1. 先验证真实行为。优先复用已登录的 Chrome（OpenCLI browser bridge，见 `docs/engineering/opencli-browser-bridge.md`）或项目的 `capture/`，在页面内用 `fetch(..., { credentials: 'include' })` 复放接口。
 2. 至少抓两种变体，例如正常页、空页、边界值或不同账号。脱敏后放进 `tests/fixtures/raw/`。
@@ -241,7 +274,15 @@ weibo tweet home --max-id <maxId>            # 往旧翻
 ## 故障排除
 
 ### `weibo --doctor` 报 deps MISSING
-仓库没有 `node_modules`。`pnpm install --frozen-lockfile`。不要用 `bun install`（见开头第 1 条）。
+源码模式需要仓库里的 `node_modules`，在仓库里跑 `pnpm install --frozen-lockfile`。装不了依赖时脚本会回退到已安装的 `weibo-cli`，读数据不受影响。
+
+### 安装后 import 报 `ERR_UNKNOWN_FILE_EXTENSION` 或文件名带 `.0002`
+bun 缓存在 proot 里写成了 `.l2s.*` 备份文件。运行 `weibo.sh --doctor`，`bun cache` 一行会报残留。清缓存后重装：
+
+```bash
+rm -rf ~/.bun/install/cache
+bun add -g --backend=copyfile @chilfish/weibo-sdk
+```
 
 ### Git Bash 下报 `$'\r': command not found`
 脚本被换行符改成了 CRLF。`git config core.autocrlf input` 或对单个文件 `dos2unix`。仓库里建议加 `.gitattributes`：`*.sh text eol=lf`。

@@ -1,7 +1,7 @@
 # weibo-sdk SDK 参考
 
-源码直跑：`import { WeiboSDK } from '<repo>/src/index.ts'`，用 `bun script.ts` 执行。
-仓库内脚本可以 `import { WeiboSDK } from '@chilfish/weibo-sdk'`（tsconfig paths → `src/index.ts`）。
+消费安装包：`import { WeiboSDK } from '@chilfish/weibo-sdk'`。
+源码直跑：`import { WeiboSDK } from '<repo>/src/index.ts'`，用 `bun script.ts` 执行；仓库内脚本直接用包名（tsconfig paths → `src/index.ts`）。
 
 ## 构造
 

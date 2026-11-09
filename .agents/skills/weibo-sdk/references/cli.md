@@ -1,6 +1,6 @@
 # weibo-cli 命令参考
 
-所有命令都通过 `weibo`（或 `bash /skills/weibo-sdk/scripts/weibo.sh`）调用，用 bun 跑源码。
+所有命令通过 `weibo`（软链到 `scripts/weibo.sh`）或已安装的 `weibo-cli` 调用。`weibo.sh` 有仓库时用 bun 跑源码，没有时回退到全局 bin。
 `weibo` 后面直接接下面表格里的命令，例如 `weibo tweet comments Rnzctqb28 --guest`。
 
 ## 通用约定
@@ -13,7 +13,7 @@
 | 普通命令输出 | 默认格式化 JSON 到 stdout；多数查询命令可用 `--format markdown`（`md` 同义）换成可读卡片 / 列表 |
 | `-stream` 命令输出 | NDJSON，每行一个 `progress` / `item` / `done` 事件 |
 | 错误输出 | 单行 JSON 到 stderr，字段 `code` / `level` / `retryable` / `message` / `endpoint` / `context` |
-| 退出码 | 0 成功；非 0 表示失败（脚本层环境错误是 64 / 78） |
+| 退出码 | 0 成功；非 0 表示失败（脚本找不到可用入口是 64） |
 | 日期参数 | `--since` / `--until` / `--starttime` / `--endtime` 接受 `YYYY-MM-DD`、`YYYYMMDD` 或 unix 秒，含当天 |
 
 ## 命令树
